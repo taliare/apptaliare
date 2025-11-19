@@ -27,7 +27,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { UserPlus, Pencil } from 'lucide-react';
+import { UserPlus, Pencil, Key, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
@@ -44,7 +54,10 @@ export default function Usuarios() {
   const [profiles, setProfiles] = useState<ProfileWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<ProfileWithRole | null>(null);
+  const [selectedUser, setSelectedUser] = useState<ProfileWithRole | null>(null);
   
   // Form state
   const [nome, setNome] = useState('');
@@ -55,6 +68,7 @@ export default function Usuarios() {
   const [habilitarKanban, setHabilitarKanban] = useState(true);
   const [habilitarCobrancaDiaria, setHabilitarCobrancaDiaria] = useState(true);
   const [senha, setSenha] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
 
   useEffect(() => {
     loadProfiles();
@@ -316,6 +330,86 @@ export default function Usuarios() {
     return roles[role] || role;
   };
 
+  const openPasswordDialog = (user: ProfileWithRole) => {
+    setSelectedUser(user);
+    setNovaSenha('');
+    setPasswordDialogOpen(true);
+  };
+
+  const openDeleteDialog = (user: ProfileWithRole) => {
+    setSelectedUser(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleChangePassword = async () => {
+    if (!selectedUser || !novaSenha) {
+      toast.error('Digite uma nova senha');
+      return;
+    }
+
+    if (novaSenha.length < 8) {
+      toast.error('A senha deve ter no mínimo 8 caracteres');
+      return;
+    }
+
+    if (!/[A-Z]/.test(novaSenha)) {
+      toast.error('A senha deve conter pelo menos uma letra maiúscula');
+      return;
+    }
+
+    if (!/[a-z]/.test(novaSenha)) {
+      toast.error('A senha deve conter pelo menos uma letra minúscula');
+      return;
+    }
+
+    if (!/[0-9]/.test(novaSenha)) {
+      toast.error('A senha deve conter pelo menos um número');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.functions.invoke('admin-update-password', {
+        body: { userId: selectedUser.id, newPassword: novaSenha }
+      });
+
+      if (error) throw error;
+
+      toast.success('Senha alterada com sucesso!');
+      setPasswordDialogOpen(false);
+      setNovaSenha('');
+      setSelectedUser(null);
+    } catch (error: any) {
+      toast.error('Erro ao alterar senha: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { userId: selectedUser.id }
+      });
+
+      if (error) throw error;
+
+      toast.success('Usuário excluído com sucesso!');
+      setDeleteDialogOpen(false);
+      setSelectedUser(null);
+      loadProfiles();
+    } catch (error: any) {
+      toast.error('Erro ao excluir usuário: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -362,13 +456,33 @@ export default function Usuarios() {
                       />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(profile)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(profile)}
+                          title="Editar usuário"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openPasswordDialog(profile)}
+                          title="Alterar senha"
+                        >
+                          <Key className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openDeleteDialog(profile)}
+                          title="Excluir usuário"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -506,6 +620,70 @@ export default function Usuarios() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Alteração de Senha */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Alterar Senha</DialogTitle>
+            <DialogDescription>
+              Digite a nova senha para {selectedUser?.nome}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="novaSenha">Nova Senha *</Label>
+              <Input
+                id="novaSenha"
+                type="password"
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+              />
+              <p className="text-xs text-muted-foreground">
+                A senha deve conter: mínimo 8 caracteres, uma letra maiúscula, uma minúscula e um número
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPasswordDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleChangePassword} disabled={loading}>
+              {loading ? 'Alterando...' : 'Alterar Senha'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Exclusão */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o usuário <strong>{selectedUser?.nome}</strong>?
+              Esta ação não pode ser desfeita e todos os dados relacionados a este usuário serão removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={loading}
+            >
+              {loading ? 'Excluindo...' : 'Excluir Usuário'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
