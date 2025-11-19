@@ -53,8 +53,8 @@ export function AppSidebar() {
         <SidebarTrigger />
       </div>
 
-      <SidebarContent>
-        <SidebarGroup>
+      <SidebarContent className="flex flex-col h-full">
+        <SidebarGroup className="flex-1">
           <SidebarGroupLabel>{profile?.role === 'admin' ? 'Admin' : 'Menu'}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -72,8 +72,16 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Botão de sair no rodapé */}
+        <SidebarGroup className="mt-auto border-t border-sidebar-border pt-2">
+          <SidebarGroupContent>
+            <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={signOut}>
+                <SidebarMenuButton onClick={signOut} className="hover:bg-destructive/10 hover:text-destructive">
                   <LogOut className="h-4 w-4" />
                   {!collapsed && <span>Sair</span>}
                 </SidebarMenuButton>
