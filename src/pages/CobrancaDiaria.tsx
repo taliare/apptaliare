@@ -133,7 +133,7 @@ export default function CobrancaDiaria() {
     enabled: !!user?.id,
   });
 
-  // Query for histórico
+  // Query for histórico de fechamentos
   const { data: historico = [] } = useQuery({
     queryKey: ['historico-cobrancas', user?.id],
     queryFn: async () => {
@@ -141,11 +141,34 @@ export default function CobrancaDiaria() {
         .from('cobrancas_diarias')
         .select('*')
         .eq('representante_id', user?.id)
+        .eq('finalizado', true)
         .order('data', { ascending: false })
-        .limit(10);
+        .limit(30);
       
       if (error) throw error;
       return data as CobrancaDiaria[];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Query para contar notas por dia
+  const { data: notasPorDia = {} } = useQuery({
+    queryKey: ['notas-por-dia', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notas_promissorias')
+        .select('data')
+        .eq('representante_id', user?.id);
+      
+      if (error) throw error;
+      
+      // Agrupar por data e contar
+      const contagem: Record<string, number> = {};
+      data.forEach((nota) => {
+        contagem[nota.data] = (contagem[nota.data] || 0) + 1;
+      });
+      
+      return contagem;
     },
     enabled: !!user?.id,
   });
@@ -724,7 +747,7 @@ export default function CobrancaDiaria() {
         </CardContent>
       </Card>
 
-      {/* Histórico */}
+      {/* Histórico de Fechamentos */}
       <Card>
         <CardHeader>
           <CardTitle>Histórico de Fechamentos</CardTitle>
@@ -732,49 +755,50 @@ export default function CobrancaDiaria() {
         <CardContent>
           {historico.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              Nenhum fechamento registrado
+              Nenhum fechamento registrado ainda
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Total Cobrado</TableHead>
-                  <TableHead>Total PIX</TableHead>
-                  <TableHead>Total Dinheiro</TableHead>
-                  <TableHead>Total Cartão</TableHead>
-                  <TableHead>Despesas</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {historico.map((cobranca) => (
-                  <TableRow key={cobranca.id}>
-                    <TableCell className="font-medium">
-                      {format(new Date(cobranca.data + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell>{formatarValor(cobranca.total_cobrado)}</TableCell>
-                    <TableCell>{formatarValor(cobranca.total_pix || 0)}</TableCell>
-                    <TableCell>{formatarValor(cobranca.total_dinheiro || 0)}</TableCell>
-                    <TableCell>{formatarValor(cobranca.total_cartao || 0)}</TableCell>
-                    <TableCell>{formatarValor(cobranca.despesa_cobranca || 0)}</TableCell>
-                    <TableCell>
-                      {cobranca.finalizado ? (
-                        <Badge variant="default">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Finalizado
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Aberto
-                        </Badge>
-                      )}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead className="text-right">Total Cobrado</TableHead>
+                    <TableHead className="text-right">Despesas</TableHead>
+                    <TableHead className="text-right">Qtd Notas</TableHead>
+                    <TableHead className="text-right">Saldo do Dia</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {historico.map((cobranca) => {
+                    const qtdNotas = notasPorDia[cobranca.data] || 0;
+                    const saldo = cobranca.total_cobrado - (cobranca.despesa_cobranca || 0);
+                    
+                    return (
+                      <TableRow key={cobranca.id}>
+                        <TableCell className="font-medium">
+                          {format(new Date(cobranca.data + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatarValor(cobranca.total_cobrado)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatarValor(cobranca.despesa_cobranca || 0)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="secondary" className="font-semibold">
+                            {formatarNumero(qtdNotas)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-foreground">
+                          {formatarValor(saldo)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
