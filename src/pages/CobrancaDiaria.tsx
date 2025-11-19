@@ -270,11 +270,11 @@ export default function CobrancaDiaria() {
     if (nota) {
       setEditingNota(nota);
       setCodigoNota(nota.codigo_nota);
-      setValorTotal(nota.valor_total.toString());
+      setValorTotal(nota.valor_total.toFixed(2));
       setFormaPagamento1(nota.forma_pagamento_1);
-      setValorPagamento1(nota.valor_pagamento_1.toString());
+      setValorPagamento1(nota.valor_pagamento_1.toFixed(2));
       setFormaPagamento2(nota.forma_pagamento_2 || '');
-      setValorPagamento2(nota.valor_pagamento_2?.toString() || '');
+      setValorPagamento2(nota.valor_pagamento_2 ? nota.valor_pagamento_2.toFixed(2) : '');
     } else {
       resetNotaForm();
       setEditingNota(null);
@@ -293,7 +293,11 @@ export default function CobrancaDiaria() {
     const vPag1 = parseFloat(valorPagamento1);
     const vPag2 = valorPagamento2 ? parseFloat(valorPagamento2) : 0;
 
-    if (vPag1 + vPag2 !== vTotal) {
+    // Validação com tolerância para problemas de precisão de ponto flutuante
+    const soma = Math.round((vPag1 + vPag2) * 100) / 100;
+    const total = Math.round(vTotal * 100) / 100;
+    
+    if (Math.abs(soma - total) > 0.01) {
       toast.error('A soma dos pagamentos deve ser igual ao valor total');
       return;
     }
@@ -311,7 +315,7 @@ export default function CobrancaDiaria() {
       forma_pagamento_1: formaPagamento1,
       valor_pagamento_1: vPag1,
       forma_pagamento_2: formaPagamento2 || null,
-      valor_pagamento_2: vPag2 || null,
+      valor_pagamento_2: vPag2 > 0 ? vPag2 : null,
     };
 
     if (editingNota) {
