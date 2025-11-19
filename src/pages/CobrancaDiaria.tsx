@@ -312,6 +312,28 @@ export default function CobrancaDiaria() {
     setIsNotaDialogOpen(true);
   };
 
+  const handleDevolveuTudo = () => {
+    // Validação mínima
+    if (!codigoNota) {
+      toast.error('Preencha o código da nota');
+      return;
+    }
+
+    const notaDevolvida = {
+      representante_id: user!.id,
+      data: dateStr,
+      codigo_nota: codigoNota,
+      valor_total: 0,
+      forma_pagamento_1: 'pix' as const,
+      valor_pagamento_1: 0,
+      forma_pagamento_2: null,
+      valor_pagamento_2: null,
+    };
+
+    addNotaMutation.mutate(notaDevolvida);
+    toast.success('Nota registrada como devolução total.');
+  };
+
   const handleSubmitNota = () => {
     // Validações
     if (!codigoNota || !valorTotal || !valorPagamento1) {
@@ -531,10 +553,19 @@ export default function CobrancaDiaria() {
                   </div>
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button variant="outline" onClick={() => setIsNotaDialogOpen(false)}>
                   Cancelar
                 </Button>
+                {!editingNota && (
+                  <Button 
+                    variant="secondary" 
+                    onClick={handleDevolveuTudo}
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    Devolveu tudo
+                  </Button>
+                )}
                 <Button onClick={handleSubmitNota}>
                   {editingNota ? 'Atualizar' : 'Adicionar'}
                 </Button>
