@@ -57,6 +57,26 @@ export default function Cobranca() {
     observacoes: '',
   });
 
+  // Função para formatar valor monetário durante digitação
+  const formatarValorInput = (valor: string): string => {
+    const apenasNumeros = valor.replace(/\D/g, '');
+    if (!apenasNumeros) return '';
+    const numero = parseFloat(apenasNumeros) / 100;
+    return numero.toFixed(2);
+  };
+
+  // Converter valor formatado (R$ 0,00) para número
+  const parseValorFormatado = (valor: string): number => {
+    const numeros = valor.replace(/\D/g, '');
+    if (!numeros) return 0;
+    return parseFloat(numeros) / 100;
+  };
+
+  const handleValorChange = (valor: string) => {
+    const valorFormatado = formatarValorInput(valor);
+    setFormData({ ...formData, valor_previsto: valorFormatado });
+  };
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUserId(data.user?.id || null);
@@ -98,7 +118,7 @@ export default function Cobranca() {
       const { error } = await supabase.from('cobrancas_agendadas').insert({
         representante_id: userId,
         revendedora: data.revendedora,
-        valor_previsto: parseFloat(data.valor_previsto),
+        valor_previsto: parseValorFormatado(data.valor_previsto),
         data_agendada: data.data_agendada,
         observacoes: data.observacoes || null,
         status: 'pendente',
@@ -178,7 +198,7 @@ export default function Cobranca() {
         id: editingCobranca.id,
         data: {
           revendedora: formData.revendedora,
-          valor_previsto: parseFloat(formData.valor_previsto),
+          valor_previsto: parseValorFormatado(formData.valor_previsto),
           data_agendada: formData.data_agendada,
           observacoes: formData.observacoes || null,
         },
@@ -192,7 +212,7 @@ export default function Cobranca() {
     setEditingCobranca(cobranca);
     setFormData({
       revendedora: cobranca.revendedora,
-      valor_previsto: cobranca.valor_previsto.toString(),
+      valor_previsto: cobranca.valor_previsto.toFixed(2),
       data_agendada: cobranca.data_agendada,
       observacoes: cobranca.observacoes || '',
     });
@@ -275,14 +295,17 @@ export default function Cobranca() {
               
               <div className="space-y-2">
                 <Label htmlFor="valor_previsto">Valor Previsto *</Label>
-                <Input
-                  id="valor_previsto"
-                  type="number"
-                  step="0.01"
-                  value={formData.valor_previsto}
-                  onChange={(e) => setFormData({ ...formData, valor_previsto: e.target.value })}
-                  placeholder="0.00"
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">R$</span>
+                  <Input
+                    id="valor_previsto"
+                    type="text"
+                    value={formData.valor_previsto}
+                    onChange={(e) => handleValorChange(e.target.value)}
+                    placeholder="0,00"
+                    className="pl-10"
+                  />
+                </div>
               </div>
               
               <div className="space-y-2">
