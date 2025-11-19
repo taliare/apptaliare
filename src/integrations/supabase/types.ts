@@ -314,6 +314,7 @@ export type Database = {
         Row: {
           ativo: boolean | null
           criado_em: string | null
+          email: string | null
           habilitar_cobranca_diaria: boolean | null
           habilitar_dashboard: boolean | null
           habilitar_kanban: boolean | null
@@ -323,6 +324,7 @@ export type Database = {
         Insert: {
           ativo?: boolean | null
           criado_em?: string | null
+          email?: string | null
           habilitar_cobranca_diaria?: boolean | null
           habilitar_dashboard?: boolean | null
           habilitar_kanban?: boolean | null
@@ -332,6 +334,7 @@ export type Database = {
         Update: {
           ativo?: boolean | null
           criado_em?: string | null
+          email?: string | null
           habilitar_cobranca_diaria?: boolean | null
           habilitar_dashboard?: boolean | null
           habilitar_kanban?: boolean | null
