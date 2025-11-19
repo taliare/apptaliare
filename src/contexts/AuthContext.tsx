@@ -6,11 +6,11 @@ import { useNavigate } from 'react-router-dom';
 interface Profile {
   id: string;
   nome: string;
-  role: 'admin' | 'representante' | 'producao';
   ativo: boolean;
   habilitar_cobranca_diaria: boolean;
   habilitar_kanban: boolean;
   habilitar_dashboard: boolean;
+  role: 'admin' | 'representante' | 'producao'; // Combined from user_roles
 }
 
 interface AuthContextType {
@@ -27,7 +27,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<(Profile & { role: 'admin' | 'representante' | 'producao' }) | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -65,14 +65,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // Fetch profile data
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
-      setProfile(data);
+      if (profileError) throw profileError;
+
+      // Fetch user role from user_roles table
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .single();
+
+      if (roleError) throw roleError;
+
+      // Combine profile and role data
+      setProfile({
+        ...profileData,
+        role: roleData.role
+      });
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
