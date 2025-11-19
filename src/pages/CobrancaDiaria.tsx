@@ -568,7 +568,7 @@ export default function CobrancaDiaria() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="total_pix">Total PIX (calculado automaticamente)</Label>
+              <Label htmlFor="total_pix">Total PIX</Label>
               <Input
                 id="total_pix"
                 type="text"
@@ -578,7 +578,7 @@ export default function CobrancaDiaria() {
               />
             </div>
             <div>
-              <Label htmlFor="total_dinheiro">Total Dinheiro (calculado automaticamente)</Label>
+              <Label htmlFor="total_dinheiro">Total Dinheiro</Label>
               <Input
                 id="total_dinheiro"
                 type="text"
@@ -588,7 +588,7 @@ export default function CobrancaDiaria() {
               />
             </div>
             <div>
-              <Label htmlFor="total_cartao">Total Cartão (calculado automaticamente)</Label>
+              <Label htmlFor="total_cartao">Total Cartão</Label>
               <Input
                 id="total_cartao"
                 type="text"
