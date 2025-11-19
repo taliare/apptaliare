@@ -68,6 +68,28 @@ export default function CobrancaDiaria() {
   // Form states for Cobrança Diária
   const [despesaCobranca, setDespesaCobranca] = useState('');
 
+  // Função para formatar valor monetário durante digitação
+  const formatarValorInput = (valor: string): string => {
+    // Remove tudo que não é número
+    const apenasNumeros = valor.replace(/\D/g, '');
+    
+    if (!apenasNumeros) return '';
+    
+    // Converte para número e divide por 100 para ter 2 casas decimais
+    const numero = parseFloat(apenasNumeros) / 100;
+    
+    // Formata com 2 casas decimais
+    return numero.toFixed(2);
+  };
+
+  const handleValorChange = (
+    valor: string,
+    setter: (v: string) => void
+  ) => {
+    const valorFormatado = formatarValorInput(valor);
+    setter(valorFormatado);
+  };
+
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
   // Query for notas promissórias do dia
@@ -390,14 +412,19 @@ export default function CobrancaDiaria() {
 
                 <div>
                   <Label htmlFor="valor_total">Valor Total *</Label>
-                  <Input
-                    id="valor_total"
-                    type="number"
-                    step="0.01"
-                    value={valorTotal}
-                    onChange={(e) => setValorTotal(e.target.value)}
-                    placeholder="0.00"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      R$
+                    </span>
+                    <Input
+                      id="valor_total"
+                      type="text"
+                      value={valorTotal}
+                      onChange={(e) => handleValorChange(e.target.value, setValorTotal)}
+                      placeholder="0,00"
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -418,14 +445,19 @@ export default function CobrancaDiaria() {
 
                   <div>
                     <Label htmlFor="valor_pagamento_1">Valor Pagamento 1 *</Label>
-                    <Input
-                      id="valor_pagamento_1"
-                      type="number"
-                      step="0.01"
-                      value={valorPagamento1}
-                      onChange={(e) => setValorPagamento1(e.target.value)}
-                      placeholder="0.00"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        R$
+                      </span>
+                      <Input
+                        id="valor_pagamento_1"
+                        type="text"
+                        value={valorPagamento1}
+                        onChange={(e) => handleValorChange(e.target.value, setValorPagamento1)}
+                        placeholder="0,00"
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -447,15 +479,20 @@ export default function CobrancaDiaria() {
 
                   <div>
                     <Label htmlFor="valor_pagamento_2">Valor Pagamento 2</Label>
-                    <Input
-                      id="valor_pagamento_2"
-                      type="number"
-                      step="0.01"
-                      value={valorPagamento2}
-                      onChange={(e) => setValorPagamento2(e.target.value)}
-                      placeholder="0.00"
-                      disabled={!formaPagamento2}
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        R$
+                      </span>
+                      <Input
+                        id="valor_pagamento_2"
+                        type="text"
+                        value={valorPagamento2}
+                        onChange={(e) => handleValorChange(e.target.value, setValorPagamento2)}
+                        placeholder="0,00"
+                        className="pl-10"
+                        disabled={!formaPagamento2}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -599,15 +636,20 @@ export default function CobrancaDiaria() {
             </div>
             <div>
               <Label htmlFor="despesa_cobranca">Despesa de Cobrança</Label>
-              <Input
-                id="despesa_cobranca"
-                type="number"
-                step="0.01"
-                value={despesaCobranca}
-                onChange={(e) => setDespesaCobranca(e.target.value)}
-                placeholder="0.00"
-                disabled={isDiaFinalizado}
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  R$
+                </span>
+                <Input
+                  id="despesa_cobranca"
+                  type="text"
+                  value={despesaCobranca}
+                  onChange={(e) => handleValorChange(e.target.value, setDespesaCobranca)}
+                  placeholder="0,00"
+                  className="pl-10"
+                  disabled={isDiaFinalizado}
+                />
+              </div>
             </div>
           </div>
 
