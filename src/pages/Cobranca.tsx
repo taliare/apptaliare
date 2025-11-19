@@ -730,6 +730,9 @@ function CobrancaCard({
                   e.stopPropagation();
                   onEdit(cobranca);
                 }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
                 className="flex-1"
               >
                 <Edit className="h-3 w-3 mr-1" />
@@ -743,6 +746,9 @@ function CobrancaCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   onPagar(cobranca);
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
                 }}
                 className="flex-1"
               >
