@@ -581,15 +581,25 @@ export default function Cobranca() {
       </DndContext>
 
       {/* Modal de Receber Cobrança */}
-      {cobrancaParaPagar && (
-        <ModalReceberCobranca
-          open={!!cobrancaParaPagar}
-          onOpenChange={(open) => !open && setCobrancaParaPagar(null)}
-          cobranca={cobrancaParaPagar}
-          onPagamentoCompleto={(dados) => handlePagamentoCompleto(cobrancaParaPagar.id, dados)}
-          onPagamentoParcial={(dados) => handlePagamentoParcial(cobrancaParaPagar.id, dados)}
-        />
-      )}
+      <ModalReceberCobranca
+        open={!!cobrancaParaPagar}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCobrancaParaPagar(null);
+          }
+        }}
+        cobranca={cobrancaParaPagar || { id: '', revendedora: '', valor_previsto: 0 }}
+        onPagamentoCompleto={async (dados) => {
+          if (cobrancaParaPagar) {
+            await handlePagamentoCompleto(cobrancaParaPagar.id, dados);
+          }
+        }}
+        onPagamentoParcial={async (dados) => {
+          if (cobrancaParaPagar) {
+            await handlePagamentoParcial(cobrancaParaPagar.id, dados);
+          }
+        }}
+      />
 
       {/* Modal de Senha Admin */}
       <ModalSenhaAdmin
@@ -737,7 +747,7 @@ function CobrancaCard({
                 className="flex-1"
               >
                 <CreditCard className="h-3 w-3 mr-1" />
-                Pagar
+                Cobrar
               </Button>
             )}
           </div>
