@@ -14,7 +14,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import taliare_logo from '@/assets/taliare-logo.png';
+import taliare_horizontal from '@/assets/taliare-horizontal-escuro.png';
+import taliare_icone from '@/assets/taliare-icone-escuro.png';
 
 export function AppSidebar() {
   const { profile, signOut } = useAuth();
@@ -41,11 +42,15 @@ export function AppSidebar() {
 
   return (
     <Sidebar className={collapsed ? 'w-14' : 'w-60'} collapsible="icon">
-      <div className="flex items-center justify-between p-4">
-        {!collapsed && (
-          <img src={taliare_logo} alt="TALIARE" className="h-12 w-auto" />
+      <div className="flex items-center justify-center p-4">
+        {collapsed ? (
+          <img src={taliare_icone} alt="TALIARE" className="h-10 w-10" />
+        ) : (
+          <img src={taliare_horizontal} alt="TALIARE SEMIJOIAS" className="h-10 w-auto" />
         )}
-        <SidebarTrigger className="ml-auto" />
+      </div>
+      <div className="flex justify-center pb-2">
+        <SidebarTrigger />
       </div>
 
       <SidebarContent>
