@@ -227,7 +227,7 @@ export default function Usuarios() {
       if (signUpError) throw signUpError;
       if (!signUpData.user) throw new Error('Usuário não criado');
 
-      // Update profile settings (role is handled by trigger)
+      // Update profile settings (role is handled by trigger, email is set by trigger)
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -439,6 +439,7 @@ export default function Usuarios() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
                   <TableHead>Perfil</TableHead>
                   <TableHead className="text-center">Ativo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -448,6 +449,7 @@ export default function Usuarios() {
                 {profiles.map((profile) => (
                   <TableRow key={profile.id}>
                     <TableCell className="font-medium">{profile.nome}</TableCell>
+                    <TableCell className="text-muted-foreground">{profile.email || '-'}</TableCell>
                     <TableCell>{getRoleName(profile.role)}</TableCell>
                     <TableCell className="text-center">
                       <Switch
