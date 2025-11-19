@@ -82,6 +82,13 @@ export default function CobrancaDiaria() {
     return numero.toFixed(2);
   };
 
+  // Converter valor formatado (R$ 0,00) para número
+  const parseValorFormatado = (valor: string): number => {
+    const numeros = valor.replace(/\D/g, '');
+    if (!numeros) return 0;
+    return parseFloat(numeros) / 100;
+  };
+
   const handleValorChange = (
     valor: string,
     setter: (v: string) => void
@@ -222,7 +229,7 @@ export default function CobrancaDiaria() {
         total_pix: totalPixCalculado,
         total_dinheiro: totalDinheiroCalculado,
         total_cartao: totalCartaoCalculado,
-        despesa_cobranca: parseFloat(despesaCobranca) || 0,
+        despesa_cobranca: parseValorFormatado(despesaCobranca) || 0,
         finalizado: true,
       };
 
@@ -289,9 +296,9 @@ export default function CobrancaDiaria() {
       return;
     }
 
-    const vTotal = parseFloat(valorTotal);
-    const vPag1 = parseFloat(valorPagamento1);
-    const vPag2 = valorPagamento2 ? parseFloat(valorPagamento2) : 0;
+    const vTotal = parseValorFormatado(valorTotal);
+    const vPag1 = parseValorFormatado(valorPagamento1);
+    const vPag2 = valorPagamento2 ? parseValorFormatado(valorPagamento2) : 0;
 
     // Validação com tolerância para problemas de precisão de ponto flutuante
     const soma = Math.round((vPag1 + vPag2) * 100) / 100;
