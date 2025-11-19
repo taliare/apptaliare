@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
+import Setup from "./pages/Setup";
 import Dashboard from "./pages/Dashboard";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import Cobranca from "./pages/Cobranca";
@@ -30,6 +31,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/setup" element={<Setup />} />
             
             <Route path="/*" element={
               <ProtectedRoute>
