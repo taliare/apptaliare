@@ -611,15 +611,36 @@ export default function CobrancaDiaria() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Cobrado (soma das notas)</p>
-              <p className="text-2xl font-bold">R$ {totalCobradoCalculado.toFixed(2)}</p>
+          <div className="space-y-4">
+            {/* Resumo Financeiro */}
+            <div className="p-4 bg-muted rounded-lg space-y-3">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <p className="text-sm text-muted-foreground">Total Cobrado (soma das notas)</p>
+                <p className="text-xl font-bold">R$ {totalCobradoCalculado.toFixed(2)}</p>
+              </div>
+              
+              {despesaCobranca && parseFloat(despesaCobranca) > 0 && (
+                <>
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <p className="text-sm text-muted-foreground">Despesa de Cobrança</p>
+                    <p className="text-xl font-semibold text-destructive">- R$ {parseFloat(despesaCobranca).toFixed(2)}</p>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-sm font-semibold text-foreground">Saldo Final</p>
+                    <p className="text-2xl font-bold text-primary">
+                      R$ {(totalCobradoCalculado - parseFloat(despesaCobranca)).toFixed(2)}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
+
+            {/* Botão Finalizar */}
             {!isDiaFinalizado && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="lg" disabled={notas.length === 0}>
+                  <Button size="lg" className="w-full" disabled={notas.length === 0}>
                     <CheckCircle2 className="h-4 w-4 mr-2" />
                     Finalizar Dia
                   </Button>
