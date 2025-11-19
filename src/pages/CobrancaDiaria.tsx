@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { cn, formatarValor } from '@/lib/utils';
+import { cn, formatarValor, formatarNumero } from '@/lib/utils';
 
 interface NotaPromissoria {
   id: string;
@@ -342,6 +342,7 @@ export default function CobrancaDiaria() {
   };
 
   const totalCobradoCalculado = notas.reduce((acc, nota) => acc + nota.valor_total, 0);
+  const totalNotasDoDia = notas.length;
   
   // Calcular totais por forma de pagamento automaticamente
   const totaisPorFormaPagamento = notas.reduce((acc, nota) => {
@@ -667,6 +668,11 @@ export default function CobrancaDiaria() {
           <div className="space-y-4">
             {/* Resumo Financeiro */}
             <div className="p-4 bg-muted rounded-lg space-y-3">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <p className="text-sm text-muted-foreground">Total de notas cobradas</p>
+                <p className="text-xl font-bold">{formatarNumero(totalNotasDoDia)}</p>
+              </div>
+              
               <div className="flex items-center justify-between border-b border-border pb-2">
                 <p className="text-sm text-muted-foreground">Total Cobrado (soma das notas)</p>
                 <p className="text-xl font-bold">{formatarValor(totalCobradoCalculado)}</p>
