@@ -119,7 +119,7 @@ export default function Usuarios() {
   const openEditDialog = (user: ProfileWithRole) => {
     setEditingUser(user);
     setNome(user.nome);
-    setEmail('');
+    setEmail(user.email || '');
     setRole(user.role);
     setAtivo(user.ativo || false);
     setHabilitarDashboard(user.habilitar_dashboard || false);
@@ -269,6 +269,20 @@ export default function Usuarios() {
       return;
     }
 
+    // Validar email se foi fornecido
+    if (email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        toast.error('Por favor, insira um email válido');
+        return;
+      }
+
+      if (email.length > 255) {
+        toast.error('O email deve ter no máximo 255 caracteres');
+        return;
+      }
+    }
+
     try {
       setLoading(true);
 
@@ -293,6 +307,15 @@ export default function Usuarios() {
         .eq('user_id', editingUser.id);
 
       if (roleError) throw roleError;
+
+      // Update email if changed and provided
+      if (email.trim() && email.trim() !== editingUser.email) {
+        const { error: emailError } = await supabase.functions.invoke('admin-update-email', {
+          body: { userId: editingUser.id, newEmail: email.trim() },
+        });
+
+        if (emailError) throw emailError;
+      }
 
       toast.success('Usuário atualizado com sucesso!');
       setDialogOpen(false);
@@ -546,6 +569,22 @@ export default function Usuarios() {
                     />
                   </div>
                 </>
+              )}
+
+              {editingUser && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@exemplo.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Deixe em branco para manter o email atual
+                  </p>
+                </div>
               )}
 
               <div className="space-y-2">
