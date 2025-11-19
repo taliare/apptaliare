@@ -14,7 +14,7 @@ export function MobileTopbar({ onMenuClick }: MobileTopbarProps) {
         variant="ghost"
         size="icon"
         onClick={onMenuClick}
-        className="text-[#531B24] hover:bg-[#C6B7A2]/50"
+        className="bg-[#531B24] text-white hover:bg-[#6A2931]"
       >
         <Menu className="h-6 w-6" />
       </Button>
