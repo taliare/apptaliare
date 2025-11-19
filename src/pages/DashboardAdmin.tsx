@@ -1,7 +1,166 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, TrendingUp, Package, FileText, Users } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
+import { DollarSign, TrendingUp, Package, FileText, Users, TrendingDown } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { formatarValor, formatarNumero } from '@/lib/utils';
+
+interface Profile {
+  id: string;
+  nome: string;
+  email: string | null;
+  ativo: boolean | null;
+}
+
+interface CobrancaData {
+  representante_id: string;
+  total_cobrado: number;
+  total_despesas: number;
+}
+
+interface MetaData {
+  representante_id: string;
+  meta_valor: number;
+}
 
 export default function DashboardAdmin() {
+  const mesAtual = format(new Date(), 'yyyy-MM');
+  const inicioMes = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+  const fimMes = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+  const hoje = format(new Date(), 'yyyy-MM-dd');
+
+  // Query para representantes ativos
+  const { data: representantes = [] } = useQuery({
+    queryKey: ['representantes-ativos'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, nome, email, ativo')
+        .eq('ativo', true)
+        .order('nome');
+      
+      if (error) throw error;
+      return data as Profile[];
+    },
+  });
+
+  // Query para cobranças do mês
+  const { data: cobrancasMes = [] } = useQuery({
+    queryKey: ['cobrancas-mes-admin', mesAtual],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cobrancas_diarias')
+        .select('representante_id, total_cobrado, despesa_cobranca')
+        .gte('data', inicioMes)
+        .lte('data', fimMes);
+      
+      if (error) throw error;
+      
+      // Agrupa por representante
+      const agrupado = data.reduce((acc: Record<string, CobrancaData>, curr) => {
+        const id = curr.representante_id;
+        if (!acc[id]) {
+          acc[id] = {
+            representante_id: id,
+            total_cobrado: 0,
+            total_despesas: 0,
+          };
+        }
+        acc[id].total_cobrado += curr.total_cobrado || 0;
+        acc[id].total_despesas += curr.despesa_cobranca || 0;
+        return acc;
+      }, {});
+      
+      return Object.values(agrupado);
+    },
+  });
+
+  // Query para cobranças de hoje
+  const { data: cobrancasHoje = [] } = useQuery({
+    queryKey: ['cobrancas-hoje-admin', hoje],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cobrancas_diarias')
+        .select('total_cobrado')
+        .eq('data', hoje);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Query para kits do mês
+  const { data: kitsData } = useQuery({
+    queryKey: ['kits-mes-admin', mesAtual],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kits_entregues')
+        .select('id', { count: 'exact' })
+        .gte('data_entrega', inicioMes)
+        .lte('data_entrega', fimMes);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Query para notas promissórias do mês
+  const { data: notasData } = useQuery({
+    queryKey: ['notas-mes-admin', mesAtual],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notas_promissorias')
+        .select('id', { count: 'exact' })
+        .gte('data', inicioMes)
+        .lte('data', fimMes);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Query para metas do mês
+  const { data: metas = [] } = useQuery({
+    queryKey: ['metas-mes-admin', mesAtual],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('metas_cobranca')
+        .select('representante_id, meta_valor')
+        .eq('ano_mes', mesAtual)
+        .eq('ativo', true);
+      
+      if (error) throw error;
+      return data as MetaData[];
+    },
+  });
+
+  // Cálculos dos totais
+  const totalHoje = cobrancasHoje.reduce((sum, c) => sum + (c.total_cobrado || 0), 0);
+  const totalMes = cobrancasMes.reduce((sum, c) => sum + c.total_cobrado, 0);
+  const totalDespesas = cobrancasMes.reduce((sum, c) => sum + c.total_despesas, 0);
+  const totalKits = kitsData?.length || 0;
+  const totalNotas = notasData?.length || 0;
+
+  // Combina dados dos representantes com suas cobranças e metas
+  const representantesComDados = representantes.map(rep => {
+    const cobranca = cobrancasMes.find(c => c.representante_id === rep.id);
+    const meta = metas.find(m => m.representante_id === rep.id);
+    const realizado = cobranca?.total_cobrado || 0;
+    const metaValor = meta?.meta_valor || 0;
+    const percentual = metaValor > 0 ? (realizado / metaValor) * 100 : 0;
+
+    return {
+      ...rep,
+      realizado,
+      meta: metaValor,
+      percentual,
+      despesas: cobranca?.total_despesas || 0,
+    };
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -16,7 +175,7 @@ export default function DashboardAdmin() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 0,00</div>
+            <div className="text-2xl font-bold">{formatarValor(totalHoje)}</div>
           </CardContent>
         </Card>
 
@@ -26,17 +185,23 @@ export default function DashboardAdmin() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 0,00</div>
+            <div className="text-2xl font-bold">{formatarValor(totalMes)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Despesas</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 0,00</div>
+            <div className="text-2xl font-bold">{formatarValor(totalDespesas)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Líquido: {formatarValor(totalMes - totalDespesas)}
+            </p>
           </CardContent>
         </Card>
 
@@ -46,7 +211,8 @@ export default function DashboardAdmin() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{formatarNumero(totalKits)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Entregues no mês</p>
           </CardContent>
         </Card>
 
@@ -56,7 +222,8 @@ export default function DashboardAdmin() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0</div>
+            <div className="text-2xl font-bold">{formatarNumero(totalNotas)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Registradas no mês</p>
           </CardContent>
         </Card>
       </div>
@@ -66,15 +233,58 @@ export default function DashboardAdmin() {
           <CardTitle>Desempenho por Representante</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          {representantesComDados.length === 0 ? (
             <div className="flex items-center justify-center h-[200px] text-muted-foreground">
               <Users className="h-12 w-12 mr-4" />
               <div>
-                <p>Nenhum representante com dados ainda</p>
-                <p className="text-sm">Aguardando primeira cobrança...</p>
+                <p>Nenhum representante cadastrado</p>
+                <p className="text-sm">Cadastre representantes na seção de Usuários</p>
               </div>
             </div>
-          </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Representante</TableHead>
+                  <TableHead>Meta</TableHead>
+                  <TableHead>Realizado</TableHead>
+                  <TableHead>Despesas</TableHead>
+                  <TableHead>Líquido</TableHead>
+                  <TableHead>Progresso</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {representantesComDados.map((rep) => (
+                  <TableRow key={rep.id}>
+                    <TableCell className="font-medium">
+                      <div>
+                        <p>{rep.nome}</p>
+                        <p className="text-xs text-muted-foreground">{rep.email}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{rep.meta > 0 ? formatarValor(rep.meta) : '-'}</TableCell>
+                    <TableCell>{formatarValor(rep.realizado)}</TableCell>
+                    <TableCell>{formatarValor(rep.despesas)}</TableCell>
+                    <TableCell className="font-medium">
+                      {formatarValor(rep.realizado - rep.despesas)}
+                    </TableCell>
+                    <TableCell>
+                      {rep.meta > 0 ? (
+                        <div className="space-y-2 min-w-[120px]">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium">{rep.percentual.toFixed(1)}%</span>
+                          </div>
+                          <Progress value={Math.min(rep.percentual, 100)} />
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Sem meta</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
