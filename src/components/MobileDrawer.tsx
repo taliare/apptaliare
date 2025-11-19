@@ -55,8 +55,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
           </Button>
         </DrawerHeader>
 
-        <div className="flex flex-col h-full px-4 py-6">
-          <div className="flex-1 space-y-1">
+        <div className="flex flex-col h-[calc(100vh-80px)] px-4 py-6">
+          <div className="flex-1 space-y-1 overflow-y-auto">
             <p className="text-xs font-semibold text-muted-foreground mb-3 px-3">
               {profile?.role === 'admin' ? 'ADMIN' : 'MENU'}
             </p>
@@ -74,14 +74,14 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             ))}
           </div>
 
-          <div className="border-t border-[#C6B7A2] pt-4">
+          <div className="border-t border-[#C6B7A2] pt-4 mt-4">
             <Button
               variant="ghost"
               onClick={() => {
                 signOut();
                 onOpenChange(false);
               }}
-              className="w-full justify-start gap-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="w-full justify-start gap-3 text-[#531B24] hover:bg-[#E7D8C3]/50"
             >
               <LogOut className="h-5 w-5" />
               <span>Sair</span>
