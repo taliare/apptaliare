@@ -119,9 +119,32 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para notas promissórias do mês
-  const { data: notasData } = useQuery({
+  // Query para notas promissórias do mês (agrupadas por representante)
+  const { data: notasPorRepresentante = [] } = useQuery({
     queryKey: ['notas-mes-admin', mesAtual],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notas_promissorias')
+        .select('representante_id, id')
+        .gte('data', inicioMes)
+        .lte('data', fimMes);
+      
+      if (error) throw error;
+      
+      // Agrupa por representante e conta as notas
+      const agrupado = data.reduce((acc: Record<string, number>, curr) => {
+        const id = curr.representante_id;
+        acc[id] = (acc[id] || 0) + 1;
+        return acc;
+      }, {});
+      
+      return agrupado;
+    },
+  });
+
+  // Query para notas promissórias do mês (total geral)
+  const { data: notasData } = useQuery({
+    queryKey: ['notas-total-mes-admin', mesAtual],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notas_promissorias')
@@ -163,6 +186,8 @@ export default function DashboardAdmin() {
     const realizado = cobranca?.total_cobrado || 0;
     const metaValor = meta?.meta_valor || 0;
     const percentual = metaValor > 0 ? (realizado / metaValor) * 100 : 0;
+    const qtdNotas = notasPorRepresentante[rep.id] || 0;
+    const ticketMedio = qtdNotas > 0 ? realizado / qtdNotas : 0;
 
     return {
       ...rep,
@@ -170,6 +195,8 @@ export default function DashboardAdmin() {
       meta: metaValor,
       percentual,
       despesas: cobranca?.total_despesas || 0,
+      qtdNotas,
+      ticketMedio,
     };
   });
 
@@ -262,6 +289,8 @@ export default function DashboardAdmin() {
                   <TableHead>Realizado</TableHead>
                   <TableHead>Despesas</TableHead>
                   <TableHead>Líquido</TableHead>
+                  <TableHead>Qtd Notas</TableHead>
+                  <TableHead>Ticket Médio</TableHead>
                   <TableHead>Progresso</TableHead>
                 </TableRow>
               </TableHeader>
@@ -280,6 +309,8 @@ export default function DashboardAdmin() {
                     <TableCell className="font-medium">
                       {formatarValor(rep.realizado - rep.despesas)}
                     </TableCell>
+                    <TableCell>{formatarNumero(rep.qtdNotas)}</TableCell>
+                    <TableCell>{rep.qtdNotas > 0 ? formatarValor(rep.ticketMedio) : '-'}</TableCell>
                     <TableCell>
                       {rep.meta > 0 ? (
                         <div className="space-y-2 min-w-[120px]">

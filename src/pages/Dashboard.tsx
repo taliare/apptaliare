@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, TrendingUp, DollarSign, Target, TrendingDown } from 'lucide-react';
+import { Package, TrendingUp, DollarSign, Target, TrendingDown, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
@@ -83,10 +83,29 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
+  // Query para notas promissórias do mês
+  const { data: notasDoMes = [] } = useQuery({
+    queryKey: ['notas-mes', user?.id, mesAtual],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notas_promissorias')
+        .select('id, valor_total')
+        .eq('representante_id', user!.id)
+        .gte('data', inicioMes)
+        .lte('data', fimMes);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   // Cálculos
   const totalCobrado = cobrancas.reduce((sum, c) => sum + c.total_cobrado, 0);
   const totalDespesas = cobrancas.reduce((sum, c) => sum + (c.despesa_cobranca || 0), 0);
   const totalKits = kitsDoMes.length;
+  const totalNotas = notasDoMes.length;
+  const ticketMedio = totalNotas > 0 ? totalCobrado / totalNotas : 0;
   
   const percentualMeta = metaDoMes?.meta_valor 
     ? (totalCobrado / metaDoMes.meta_valor) * 100 
@@ -133,7 +152,7 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Acompanhe seu desempenho e metas</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Cobrado (Mês)</CardTitle>
@@ -143,6 +162,32 @@ export default function Dashboard() {
             <div className="text-2xl font-bold">{formatarValor(totalCobrado)}</div>
             <p className="text-xs text-muted-foreground">
               {formatarNumero(cobrancas.length)} dia{cobrancas.length !== 1 ? 's' : ''} de cobrança
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Notas Cobradas (Mês)</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatarNumero(totalNotas)}</div>
+            <p className="text-xs text-muted-foreground">
+              Notas promissórias
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatarValor(ticketMedio)}</div>
+            <p className="text-xs text-muted-foreground">
+              Valor médio por nota
             </p>
           </CardContent>
         </Card>
