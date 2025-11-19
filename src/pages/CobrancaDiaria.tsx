@@ -421,7 +421,6 @@ export default function CobrancaDiaria() {
                         <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Nenhuma</SelectItem>
                         <SelectItem value="pix">PIX</SelectItem>
                         <SelectItem value="dinheiro">Dinheiro</SelectItem>
                         <SelectItem value="cartao">Cartão</SelectItem>
