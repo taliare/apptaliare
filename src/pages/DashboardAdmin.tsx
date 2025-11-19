@@ -32,14 +32,26 @@ export default function DashboardAdmin() {
   const fimMes = format(endOfMonth(new Date()), 'yyyy-MM-dd');
   const hoje = format(new Date(), 'yyyy-MM-dd');
 
-  // Query para representantes ativos
+  // Query para representantes ativos (excluindo admins)
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes-ativos'],
     queryFn: async () => {
+      // Primeiro, busca os IDs dos usuários que são representantes
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'representante');
+      
+      if (rolesError) throw rolesError;
+      
+      const representanteIds = rolesData.map(r => r.user_id);
+      
+      // Depois busca os perfis desses representantes
       const { data, error } = await supabase
         .from('profiles')
         .select('id, nome, email, ativo')
         .eq('ativo', true)
+        .in('id', representanteIds)
         .order('nome');
       
       if (error) throw error;

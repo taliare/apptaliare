@@ -47,14 +47,26 @@ export default function Metas() {
   const [selectedMes, setSelectedMes] = useState(format(new Date(), 'yyyy-MM'));
   const [metaValor, setMetaValor] = useState('');
 
-  // Query for representantes (apenas admin)
+  // Query for representantes (apenas admin) - excluindo admins
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes'],
     queryFn: async () => {
+      // Primeiro, busca os IDs dos usuários que são representantes
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'representante');
+      
+      if (rolesError) throw rolesError;
+      
+      const representanteIds = rolesData.map(r => r.user_id);
+      
+      // Depois busca os perfis desses representantes
       const { data, error } = await supabase
         .from('profiles')
         .select('id, nome, email')
         .eq('ativo', true)
+        .in('id', representanteIds)
         .order('nome');
       
       if (error) throw error;
@@ -83,12 +95,13 @@ export default function Metas() {
     enabled: !!user?.id,
   });
 
-  // Query for cobranças do mês (para calcular realizado)
+  // Query for cobranças do mês atual (para calcular realizado no progresso)
+  const mesAtualCalculo = format(new Date(), 'yyyy-MM');
   const { data: cobrancasDoMes = [] } = useQuery({
-    queryKey: ['cobrancas-mes', selectedMes],
+    queryKey: ['cobrancas-mes-atual', mesAtualCalculo],
     queryFn: async () => {
-      const inicio = format(startOfMonth(new Date(selectedMes + '-01')), 'yyyy-MM-dd');
-      const fim = format(endOfMonth(new Date(selectedMes + '-01')), 'yyyy-MM-dd');
+      const inicio = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+      const fim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
 
       const { data, error } = await supabase
         .from('cobrancas_diarias')
