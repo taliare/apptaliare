@@ -7,6 +7,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { formatarValor, formatarNumero } from '@/lib/utils';
 
 interface CobrancaDiaria {
   data: string;
@@ -139,9 +140,9 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalCobrado.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatarValor(totalCobrado)}</div>
             <p className="text-xs text-muted-foreground">
-              {cobrancas.length} dia{cobrancas.length !== 1 ? 's' : ''} de cobrança
+              {formatarNumero(cobrancas.length)} dia{cobrancas.length !== 1 ? 's' : ''} de cobrança
             </p>
           </CardContent>
         </Card>
@@ -152,9 +153,9 @@ export default function Dashboard() {
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalDespesas.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatarValor(totalDespesas)}</div>
             <p className="text-xs text-muted-foreground">
-              Líquido: R$ {(totalCobrado - totalDespesas).toFixed(2)}
+              Líquido: {formatarValor(totalCobrado - totalDespesas)}
             </p>
           </CardContent>
         </Card>
@@ -165,7 +166,7 @@ export default function Dashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalKits}</div>
+            <div className="text-2xl font-bold">{formatarNumero(totalKits)}</div>
             <p className="text-xs text-muted-foreground">
               Neste mês
             </p>
@@ -183,7 +184,7 @@ export default function Dashboard() {
                 <div className="text-2xl font-bold">{percentualMeta.toFixed(1)}%</div>
                 <Progress value={Math.min(percentualMeta, 100)} className="mt-2" />
                 <p className="text-xs text-muted-foreground mt-2">
-                  R$ {metaDoMes.meta_valor.toFixed(2)}
+                  {formatarValor(metaDoMes.meta_valor)}
                 </p>
               </>
             ) : (
@@ -214,7 +215,7 @@ export default function Dashboard() {
                 />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip 
-                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                  formatter={(value: number) => formatarValor(value)}
                 />
                 <Legend />
                 <Line 
@@ -247,7 +248,7 @@ export default function Dashboard() {
                 <XAxis dataKey="name" />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip 
-                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                  formatter={(value: number) => formatarValor(value)}
                 />
                 <Legend />
                 <Bar 

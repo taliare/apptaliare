@@ -15,6 +15,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatarValor } from '@/lib/utils';
 
 interface MetaCobranca {
   id: string;
@@ -275,16 +276,16 @@ export default function Metas() {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Meta</p>
-                    <p className="text-2xl font-bold">R$ {metaAtual.meta_valor.toFixed(2)}</p>
+                    <p className="text-2xl font-bold">{formatarValor(metaAtual.meta_valor)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Realizado</p>
-                    <p className="text-2xl font-bold">R$ {realizado.toFixed(2)}</p>
+                    <p className="text-2xl font-bold">{formatarValor(realizado)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Faltam</p>
                     <p className="text-2xl font-bold">
-                      R$ {Math.max(0, metaAtual.meta_valor - realizado).toFixed(2)}
+                      {formatarValor(Math.max(0, metaAtual.meta_valor - realizado))}
                     </p>
                   </div>
                 </div>
@@ -327,7 +328,7 @@ export default function Metas() {
                         <TableCell>
                           {format(new Date(meta.ano_mes + '-01'), "MMMM 'de' yyyy", { locale: ptBR })}
                         </TableCell>
-                        <TableCell>R$ {meta.meta_valor.toFixed(2)}</TableCell>
+                        <TableCell>{formatarValor(meta.meta_valor)}</TableCell>
                         <TableCell>
                           <Badge variant={meta.ativo ? 'default' : 'secondary'}>
                             {meta.ativo ? 'Ativa' : 'Inativa'}
@@ -494,11 +495,11 @@ export default function Metas() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <p className="text-muted-foreground">Meta</p>
-                  <p className="font-medium">R$ {meta.meta_valor.toFixed(2)}</p>
+                  <p className="font-medium">{formatarValor(meta.meta_valor)}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Realizado</p>
-                  <p className="font-medium">R$ {realizado.toFixed(2)}</p>
+                  <p className="font-medium">{formatarValor(realizado)}</p>
                 </div>
               </div>
 
