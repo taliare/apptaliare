@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, formatarValor } from '@/lib/utils';
 
 interface NotaPromissoria {
   id: string;
@@ -492,16 +492,16 @@ export default function CobrancaDiaria() {
                 {notas.map((nota) => (
                   <TableRow key={nota.id}>
                     <TableCell className="font-medium">{nota.codigo_nota}</TableCell>
-                    <TableCell>R$ {nota.valor_total.toFixed(2)}</TableCell>
+                    <TableCell>{formatarValor(nota.valor_total)}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">
-                        {formaPagamentoLabels[nota.forma_pagamento_1]}: R$ {nota.valor_pagamento_1.toFixed(2)}
+                        {formaPagamentoLabels[nota.forma_pagamento_1]}: {formatarValor(nota.valor_pagamento_1)}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       {nota.forma_pagamento_2 && nota.valor_pagamento_2 ? (
                         <Badge variant="secondary">
-                          {formaPagamentoLabels[nota.forma_pagamento_2]}: R$ {nota.valor_pagamento_2.toFixed(2)}
+                          {formaPagamentoLabels[nota.forma_pagamento_2]}: {formatarValor(nota.valor_pagamento_2)}
                         </Badge>
                       ) : (
                         '-'
@@ -572,7 +572,7 @@ export default function CobrancaDiaria() {
               <Input
                 id="total_pix"
                 type="text"
-                value={`R$ ${totalPixCalculado.toFixed(2)}`}
+                value={formatarValor(totalPixCalculado)}
                 readOnly
                 className="bg-muted"
               />
@@ -582,7 +582,7 @@ export default function CobrancaDiaria() {
               <Input
                 id="total_dinheiro"
                 type="text"
-                value={`R$ ${totalDinheiroCalculado.toFixed(2)}`}
+                value={formatarValor(totalDinheiroCalculado)}
                 readOnly
                 className="bg-muted"
               />
@@ -592,7 +592,7 @@ export default function CobrancaDiaria() {
               <Input
                 id="total_cartao"
                 type="text"
-                value={`R$ ${totalCartaoCalculado.toFixed(2)}`}
+                value={formatarValor(totalCartaoCalculado)}
                 readOnly
                 className="bg-muted"
               />
@@ -616,20 +616,20 @@ export default function CobrancaDiaria() {
             <div className="p-4 bg-muted rounded-lg space-y-3">
               <div className="flex items-center justify-between border-b border-border pb-2">
                 <p className="text-sm text-muted-foreground">Total Cobrado (soma das notas)</p>
-                <p className="text-xl font-bold">R$ {totalCobradoCalculado.toFixed(2)}</p>
+                <p className="text-xl font-bold">{formatarValor(totalCobradoCalculado)}</p>
               </div>
               
               {despesaCobranca && parseFloat(despesaCobranca) > 0 && (
                 <>
                   <div className="flex items-center justify-between border-b border-border pb-2">
                     <p className="text-sm text-muted-foreground">Despesa de Cobrança</p>
-                    <p className="text-xl font-semibold text-destructive">- R$ {parseFloat(despesaCobranca).toFixed(2)}</p>
+                    <p className="text-xl font-semibold text-destructive">- {formatarValor(parseFloat(despesaCobranca))}</p>
                   </div>
                   
                   <div className="flex items-center justify-between pt-2">
                     <p className="text-sm font-semibold text-foreground">Saldo Final</p>
                     <p className="text-2xl font-bold text-primary">
-                      R$ {(totalCobradoCalculado - parseFloat(despesaCobranca)).toFixed(2)}
+                      {formatarValor(totalCobradoCalculado - parseFloat(despesaCobranca))}
                     </p>
                   </div>
                 </>
@@ -694,11 +694,11 @@ export default function CobrancaDiaria() {
                     <TableCell className="font-medium">
                       {format(new Date(cobranca.data + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })}
                     </TableCell>
-                    <TableCell>R$ {cobranca.total_cobrado.toFixed(2)}</TableCell>
-                    <TableCell>R$ {(cobranca.total_pix || 0).toFixed(2)}</TableCell>
-                    <TableCell>R$ {(cobranca.total_dinheiro || 0).toFixed(2)}</TableCell>
-                    <TableCell>R$ {(cobranca.total_cartao || 0).toFixed(2)}</TableCell>
-                    <TableCell>R$ {(cobranca.despesa_cobranca || 0).toFixed(2)}</TableCell>
+                    <TableCell>{formatarValor(cobranca.total_cobrado)}</TableCell>
+                    <TableCell>{formatarValor(cobranca.total_pix || 0)}</TableCell>
+                    <TableCell>{formatarValor(cobranca.total_dinheiro || 0)}</TableCell>
+                    <TableCell>{formatarValor(cobranca.total_cartao || 0)}</TableCell>
+                    <TableCell>{formatarValor(cobranca.despesa_cobranca || 0)}</TableCell>
                     <TableCell>
                       {cobranca.finalizado ? (
                         <Badge variant="default">

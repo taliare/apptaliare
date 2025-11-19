@@ -22,6 +22,7 @@ import {
 } from '@dnd-kit/core';
 import { Badge } from '@/components/ui/badge';
 import type { Database } from '@/integrations/supabase/types';
+import { formatarValor } from '@/lib/utils';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'];
@@ -465,7 +466,7 @@ function CobrancaCard({ cobranca, isDragging = false, onEdit, onDelete }: Cobran
             <h3 className="font-semibold text-foreground">{cobranca.revendedora}</h3>
             <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
               <DollarSign className="h-3 w-3" />
-              <span>R$ {cobranca.valor_previsto.toFixed(2)}</span>
+              <span>{formatarValor(cobranca.valor_previsto)}</span>
             </div>
           </div>
           <Badge className={statusConfig[cobranca.status!].color}>
