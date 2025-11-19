@@ -32,14 +32,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type AppRole = Database['public']['Enums']['app_role'];
 
+// Extended profile type with role from user_roles table
+interface ProfileWithRole extends ProfileRow {
+  role: AppRole;
+}
+
 export default function Usuarios() {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<ProfileWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<Profile | null>(null);
+  const [editingUser, setEditingUser] = useState<ProfileWithRole | null>(null);
   
   // Form state
   const [nome, setNome] = useState('');
@@ -57,13 +62,33 @@ export default function Usuarios() {
 
   const loadProfiles = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch all profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .order('criado_em', { ascending: false });
 
-      if (error) throw error;
-      setProfiles(data || []);
+      if (profilesError) throw profilesError;
+
+      // Fetch roles for all users
+      const userIds = profilesData?.map(p => p.id) || [];
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', userIds);
+
+      if (rolesError) throw rolesError;
+
+      // Combine profile and role data
+      const profilesWithRoles = profilesData?.map(profile => {
+        const roleRecord = rolesData?.find(r => r.user_id === profile.id);
+        return {
+          ...profile,
+          role: roleRecord?.role || 'representante' as AppRole
+        };
+      }) || [];
+
+      setProfiles(profilesWithRoles);
     } catch (error: any) {
       toast.error('Erro ao carregar usuários: ' + error.message);
     } finally {
@@ -77,7 +102,7 @@ export default function Usuarios() {
     setDialogOpen(true);
   };
 
-  const openEditDialog = (user: Profile) => {
+  const openEditDialog = (user: ProfileWithRole) => {
     setEditingUser(user);
     setNome(user.nome);
     setEmail('');
@@ -111,25 +136,75 @@ export default function Usuarios() {
   };
 
   const createUser = async () => {
-    if (!nome || !email || !senha) {
-      toast.error('Preencha todos os campos obrigatórios');
+    // Input validation
+    if (!nome.trim()) {
+      toast.error('O nome é obrigatório');
       return;
     }
 
-    if (senha.length < 6) {
-      toast.error('A senha deve ter no mínimo 6 caracteres');
+    if (nome.trim().length > 100) {
+      toast.error('O nome deve ter no máximo 100 caracteres');
+      return;
+    }
+
+    if (!email.trim()) {
+      toast.error('O email é obrigatório');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Por favor, insira um email válido');
+      return;
+    }
+
+    if (email.length > 255) {
+      toast.error('O email deve ter no máximo 255 caracteres');
+      return;
+    }
+
+    if (!senha) {
+      toast.error('A senha é obrigatória');
+      return;
+    }
+
+    if (senha.length < 8) {
+      toast.error('A senha deve ter no mínimo 8 caracteres');
+      return;
+    }
+
+    if (senha.length > 100) {
+      toast.error('A senha deve ter no máximo 100 caracteres');
+      return;
+    }
+
+    // Password strength validation
+    if (!/[A-Z]/.test(senha)) {
+      toast.error('A senha deve conter pelo menos uma letra maiúscula');
+      return;
+    }
+
+    if (!/[a-z]/.test(senha)) {
+      toast.error('A senha deve conter pelo menos uma letra minúscula');
+      return;
+    }
+
+    if (!/[0-9]/.test(senha)) {
+      toast.error('A senha deve conter pelo menos um número');
       return;
     }
 
     try {
       setLoading(true);
 
+      // Create auth user
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password: senha,
         options: {
           data: {
-            nome,
+            nome: nome.trim(),
             role,
           },
         },
@@ -138,10 +213,10 @@ export default function Usuarios() {
       if (signUpError) throw signUpError;
       if (!signUpData.user) throw new Error('Usuário não criado');
 
+      // Update profile settings (role is handled by trigger)
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
-          role,
           ativo,
           habilitar_dashboard: habilitarDashboard,
           habilitar_kanban: habilitarKanban,
@@ -151,31 +226,43 @@ export default function Usuarios() {
 
       if (profileError) throw profileError;
 
-      toast.success(`Usuário criado!\nEmail: ${email}\nSenha: ${senha}`);
+      toast.success(`Usuário criado com sucesso!`);
       setDialogOpen(false);
       resetForm();
       loadProfiles();
     } catch (error: any) {
-      toast.error('Erro ao criar usuário: ' + error.message);
+      if (error.message?.includes('already registered')) {
+        toast.error('Este email já está cadastrado');
+      } else {
+        toast.error('Erro ao criar usuário: ' + error.message);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const updateUser = async () => {
-    if (!editingUser || !nome) {
-      toast.error('Preencha o nome do usuário');
+    if (!editingUser) return;
+
+    // Input validation
+    if (!nome.trim()) {
+      toast.error('O nome é obrigatório');
+      return;
+    }
+
+    if (nome.trim().length > 100) {
+      toast.error('O nome deve ter no máximo 100 caracteres');
       return;
     }
 
     try {
       setLoading(true);
 
-      const { error } = await supabase
+      // Update profile
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({
-          nome,
-          role,
+          nome: nome.trim(),
           ativo,
           habilitar_dashboard: habilitarDashboard,
           habilitar_kanban: habilitarKanban,
@@ -183,7 +270,15 @@ export default function Usuarios() {
         })
         .eq('id', editingUser.id);
 
-      if (error) throw error;
+      if (profileError) throw profileError;
+
+      // Update role in user_roles table
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .update({ role })
+        .eq('user_id', editingUser.id);
+
+      if (roleError) throw roleError;
 
       toast.success('Usuário atualizado com sucesso!');
       setDialogOpen(false);

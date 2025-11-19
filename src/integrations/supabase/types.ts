@@ -319,7 +319,6 @@ export type Database = {
           habilitar_kanban: boolean | null
           id: string
           nome: string
-          role: Database["public"]["Enums"]["app_role"]
         }
         Insert: {
           ativo?: boolean | null
@@ -329,7 +328,6 @@ export type Database = {
           habilitar_kanban?: boolean | null
           id: string
           nome: string
-          role?: Database["public"]["Enums"]["app_role"]
         }
         Update: {
           ativo?: boolean | null
@@ -339,7 +337,27 @@ export type Database = {
           habilitar_kanban?: boolean | null
           id?: string
           nome?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -348,7 +366,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      is_admin: { Args: { user_id: string }; Returns: boolean }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "representante" | "producao"
