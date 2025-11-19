@@ -55,26 +55,28 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
           </Button>
         </DrawerHeader>
 
-        <div className="flex flex-col h-[calc(100vh-80px)] px-4 py-6">
-          <div className="flex-1 space-y-1 overflow-y-auto">
-            <p className="text-xs font-semibold text-[#E7D8C3] mb-3 px-3">
-              {profile?.role === 'admin' ? 'ADMIN' : 'MENU'}
-            </p>
-            {items.map((item) => (
-              <NavLink
-                key={item.title}
-                to={item.url}
-                onClick={handleLinkClick}
-                className="flex items-center gap-3 px-3 py-3 rounded-md text-[#E7D8C3] hover:bg-[#6A2931] transition-colors"
-                activeClassName="bg-[#E7D8C3] text-[#531B24] font-medium"
-              >
-                <item.icon className="h-5 w-5" />
-                <span>{item.title}</span>
-              </NavLink>
-            ))}
+        <div className="flex flex-col h-full px-4 py-6">
+          <div className="flex-1 overflow-y-auto">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-[#E7D8C3] mb-3 px-3">
+                {profile?.role === 'admin' ? 'ADMIN' : 'MENU'}
+              </p>
+              {items.map((item) => (
+                <NavLink
+                  key={item.title}
+                  to={item.url}
+                  onClick={handleLinkClick}
+                  className="flex items-center gap-3 px-3 py-3 rounded-md text-[#E7D8C3] hover:bg-[#6A2931] transition-colors"
+                  activeClassName="bg-[#E7D8C3] text-[#531B24] font-medium"
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span>{item.title}</span>
+                </NavLink>
+              ))}
+            </div>
           </div>
 
-          <div className="border-t border-[#6A2931] pt-4 mt-4">
+          <div className="flex-shrink-0 border-t border-[#6A2931] pt-4 mt-4">
             <Button
               variant="ghost"
               onClick={() => {
