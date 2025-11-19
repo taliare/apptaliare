@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import taliare_logo from '@/assets/taliare-vertical-claro.png';
+import taliare_logo from '@/assets/taliare-icone-claro.png';
 
 export default function Auth() {
   const [loading, setLoading] = useState(false);
@@ -73,7 +73,7 @@ export default function Auth() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
-            <img src={taliare_logo} alt="TALIARE SEMIJOIAS" className="h-24 w-auto" />
+            <img src={taliare_logo} alt="TALIARE SEMIJOIAS" className="h-20 w-20" />
           </div>
           <div className="space-y-2 text-center">
             <CardTitle className="text-2xl">TALIARE SEMIJOIAS</CardTitle>
