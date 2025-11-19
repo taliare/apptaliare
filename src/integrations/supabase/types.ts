@@ -343,6 +343,44 @@ export type Database = {
         }
         Relationships: []
       }
+      repasses: {
+        Row: {
+          atualizado_em: string | null
+          cobranca_id: string
+          criado_em: string | null
+          data_repasse: string
+          id: string
+          status: string
+          valor_repasse: number
+        }
+        Insert: {
+          atualizado_em?: string | null
+          cobranca_id: string
+          criado_em?: string | null
+          data_repasse: string
+          id?: string
+          status?: string
+          valor_repasse: number
+        }
+        Update: {
+          atualizado_em?: string | null
+          cobranca_id?: string
+          criado_em?: string | null
+          data_repasse?: string
+          id?: string
+          status?: string
+          valor_repasse?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repasses_cobranca_id_fkey"
+            columns: ["cobranca_id"]
+            isOneToOne: false
+            referencedRelation: "cobrancas_agendadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
