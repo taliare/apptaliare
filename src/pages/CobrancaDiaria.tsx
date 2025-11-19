@@ -66,9 +66,6 @@ export default function CobrancaDiaria() {
   const [valorPagamento2, setValorPagamento2] = useState('');
 
   // Form states for Cobrança Diária
-  const [totalPix, setTotalPix] = useState('');
-  const [totalDinheiro, setTotalDinheiro] = useState('');
-  const [totalCartao, setTotalCartao] = useState('');
   const [despesaCobranca, setDespesaCobranca] = useState('');
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -200,9 +197,9 @@ export default function CobrancaDiaria() {
         representante_id: user!.id,
         data: dateStr,
         total_cobrado: totalCobrado,
-        total_pix: parseFloat(totalPix) || 0,
-        total_dinheiro: parseFloat(totalDinheiro) || 0,
-        total_cartao: parseFloat(totalCartao) || 0,
+        total_pix: totalPixCalculado,
+        total_dinheiro: totalDinheiroCalculado,
+        total_cartao: totalCartaoCalculado,
         despesa_cobranca: parseFloat(despesaCobranca) || 0,
         finalizado: true,
       };
@@ -312,6 +309,25 @@ export default function CobrancaDiaria() {
   };
 
   const totalCobradoCalculado = notas.reduce((acc, nota) => acc + nota.valor_total, 0);
+  
+  // Calcular totais por forma de pagamento automaticamente
+  const totaisPorFormaPagamento = notas.reduce((acc, nota) => {
+    // Soma pagamento 1
+    acc[nota.forma_pagamento_1] = (acc[nota.forma_pagamento_1] || 0) + nota.valor_pagamento_1;
+    
+    // Soma pagamento 2 se existir
+    if (nota.forma_pagamento_2 && nota.valor_pagamento_2) {
+      acc[nota.forma_pagamento_2] = (acc[nota.forma_pagamento_2] || 0) + nota.valor_pagamento_2;
+    }
+    
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const totalPixCalculado = totaisPorFormaPagamento['pix'] || 0;
+  const totalDinheiroCalculado = totaisPorFormaPagamento['dinheiro'] || 0;
+  const totalCartaoCalculado = totaisPorFormaPagamento['cartao'] || 0;
+  const totalTransferenciaCalculado = totaisPorFormaPagamento['transferencia'] || 0;
+  
   const isDiaFinalizado = cobrancaDiaria?.finalizado;
 
   return (
@@ -552,39 +568,33 @@ export default function CobrancaDiaria() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="total_pix">Total PIX</Label>
+              <Label htmlFor="total_pix">Total PIX (calculado automaticamente)</Label>
               <Input
                 id="total_pix"
-                type="number"
-                step="0.01"
-                value={totalPix}
-                onChange={(e) => setTotalPix(e.target.value)}
-                placeholder="0.00"
-                disabled={isDiaFinalizado}
+                type="text"
+                value={`R$ ${totalPixCalculado.toFixed(2)}`}
+                readOnly
+                className="bg-muted"
               />
             </div>
             <div>
-              <Label htmlFor="total_dinheiro">Total Dinheiro</Label>
+              <Label htmlFor="total_dinheiro">Total Dinheiro (calculado automaticamente)</Label>
               <Input
                 id="total_dinheiro"
-                type="number"
-                step="0.01"
-                value={totalDinheiro}
-                onChange={(e) => setTotalDinheiro(e.target.value)}
-                placeholder="0.00"
-                disabled={isDiaFinalizado}
+                type="text"
+                value={`R$ ${totalDinheiroCalculado.toFixed(2)}`}
+                readOnly
+                className="bg-muted"
               />
             </div>
             <div>
-              <Label htmlFor="total_cartao">Total Cartão</Label>
+              <Label htmlFor="total_cartao">Total Cartão (calculado automaticamente)</Label>
               <Input
                 id="total_cartao"
-                type="number"
-                step="0.01"
-                value={totalCartao}
-                onChange={(e) => setTotalCartao(e.target.value)}
-                placeholder="0.00"
-                disabled={isDiaFinalizado}
+                type="text"
+                value={`R$ ${totalCartaoCalculado.toFixed(2)}`}
+                readOnly
+                className="bg-muted"
               />
             </div>
             <div>
