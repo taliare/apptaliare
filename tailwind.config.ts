@@ -57,6 +57,12 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        taliare: {
+          burgundy: "hsl(var(--taliare-burgundy))",
+          wine: "hsl(var(--taliare-wine))",
+          beige: "hsl(var(--taliare-beige))",
+          cream: "hsl(var(--taliare-cream))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

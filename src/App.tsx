@@ -3,7 +3,20 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import Auth from "./pages/Auth";
+import Dashboard from "./pages/Dashboard";
+import DashboardAdmin from "./pages/DashboardAdmin";
+import Cobranca from "./pages/Cobranca";
+import CobrancaDiaria from "./pages/CobrancaDiaria";
+import Kits from "./pages/Kits";
+import Usuarios from "./pages/Usuarios";
+import Metas from "./pages/Metas";
+import ImportarCobrancas from "./pages/ImportarCobrancas";
+import Relatorios from "./pages/Relatorios";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -14,11 +27,61 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            
+            <Route path="/*" element={
+              <ProtectedRoute>
+                <SidebarProvider>
+                  <div className="flex min-h-screen w-full">
+                    <AppSidebar />
+                    <main className="flex-1 p-6 bg-background">
+                      <Routes>
+                        {/* Representante routes */}
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/cobranca" element={<Cobranca />} />
+                        <Route path="/cobranca-diaria" element={<CobrancaDiaria />} />
+                        <Route path="/kits" element={<Kits />} />
+                        
+                        {/* Admin routes */}
+                        <Route path="/dashboard-admin" element={
+                          <ProtectedRoute requiredRole="admin">
+                            <DashboardAdmin />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/usuarios" element={
+                          <ProtectedRoute requiredRole="admin">
+                            <Usuarios />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/metas" element={
+                          <ProtectedRoute requiredRole="admin">
+                            <Metas />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/importar-cobrancas" element={
+                          <ProtectedRoute requiredRole="admin">
+                            <ImportarCobrancas />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/relatorios" element={
+                          <ProtectedRoute requiredRole="admin">
+                            <Relatorios />
+                          </ProtectedRoute>
+                        } />
+                        
+                        {/* Default redirect */}
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </main>
+                  </div>
+                </SidebarProvider>
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
