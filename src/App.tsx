@@ -21,6 +21,7 @@ import Usuarios from "./pages/Usuarios";
 import Metas from "./pages/Metas";
 import ImportarCobrancas from "./pages/ImportarCobrancas";
 import Relatorios from "./pages/Relatorios";
+import Producao from "./pages/Producao";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,13 @@ const App = () => {
                           <Route path="/cobranca" element={<Cobranca />} />
                           <Route path="/cobranca-diaria" element={<CobrancaDiaria />} />
                           <Route path="/kits" element={<Kits />} />
+                          
+                          {/* Producao routes */}
+                          <Route path="/producao" element={
+                            <ProtectedRoute requiredRole="producao">
+                              <Producao />
+                            </ProtectedRoute>
+                          } />
                           
                           {/* Admin routes */}
                           <Route path="/dashboard-admin" element={

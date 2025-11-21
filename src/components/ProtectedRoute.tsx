@@ -19,6 +19,8 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
         // Redirect based on role
         if (profile?.role === 'admin') {
           navigate('/dashboard-admin');
+        } else if (profile?.role === 'producao') {
+          navigate('/producao');
         } else {
           navigate('/dashboard');
         }
