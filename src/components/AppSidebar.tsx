@@ -1,4 +1,4 @@
-import { Home, Users, Target, Upload, FileText, LogOut, Calendar, CalendarCheck, Package } from 'lucide-react';
+import { Home, Users, Target, Upload, FileText, LogOut, Calendar, CalendarCheck, Package, Factory } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -30,6 +30,10 @@ export function AppSidebar() {
     { title: 'Kits', url: '/kits', icon: Package },
   ];
 
+  const producaoItems = [
+    { title: 'Produção', url: '/producao', icon: Factory },
+  ];
+
   const adminItems = [
     { title: 'Dashboard Admin', url: '/dashboard-admin', icon: Home },
     { title: 'Usuários', url: '/usuarios', icon: Users },
@@ -38,7 +42,7 @@ export function AppSidebar() {
     { title: 'Relatórios', url: '/relatorios', icon: FileText },
   ];
 
-  const items = profile?.role === 'admin' ? adminItems : representanteItems;
+  const items = profile?.role === 'admin' ? adminItems : profile?.role === 'producao' ? producaoItems : representanteItems;
 
   return (
     <Sidebar className={collapsed ? 'w-14' : 'w-60'} collapsible="icon">

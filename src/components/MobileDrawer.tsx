@@ -8,7 +8,7 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package } from 'lucide-react';
+import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory } from 'lucide-react';
 import taliare_horizontal from '@/assets/taliare-horizontal-escuro.png';
 
 interface MobileDrawerProps {
@@ -26,6 +26,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     { title: 'Kits', url: '/kits', icon: Package },
   ];
 
+  const producaoItems = [
+    { title: 'Produção', url: '/producao', icon: Factory },
+  ];
+
   const adminItems = [
     { title: 'Dashboard Admin', url: '/dashboard-admin', icon: Home },
     { title: 'Usuários', url: '/usuarios', icon: Users },
@@ -34,7 +38,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     { title: 'Relatórios', url: '/relatorios', icon: FileText },
   ];
 
-  const items = profile?.role === 'admin' ? adminItems : representanteItems;
+  const items = profile?.role === 'admin' ? adminItems : profile?.role === 'producao' ? producaoItems : representanteItems;
 
   const handleLinkClick = () => {
     onOpenChange(false);
@@ -59,7 +63,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
           <div className="flex-1 overflow-y-auto">
             <div className="space-y-1">
               <p className="text-xs font-semibold text-[#E7D8C3] mb-3 px-3">
-                {profile?.role === 'admin' ? 'ADMIN' : 'MENU'}
+                {profile?.role === 'admin' ? 'ADMIN' : profile?.role === 'producao' ? 'PRODUÇÃO' : 'MENU'}
               </p>
               {items.map((item) => (
                 <NavLink

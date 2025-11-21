@@ -29,6 +29,7 @@ interface NotaPromissoria {
   forma_pagamento_2?: 'pix' | 'dinheiro' | 'cartao' | 'transferencia' | null;
   valor_pagamento_2?: number | null;
   representante_id: string;
+  criado_em?: string | null;
 }
 
 interface CobrancaDiaria {
@@ -56,6 +57,8 @@ export default function CobrancaDiaria() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isNotaDialogOpen, setIsNotaDialogOpen] = useState(false);
   const [editingNota, setEditingNota] = useState<NotaPromissoria | null>(null);
+  const [historicoDialogOpen, setHistoricoDialogOpen] = useState(false);
+  const [selectedHistoricoDate, setSelectedHistoricoDate] = useState<string | null>(null);
 
   // Form states for Nota Promissória
   const [codigoNota, setCodigoNota] = useState('');
@@ -171,6 +174,25 @@ export default function CobrancaDiaria() {
       return contagem;
     },
     enabled: !!user?.id,
+  });
+
+  // Query para buscar notas de uma data específica do histórico
+  const { data: notasHistorico = [], isLoading: loadingNotasHistorico } = useQuery({
+    queryKey: ['notas-historico', selectedHistoricoDate, user?.id],
+    queryFn: async () => {
+      if (!selectedHistoricoDate) return [];
+      
+      const { data, error } = await supabase
+        .from('notas_promissorias')
+        .select('*')
+        .eq('representante_id', user?.id)
+        .eq('data', selectedHistoricoDate)
+        .order('criado_em', { ascending: false });
+      
+      if (error) throw error;
+      return data as NotaPromissoria[];
+    },
+    enabled: !!user?.id && !!selectedHistoricoDate,
   });
 
   // Mutation para adicionar nota
@@ -408,6 +430,11 @@ export default function CobrancaDiaria() {
   const totalTransferenciaCalculado = totaisPorFormaPagamento['transferencia'] || 0;
   
   const isDiaFinalizado = cobrancaDiaria?.finalizado;
+
+  const handleOpenHistoricoDialog = (date: string) => {
+    setSelectedHistoricoDate(date);
+    setHistoricoDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -806,7 +833,12 @@ export default function CobrancaDiaria() {
                     const saldo = cobranca.total_cobrado - (cobranca.despesa_cobranca || 0);
                     
                     return (
-                      <TableRow key={cobranca.id}>
+                      <TableRow 
+                        key={cobranca.id}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleOpenHistoricoDialog(cobranca.data)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <TableCell className="font-medium">
                           {format(new Date(cobranca.data + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                         </TableCell>
@@ -833,6 +865,156 @@ export default function CobrancaDiaria() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de Detalhes do Histórico */}
+      <Dialog open={historicoDialogOpen} onOpenChange={setHistoricoDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Detalhes da Cobrança - {selectedHistoricoDate && format(new Date(selectedHistoricoDate + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {loadingNotasHistorico ? (
+            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+          ) : notasHistorico.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhuma nota encontrada para esta data
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Valor Total</TableHead>
+                      <TableHead>Forma Pag. 1</TableHead>
+                      <TableHead>Valor Pag. 1</TableHead>
+                      <TableHead>Forma Pag. 2</TableHead>
+                      <TableHead>Valor Pag. 2</TableHead>
+                      <TableHead>Horário</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {notasHistorico.map((nota) => (
+                      <TableRow key={nota.id}>
+                        <TableCell className="font-medium">
+                          {nota.codigo_nota}
+                          {nota.valor_total === 0 && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              Devolução Total
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className={nota.valor_total === 0 ? 'text-muted-foreground' : 'font-semibold'}>
+                          {formatarValor(nota.valor_total)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {formaPagamentoLabels[nota.forma_pagamento_1]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatarValor(nota.valor_pagamento_1)}</TableCell>
+                        <TableCell>
+                          {nota.forma_pagamento_2 ? (
+                            <Badge variant="secondary">
+                              {formaPagamentoLabels[nota.forma_pagamento_2]}
+                            </Badge>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {nota.valor_pagamento_2 ? formatarValor(nota.valor_pagamento_2) : '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {nota.criado_em ? format(new Date(nota.criado_em), 'HH:mm', { locale: ptBR }) : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Resumo do dia */}
+              <div className="bg-muted rounded-lg p-4 space-y-2">
+                <h4 className="font-semibold text-foreground mb-3">Resumo do Dia</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total de Notas</p>
+                    <p className="text-lg font-bold">{notasHistorico.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Cobrado</p>
+                    <p className="text-lg font-bold">
+                      {formatarValor(notasHistorico.reduce((acc, n) => acc + n.valor_total, 0))}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total PIX</p>
+                    <p className="text-lg font-semibold">
+                      {formatarValor(
+                        notasHistorico.reduce((acc, n) => {
+                          let total = 0;
+                          if (n.forma_pagamento_1 === 'pix') total += n.valor_pagamento_1;
+                          if (n.forma_pagamento_2 === 'pix' && n.valor_pagamento_2) total += n.valor_pagamento_2;
+                          return acc + total;
+                        }, 0)
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Dinheiro</p>
+                    <p className="text-lg font-semibold">
+                      {formatarValor(
+                        notasHistorico.reduce((acc, n) => {
+                          let total = 0;
+                          if (n.forma_pagamento_1 === 'dinheiro') total += n.valor_pagamento_1;
+                          if (n.forma_pagamento_2 === 'dinheiro' && n.valor_pagamento_2) total += n.valor_pagamento_2;
+                          return acc + total;
+                        }, 0)
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Cartão</p>
+                    <p className="text-lg font-semibold">
+                      {formatarValor(
+                        notasHistorico.reduce((acc, n) => {
+                          let total = 0;
+                          if (n.forma_pagamento_1 === 'cartao') total += n.valor_pagamento_1;
+                          if (n.forma_pagamento_2 === 'cartao' && n.valor_pagamento_2) total += n.valor_pagamento_2;
+                          return acc + total;
+                        }, 0)
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Transferência</p>
+                    <p className="text-lg font-semibold">
+                      {formatarValor(
+                        notasHistorico.reduce((acc, n) => {
+                          let total = 0;
+                          if (n.forma_pagamento_1 === 'transferencia') total += n.valor_pagamento_1;
+                          if (n.forma_pagamento_2 === 'transferencia' && n.valor_pagamento_2) total += n.valor_pagamento_2;
+                          return acc + total;
+                        }, 0)
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHistoricoDialogOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -20,6 +20,8 @@ export default function Auth() {
     if (user && profile) {
       if (profile.role === 'admin') {
         navigate('/dashboard-admin');
+      } else if (profile.role === 'producao') {
+        navigate('/producao');
       } else {
         navigate('/dashboard');
       }
