@@ -210,7 +210,7 @@ export default function DistribuicaoKits() {
         </div>
 
         {representantes.map(rep => {
-          const repKits = kits.filter(k => k.representante_id === rep.id);
+          const repKits = kits.filter(k => k.representante_id === rep.id && k.status === 'com_representante');
           return (
             <div 
               key={rep.id}
