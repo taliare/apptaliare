@@ -43,7 +43,7 @@ export default function Kits() {
   const [dataVencimento, setDataVencimento] = useState<Date>(addDays(new Date(), 60));
   const [tipo, setTipo] = useState<'renovacao' | 'novo'>('novo');
 
-  // Query for kits
+  // Query for kits (histórico de kits entregues)
   const { data: kits = [], isLoading } = useQuery({
     queryKey: ['kits-entregues', user?.id],
     queryFn: async () => {
@@ -55,6 +55,23 @@ export default function Kits() {
       
       if (error) throw error;
       return data as KitEntregue[];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Query for kits em estoque (atualmente com o representante)
+  const { data: kitsEstoque = [] } = useQuery({
+    queryKey: ['kits-estoque-rep', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kits_estoque')
+        .select('*')
+        .eq('representante_id', user?.id)
+        .eq('status', 'com_representante')
+        .order('criado_em', { ascending: false });
+      
+      if (error) throw error;
+      return data;
     },
     enabled: !!user?.id,
   });
@@ -333,6 +350,39 @@ export default function Kits() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Card com Kits Atualmente em Minha Posse */}
+      {kitsEstoque.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Kits Atualmente em Minha Posse
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {kitsEstoque.map((kit: any) => (
+                <div key={kit.id} className="p-4 border rounded-lg bg-card hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono font-semibold">{kit.codigo}</span>
+                    <Badge className={
+                      kit.tipo === 'inicial' ? 'bg-blue-500' :
+                      kit.tipo === 'especial' ? 'bg-purple-500' :
+                      'bg-green-500'
+                    }>
+                      {kit.tipo}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Recebido em {format(new Date(kit.criado_em), 'dd/MM/yyyy', { locale: ptBR })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cards de Resumo */}
       <div className="grid gap-4 md:grid-cols-4">

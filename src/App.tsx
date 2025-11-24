@@ -22,6 +22,8 @@ import Metas from "./pages/Metas";
 import ImportarCobrancas from "./pages/ImportarCobrancas";
 import Relatorios from "./pages/Relatorios";
 import Producao from "./pages/Producao";
+import ProducaoDiaria from "./pages/ProducaoDiaria";
+import DistribuicaoKits from "./pages/DistribuicaoKits";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +70,16 @@ const App = () => {
                           <Route path="/producao" element={
                             <ProtectedRoute requiredRole="producao">
                               <Producao />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/producao-diaria" element={
+                            <ProtectedRoute requiredRole="producao">
+                              <ProducaoDiaria />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/distribuicao-kits" element={
+                            <ProtectedRoute requiredRole="producao">
+                              <DistribuicaoKits />
                             </ProtectedRoute>
                           } />
                           

@@ -31,7 +31,9 @@ export function AppSidebar() {
   ];
 
   const producaoItems = [
-    { title: 'Produção', url: '/producao', icon: Factory },
+    { title: 'Dashboard', url: '/producao', icon: Factory },
+    { title: 'Produção Diária', url: '/producao-diaria', icon: Package },
+    { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package },
   ];
 
   const adminItems = [
