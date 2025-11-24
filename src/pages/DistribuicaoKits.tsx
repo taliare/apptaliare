@@ -172,6 +172,7 @@ export default function DistribuicaoKits() {
   };
 
   const estoqueKits = kits.filter(k => k.status === 'estoque');
+  const representantesLimitados = representantes.slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -180,7 +181,7 @@ export default function DistribuicaoKits() {
         <p className="text-muted-foreground">Arraste os kits entre estoque e representantes</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div 
           onDrop={(e) => handleDrop(e, 'estoque')} 
           onDragOver={(e) => e.preventDefault()}
@@ -209,7 +210,7 @@ export default function DistribuicaoKits() {
           </Card>
         </div>
 
-        {representantes.map(rep => {
+        {representantesLimitados.map(rep => {
           const repKits = kits.filter(k => k.representante_id === rep.id && k.status === 'com_representante');
           return (
             <div 
