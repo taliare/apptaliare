@@ -150,6 +150,44 @@ export type Database = {
           },
         ]
       }
+      kits_estoque: {
+        Row: {
+          codigo: string
+          criado_em: string
+          id: string
+          origem_producao_id: string | null
+          representante_id: string | null
+          status: string
+          tipo: string
+        }
+        Insert: {
+          codigo: string
+          criado_em?: string
+          id?: string
+          origem_producao_id?: string | null
+          representante_id?: string | null
+          status: string
+          tipo: string
+        }
+        Update: {
+          codigo?: string
+          criado_em?: string
+          id?: string
+          origem_producao_id?: string | null
+          representante_id?: string | null
+          status?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kits_estoque_origem_producao_id_fkey"
+            columns: ["origem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "producao_diaria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metas_cobranca: {
         Row: {
           ano_mes: string
@@ -309,6 +347,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      producao_diaria: {
+        Row: {
+          codigo: string
+          criado_em: string
+          criado_por: string
+          data: string
+          id: string
+          tipo: string
+        }
+        Insert: {
+          codigo: string
+          criado_em?: string
+          criado_por: string
+          data: string
+          id?: string
+          tipo: string
+        }
+        Update: {
+          codigo?: string
+          criado_em?: string
+          criado_por?: string
+          data?: string
+          id?: string
+          tipo?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

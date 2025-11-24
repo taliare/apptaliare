@@ -1,38 +1,79 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package } from 'lucide-react';
+import { Package, TrendingUp, Box } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Producao() {
+  const { data: stats } = useQuery({
+    queryKey: ['producao-stats'],
+    queryFn: async () => {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const { data, error } = await supabase
+        .from('producao_diaria')
+        .select('tipo')
+        .gte('data', startOfMonth.toISOString().split('T')[0]);
+
+      if (error) throw error;
+
+      const inicial = data.filter(p => p.tipo === 'inicial').length;
+      const especial = data.filter(p => p.tipo === 'especial').length;
+      const maleta = data.filter(p => p.tipo === 'maleta').length;
+
+      return { inicial, especial, maleta, total: inicial + especial + maleta };
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Produção</h1>
-        <p className="text-muted-foreground">Gestão de produção e distribuição</p>
+        <h1 className="text-3xl font-bold text-foreground">Dashboard da Produção</h1>
+        <p className="text-muted-foreground">Visão geral da produção mensal</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Área da Produção
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Package className="h-8 w-8 text-primary" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-semibold text-foreground">
-                Funcionalidades em Desenvolvimento
-              </h3>
-              <p className="text-muted-foreground max-w-md">
-                O módulo de produção está sendo desenvolvido e em breve estará disponível com 
-                funcionalidades para gestão de encomendas, controle de estoque e distribuição de kits.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Kits Iniciais</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.inicial || 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Kits Especiais</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.especial || 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Maletas</CardTitle>
+            <Box className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.maleta || 0}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Geral</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.total || 0}</div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
