@@ -1,4 +1,4 @@
-import { X, LogOut } from 'lucide-react';
+import { X, LogOut, ShoppingBag } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,12 +24,14 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     { title: 'Cobrança', url: '/cobranca', icon: Calendar },
     { title: 'Cobrança Diária', url: '/cobranca-diaria', icon: CalendarCheck },
     { title: 'Kits', url: '/kits', icon: Package },
+    { title: 'Encomendas', url: '/encomendas', icon: ShoppingBag },
   ];
 
   const producaoItems = [
     { title: 'Dashboard', url: '/producao', icon: Factory },
     { title: 'Produção Diária', url: '/producao-diaria', icon: Package },
     { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package },
+    { title: 'Encomendas', url: '/encomendas-producao', icon: ShoppingBag },
   ];
 
   const adminItems = [

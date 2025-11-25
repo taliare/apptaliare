@@ -24,6 +24,8 @@ import Relatorios from "./pages/Relatorios";
 import Producao from "./pages/Producao";
 import ProducaoDiaria from "./pages/ProducaoDiaria";
 import DistribuicaoKits from "./pages/DistribuicaoKits";
+import EncomendaRepresentante from "./pages/EncomendaRepresentante";
+import EncomendaProducao from "./pages/EncomendaProducao";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +67,7 @@ const App = () => {
                           <Route path="/cobranca" element={<Cobranca />} />
                           <Route path="/cobranca-diaria" element={<CobrancaDiaria />} />
                           <Route path="/kits" element={<Kits />} />
+                          <Route path="/encomendas" element={<EncomendaRepresentante />} />
                           
                           {/* Producao routes */}
                           <Route path="/producao" element={
@@ -80,6 +83,11 @@ const App = () => {
                           <Route path="/distribuicao-kits" element={
                             <ProtectedRoute requiredRole="producao">
                               <DistribuicaoKits />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/encomendas-producao" element={
+                            <ProtectedRoute requiredRole="producao">
+                              <EncomendaProducao />
                             </ProtectedRoute>
                           } />
                           
