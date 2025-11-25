@@ -102,6 +102,57 @@ export type Database = {
           },
         ]
       }
+      encomendas_kits: {
+        Row: {
+          atualizado_em: string
+          codigo_kit: string | null
+          criado_em: string
+          descricao_pedido: string
+          id: string
+          producao_id: string | null
+          representante_id: string
+          status: string
+          tipo_kit: string
+        }
+        Insert: {
+          atualizado_em?: string
+          codigo_kit?: string | null
+          criado_em?: string
+          descricao_pedido: string
+          id?: string
+          producao_id?: string | null
+          representante_id: string
+          status?: string
+          tipo_kit: string
+        }
+        Update: {
+          atualizado_em?: string
+          codigo_kit?: string | null
+          criado_em?: string
+          descricao_pedido?: string
+          id?: string
+          producao_id?: string | null
+          representante_id?: string
+          status?: string
+          tipo_kit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "encomendas_kits_producao_id_fkey"
+            columns: ["producao_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomendas_kits_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kits_entregues: {
         Row: {
           codigo_mostruario: string
