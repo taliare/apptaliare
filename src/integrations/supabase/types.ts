@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       cobrancas_agendadas: {
         Row: {
+          codigo_nota: string | null
           criado_em: string | null
           data_agendada: string
           id: string
@@ -23,9 +24,11 @@ export type Database = {
           representante_id: string
           revendedora: string
           status: Database["public"]["Enums"]["status_cobranca"] | null
+          tipo: string | null
           valor_previsto: number
         }
         Insert: {
+          codigo_nota?: string | null
           criado_em?: string | null
           data_agendada: string
           id?: string
@@ -33,9 +36,11 @@ export type Database = {
           representante_id: string
           revendedora: string
           status?: Database["public"]["Enums"]["status_cobranca"] | null
+          tipo?: string | null
           valor_previsto: number
         }
         Update: {
+          codigo_nota?: string | null
           criado_em?: string | null
           data_agendada?: string
           id?: string
@@ -43,6 +48,7 @@ export type Database = {
           representante_id?: string
           revendedora?: string
           status?: Database["public"]["Enums"]["status_cobranca"] | null
+          tipo?: string | null
           valor_previsto?: number
         }
         Relationships: [
