@@ -5,27 +5,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+import { format, isToday, isBefore, isAfter, addDays, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { 
-  DndContext, 
-  DragEndEvent, 
-  DragOverlay, 
-  closestCorners,
-  useDraggable,
-  useDroppable,
-  DragStartEvent
-} from '@dnd-kit/core';
 import { Badge } from '@/components/ui/badge';
 import type { Database } from '@/integrations/supabase/types';
 import { formatarValor } from '@/lib/utils';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
 import { ModalSenhaAdmin } from '@/components/cobranca/ModalSenhaAdmin';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'];
@@ -51,14 +45,16 @@ export default function Cobranca() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [dateFilter, setDateFilter] = useState<string>('');
+  const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'vencidas' | 'hoje' | 'proximos7'>('todas');
   
-  // Modais de pagamento e senha
+  // Modais de pagamento, senha e reagendamento
   const [cobrancaParaPagar, setCobrancaParaPagar] = useState<Cobranca | null>(null);
   const [modalSenhaOpen, setModalSenhaOpen] = useState(false);
   const [acaoSenha, setAcaoSenha] = useState<'editar' | 'excluir'>('editar');
   const [cobrancaParaExcluir, setCobrancaParaExcluir] = useState<string | null>(null);
+  const [modalReagendarOpen, setModalReagendarOpen] = useState(false);
+  const [cobrancaParaReagendar, setCobrancaParaReagendar] = useState<Cobranca | null>(null);
+  const [novaDataAgendada, setNovaDataAgendada] = useState<Date>();
   
   const [formData, setFormData] = useState<CobrancaFormData>({
     revendedora: '',
@@ -94,27 +90,17 @@ export default function Cobranca() {
   }, []);
 
   const { data: cobrancas = [], isLoading } = useQuery({
-    queryKey: ['cobrancas-agendadas', userId, dateFilter],
+    queryKey: ['cobrancas-agendadas', userId],
     queryFn: async () => {
       if (!userId) return [];
       
-      let query = supabase
+      const { data, error } = await supabase
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', userId)
+        .in('status', ['pendente', 'parcial', 'reagendado'])
         .order('data_agendada', { ascending: true });
 
-      if (dateFilter) {
-        const startDate = new Date(dateFilter);
-        const endDate = new Date(dateFilter);
-        endDate.setMonth(endDate.getMonth() + 1);
-        
-        query = query
-          .gte('data_agendada', startDate.toISOString())
-          .lt('data_agendada', endDate.toISOString());
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -212,8 +198,10 @@ export default function Cobranca() {
     tipo: 'completo' | 'devolucao';
   }) => {
     try {
-      // 1. Criar prestação de contas
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
+      const dataHoje = format(new Date(), 'yyyy-MM-dd');
+      
+      // 1. Criar prestação de contas
       const { error: prestacaoError } = await supabase
         .from('prestacoes_contas')
         .insert({
@@ -227,12 +215,30 @@ export default function Cobranca() {
           valor_pago: dados.valor_devido_empresa,
           saldo_devedor: 0,
           forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0].forma,
-          data_execucao: format(new Date(), 'yyyy-MM-dd')
+          data_execucao: dataHoje
         });
 
       if (prestacaoError) throw prestacaoError;
 
-      // 2. Atualizar status da cobrança para 'pago'
+      // 2. Criar nota promissória para alimentar a Cobrança Diária
+      if (dados.tipo === 'completo' && dados.pagamentos.length > 0) {
+        const { error: notaError } = await supabase
+          .from('notas_promissorias')
+          .insert({
+            representante_id: userId!,
+            codigo_nota: `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`,
+            data: dataHoje,
+            valor_total: dados.valor_devido_empresa,
+            forma_pagamento_1: dados.pagamentos[0].forma,
+            valor_pagamento_1: dados.pagamentos[0].valor,
+            forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+            valor_pagamento_2: dados.pagamentos[1]?.valor || null
+          });
+
+        if (notaError) throw notaError;
+      }
+
+      // 3. Atualizar status da cobrança para 'pago'
       const { error: updateError } = await supabase
         .from('cobrancas_agendadas')
         .update({ status: 'pago' })
@@ -241,6 +247,7 @@ export default function Cobranca() {
       if (updateError) throw updateError;
 
       await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
     } catch (error) {
       throw error;
     }
@@ -258,8 +265,10 @@ export default function Cobranca() {
     data_repasse: Date;
   }) => {
     try {
-      // 1. Criar prestação de contas com saldo devedor
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
+      const dataHoje = format(new Date(), 'yyyy-MM-dd');
+      
+      // 1. Criar prestação de contas com saldo devedor
       const { error: prestacaoError } = await supabase
         .from('prestacoes_contas')
         .insert({
@@ -273,12 +282,30 @@ export default function Cobranca() {
           valor_pago: dados.valor_recebido,
           saldo_devedor: dados.valor_repasse,
           forma_pagamento: dados.pagamentos[0].forma,
-          data_execucao: format(new Date(), 'yyyy-MM-dd')
+          data_execucao: dataHoje
         });
 
       if (prestacaoError) throw prestacaoError;
 
-      // 2. Criar repasse
+      // 2. Criar nota promissória para alimentar a Cobrança Diária (valor parcial recebido)
+      if (dados.pagamentos.length > 0) {
+        const { error: notaError } = await supabase
+          .from('notas_promissorias')
+          .insert({
+            representante_id: userId!,
+            codigo_nota: `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`,
+            data: dataHoje,
+            valor_total: dados.valor_recebido,
+            forma_pagamento_1: dados.pagamentos[0].forma,
+            valor_pagamento_1: dados.pagamentos[0].valor,
+            forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+            valor_pagamento_2: dados.pagamentos[1]?.valor || null
+          });
+
+        if (notaError) throw notaError;
+      }
+
+      // 3. Criar repasse
       const { error: repasseError } = await supabase
         .from('repasses')
         .insert({
@@ -290,7 +317,7 @@ export default function Cobranca() {
 
       if (repasseError) throw repasseError;
 
-      // 3. Atualizar status da cobrança para 'parcial' e data para data do repasse
+      // 4. Atualizar status da cobrança para 'parcial' e data para data do repasse
       const { error: updateError } = await supabase
         .from('cobrancas_agendadas')
         .update({ 
@@ -302,6 +329,7 @@ export default function Cobranca() {
       if (updateError) throw updateError;
 
       await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
     } catch (error) {
       throw error;
     }
@@ -317,13 +345,11 @@ export default function Cobranca() {
   };
 
   const handleEdit = (cobranca: Cobranca) => {
-    // Verificar se precisa de senha de admin
     if (profile?.role !== 'admin') {
       setEditingCobranca(cobranca);
       setAcaoSenha('editar');
       setModalSenhaOpen(true);
     } else {
-      // Admin pode editar diretamente
       setEditingCobranca(cobranca);
       setFormData({
         revendedora: cobranca.revendedora,
@@ -350,13 +376,11 @@ export default function Cobranca() {
   const handleDeleteClick = () => {
     if (!editingCobranca) return;
     
-    // Verificar se precisa de senha de admin
     if (profile?.role !== 'admin') {
       setCobrancaParaExcluir(editingCobranca.id);
       setAcaoSenha('excluir');
       setModalSenhaOpen(true);
     } else {
-      // Admin pode excluir diretamente
       deleteMutation.mutate(editingCobranca.id);
     }
   };
@@ -372,6 +396,42 @@ export default function Cobranca() {
     setCobrancaParaPagar(cobranca);
   };
 
+  const handleReagendarClick = (cobranca: Cobranca) => {
+    setCobrancaParaReagendar(cobranca);
+    setNovaDataAgendada(new Date(cobranca.data_agendada));
+    setModalReagendarOpen(true);
+  };
+
+  const reagendarMutation = useMutation({
+    mutationFn: async ({ id, novaData }: { id: string; novaData: string }) => {
+      const { error } = await supabase
+        .from('cobrancas_agendadas')
+        .update({ data_agendada: novaData })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      toast({ title: 'Data reagendada com sucesso!' });
+      setModalReagendarOpen(false);
+      setCobrancaParaReagendar(null);
+      setNovaDataAgendada(undefined);
+    },
+    onError: () => {
+      toast({ title: 'Erro ao reagendar', variant: 'destructive' });
+    },
+  });
+
+  const handleConfirmarReagendamento = () => {
+    if (!cobrancaParaReagendar || !novaDataAgendada) return;
+    
+    reagendarMutation.mutate({
+      id: cobrancaParaReagendar.id,
+      novaData: format(novaDataAgendada, 'yyyy-MM-dd')
+    });
+  };
+
   const resetForm = () => {
     setFormData({
       revendedora: '',
@@ -381,50 +441,35 @@ export default function Cobranca() {
     });
   };
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
+  // Funções de filtragem por data
+  const hoje = startOfDay(new Date());
+  const proximos7Dias = addDays(hoje, 7);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (!over) {
-      setActiveId(null);
-      return;
+  const cobrancasVencidas = cobrancas.filter(c => 
+    isBefore(new Date(c.data_agendada), hoje)
+  );
+  
+  const cobrancasHoje = cobrancas.filter(c => 
+    isToday(new Date(c.data_agendada))
+  );
+  
+  const cobrancasProximos7 = cobrancas.filter(c => {
+    const data = new Date(c.data_agendada);
+    return isAfter(data, hoje) && !isToday(data) && isBefore(data, proximos7Dias);
+  });
+
+  const cobrancasFiltradas = (() => {
+    switch (filtroAtivo) {
+      case 'vencidas':
+        return cobrancasVencidas;
+      case 'hoje':
+        return cobrancasHoje;
+      case 'proximos7':
+        return cobrancasProximos7;
+      default:
+        return cobrancas;
     }
-
-    const cobrancaId = active.id as string;
-    const newStatus = over.id as StatusCobranca;
-    
-    const cobranca = cobrancas.find(c => c.id === cobrancaId);
-    
-    if (cobranca && cobranca.status !== newStatus) {
-      const { error } = await supabase
-        .from('cobrancas_agendadas')
-        .update({ status: newStatus })
-        .eq('id', cobrancaId);
-
-      if (error) {
-        toast({
-          title: 'Erro ao atualizar status',
-          variant: 'destructive'
-        });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
-        toast({
-          title: 'Status atualizado!',
-        });
-      }
-    }
-    
-    setActiveId(null);
-  };
-
-  const getCobrancasByStatus = (status: StatusCobranca) => {
-    return cobrancas.filter((c) => c.status === status);
-  };
-
-  const activeCobranca = cobrancas.find((c) => c.id === activeId);
+  })();
 
   if (isLoading) {
     return (
@@ -442,8 +487,8 @@ export default function Cobranca() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Kanban de Cobranças</h1>
-          <p className="text-muted-foreground">Gerencie suas cobranças agendadas</p>
+          <h1 className="text-3xl font-bold">Agenda de Cobranças</h1>
+          <p className="text-muted-foreground">Organize suas cobranças por data de vencimento</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -532,53 +577,126 @@ export default function Cobranca() {
         </Dialog>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros Rápidos */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <Filter className="h-5 w-5 text-muted-foreground" />
-            <div className="flex-1">
-              <Label htmlFor="month-filter" className="text-sm">Filtrar por Mês</Label>
-              <Input
-                id="month-filter"
-                type="month"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="max-w-xs"
-              />
-            </div>
+            <Button
+              variant={filtroAtivo === 'todas' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFiltroAtivo('todas')}
+            >
+              Todas ({cobrancas.length})
+            </Button>
+            <Button
+              variant={filtroAtivo === 'vencidas' ? 'destructive' : 'outline'}
+              size="sm"
+              onClick={() => setFiltroAtivo('vencidas')}
+            >
+              Vencidas ({cobrancasVencidas.length})
+            </Button>
+            <Button
+              variant={filtroAtivo === 'hoje' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFiltroAtivo('hoje')}
+            >
+              Hoje ({cobrancasHoje.length})
+            </Button>
+            <Button
+              variant={filtroAtivo === 'proximos7' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFiltroAtivo('proximos7')}
+            >
+              Próximos 7 dias ({cobrancasProximos7.length})
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Kanban Board */}
-      <DndContext
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {(Object.keys(statusConfig) as StatusCobranca[]).map((status) => (
-            <KanbanColumn
-              key={status}
-              status={status}
-              title={statusConfig[status].label}
-              cobrancas={getCobrancasByStatus(status)}
-              onEdit={handleEdit}
-              onPagar={handlePagarClick}
-            />
-          ))}
-        </div>
+      {/* Agenda de Cobranças */}
+      <div className="space-y-4">
+        {/* Vencidas */}
+        {(filtroAtivo === 'todas' || filtroAtivo === 'vencidas') && cobrancasVencidas.length > 0 && (
+          <Card className="border-destructive">
+            <CardHeader className="bg-destructive/10">
+              <CardTitle className="text-destructive flex items-center gap-2">
+                <CalendarDays className="h-5 w-5" />
+                Cobranças Vencidas ({cobrancasVencidas.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-3">
+              {cobrancasVencidas.map((cobranca) => (
+                <CobrancaItem
+                  key={cobranca.id}
+                  cobranca={cobranca}
+                  onEdit={handleEdit}
+                  onPagar={handlePagarClick}
+                  onReagendar={handleReagendarClick}
+                  destacarVencida
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
-        <DragOverlay>
-          {activeCobranca && (
-            <CobrancaCard
-              cobranca={activeCobranca}
-              isDragging
-            />
-          )}
-        </DragOverlay>
-      </DndContext>
+        {/* Hoje */}
+        {(filtroAtivo === 'todas' || filtroAtivo === 'hoje') && cobrancasHoje.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5" />
+                Hoje - {format(hoje, "dd/MM/yyyy", { locale: ptBR })} ({cobrancasHoje.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-3">
+              {cobrancasHoje.map((cobranca) => (
+                <CobrancaItem
+                  key={cobranca.id}
+                  cobranca={cobranca}
+                  onEdit={handleEdit}
+                  onPagar={handlePagarClick}
+                  onReagendar={handleReagendarClick}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Próximos 7 dias */}
+        {(filtroAtivo === 'todas' || filtroAtivo === 'proximos7') && cobrancasProximos7.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Próximos 7 dias ({cobrancasProximos7.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-3">
+              {cobrancasProximos7.map((cobranca) => (
+                <CobrancaItem
+                  key={cobranca.id}
+                  cobranca={cobranca}
+                  onEdit={handleEdit}
+                  onPagar={handlePagarClick}
+                  onReagendar={handleReagendarClick}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Lista vazia */}
+        {cobrancasFiltradas.length === 0 && (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <CalendarDays className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="text-lg font-medium">Nenhuma cobrança encontrada</p>
+              <p className="text-sm">Crie uma nova cobrança para começar</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Modal de Receber Cobrança */}
       <ModalReceberCobranca
@@ -614,150 +732,128 @@ export default function Cobranca() {
           }
         }}
       />
+
+      {/* Modal de Reagendar */}
+      <Dialog open={modalReagendarOpen} onOpenChange={setModalReagendarOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reagendar Cobrança</DialogTitle>
+          </DialogHeader>
+          {cobrancaParaReagendar && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <p className="text-sm"><strong>Revendedora:</strong> {cobrancaParaReagendar.revendedora}</p>
+                <p className="text-sm"><strong>Valor:</strong> {formatarValor(cobrancaParaReagendar.valor_previsto)}</p>
+                <p className="text-sm"><strong>Data Atual:</strong> {format(new Date(cobrancaParaReagendar.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Nova Data de Vencimento</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !novaDataAgendada && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {novaDataAgendada ? format(novaDataAgendada, "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione uma data</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={novaDataAgendada}
+                      onSelect={setNovaDataAgendada}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setModalReagendarOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleConfirmarReagendamento} disabled={!novaDataAgendada}>
+                  Salvar Nova Data
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-// Componente de Coluna do Kanban
-function KanbanColumn({
-  status,
-  title,
-  cobrancas,
-  onEdit,
-  onPagar,
-}: {
-  status: StatusCobranca;
-  title: string;
-  cobrancas: Cobranca[];
-  onEdit: (cobranca: Cobranca) => void;
-  onPagar: (cobranca: Cobranca) => void;
-}) {
-  const { setNodeRef } = useDroppable({ id: status });
-
-  return (
-    <Card ref={setNodeRef} className="h-fit min-h-[400px]">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>{title}</span>
-          <Badge variant="secondary">{cobrancas.length}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {cobrancas.map((cobranca) => (
-          <CobrancaCard
-            key={cobranca.id}
-            cobranca={cobranca}
-            onEdit={onEdit}
-            onPagar={onPagar}
-          />
-        ))}
-        {cobrancas.length === 0 && (
-          <div className="text-center text-muted-foreground py-8">
-            Nenhuma cobrança
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// Componente de Card de Cobrança
-function CobrancaCard({
+// Componente de Item de Cobrança na Agenda
+function CobrancaItem({
   cobranca,
-  isDragging = false,
   onEdit,
   onPagar,
+  onReagendar,
+  destacarVencida = false,
 }: {
   cobranca: Cobranca;
-  isDragging?: boolean;
-  onEdit?: (cobranca: Cobranca) => void;
-  onPagar?: (cobranca: Cobranca) => void;
+  onEdit: (cobranca: Cobranca) => void;
+  onPagar: (cobranca: Cobranca) => void;
+  onReagendar: (cobranca: Cobranca) => void;
+  destacarVencida?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id: cobranca.id,
-  });
-
-  const style = transform
-    ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-      }
-    : undefined;
-
   return (
-    <Card
-      ref={setNodeRef}
-      style={style}
-      className={`cursor-move transition-shadow hover:shadow-lg ${
-        isDragging ? 'opacity-50' : ''
-      }`}
-      {...listeners}
-      {...attributes}
-    >
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1 flex-1">
-            <div className="font-medium flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              {cobranca.revendedora}
+    <Card className={cn(
+      "transition-all hover:shadow-md",
+      destacarVencida && "border-destructive bg-destructive/5"
+    )}>
+      <CardContent className="p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="font-semibold text-lg flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                {cobranca.revendedora}
+              </div>
+              <Badge className={statusConfig[cobranca.status].color}>
+                {statusConfig[cobranca.status].label}
+              </Badge>
             </div>
-            <div className="text-sm text-muted-foreground flex items-center gap-2">
-              <DollarSign className="h-3 w-3" />
-              {formatarValor(cobranca.valor_previsto)}
+            
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <DollarSign className="h-4 w-4" />
+                <span className="font-medium text-foreground">{formatarValor(cobranca.valor_previsto)}</span>
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <CalendarIcon className="h-4 w-4" />
+                <span className={cn(destacarVencida && "text-destructive font-medium")}>
+                  {format(new Date(cobranca.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}
+                </span>
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground flex items-center gap-2">
-              <Clock className="h-3 w-3" />
-              {format(new Date(cobranca.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}
-            </div>
+
+            {cobranca.observacoes && (
+              <p className="text-xs text-muted-foreground">{cobranca.observacoes}</p>
+            )}
           </div>
-          <Badge className={statusConfig[cobranca.status].color}>
-            {statusConfig[cobranca.status].label}
-          </Badge>
+
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => onEdit(cobranca)}>
+              <Edit className="h-3 w-3 mr-1" />
+              Editar
+            </Button>
+            <Button variant="default" size="sm" onClick={() => onPagar(cobranca)}>
+              <CreditCard className="h-3 w-3 mr-1" />
+              Cobrar
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => onReagendar(cobranca)}>
+              <CalendarDays className="h-3 w-3 mr-1" />
+              Reagendar
+            </Button>
+          </div>
         </div>
-
-        {cobranca.observacoes && (
-          <p className="text-xs text-muted-foreground line-clamp-2">
-            {cobranca.observacoes}
-          </p>
-        )}
-
-        {!isDragging && (onEdit || onPagar) && (
-          <div className="flex gap-2 pt-2">
-            {onEdit && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(cobranca);
-                }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                }}
-                className="flex-1"
-              >
-                <Edit className="h-3 w-3 mr-1" />
-                Editar
-              </Button>
-            )}
-            {onPagar && cobranca.status !== 'pago' && (
-              <Button
-                size="sm"
-                variant="default"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPagar(cobranca);
-                }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                }}
-                className="flex-1"
-              >
-                <CreditCard className="h-3 w-3 mr-1" />
-                Cobrar
-              </Button>
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   );
