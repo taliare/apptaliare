@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -20,12 +20,15 @@ import { ModalSenhaAdmin } from '@/components/cobranca/ModalSenhaAdmin';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'];
 
 interface CobrancaFormData {
   revendedora: string;
+  codigo_nota?: string;
+  tipo?: string;
   valor_previsto: string;
   data_agendada: string;
   observacoes: string;
@@ -58,6 +61,8 @@ export default function Cobranca() {
   
   const [formData, setFormData] = useState<CobrancaFormData>({
     revendedora: '',
+    codigo_nota: '',
+    tipo: '',
     valor_previsto: '',
     data_agendada: format(new Date(), 'yyyy-MM-dd'),
     observacoes: '',
@@ -113,6 +118,8 @@ export default function Cobranca() {
       
       const { error } = await supabase.from('cobrancas_agendadas').insert({
         revendedora: data.revendedora,
+        codigo_nota: data.codigo_nota || null,
+        tipo: data.tipo || null,
         valor_previsto: valorNumerico,
         data_agendada: data.data_agendada,
         observacoes: data.observacoes,
@@ -141,6 +148,8 @@ export default function Cobranca() {
         .from('cobrancas_agendadas')
         .update({
           revendedora: data.revendedora,
+          codigo_nota: data.codigo_nota || null,
+          tipo: data.tipo || null,
           valor_previsto: valorNumerico,
           data_agendada: data.data_agendada,
           observacoes: data.observacoes,
@@ -353,6 +362,8 @@ export default function Cobranca() {
       setEditingCobranca(cobranca);
       setFormData({
         revendedora: cobranca.revendedora,
+        codigo_nota: cobranca.codigo_nota || '',
+        tipo: cobranca.tipo || '',
         valor_previsto: cobranca.valor_previsto.toFixed(2),
         data_agendada: cobranca.data_agendada,
         observacoes: cobranca.observacoes || '',
@@ -365,6 +376,8 @@ export default function Cobranca() {
     if (editingCobranca) {
       setFormData({
         revendedora: editingCobranca.revendedora,
+        codigo_nota: editingCobranca.codigo_nota || '',
+        tipo: editingCobranca.tipo || '',
         valor_previsto: editingCobranca.valor_previsto.toFixed(2),
         data_agendada: editingCobranca.data_agendada,
         observacoes: editingCobranca.observacoes || '',
@@ -435,6 +448,8 @@ export default function Cobranca() {
   const resetForm = () => {
     setFormData({
       revendedora: '',
+      codigo_nota: '',
+      tipo: '',
       valor_previsto: '',
       data_agendada: format(new Date(), 'yyyy-MM-dd'),
       observacoes: '',
@@ -515,6 +530,30 @@ export default function Cobranca() {
                   onChange={(e) => setFormData({ ...formData, revendedora: e.target.value })}
                   required
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="codigo_nota">Código da Nota (opcional)</Label>
+                  <Input
+                    id="codigo_nota"
+                    value={formData.codigo_nota}
+                    onChange={(e) => setFormData({ ...formData, codigo_nota: e.target.value })}
+                    placeholder="EX: NOTA-001"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tipo">Tipo (opcional)</Label>
+                  <Select value={formData.tipo} onValueChange={(value) => setFormData({ ...formData, tipo: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="kit">Kit</SelectItem>
+                      <SelectItem value="repasse">Repasse</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -811,7 +850,7 @@ function CobrancaItem({
       <CardContent className="p-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <div className="font-semibold text-lg flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
                 {cobranca.revendedora}
@@ -819,9 +858,21 @@ function CobrancaItem({
               <Badge className={statusConfig[cobranca.status].color}>
                 {statusConfig[cobranca.status].label}
               </Badge>
+              {cobranca.tipo && (
+                <Badge variant={cobranca.tipo === 'kit' ? 'default' : 'secondary'}>
+                  {cobranca.tipo.toUpperCase()}
+                </Badge>
+              )}
             </div>
             
             <div className="flex flex-wrap gap-4 text-sm">
+              {cobranca.codigo_nota && (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                    {cobranca.codigo_nota}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-1 text-muted-foreground">
                 <DollarSign className="h-4 w-4" />
                 <span className="font-medium text-foreground">{formatarValor(cobranca.valor_previsto)}</span>
