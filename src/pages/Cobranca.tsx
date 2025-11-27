@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -460,18 +460,20 @@ export default function Cobranca() {
   const hoje = startOfDay(new Date());
   const proximos7Dias = addDays(hoje, 7);
 
-  const cobrancasVencidas = cobrancas.filter(c => 
-    isBefore(new Date(c.data_agendada), hoje)
-  );
+  const cobrancasVencidas = cobrancas
+    .filter(c => isBefore(new Date(c.data_agendada), hoje))
+    .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime());
   
-  const cobrancasHoje = cobrancas.filter(c => 
-    isToday(new Date(c.data_agendada))
-  );
+  const cobrancasHoje = cobrancas
+    .filter(c => isToday(new Date(c.data_agendada)))
+    .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime());
   
-  const cobrancasProximos7 = cobrancas.filter(c => {
-    const data = new Date(c.data_agendada);
-    return isAfter(data, hoje) && !isToday(data) && isBefore(data, proximos7Dias);
-  });
+  const cobrancasProximos7 = cobrancas
+    .filter(c => {
+      const data = new Date(c.data_agendada);
+      return isAfter(data, hoje) && !isToday(data) && isBefore(data, proximos7Dias);
+    })
+    .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime());
 
   const cobrancasFiltradas = (() => {
     switch (filtroAtivo) {
@@ -657,10 +659,10 @@ export default function Cobranca() {
       <div className="space-y-4">
         {/* Vencidas */}
         {(filtroAtivo === 'todas' || filtroAtivo === 'vencidas') && cobrancasVencidas.length > 0 && (
-          <Card className="border-destructive">
-            <CardHeader className="bg-destructive/10">
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardHeader className="bg-destructive/10 border-b border-destructive/20">
               <CardTitle className="text-destructive flex items-center gap-2">
-                <CalendarDays className="h-5 w-5" />
+                <AlertCircle className="h-5 w-5" />
                 Cobranças Vencidas ({cobrancasVencidas.length})
               </CardTitle>
             </CardHeader>
@@ -681,9 +683,9 @@ export default function Cobranca() {
 
         {/* Hoje */}
         {(filtroAtivo === 'todas' || filtroAtivo === 'hoje') && cobrancasHoje.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="border-primary/50 bg-primary/5">
+            <CardHeader className="bg-primary/10 border-b">
+              <CardTitle className="flex items-center gap-2 text-primary">
                 <CalendarIcon className="h-5 w-5" />
                 Hoje - {format(hoje, "dd/MM/yyyy", { locale: ptBR })} ({cobrancasHoje.length})
               </CardTitle>
@@ -704,8 +706,8 @@ export default function Cobranca() {
 
         {/* Próximos 7 dias */}
         {(filtroAtivo === 'todas' || filtroAtivo === 'proximos7') && cobrancasProximos7.length > 0 && (
-          <Card>
-            <CardHeader>
+          <Card className="border-muted">
+            <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
                 Próximos 7 dias ({cobrancasProximos7.length})
@@ -845,9 +847,9 @@ function CobrancaItem({
   return (
     <Card className={cn(
       "transition-all hover:shadow-md",
-      destacarVencida && "border-destructive bg-destructive/5"
+      destacarVencida && "border-destructive/60 bg-destructive/5"
     )}>
-      <CardContent className="p-4">
+      <CardContent className="p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex-1 space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
@@ -855,31 +857,46 @@ function CobrancaItem({
                 <User className="h-4 w-4 text-muted-foreground" />
                 {cobranca.revendedora}
               </div>
+              {destacarVencida && (
+                <AlertCircle className="h-4 w-4 text-destructive" />
+              )}
               <Badge className={statusConfig[cobranca.status].color}>
                 {statusConfig[cobranca.status].label}
               </Badge>
               {cobranca.tipo && (
-                <Badge variant={cobranca.tipo === 'kit' ? 'default' : 'secondary'}>
+                <Badge 
+                  variant="outline"
+                  className={cn(
+                    cobranca.tipo === 'kit' 
+                      ? 'border-primary/50 bg-primary/10 text-primary' 
+                      : 'border-muted-foreground/50 bg-muted text-muted-foreground'
+                  )}
+                >
+                  <Package className="h-3 w-3 mr-1" />
                   {cobranca.tipo.toUpperCase()}
                 </Badge>
               )}
             </div>
             
-            <div className="flex flex-wrap gap-4 text-sm">
+            <div className="flex flex-wrap gap-3 text-sm">
               {cobranca.codigo_nota && (
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                <div className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="font-mono text-xs bg-muted px-2 py-1 rounded font-medium">
                     {cobranca.codigo_nota}
                   </span>
                 </div>
               )}
-              <div className="flex items-center gap-1 text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
                 <DollarSign className="h-4 w-4" />
-                <span className="font-medium text-foreground">{formatarValor(cobranca.valor_previsto)}</span>
+                <span className="font-semibold text-foreground text-base">{formatarValor(cobranca.valor_previsto)}</span>
               </div>
-              <div className="flex items-center gap-1 text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
                 <CalendarIcon className="h-4 w-4" />
-                <span className={cn(destacarVencida && "text-destructive font-medium")}>
+                <span className={cn(
+                  "font-medium",
+                  destacarVencida && "text-destructive font-semibold"
+                )}>
                   {format(new Date(cobranca.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}
                 </span>
               </div>
@@ -890,18 +907,18 @@ function CobrancaItem({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => onEdit(cobranca)}>
-              <Edit className="h-3 w-3 mr-1" />
-              Editar
+          <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+            <Button variant="outline" size="sm" onClick={() => onEdit(cobranca)} className="flex-1 sm:flex-none">
+              <Edit className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Editar</span>
             </Button>
-            <Button variant="default" size="sm" onClick={() => onPagar(cobranca)}>
-              <CreditCard className="h-3 w-3 mr-1" />
-              Cobrar
+            <Button variant="default" size="sm" onClick={() => onPagar(cobranca)} className="flex-1 sm:flex-none">
+              <CreditCard className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Cobrar</span>
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => onReagendar(cobranca)}>
-              <CalendarDays className="h-3 w-3 mr-1" />
-              Reagendar
+            <Button variant="secondary" size="sm" onClick={() => onReagendar(cobranca)} className="flex-1 sm:flex-none">
+              <CalendarDays className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Reagendar</span>
             </Button>
           </div>
         </div>
