@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, TrendingUp, DollarSign, Target, TrendingDown, FileText } from 'lucide-react';
@@ -8,6 +9,7 @@ import { ptBR } from 'date-fns/locale';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatarValor, formatarNumero } from '@/lib/utils';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 
 interface CobrancaDiaria {
   data: string;
@@ -26,20 +28,21 @@ interface MetaCobranca {
 
 export default function Dashboard() {
   const { profile, user } = useAuth();
-  const mesAtual = format(new Date(), 'yyyy-MM');
-  const inicioMes = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-  const fimMes = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  
+  const mesAtual = format(new Date(startDate), 'yyyy-MM');
 
-  // Query para cobranças diárias do mês
+  // Query para cobranças diárias do período
   const { data: cobrancas = [] } = useQuery({
-    queryKey: ['cobrancas-mes', user?.id, mesAtual],
+    queryKey: ['cobrancas-mes', user?.id, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_diarias')
         .select('data, total_cobrado, despesa_cobranca')
         .eq('representante_id', user!.id)
-        .gte('data', inicioMes)
-        .lte('data', fimMes)
+        .gte('data', startDate)
+        .lte('data', endDate)
         .order('data');
       
       if (error) throw error;
@@ -48,16 +51,16 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Query para kits entregues no mês
+  // Query para kits entregues no período
   const { data: kitsDoMes = [] } = useQuery({
-    queryKey: ['kits-mes', user?.id, mesAtual],
+    queryKey: ['kits-mes', user?.id, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kits_entregues')
         .select('data_entrega')
         .eq('representante_id', user!.id)
-        .gte('data_entrega', inicioMes)
-        .lte('data_entrega', fimMes);
+        .gte('data_entrega', startDate)
+        .lte('data_entrega', endDate);
       
       if (error) throw error;
       return data as KitEntregue[];
@@ -83,16 +86,16 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Query para notas promissórias do mês
+  // Query para notas promissórias do período
   const { data: notasDoMes = [] } = useQuery({
-    queryKey: ['notas-mes', user?.id, mesAtual],
+    queryKey: ['notas-mes', user?.id, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notas_promissorias')
         .select('id, valor_total')
         .eq('representante_id', user!.id)
-        .gte('data', inicioMes)
-        .lte('data', fimMes);
+        .gte('data', startDate)
+        .lte('data', endDate);
       
       if (error) throw error;
       return data;
@@ -113,8 +116,8 @@ export default function Dashboard() {
 
   // Dados para o gráfico - evolução diária
   const diasDoMes = eachDayOfInterval({ 
-    start: startOfMonth(new Date()), 
-    end: new Date() 
+    start: new Date(startDate), 
+    end: new Date(endDate) 
   });
 
   const dadosGrafico = diasDoMes.map(dia => {
@@ -151,6 +154,13 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold text-foreground">Bem-vindo, {profile?.nome}</h1>
         <p className="text-muted-foreground">Acompanhe seu desempenho e metas</p>
       </div>
+
+      <DateRangeFilter 
+        onFilterChange={(start, end) => {
+          setStartDate(start);
+          setEndDate(end);
+        }} 
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>

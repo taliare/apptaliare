@@ -1,20 +1,23 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, TrendingUp, Box } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 
 export default function Producao() {
-  const { data: stats } = useQuery({
-    queryKey: ['producao-stats'],
-    queryFn: async () => {
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
 
+  const { data: stats } = useQuery({
+    queryKey: ['producao-stats', startDate, endDate],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('producao_diaria')
         .select('tipo')
-        .gte('data', startOfMonth.toISOString().split('T')[0]);
+        .gte('data', startDate)
+        .lte('data', endDate);
 
       if (error) throw error;
 
@@ -32,6 +35,13 @@ export default function Producao() {
         <h1 className="text-3xl font-bold text-foreground">Dashboard da Produção</h1>
         <p className="text-muted-foreground">Visão geral da produção mensal</p>
       </div>
+
+      <DateRangeFilter 
+        onFilterChange={(start, end) => {
+          setStartDate(start);
+          setEndDate(end);
+        }} 
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
