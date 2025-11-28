@@ -101,7 +101,13 @@ export default function ImportarCobrancas() {
             if (typeof row.valor === 'number') {
               valor = row.valor;
             } else if (typeof row.valor === 'string') {
-              valor = parseFloat(row.valor.replace(/[^\d,.-]/g, '').replace(',', '.'));
+              // Trata formato brasileiro: 8.710,00 -> 8710.00
+              // Remove pontos (separadores de milhar) e substitui vírgula por ponto (decimal)
+              const valorLimpo = row.valor
+                .replace(/[^\d,.-]/g, '') // Remove símbolos exceto dígitos, vírgula, ponto e traço
+                .replace(/\./g, '') // Remove pontos (separadores de milhar)
+                .replace(',', '.'); // Substitui vírgula por ponto (decimal)
+              valor = parseFloat(valorLimpo);
             }
 
             if (isNaN(valor) || valor <= 0) {
