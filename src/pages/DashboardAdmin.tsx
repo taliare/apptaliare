@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
@@ -7,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatarValor, formatarNumero } from '@/lib/utils';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
 
 interface Profile {
   id: string;
@@ -27,9 +29,10 @@ interface MetaData {
 }
 
 export default function DashboardAdmin() {
-  const mesAtual = format(new Date(), 'yyyy-MM');
-  const inicioMes = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-  const fimMes = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  
+  const mesAtual = format(new Date(startDate), 'yyyy-MM');
   const hoje = format(new Date(), 'yyyy-MM-dd');
 
   // Query para representantes ativos (excluindo admins)
@@ -59,15 +62,15 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para cobranças do mês
+  // Query para cobranças do período
   const { data: cobrancasMes = [] } = useQuery({
-    queryKey: ['cobrancas-mes-admin', mesAtual],
+    queryKey: ['cobrancas-mes-admin', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_diarias')
         .select('representante_id, total_cobrado, despesa_cobranca')
-        .gte('data', inicioMes)
-        .lte('data', fimMes);
+        .gte('data', startDate)
+        .lte('data', endDate);
       
       if (error) throw error;
       
@@ -104,30 +107,30 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para kits do mês
+  // Query para kits do período
   const { data: kitsData } = useQuery({
-    queryKey: ['kits-mes-admin', mesAtual],
+    queryKey: ['kits-mes-admin', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kits_entregues')
         .select('id', { count: 'exact' })
-        .gte('data_entrega', inicioMes)
-        .lte('data_entrega', fimMes);
+        .gte('data_entrega', startDate)
+        .lte('data_entrega', endDate);
       
       if (error) throw error;
       return data;
     },
   });
 
-  // Query para notas promissórias do mês (agrupadas por representante)
+  // Query para notas promissórias do período (agrupadas por representante)
   const { data: notasPorRepresentante = [] } = useQuery({
-    queryKey: ['notas-mes-admin', mesAtual],
+    queryKey: ['notas-mes-admin', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notas_promissorias')
         .select('representante_id, id')
-        .gte('data', inicioMes)
-        .lte('data', fimMes);
+        .gte('data', startDate)
+        .lte('data', endDate);
       
       if (error) throw error;
       
@@ -142,15 +145,15 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para notas promissórias do mês (total geral)
+  // Query para notas promissórias do período (total geral)
   const { data: notasData } = useQuery({
-    queryKey: ['notas-total-mes-admin', mesAtual],
+    queryKey: ['notas-total-mes-admin', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notas_promissorias')
         .select('id', { count: 'exact' })
-        .gte('data', inicioMes)
-        .lte('data', fimMes);
+        .gte('data', startDate)
+        .lte('data', endDate);
       
       if (error) throw error;
       return data;
@@ -206,6 +209,13 @@ export default function DashboardAdmin() {
         <h1 className="text-3xl font-bold text-foreground">Dashboard Administrativo</h1>
         <p className="text-muted-foreground">Visão geral de todos os representantes</p>
       </div>
+
+      <DateRangeFilter 
+        onFilterChange={(start, end) => {
+          setStartDate(start);
+          setEndDate(end);
+        }} 
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
