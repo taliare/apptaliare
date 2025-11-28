@@ -32,7 +32,8 @@ export default function DashboardAdmin() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   
-  const mesAtual = format(new Date(startDate), 'yyyy-MM');
+  // Meta sempre do mês atual, não do período filtrado
+  const mesAtual = format(new Date(), 'yyyy-MM');
   const hoje = format(new Date(), 'yyyy-MM-dd');
 
   // Query para representantes ativos (excluindo admins)
