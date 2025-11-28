@@ -31,7 +31,8 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   
-  const mesAtual = format(new Date(startDate), 'yyyy-MM');
+  // Meta sempre do mês atual, não do período filtrado
+  const mesAtual = format(new Date(), 'yyyy-MM');
 
   // Query para cobranças diárias do período
   const { data: cobrancas = [] } = useQuery({
