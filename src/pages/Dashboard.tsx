@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatarValor, formatarNumero } from '@/lib/utils';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { useMetaNotifications } from '@/hooks/useMetaNotifications';
 
 interface CobrancaDiaria {
   data: string;
@@ -114,6 +115,13 @@ export default function Dashboard() {
   const percentualMeta = metaDoMes?.meta_valor 
     ? (totalCobrado / metaDoMes.meta_valor) * 100 
     : 0;
+
+  // Ativa notificações de progresso da meta
+  useMetaNotifications({
+    percentualMeta,
+    metaValor: metaDoMes?.meta_valor || 0,
+    totalCobrado,
+  });
 
   // Dados para o gráfico - evolução diária
   const diasDoMes = eachDayOfInterval({ 
