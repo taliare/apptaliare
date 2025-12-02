@@ -2,10 +2,21 @@ import { useState } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, closestCenter } from '@dnd-kit/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Package } from 'lucide-react';
+import { Package, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Kit {
   id: string;
@@ -20,7 +31,7 @@ interface Representante {
   nome: string;
 }
 
-function KitCard({ kit }: { kit: Kit }) {
+function KitCard({ kit, onDelete }: { kit: Kit; onDelete?: (kitId: string) => void }) {
   const tipoColors: Record<string, string> = {
     inicial: 'bg-blue-500',
     especial: 'bg-purple-500',
@@ -28,15 +39,30 @@ function KitCard({ kit }: { kit: Kit }) {
   };
 
   return (
-    <div className="p-3 bg-card border rounded-lg cursor-move hover:bg-accent/50 transition-colors">
+    <div className="p-3 bg-card border rounded-lg cursor-move hover:bg-accent/50 transition-colors group">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Package className="h-4 w-4 text-muted-foreground" />
           <span className="font-mono text-sm font-medium">{kit.codigo}</span>
         </div>
-        <Badge className={tipoColors[kit.tipo] || 'bg-gray-500'}>
-          {kit.tipo}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge className={tipoColors[kit.tipo] || 'bg-gray-500'}>
+            {kit.tipo}
+          </Badge>
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(kit.id);
+              }}
+            >
+              <Trash2 className="h-3 w-3 text-destructive" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -46,12 +72,14 @@ function DroppableColumn({
   id, 
   title, 
   kits, 
-  onDragOver 
+  onDragOver,
+  onDeleteKit
 }: { 
   id: string; 
   title: string; 
   kits: Kit[];
   onDragOver: (e: React.DragEvent) => void;
+  onDeleteKit?: (kitId: string) => void;
 }) {
   return (
     <Card 
@@ -77,7 +105,7 @@ function DroppableColumn({
             }}
             className="cursor-move"
           >
-            <KitCard kit={kit} />
+            <KitCard kit={kit} onDelete={onDeleteKit} />
           </div>
         ))}
         {kits.length === 0 && (
@@ -93,6 +121,7 @@ function DroppableColumn({
 export default function DistribuicaoKits() {
   const queryClient = useQueryClient();
   const [draggedKit, setDraggedKit] = useState<Kit | null>(null);
+  const [kitToDelete, setKitToDelete] = useState<string | null>(null);
 
   const { data: kits = [], isLoading: isLoadingKits } = useQuery({
     queryKey: ['kits-estoque'],
@@ -189,6 +218,27 @@ export default function DistribuicaoKits() {
     }
   };
 
+  const handleDeleteKit = async () => {
+    if (!kitToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('kits_estoque')
+        .delete()
+        .eq('id', kitToDelete);
+
+      if (error) throw error;
+
+      toast.success('Kit excluído com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
+    } catch (error: any) {
+      toast.error('Erro ao excluir kit: ' + error.message);
+    } finally {
+      setKitToDelete(null);
+    }
+  };
+
   const estoqueKits = kits.filter(k => k.status === 'estoque');
 
   if (isLoadingKits || isLoadingReps) {
@@ -200,41 +250,60 @@ export default function DistribuicaoKits() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Distribuição de Kits</h1>
-        <p className="text-muted-foreground">Arraste os kits entre estoque e representantes</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Coluna Estoque */}
-        <div onDrop={(e) => handleDrop(e, 'estoque')}>
-          <DroppableColumn
-            id="estoque"
-            title="Estoque"
-            kits={estoqueKits}
-            onDragOver={handleDragOver}
-          />
+    <>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Distribuição de Kits</h1>
+          <p className="text-muted-foreground">Arraste os kits entre estoque e representantes</p>
         </div>
 
-        {/* Colunas dos Representantes */}
-        {representantes.map(rep => {
-          const repKits = kits.filter(k => 
-            k.representante_id === rep.id && k.status === 'com_representante'
-          );
-          return (
-            <div key={rep.id} onDrop={(e) => handleDrop(e, rep.id)}>
-              <DroppableColumn
-                id={rep.id}
-                title={rep.nome}
-                kits={repKits}
-                onDragOver={handleDragOver}
-              />
-            </div>
-          );
-        })}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Coluna Estoque */}
+          <div onDrop={(e) => handleDrop(e, 'estoque')}>
+            <DroppableColumn
+              id="estoque"
+              title="Estoque"
+              kits={estoqueKits}
+              onDragOver={handleDragOver}
+              onDeleteKit={setKitToDelete}
+            />
+          </div>
+
+          {/* Colunas dos Representantes */}
+          {representantes.map(rep => {
+            const repKits = kits.filter(k => 
+              k.representante_id === rep.id && k.status === 'com_representante'
+            );
+            return (
+              <div key={rep.id} onDrop={(e) => handleDrop(e, rep.id)}>
+                <DroppableColumn
+                  id={rep.id}
+                  title={rep.nome}
+                  kits={repKits}
+                  onDragOver={handleDragOver}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-    </div>
+      <AlertDialog open={!!kitToDelete} onOpenChange={(open) => !open && setKitToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este kit do estoque? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteKit} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
