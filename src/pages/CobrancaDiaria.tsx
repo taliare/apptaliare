@@ -516,16 +516,6 @@ export default function CobrancaDiaria() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Notas Promissórias do Dia</CardTitle>
           <Dialog open={isNotaDialogOpen} onOpenChange={setIsNotaDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                onClick={() => handleOpenNotaDialog()} 
-                disabled={isDiaFinalizado}
-                size="sm"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Nota
-              </Button>
-            </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>

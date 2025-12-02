@@ -19,6 +19,7 @@ import CobrancaDiaria from "./pages/CobrancaDiaria";
 import Kits from "./pages/Kits";
 import Usuarios from "./pages/Usuarios";
 import Metas from "./pages/Metas";
+import GerenciarAgenda from "./pages/GerenciarAgenda";
 import ImportarCobrancas from "./pages/ImportarCobrancas";
 import Relatorios from "./pages/Relatorios";
 import Producao from "./pages/Producao";
@@ -105,6 +106,11 @@ const App = () => {
                           <Route path="/metas" element={
                             <ProtectedRoute requiredRole="admin">
                               <Metas />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/gerenciar-agenda" element={
+                            <ProtectedRoute requiredRole="admin">
+                              <GerenciarAgenda />
                             </ProtectedRoute>
                           } />
                           <Route path="/importar-cobrancas" element={

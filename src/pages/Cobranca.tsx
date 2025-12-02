@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -49,8 +49,9 @@ export default function Cobranca() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
   const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'vencidas' | 'hoje' | 'proximos7'>('todas');
+  const [searchTerm, setSearchTerm] = useState('');
   
-  // Modais de pagamento, senha e reagendamento
+  // Modais de pagamento, senha, reagendamento e adiantamento
   const [cobrancaParaPagar, setCobrancaParaPagar] = useState<Cobranca | null>(null);
   const [modalSenhaOpen, setModalSenhaOpen] = useState(false);
   const [acaoSenha, setAcaoSenha] = useState<'editar' | 'excluir'>('editar');
@@ -58,6 +59,10 @@ export default function Cobranca() {
   const [modalReagendarOpen, setModalReagendarOpen] = useState(false);
   const [cobrancaParaReagendar, setCobrancaParaReagendar] = useState<Cobranca | null>(null);
   const [novaDataAgendada, setNovaDataAgendada] = useState<Date>();
+  const [modalAdiantamentoOpen, setModalAdiantamentoOpen] = useState(false);
+  const [cobrancaParaAdiantar, setCobrancaParaAdiantar] = useState<Cobranca | null>(null);
+  const [valorAdiantamento, setValorAdiantamento] = useState('');
+  const [formaPagamentoAdiantamento, setFormaPagamentoAdiantamento] = useState<'pix' | 'dinheiro' | 'cartao'>('pix');
   
   const [formData, setFormData] = useState<CobrancaFormData>({
     revendedora: '',
@@ -417,6 +422,75 @@ export default function Cobranca() {
     setModalReagendarOpen(true);
   };
 
+  const handleAdiantamentoClick = (cobranca: Cobranca) => {
+    setCobrancaParaAdiantar(cobranca);
+    setValorAdiantamento('');
+    setModalAdiantamentoOpen(true);
+  };
+
+  const adiantamentoMutation = useMutation({
+    mutationFn: async ({ cobrancaId, valor, forma }: { cobrancaId: string; valor: number; forma: string }) => {
+      const dataHoje = format(new Date(), 'yyyy-MM-dd');
+      const cobranca = cobrancas.find(c => c.id === cobrancaId);
+      
+      // Criar nota promissória para o adiantamento
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert({
+          representante_id: userId!,
+          codigo_nota: `ADT-${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`,
+          data: dataHoje,
+          valor_total: valor,
+          forma_pagamento_1: forma as any,
+          valor_pagamento_1: valor,
+          forma_pagamento_2: null,
+          valor_pagamento_2: null
+        });
+
+      if (notaError) throw notaError;
+
+      // Atualizar valor_adiantado na cobrança
+      const { data: cobrancaData } = await supabase
+        .from('cobrancas_agendadas')
+        .select('valor_adiantado')
+        .eq('id', cobrancaId)
+        .single();
+
+      const valorAdiantadoAtual = cobrancaData?.valor_adiantado || 0;
+
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update({ 
+          valor_adiantado: valorAdiantadoAtual + valor
+        })
+        .eq('id', cobrancaId);
+
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+      toast({ title: 'Adiantamento registrado com sucesso!' });
+      setModalAdiantamentoOpen(false);
+      setCobrancaParaAdiantar(null);
+      setValorAdiantamento('');
+    },
+    onError: () => {
+      toast({ title: 'Erro ao registrar adiantamento', variant: 'destructive' });
+    },
+  });
+
+  const handleConfirmarAdiantamento = () => {
+    if (!cobrancaParaAdiantar || !valorAdiantamento) return;
+    
+    const valor = parseValorFormatado(valorAdiantamento);
+    adiantamentoMutation.mutate({
+      cobrancaId: cobrancaParaAdiantar.id,
+      valor,
+      forma: formaPagamentoAdiantamento
+    });
+  };
+
   const reagendarMutation = useMutation({
     mutationFn: async ({ id, novaData }: { id: string; novaData: string }) => {
       const { error } = await supabase
@@ -478,16 +552,31 @@ export default function Cobranca() {
     .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime());
 
   const cobrancasFiltradas = (() => {
+    let filtered = [];
     switch (filtroAtivo) {
       case 'vencidas':
-        return cobrancasVencidas;
+        filtered = cobrancasVencidas;
+        break;
       case 'hoje':
-        return cobrancasHoje;
+        filtered = cobrancasHoje;
+        break;
       case 'proximos7':
-        return cobrancasProximos7;
+        filtered = cobrancasProximos7;
+        break;
       default:
-        return cobrancas;
+        filtered = cobrancas;
     }
+
+    // Aplicar filtro de pesquisa
+    if (searchTerm) {
+      const termo = searchTerm.toLowerCase();
+      filtered = filtered.filter(c => 
+        c.revendedora.toLowerCase().includes(termo) ||
+        c.codigo_nota?.toLowerCase().includes(termo)
+      );
+    }
+
+    return filtered;
   })();
 
   if (isLoading) {
@@ -620,9 +709,21 @@ export default function Cobranca() {
         </Dialog>
       </div>
 
-      {/* Filtros Rápidos */}
+      {/* Filtros Rápidos e Pesquisa */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-4">
+          {/* Campo de Pesquisa */}
+          <div className="flex items-center gap-2">
+            <Search className="h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar por revendedora ou código da nota..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-md"
+            />
+          </div>
+
+          {/* Filtros */}
           <div className="flex flex-wrap items-center gap-3">
             <Filter className="h-5 w-5 text-muted-foreground" />
             <Button
@@ -676,6 +777,7 @@ export default function Cobranca() {
                   onEdit={handleEdit}
                   onPagar={handlePagarClick}
                   onReagendar={handleReagendarClick}
+                  onAdiantamento={handleAdiantamentoClick}
                   destacarVencida
                 />
               ))}
@@ -700,6 +802,7 @@ export default function Cobranca() {
                   onEdit={handleEdit}
                   onPagar={handlePagarClick}
                   onReagendar={handleReagendarClick}
+                  onAdiantamento={handleAdiantamentoClick}
                 />
               ))}
             </CardContent>
@@ -723,6 +826,7 @@ export default function Cobranca() {
                   onEdit={handleEdit}
                   onPagar={handlePagarClick}
                   onReagendar={handleReagendarClick}
+                  onAdiantamento={handleAdiantamentoClick}
                 />
               ))}
             </CardContent>
@@ -828,6 +932,68 @@ export default function Cobranca() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Adiantamento */}
+      <Dialog open={modalAdiantamentoOpen} onOpenChange={setModalAdiantamentoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Adiantamento</DialogTitle>
+          </DialogHeader>
+          {cobrancaParaAdiantar && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <p className="text-sm"><strong>Revendedora:</strong> {cobrancaParaAdiantar.revendedora}</p>
+                <p className="text-sm"><strong>Valor Total:</strong> {formatarValor(cobrancaParaAdiantar.valor_previsto)}</p>
+                <p className="text-sm"><strong>Data de Vencimento:</strong> {format(new Date(cobrancaParaAdiantar.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                {cobrancaParaAdiantar.valor_adiantado > 0 && (
+                  <p className="text-sm"><strong>Valor já Adiantado:</strong> <span className="text-green-600 font-semibold">{formatarValor(cobrancaParaAdiantar.valor_adiantado)}</span></p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Valor do Adiantamento</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    className="pl-10"
+                    value={valorAdiantamento}
+                    onChange={(e) => {
+                      const valor = formatarValorInput(e.target.value);
+                      setValorAdiantamento(valor);
+                    }}
+                    placeholder="0,00"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Forma de Pagamento</Label>
+                <Select value={formaPagamentoAdiantamento} onValueChange={(v: any) => setFormaPagamentoAdiantamento(v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="cartao">Cartão</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setModalAdiantamentoOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleConfirmarAdiantamento} disabled={!valorAdiantamento}>
+                  Registrar Adiantamento
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -838,14 +1004,18 @@ function CobrancaItem({
   onEdit,
   onPagar,
   onReagendar,
+  onAdiantamento,
   destacarVencida = false,
 }: {
   cobranca: Cobranca;
   onEdit: (cobranca: Cobranca) => void;
   onPagar: (cobranca: Cobranca) => void;
   onReagendar: (cobranca: Cobranca) => void;
+  onAdiantamento: (cobranca: Cobranca) => void;
   destacarVencida?: boolean;
 }) {
+  const { profile } = useAuth();
+  
   return (
     <Card className={cn(
       "transition-all hover:shadow-md",
@@ -907,16 +1077,29 @@ function CobrancaItem({
             {cobranca.observacoes && (
               <p className="text-xs text-muted-foreground">{cobranca.observacoes}</p>
             )}
+
+            {cobranca.valor_adiantado > 0 && (
+              <div className="text-xs text-green-600 font-semibold flex items-center gap-1">
+                <TrendingDown className="h-3 w-3" />
+                Adiantamento: {formatarValor(cobranca.valor_adiantado)}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-            <Button variant="outline" size="sm" onClick={() => onEdit(cobranca)} className="flex-1 sm:flex-none">
-              <Edit className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Editar</span>
-            </Button>
+            {profile?.role === 'admin' && (
+              <Button variant="outline" size="sm" onClick={() => onEdit(cobranca)} className="flex-1 sm:flex-none">
+                <Edit className="h-3.5 w-3.5 sm:mr-1" />
+                <span className="hidden sm:inline">Editar</span>
+              </Button>
+            )}
             <Button variant="default" size="sm" onClick={() => onPagar(cobranca)} className="flex-1 sm:flex-none">
               <CreditCard className="h-3.5 w-3.5 sm:mr-1" />
               <span className="hidden sm:inline">Cobrar</span>
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => onAdiantamento(cobranca)} className="flex-1 sm:flex-none">
+              <TrendingDown className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Adiantamento</span>
             </Button>
             <Button variant="secondary" size="sm" onClick={() => onReagendar(cobranca)} className="flex-1 sm:flex-none">
               <CalendarDays className="h-3.5 w-3.5 sm:mr-1" />
