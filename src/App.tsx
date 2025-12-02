@@ -61,7 +61,7 @@ const App = () => {
                       <MobileDrawer open={showMobileMenu} onOpenChange={setShowMobileMenu} />
 
                       {/* Main Content */}
-                      <main className="flex-1 p-6 bg-background w-full pt-20 md:pt-6">
+                      <main className="flex-1 px-4 py-4 md:p-6 bg-background w-full pt-20 md:pt-6 overflow-x-hidden">
                         <Routes>
                           {/* Representante routes */}
                           <Route path="/dashboard" element={<Dashboard />} />

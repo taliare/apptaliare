@@ -2,11 +2,11 @@ import { X, LogOut, ShoppingBag } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { useAuth } from '@/contexts/AuthContext';
 import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory } from 'lucide-react';
 import taliare_horizontal from '@/assets/taliare-horizontal-escuro.png';
@@ -49,22 +49,18 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   };
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} direction="left">
-      <DrawerContent className="h-full w-[80%] max-w-sm fixed left-0 top-0 bottom-0 bg-[#531B24] border-r border-[#6A2931]">
-        <DrawerHeader className="flex items-center justify-between border-b border-[#6A2931] pb-4">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent 
+        side="left" 
+        className="w-[80%] max-w-sm p-0 bg-[#531B24] border-r border-[#6A2931] [&>button]:text-white [&>button]:hover:bg-[#6A2931]"
+      >
+        <SheetHeader className="flex flex-row items-center justify-between border-b border-[#6A2931] p-4">
           <img src={taliare_horizontal} alt="TALIARE SEMIJOIAS" className="h-8 w-auto brightness-0 invert" />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onOpenChange(false)}
-            className="text-white hover:bg-[#6A2931]"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </DrawerHeader>
+          <SheetTitle className="sr-only">Menu</SheetTitle>
+        </SheetHeader>
 
-        <div className="flex flex-col h-full px-4 py-6">
-          <div className="flex-1 overflow-y-auto">
+        <div className="flex flex-col h-[calc(100%-65px)]">
+          <div className="flex-1 overflow-y-auto px-4 py-6">
             <div className="space-y-1">
               <p className="text-xs font-semibold text-[#E7D8C3] mb-3 px-3">
                 {profile?.role === 'admin' ? 'ADMIN' : profile?.role === 'producao' ? 'PRODUÇÃO' : 'MENU'}
@@ -84,21 +80,21 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             </div>
           </div>
 
-          <div className="flex-shrink-0 border-t border-[#6A2931] pt-4 mt-4">
+          <div className="flex-shrink-0 border-t border-[#6A2931] p-4">
             <Button
               variant="ghost"
               onClick={() => {
                 signOut();
                 onOpenChange(false);
               }}
-              className="w-full justify-start gap-3 text-[#E7D8C3] hover:bg-[#6A2931]"
+              className="w-full justify-start gap-3 text-[#E7D8C3] hover:bg-[#6A2931] hover:text-[#E7D8C3]"
             >
               <LogOut className="h-5 w-5" />
               <span>Sair</span>
             </Button>
           </div>
         </div>
-      </DrawerContent>
-    </Drawer>
+      </SheetContent>
+    </Sheet>
   );
 }
