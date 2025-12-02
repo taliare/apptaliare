@@ -63,7 +63,7 @@ export function AppSidebar() {
 
   const representanteItems = [
     { title: 'Dashboard', url: '/dashboard', icon: Home, badge: 0 },
-    { title: 'Cobrança', url: '/cobranca', icon: Calendar, badge: 0 },
+    { title: 'Agenda de Cobrança', url: '/cobranca', icon: Calendar, badge: 0 },
     { title: 'Cobrança Diária', url: '/cobranca-diaria', icon: CalendarCheck, badge: 0 },
     { title: 'Kits', url: '/kits', icon: Package, badge: 0 },
     { title: 'Encomendas', url: '/encomendas', icon: ShoppingBag, badge: encomendasProntas },
@@ -80,6 +80,7 @@ export function AppSidebar() {
     { title: 'Dashboard Admin', url: '/dashboard-admin', icon: Home, badge: 0 },
     { title: 'Usuários', url: '/usuarios', icon: Users, badge: 0 },
     { title: 'Metas', url: '/metas', icon: Target, badge: 0 },
+    { title: 'Gerenciar Agenda', url: '/gerenciar-agenda', icon: Calendar, badge: 0 },
     { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload, badge: 0 },
     { title: 'Relatórios', url: '/relatorios', icon: FileText, badge: 0 },
   ];

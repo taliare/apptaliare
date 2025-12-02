@@ -36,12 +36,19 @@ export default function Kits() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingKit, setEditingKit] = useState<KitEntregue | null>(null);
+  const [isVendaDialogOpen, setIsVendaDialogOpen] = useState(false);
 
   // Form states
   const [codigoMostruario, setCodigoMostruario] = useState('');
   const [dataEntrega, setDataEntrega] = useState<Date>(new Date());
   const [dataVencimento, setDataVencimento] = useState<Date>(addDays(new Date(), 60));
   const [tipo, setTipo] = useState<'renovacao' | 'novo'>('novo');
+
+  // Form states para venda de kit
+  const [codigoKitVenda, setCodigoKitVenda] = useState('');
+  const [nomeRevendedora, setNomeRevendedora] = useState('');
+  const [dataVencimentoVenda, setDataVencimentoVenda] = useState<Date>(addDays(new Date(), 60));
+  const [nomeVendedora, setNomeVendedora] = useState('');
 
   // Query for kits (histórico de kits entregues)
   const { data: kits = [], isLoading } = useQuery({
@@ -129,6 +136,79 @@ export default function Kits() {
     setDataEntrega(new Date());
     setDataVencimento(addDays(new Date(), 60));
     setTipo('novo');
+  };
+
+  const resetVendaForm = () => {
+    setCodigoKitVenda('');
+    setNomeRevendedora('');
+    setDataVencimentoVenda(addDays(new Date(), 60));
+    setNomeVendedora('');
+  };
+
+  // Mutation para registrar venda de kit
+  const vendaKitMutation = useMutation({
+    mutationFn: async (data: { codigo: string; revendedora: string; vendedora: string; dataVencimento: string }) => {
+      // Buscar o kit no estoque
+      const { data: kit, error: kitError } = await supabase
+        .from('kits_estoque')
+        .select('*')
+        .eq('codigo', data.codigo)
+        .eq('representante_id', user?.id)
+        .eq('status', 'com_representante')
+        .maybeSingle();
+
+      if (kitError) throw kitError;
+      if (!kit) throw new Error('Kit não encontrado no seu estoque');
+
+      // Criar nova cobrança na agenda
+      const { error: cobrancaError } = await supabase
+        .from('cobrancas_agendadas')
+        .insert({
+          representante_id: user!.id,
+          revendedora: data.revendedora,
+          codigo_nota: data.codigo,
+          tipo: 'kit',
+          valor_previsto: 0,
+          data_agendada: data.dataVencimento,
+          status: 'pendente',
+          vendedora: data.vendedora,
+          observacoes: `Venda de kit ${kit.tipo} - Código: ${data.codigo}`
+        });
+
+      if (cobrancaError) throw cobrancaError;
+
+      // Atualizar o kit para "com_revendedora"
+      const { error: updateError } = await supabase
+        .from('kits_estoque')
+        .update({ status: 'com_revendedora' })
+        .eq('id', kit.id);
+
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      toast.success('Venda de kit registrada com sucesso!');
+      resetVendaForm();
+      setIsVendaDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao registrar venda: ${error.message}`);
+    },
+  });
+
+  const handleSubmitVenda = () => {
+    if (!codigoKitVenda || !nomeRevendedora || !nomeVendedora) {
+      toast.error('Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    vendaKitMutation.mutate({
+      codigo: codigoKitVenda,
+      revendedora: nomeRevendedora,
+      vendedora: nomeVendedora,
+      dataVencimento: format(dataVencimentoVenda, 'yyyy-MM-dd')
+    });
   };
 
   const handleOpenDialog = (kit?: KitEntregue) => {
@@ -260,14 +340,101 @@ export default function Kits() {
           <h1 className="text-3xl font-bold text-foreground">Gestão de Kits</h1>
           <p className="text-muted-foreground">Acompanhe renovações e entregas de mostruários</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Kit
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
+        <div className="flex gap-2">
+          <Dialog open={isVendaDialogOpen} onOpenChange={setIsVendaDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="secondary" onClick={() => resetVendaForm()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Registrar Venda de Kit
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Registrar Venda de Kit</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="codigo_kit_venda">Código do Kit *</Label>
+                  <Select value={codigoKitVenda} onValueChange={setCodigoKitVenda}>
+                    <SelectTrigger id="codigo_kit_venda">
+                      <SelectValue placeholder="Selecione o kit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {kitsEstoque.map((kit: any) => (
+                        <SelectItem key={kit.id} value={kit.codigo}>
+                          {kit.codigo} ({kit.tipo})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ou digite o código manualmente acima
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="nome_revendedora">Nome da Revendedora *</Label>
+                  <Input
+                    id="nome_revendedora"
+                    value={nomeRevendedora}
+                    onChange={(e) => setNomeRevendedora(e.target.value)}
+                    placeholder="Ex: Maria Silva"
+                  />
+                </div>
+
+                <div>
+                  <Label>Data de Vencimento da Nota *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {format(dataVencimentoVenda, "dd/MM/yyyy", { locale: ptBR })}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dataVencimentoVenda}
+                        onSelect={(date) => date && setDataVencimentoVenda(date)}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div>
+                  <Label htmlFor="nome_vendedora">Nome da Vendedora *</Label>
+                  <Input
+                    id="nome_vendedora"
+                    value={nomeVendedora}
+                    onChange={(e) => setNomeVendedora(e.target.value)}
+                    placeholder="Ex: Ana Costa"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Será usado para controle de comissões
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsVendaDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSubmitVenda}>
+                  Registrar Venda
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => handleOpenDialog()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Kit
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
             <DialogHeader>
               <DialogTitle>
                 {editingKit ? 'Editar Kit' : 'Registrar Nova Entrega de Kit'}
@@ -349,6 +516,7 @@ export default function Kits() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Card com Kits Atualmente em Minha Posse */}

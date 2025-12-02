@@ -172,7 +172,6 @@ export default function DistribuicaoKits() {
   };
 
   const estoqueKits = kits.filter(k => k.status === 'estoque');
-  const representantesLimitados = representantes.slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -210,7 +209,7 @@ export default function DistribuicaoKits() {
           </Card>
         </div>
 
-        {representantesLimitados.map(rep => {
+        {representantes.map(rep => {
           const repKits = kits.filter(k => k.representante_id === rep.id && k.status === 'com_representante');
           return (
             <div 
