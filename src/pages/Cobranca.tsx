@@ -536,20 +536,36 @@ export default function Cobranca() {
   const hoje = startOfDay(new Date());
   const proximos7Dias = addDays(hoje, 7);
 
-  const cobrancasVencidas = cobrancas
-    .filter(c => isBefore(new Date(c.data_agendada), hoje))
-    .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime());
+  // Função auxiliar para aplicar filtro de pesquisa
+  const aplicarFiltroPesquisa = (lista: Cobranca[]) => {
+    if (!searchTerm) return lista;
+    const termo = searchTerm.toLowerCase();
+    return lista.filter(c => 
+      c.revendedora.toLowerCase().includes(termo) ||
+      c.codigo_nota?.toLowerCase().includes(termo)
+    );
+  };
+
+  const cobrancasVencidas = aplicarFiltroPesquisa(
+    cobrancas
+      .filter(c => isBefore(new Date(c.data_agendada), hoje))
+      .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime())
+  );
   
-  const cobrancasHoje = cobrancas
-    .filter(c => isToday(new Date(c.data_agendada)))
-    .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime());
+  const cobrancasHoje = aplicarFiltroPesquisa(
+    cobrancas
+      .filter(c => isToday(new Date(c.data_agendada)))
+      .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime())
+  );
   
-  const cobrancasProximos7 = cobrancas
-    .filter(c => {
-      const data = new Date(c.data_agendada);
-      return isAfter(data, hoje) && !isToday(data) && isBefore(data, proximos7Dias);
-    })
-    .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime());
+  const cobrancasProximos7 = aplicarFiltroPesquisa(
+    cobrancas
+      .filter(c => {
+        const data = new Date(c.data_agendada);
+        return isAfter(data, hoje) && !isToday(data) && isBefore(data, proximos7Dias);
+      })
+      .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime())
+  );
 
   const cobrancasFiltradas = (() => {
     let filtered = [];
@@ -564,16 +580,7 @@ export default function Cobranca() {
         filtered = cobrancasProximos7;
         break;
       default:
-        filtered = cobrancas;
-    }
-
-    // Aplicar filtro de pesquisa
-    if (searchTerm) {
-      const termo = searchTerm.toLowerCase();
-      filtered = filtered.filter(c => 
-        c.revendedora.toLowerCase().includes(termo) ||
-        c.codigo_nota?.toLowerCase().includes(termo)
-      );
+        filtered = aplicarFiltroPesquisa(cobrancas);
     }
 
     return filtered;
@@ -731,7 +738,7 @@ export default function Cobranca() {
               size="sm"
               onClick={() => setFiltroAtivo('todas')}
             >
-              Todas ({cobrancas.length})
+              Todas ({aplicarFiltroPesquisa(cobrancas).length})
             </Button>
             <Button
               variant={filtroAtivo === 'vencidas' ? 'destructive' : 'outline'}
