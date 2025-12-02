@@ -27,6 +27,7 @@ interface ModalReceberCobrancaProps {
     id: string;
     revendedora: string;
     valor_previsto: number;
+    tipo?: string | null;
   };
   onPagamentoCompleto: (dados: {
     valor_venda: number;
@@ -57,12 +58,18 @@ export function ModalReceberCobranca({
 }: ModalReceberCobrancaProps) {
   const { toast } = useToast();
   
+  // Verifica se é cobrança de REPASSE (não calcula comissão)
+  const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
+  
   // Estado do fluxo
   const [etapa, setEtapa] = useState<'venda' | 'pagamento' | 'repasse'>('venda');
   
   // Dados da venda
   const [valorVenda, setValorVenda] = useState('');
   const [devolveuTudo, setDevolveuTudo] = useState(false);
+  
+  // Desconto para repasses
+  const [desconto, setDesconto] = useState('');
   
   // Cálculos automáticos
   const [comissaoPercentual, setComissaoPercentual] = useState(0);
@@ -81,6 +88,16 @@ export function ModalReceberCobranca({
   const [loading, setLoading] = useState(false);
 
   const calcularComissao = (valor: number) => {
+    // Para REPASSE, não calcula comissão
+    if (isRepasse) {
+      const descontoValor = parseFloat(desconto.replace(',', '.')) || 0;
+      setComissaoPercentual(0);
+      setComissaoValor(0);
+      setValorAReceber(valor - descontoValor);
+      return;
+    }
+    
+    // Para KIT, mantém a lógica de comissão
     let percentual = 0;
     if (valor < 300) {
       percentual = 20;
@@ -110,6 +127,16 @@ export function ModalReceberCobranca({
     if (!isNaN(numeroValor)) {
       calcularComissao(numeroValor);
     }
+  };
+  
+  const handleDescontoChange = (value: string) => {
+    const cleanValue = value.replace(/[^\d,]/g, '');
+    setDesconto(cleanValue);
+    
+    // Recalcula o valor a receber com o desconto
+    const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
+    const descontoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
+    setValorAReceber(valorVendaNum - descontoNum);
   };
 
   const handleDevolveuTudo = async () => {
@@ -306,6 +333,7 @@ export function ModalReceberCobranca({
     setEtapa('venda');
     setValorVenda('');
     setDevolveuTudo(false);
+    setDesconto('');
     setComissaoPercentual(0);
     setComissaoValor(0);
     setValorAReceber(0);
@@ -331,8 +359,14 @@ export function ModalReceberCobranca({
         {/* Etapa 1: Valor da Venda */}
         {etapa === 'venda' && (
           <div className="space-y-4">
+            {isRepasse && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-700 dark:text-blue-300">
+                Nota de <strong>REPASSE</strong> - Sem cálculo de comissão
+              </div>
+            )}
+            
             <div className="space-y-2">
-              <Label htmlFor="valor-venda">Valor da Venda</Label>
+              <Label htmlFor="valor-venda">{isRepasse ? 'Valor do Repasse' : 'Valor da Venda'}</Label>
               <Input
                 id="valor-venda"
                 type="text"
@@ -342,6 +376,20 @@ export function ModalReceberCobranca({
                 disabled={loading}
               />
             </div>
+
+            {isRepasse && (
+              <div className="space-y-2">
+                <Label htmlFor="desconto">Desconto (opcional)</Label>
+                <Input
+                  id="desconto"
+                  type="text"
+                  placeholder="0,00"
+                  value={desconto}
+                  onChange={(e) => handleDescontoChange(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+            )}
 
             <Button
               variant="outline"
@@ -354,10 +402,18 @@ export function ModalReceberCobranca({
 
             {valorVenda && parseFloat(valorVenda.replace(',', '.')) > 0 && (
               <div className="p-4 bg-muted rounded-lg space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Comissão ({comissaoPercentual}%):</span>
-                  <span className="font-medium">{formatarValor(comissaoValor)}</span>
-                </div>
+                {!isRepasse && (
+                  <div className="flex justify-between text-sm">
+                    <span>Comissão ({comissaoPercentual}%):</span>
+                    <span className="font-medium">{formatarValor(comissaoValor)}</span>
+                  </div>
+                )}
+                {isRepasse && desconto && parseFloat(desconto.replace(',', '.')) > 0 && (
+                  <div className="flex justify-between text-sm text-orange-600">
+                    <span>Desconto:</span>
+                    <span className="font-medium">- {formatarValor(parseFloat(desconto.replace(',', '.')))}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-bold">
                   <span>Valor a Receber (Taliare):</span>
                   <span className="text-primary">{formatarValor(valorAReceber)}</span>
