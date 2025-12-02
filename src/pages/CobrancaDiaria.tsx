@@ -243,19 +243,68 @@ export default function CobrancaDiaria() {
     },
   });
 
-  // Mutation para deletar nota
+  // Mutation para deletar nota e reverter cobrança se necessário
   const deleteNotaMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      // 1. Buscar a nota que será deletada
+      const { data: nota, error: notaError } = await supabase
+        .from('notas_promissorias')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (notaError) throw notaError;
+      
+      // 2. Buscar prestação de contas associada através do codigo_nota_referencia
+      const { data: prestacao, error: prestacaoError } = await supabase
+        .from('prestacoes_contas')
+        .select('*')
+        .eq('codigo_nota_referencia', nota.codigo_nota)
+        .maybeSingle();
+      
+      if (prestacaoError) throw prestacaoError;
+      
+      // 3. Se existe prestação associada (pagamento parcial), fazer rollback completo
+      if (prestacao && prestacao.cobranca_id) {
+        // 3.1. Deletar repasse associado
+        const { error: repasseError } = await supabase
+          .from('repasses')
+          .delete()
+          .eq('cobranca_id', prestacao.cobranca_id);
+        
+        if (repasseError) throw repasseError;
+        
+        // 3.2. Deletar prestação de contas
+        const { error: deletePrestacaoError } = await supabase
+          .from('prestacoes_contas')
+          .delete()
+          .eq('id', prestacao.id);
+        
+        if (deletePrestacaoError) throw deletePrestacaoError;
+        
+        // 3.3. Reverter status da cobrança para pendente
+        const { error: updateCobrancaError } = await supabase
+          .from('cobrancas_agendadas')
+          .update({ status: 'pendente' })
+          .eq('id', prestacao.cobranca_id);
+        
+        if (updateCobrancaError) throw updateCobrancaError;
+      }
+      
+      // 4. Deletar a nota promissória
+      const { error: deleteNotaError } = await supabase
         .from('notas_promissorias')
         .delete()
         .eq('id', id);
       
-      if (error) throw error;
+      if (deleteNotaError) throw deleteNotaError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
-      toast.success('Nota promissória excluída com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      queryClient.invalidateQueries({ queryKey: ['prestacoes-contas'] });
+      queryClient.invalidateQueries({ queryKey: ['repasses'] });
+      toast.success('Nota promissória excluída e cobrança restaurada com sucesso!');
     },
     onError: (error) => {
       toast.error(`Erro ao excluir nota: ${error.message}`);

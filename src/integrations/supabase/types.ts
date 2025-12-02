@@ -337,6 +337,7 @@ export type Database = {
         Row: {
           cobranca_id: string | null
           codigo_mostruario: string | null
+          codigo_nota_referencia: string | null
           comissao_percentual: number
           comissao_valor: number
           criado_em: string | null
@@ -355,6 +356,7 @@ export type Database = {
         Insert: {
           cobranca_id?: string | null
           codigo_mostruario?: string | null
+          codigo_nota_referencia?: string | null
           comissao_percentual: number
           comissao_valor: number
           criado_em?: string | null
@@ -373,6 +375,7 @@ export type Database = {
         Update: {
           cobranca_id?: string | null
           codigo_mostruario?: string | null
+          codigo_nota_referencia?: string | null
           comissao_percentual?: number
           comissao_valor?: number
           criado_em?: string | null
