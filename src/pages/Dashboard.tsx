@@ -158,10 +158,10 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 px-0">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Bem-vindo, {profile?.nome}</h1>
-        <p className="text-muted-foreground">Acompanhe seu desempenho e metas</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Bem-vindo, {profile?.nome}</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Acompanhe seu desempenho e metas</p>
       </div>
 
       <DateRangeFilter 
@@ -171,7 +171,7 @@ export default function Dashboard() {
         }} 
       />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 md:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Cobrado (Mês)</CardTitle>
@@ -261,7 +261,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
         <Card>
           <CardHeader>
             <CardTitle>Evolução Diária das Cobranças</CardTitle>
