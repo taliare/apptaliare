@@ -860,7 +860,7 @@ export default function Cobranca() {
             setCobrancaParaPagar(null);
           }
         }}
-        cobranca={cobrancaParaPagar || { id: '', revendedora: '', valor_previsto: 0 }}
+        cobranca={cobrancaParaPagar || { id: '', revendedora: '', valor_previsto: 0, tipo: null }}
         onPagamentoCompleto={async (dados) => {
           if (cobrancaParaPagar) {
             await handlePagamentoCompleto(cobrancaParaPagar.id, dados);
