@@ -109,25 +109,38 @@ export default function DistribuicaoKits() {
   const { data: representantes = [], isLoading: isLoadingReps } = useQuery({
     queryKey: ['representantes-ativos'],
     queryFn: async () => {
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, nome')
-        .eq('ativo', true);
-      
-      if (profilesError) throw profilesError;
-
-      // Filter only users with representante role
+      // Buscar user_roles com role='representante'
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id')
         .eq('role', 'representante');
 
-      if (rolesError) throw rolesError;
+      if (rolesError) {
+        console.error('Erro ao buscar roles:', rolesError);
+        throw rolesError;
+      }
 
-      const representanteIds = new Set(roles.map(r => r.user_id));
-      const reps = profiles.filter(p => representanteIds.has(p.id));
+      if (!roles || roles.length === 0) {
+        console.log('Nenhuma role de representante encontrada');
+        return [];
+      }
 
-      return reps as Representante[];
+      const representanteIds = roles.map(r => r.user_id);
+
+      // Buscar profiles dos representantes
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, nome')
+        .in('id', representanteIds)
+        .eq('ativo', true);
+      
+      if (profilesError) {
+        console.error('Erro ao buscar profiles:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Representantes encontrados:', profiles);
+      return (profiles || []) as Representante[];
     },
   });
 
@@ -222,11 +235,6 @@ export default function DistribuicaoKits() {
         })}
       </div>
 
-      {representantes.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          Nenhum representante cadastrado no sistema
-        </div>
-      )}
     </div>
   );
 }
