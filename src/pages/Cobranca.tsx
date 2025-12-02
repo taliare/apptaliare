@@ -276,8 +276,9 @@ export default function Cobranca() {
     try {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
       const dataHoje = format(new Date(), 'yyyy-MM-dd');
+      const codigoNota = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
       
-      // 1. Criar prestação de contas com saldo devedor
+      // 1. Criar prestação de contas com saldo devedor e referência à nota
       const { error: prestacaoError } = await supabase
         .from('prestacoes_contas')
         .insert({
@@ -291,7 +292,8 @@ export default function Cobranca() {
           valor_pago: dados.valor_recebido,
           saldo_devedor: dados.valor_repasse,
           forma_pagamento: dados.pagamentos[0].forma,
-          data_execucao: dataHoje
+          data_execucao: dataHoje,
+          codigo_nota_referencia: codigoNota
         });
 
       if (prestacaoError) throw prestacaoError;
@@ -302,7 +304,7 @@ export default function Cobranca() {
           .from('notas_promissorias')
           .insert({
             representante_id: userId!,
-            codigo_nota: `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`,
+            codigo_nota: codigoNota,
             data: dataHoje,
             valor_total: dados.valor_recebido,
             forma_pagamento_1: dados.pagamentos[0].forma,
