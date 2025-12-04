@@ -549,7 +549,12 @@ export type Database = {
     Enums: {
       app_role: "admin" | "representante" | "producao"
       forma_pagamento: "pix" | "dinheiro" | "cartao" | "transferencia"
-      status_cobranca: "pendente" | "pago" | "parcial" | "reagendado"
+      status_cobranca:
+        | "pendente"
+        | "pago"
+        | "parcial"
+        | "reagendado"
+        | "juridico"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -679,7 +684,13 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "representante", "producao"],
       forma_pagamento: ["pix", "dinheiro", "cartao", "transferencia"],
-      status_cobranca: ["pendente", "pago", "parcial", "reagendado"],
+      status_cobranca: [
+        "pendente",
+        "pago",
+        "parcial",
+        "reagendado",
+        "juridico",
+      ],
     },
   },
 } as const
