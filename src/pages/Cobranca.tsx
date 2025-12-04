@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'];
@@ -39,6 +40,7 @@ const statusConfig: Record<StatusCobranca, { label: string; color: string }> = {
   pago: { label: 'Pago', color: 'bg-green-500/10 text-green-700 dark:text-green-400' },
   parcial: { label: 'Parcial', color: 'bg-blue-500/10 text-blue-700 dark:text-blue-400' },
   reagendado: { label: 'Reagendado', color: 'bg-orange-500/10 text-orange-700 dark:text-orange-400' },
+  juridico: { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' },
 };
 
 export default function Cobranca() {
@@ -267,7 +269,7 @@ export default function Cobranca() {
     }
   };
 
-  // Função para processar pagamento parcial e criar repasse
+  // Função para processar pagamento parcial e criar repasse (para KIT) ou nova cobrança (para REPASSE)
   const handlePagamentoParcial = async (cobrancaId: string, dados: {
     valor_venda: number;
     comissao_percentual: number;
@@ -280,31 +282,12 @@ export default function Cobranca() {
   }) => {
     try {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
+      const isRepasse = cobranca?.tipo?.toLowerCase() === 'repasse';
       const dataHoje = format(new Date(), 'yyyy-MM-dd');
       const codigoNota = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
       
-      // 1. Criar prestação de contas com saldo devedor e referência à nota
-      const { error: prestacaoError } = await supabase
-        .from('prestacoes_contas')
-        .insert({
-          cobranca_id: cobrancaId,
-          representante_id: userId!,
-          revendedora: cobranca?.revendedora || '',
-          total_venda: dados.valor_venda,
-          comissao_percentual: dados.comissao_percentual,
-          comissao_valor: dados.comissao_valor,
-          valor_devido_empresa: dados.valor_devido_empresa,
-          valor_pago: dados.valor_recebido,
-          saldo_devedor: dados.valor_repasse,
-          forma_pagamento: dados.pagamentos[0].forma,
-          data_execucao: dataHoje,
-          codigo_nota_referencia: codigoNota
-        });
-
-      if (prestacaoError) throw prestacaoError;
-
-      // 2. Criar nota promissória para alimentar a Cobrança Diária (valor parcial recebido)
-      if (dados.pagamentos.length > 0) {
+      // 1. Criar nota promissória para alimentar a Cobrança Diária (valor parcial recebido)
+      if (dados.pagamentos.length > 0 && dados.valor_recebido > 0) {
         const { error: notaError } = await supabase
           .from('notas_promissorias')
           .insert({
@@ -321,28 +304,75 @@ export default function Cobranca() {
         if (notaError) throw notaError;
       }
 
-      // 3. Criar repasse
-      const { error: repasseError } = await supabase
-        .from('repasses')
-        .insert({
-          cobranca_id: cobrancaId,
-          valor_repasse: dados.valor_repasse,
-          data_repasse: format(dados.data_repasse, 'yyyy-MM-dd'),
-          status: 'agendado'
-        });
+      if (isRepasse) {
+        // Para REPASSE: criar nova cobrança com valor restante
+        const { error: novaCobrancaError } = await supabase
+          .from('cobrancas_agendadas')
+          .insert({
+            representante_id: userId!,
+            revendedora: cobranca?.revendedora || '',
+            codigo_nota: cobranca?.codigo_nota || null,
+            tipo: 'repasse',
+            valor_previsto: dados.valor_repasse,
+            data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
+            status: 'pendente',
+            observacoes: `Saldo restante de cobrança anterior`,
+            vendedora: cobranca?.vendedora || null
+          });
 
-      if (repasseError) throw repasseError;
+        if (novaCobrancaError) throw novaCobrancaError;
 
-      // 4. Atualizar status da cobrança para 'parcial' e data para data do repasse
-      const { error: updateError } = await supabase
-        .from('cobrancas_agendadas')
-        .update({ 
-          status: 'parcial',
-          data_agendada: format(dados.data_repasse, 'yyyy-MM-dd')
-        })
-        .eq('id', cobrancaId);
+        // Marcar a cobrança original como paga
+        const { error: updateError } = await supabase
+          .from('cobrancas_agendadas')
+          .update({ status: 'pago' })
+          .eq('id', cobrancaId);
 
-      if (updateError) throw updateError;
+        if (updateError) throw updateError;
+      } else {
+        // Para KIT: criar prestação de contas e repasse (comportamento original)
+        const { error: prestacaoError } = await supabase
+          .from('prestacoes_contas')
+          .insert({
+            cobranca_id: cobrancaId,
+            representante_id: userId!,
+            revendedora: cobranca?.revendedora || '',
+            total_venda: dados.valor_venda,
+            comissao_percentual: dados.comissao_percentual,
+            comissao_valor: dados.comissao_valor,
+            valor_devido_empresa: dados.valor_devido_empresa,
+            valor_pago: dados.valor_recebido,
+            saldo_devedor: dados.valor_repasse,
+            forma_pagamento: dados.pagamentos[0].forma,
+            data_execucao: dataHoje,
+            codigo_nota_referencia: codigoNota
+          });
+
+        if (prestacaoError) throw prestacaoError;
+
+        // Criar repasse
+        const { error: repasseError } = await supabase
+          .from('repasses')
+          .insert({
+            cobranca_id: cobrancaId,
+            valor_repasse: dados.valor_repasse,
+            data_repasse: format(dados.data_repasse, 'yyyy-MM-dd'),
+            status: 'agendado'
+          });
+
+        if (repasseError) throw repasseError;
+
+        // Atualizar status da cobrança para 'parcial' e data para data do repasse
+        const { error: updateError } = await supabase
+          .from('cobrancas_agendadas')
+          .update({ 
+            status: 'parcial',
+            data_agendada: format(dados.data_repasse, 'yyyy-MM-dd')
+          })
+          .eq('id', cobrancaId);
+
+        if (updateError) throw updateError;
+      }
 
       await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
@@ -511,6 +541,29 @@ export default function Cobranca() {
       toast({ title: 'Erro ao reagendar', variant: 'destructive' });
     },
   });
+
+  // Mutation para encaminhar ao jurídico
+  const juridicoMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('cobrancas_agendadas')
+        .update({ status: 'juridico' as any })
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      toast({ title: 'Cobrança encaminhada ao jurídico!' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao encaminhar ao jurídico', variant: 'destructive' });
+    },
+  });
+
+  const handleJuridicoClick = (cobranca: Cobranca) => {
+    juridicoMutation.mutate(cobranca.id);
+  };
 
   const handleConfirmarReagendamento = () => {
     if (!cobrancaParaReagendar || !novaDataAgendada) return;
@@ -785,6 +838,7 @@ export default function Cobranca() {
                   onPagar={handlePagarClick}
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
+                  onJuridico={handleJuridicoClick}
                   destacarVencida
                 />
               ))}
@@ -810,6 +864,7 @@ export default function Cobranca() {
                   onPagar={handlePagarClick}
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
+                  onJuridico={handleJuridicoClick}
                 />
               ))}
             </CardContent>
@@ -834,6 +889,7 @@ export default function Cobranca() {
                   onPagar={handlePagarClick}
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
+                  onJuridico={handleJuridicoClick}
                 />
               ))}
             </CardContent>
@@ -1012,6 +1068,7 @@ function CobrancaItem({
   onPagar,
   onReagendar,
   onAdiantamento,
+  onJuridico,
   destacarVencida = false,
 }: {
   cobranca: Cobranca;
@@ -1019,6 +1076,7 @@ function CobrancaItem({
   onPagar: (cobranca: Cobranca) => void;
   onReagendar: (cobranca: Cobranca) => void;
   onAdiantamento: (cobranca: Cobranca) => void;
+  onJuridico: (cobranca: Cobranca) => void;
   destacarVencida?: boolean;
 }) {
   const { profile } = useAuth();
@@ -1093,7 +1151,7 @@ function CobrancaItem({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+          <div className="flex flex-wrap gap-2 sm:flex-nowrap items-center">
             {profile?.role === 'admin' && (
               <Button variant="outline" size="sm" onClick={() => onEdit(cobranca)} className="flex-1 sm:flex-none">
                 <Edit className="h-3.5 w-3.5 sm:mr-1" />
@@ -1104,14 +1162,28 @@ function CobrancaItem({
               <CreditCard className="h-3.5 w-3.5 sm:mr-1" />
               <span className="hidden sm:inline">Cobrar</span>
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => onAdiantamento(cobranca)} className="flex-1 sm:flex-none">
-              <TrendingDown className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Adiantamento</span>
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => onReagendar(cobranca)} className="flex-1 sm:flex-none">
-              <CalendarDays className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Reagendar</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
+                  <MoreVertical className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">Mais opções</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onReagendar(cobranca)}>
+                  <CalendarDays className="h-4 w-4 mr-2" />
+                  Reagendar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAdiantamento(cobranca)}>
+                  <TrendingDown className="h-4 w-4 mr-2" />
+                  Adiantamento
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onJuridico(cobranca)} className="text-purple-600">
+                  <Scale className="h-4 w-4 mr-2" />
+                  Encaminhar ao Jurídico
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </CardContent>

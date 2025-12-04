@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock } from 'lucide-react';
-import { format } from 'date-fns';
+import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock, Package, Search } from 'lucide-react';
+import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -59,6 +59,15 @@ export default function CobrancaDiaria() {
   const [editingNota, setEditingNota] = useState<NotaPromissoria | null>(null);
   const [historicoDialogOpen, setHistoricoDialogOpen] = useState(false);
   const [selectedHistoricoDate, setSelectedHistoricoDate] = useState<string | null>(null);
+
+  // State para entrega de kit
+  const [isKitEntregaDialogOpen, setIsKitEntregaDialogOpen] = useState(false);
+  const [kitSearchTerm, setKitSearchTerm] = useState('');
+  const [selectedKit, setSelectedKit] = useState<string>('');
+  const [vincularVendedora, setVincularVendedora] = useState(false);
+  const [vendedoraKit, setVendedoraKit] = useState('');
+  const [revendedoraKit, setRevendedoraKit] = useState('');
+  const [dataVencimentoKit, setDataVencimentoKit] = useState<Date>(addDays(new Date(), 60));
 
   // Form states for Nota Promissória
   const [codigoNota, setCodigoNota] = useState('');
@@ -194,6 +203,98 @@ export default function CobrancaDiaria() {
     },
     enabled: !!user?.id && !!selectedHistoricoDate,
   });
+
+  // Query para kits em estoque do representante
+  const { data: kitsEstoque = [] } = useQuery({
+    queryKey: ['kits-estoque-rep-diaria', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kits_estoque')
+        .select('*')
+        .eq('representante_id', user?.id)
+        .eq('status', 'com_representante')
+        .order('criado_em', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Filtrar kits pela pesquisa
+  const kitsFiltrados = kitsEstoque.filter((kit: any) =>
+    kit.codigo.toLowerCase().includes(kitSearchTerm.toLowerCase())
+  );
+
+  // Mutation para registrar entrega de kit
+  const entregaKitMutation = useMutation({
+    mutationFn: async (data: { kitId: string; codigo: string; revendedora: string; vendedora?: string; dataVencimento: string }) => {
+      // 1. Criar cobrança para o kit entregue
+      const { error: cobrancaError } = await supabase
+        .from('cobrancas_agendadas')
+        .insert({
+          representante_id: user!.id,
+          revendedora: data.revendedora,
+          codigo_nota: data.codigo,
+          tipo: 'kit',
+          valor_previsto: 0,
+          data_agendada: data.dataVencimento,
+          status: 'pendente',
+          vendedora: data.vendedora || null,
+          observacoes: `Entrega de kit - Código: ${data.codigo}`
+        });
+
+      if (cobrancaError) throw cobrancaError;
+
+      // 2. Atualizar status do kit para "com_revendedora"
+      const { error: updateError } = await supabase
+        .from('kits_estoque')
+        .update({ status: 'com_revendedora' })
+        .eq('id', data.kitId);
+
+      if (updateError) throw updateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep-diaria'] });
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      toast.success('Entrega de kit registrada com sucesso!');
+      resetKitEntregaForm();
+      setIsKitEntregaDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao registrar entrega: ${error.message}`);
+    },
+  });
+
+  const resetKitEntregaForm = () => {
+    setSelectedKit('');
+    setKitSearchTerm('');
+    setVincularVendedora(false);
+    setVendedoraKit('');
+    setRevendedoraKit('');
+    setDataVencimentoKit(addDays(new Date(), 60));
+  };
+
+  const handleSubmitKitEntrega = () => {
+    if (!selectedKit || !revendedoraKit) {
+      toast.error('Selecione um kit e informe o nome da revendedora');
+      return;
+    }
+
+    const kit = kitsEstoque.find((k: any) => k.id === selectedKit);
+    if (!kit) {
+      toast.error('Kit não encontrado');
+      return;
+    }
+
+    entregaKitMutation.mutate({
+      kitId: selectedKit,
+      codigo: kit.codigo,
+      revendedora: revendedoraKit,
+      vendedora: vincularVendedora ? vendedoraKit : undefined,
+      dataVencimento: format(dataVencimentoKit, 'yyyy-MM-dd')
+    });
+  };
 
   // Mutation para adicionar nota
   const addNotaMutation = useMutation({
@@ -449,11 +550,7 @@ export default function CobrancaDiaria() {
   };
 
   const handleFinalizarDia = () => {
-    if (notas.length === 0) {
-      toast.error('Adicione pelo menos uma nota promissória antes de finalizar o dia');
-      return;
-    }
-
+    // Permite finalizar mesmo sem cobranças (apenas despesas ou entregas)
     finalizarDiaMutation.mutate();
   };
 
@@ -815,11 +912,120 @@ export default function CobrancaDiaria() {
               )}
             </div>
 
+            {/* Botão Registrar Entrega de Kit */}
+            {!isDiaFinalizado && (
+              <Dialog open={isKitEntregaDialogOpen} onOpenChange={setIsKitEntregaDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="lg" className="w-full" onClick={resetKitEntregaForm}>
+                    <Package className="h-4 w-4 mr-2" />
+                    Registrar Entrega de Kit
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Registrar Entrega de Kit</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Pesquisar Kit</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar por código..."
+                          value={kitSearchTerm}
+                          onChange={(e) => setKitSearchTerm(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label>Selecionar Kit *</Label>
+                      <Select value={selectedKit} onValueChange={setSelectedKit}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o kit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {kitsFiltrados.map((kit: any) => (
+                            <SelectItem key={kit.id} value={kit.id}>
+                              {kit.codigo} ({kit.tipo})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Nome da Revendedora *</Label>
+                      <Input
+                        value={revendedoraKit}
+                        onChange={(e) => setRevendedoraKit(e.target.value)}
+                        placeholder="Ex: Maria Silva"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="vincular-vendedora"
+                        checked={vincularVendedora}
+                        onChange={(e) => setVincularVendedora(e.target.checked)}
+                        className="rounded"
+                      />
+                      <Label htmlFor="vincular-vendedora" className="cursor-pointer">
+                        Vincular a uma vendedora
+                      </Label>
+                    </div>
+
+                    {vincularVendedora && (
+                      <div>
+                        <Label>Nome da Vendedora</Label>
+                        <Input
+                          value={vendedoraKit}
+                          onChange={(e) => setVendedoraKit(e.target.value)}
+                          placeholder="Ex: Ana Costa"
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <Label>Data de Vencimento</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {format(dataVencimentoKit, "dd/MM/yyyy", { locale: ptBR })}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={dataVencimentoKit}
+                            onSelect={(date) => date && setDataVencimentoKit(date)}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsKitEntregaDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSubmitKitEntrega}>
+                      Registrar Entrega
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
             {/* Botão Finalizar */}
             {!isDiaFinalizado && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="lg" className="w-full" disabled={notas.length === 0}>
+                  <Button size="lg" className="w-full">
                     <CheckCircle2 className="h-4 w-4 mr-2" />
                     Finalizar Dia
                   </Button>

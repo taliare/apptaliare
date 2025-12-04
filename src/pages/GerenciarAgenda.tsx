@@ -26,6 +26,7 @@ const statusConfig: Record<StatusCobranca, { label: string; color: string }> = {
   pago: { label: 'Pago', color: 'bg-green-500/10 text-green-700' },
   parcial: { label: 'Parcial', color: 'bg-blue-500/10 text-blue-700' },
   reagendado: { label: 'Reagendado', color: 'bg-orange-500/10 text-orange-700' },
+  juridico: { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700' },
 };
 
 export default function GerenciarAgenda() {
