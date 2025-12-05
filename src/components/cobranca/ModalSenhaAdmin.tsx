@@ -37,38 +37,27 @@ export function ModalSenhaAdmin({
     setLoading(true);
     
     try {
-      // Tentar fazer login com as credenciais fornecidas
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password: senha
+      // Use edge function to validate admin credentials server-side
+      // This doesn't affect the current user's session
+      const { data, error } = await supabase.functions.invoke('validate-admin', {
+        body: { email, password: senha }
       });
 
-      if (authError) {
+      if (error) {
         toast({
           title: "Erro",
-          description: "Email ou senha inválidos.",
+          description: error.message || "Erro ao validar credenciais.",
           variant: "destructive"
         });
         return;
       }
 
-      // Verificar se o usuário é admin
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', authData.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      if (roleError || !roleData) {
+      if (!data?.success) {
         toast({
           title: "Acesso Negado",
-          description: "Este usuário não possui permissão de administrador.",
+          description: data?.error || "Credenciais inválidas ou usuário não é administrador.",
           variant: "destructive"
         });
-        
-        // Fazer logout do usuário temporário
-        await supabase.auth.signOut();
         return;
       }
 
@@ -77,9 +66,6 @@ export function ModalSenhaAdmin({
         title: "Autorizado",
         description: "Credenciais de administrador validadas com sucesso.",
       });
-
-      // Fazer logout do admin temporário para voltar ao usuário original
-      await supabase.auth.signOut();
       
       // Chamar callback de sucesso
       onAutorizado();
@@ -89,10 +75,10 @@ export function ModalSenhaAdmin({
       setEmail('');
       setSenha('');
       
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erro",
-        description: "Erro ao validar credenciais.",
+        description: error.message || "Erro ao validar credenciais.",
         variant: "destructive"
       });
     } finally {
@@ -122,7 +108,7 @@ export function ModalSenhaAdmin({
             <Input
               id="email-admin"
               type="email"
-              placeholder="admin@taliare.com"
+              placeholder="admin@exemplo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
