@@ -1,19 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 import taliare_logo from '@/assets/taliare-icone-claro.png';
 
 export default function Setup() {
   const [loading, setLoading] = useState(true);
   const [created, setCreated] = useState(false);
   const [adminExists, setAdminExists] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    nome: 'Admin Taliare',
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
 
-  // Check if admin already exists on mount
-  useState(() => {
+  useEffect(() => {
     const checkAdminExists = async () => {
       const { data } = await supabase
         .from('user_roles')
@@ -29,19 +40,63 @@ export default function Setup() {
       setLoading(false);
     };
     checkAdminExists();
-  });
+  }, [navigate]);
 
-  const createAdminUser = async () => {
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Email validation
+    if (!formData.email) {
+      newErrors.email = 'Email é obrigatório';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Email inválido';
+    }
+
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Senha é obrigatória';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Senha deve ter pelo menos 8 caracteres';
+    } else if (!/[A-Z]/.test(formData.password)) {
+      newErrors.password = 'Senha deve conter pelo menos uma letra maiúscula';
+    } else if (!/[a-z]/.test(formData.password)) {
+      newErrors.password = 'Senha deve conter pelo menos uma letra minúscula';
+    } else if (!/[0-9]/.test(formData.password)) {
+      newErrors.password = 'Senha deve conter pelo menos um número';
+    } else if (!/[!@#$%^&*(),.?":{}|<>]/.test(formData.password)) {
+      newErrors.password = 'Senha deve conter pelo menos um caractere especial';
+    }
+
+    // Confirm password
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'As senhas não coincidem';
+    }
+
+    // Name validation
+    if (!formData.nome.trim()) {
+      newErrors.nome = 'Nome é obrigatório';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const createAdminUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
     
     try {
-      // Criar usuário admin
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: 'admin@taliare.com',
-        password: 'T@l1@re!2025',
+        email: formData.email.trim(),
+        password: formData.password,
         options: {
           data: {
-            nome: 'Admin Taliare',
+            nome: formData.nome.trim(),
             role: 'admin',
           },
         },
@@ -50,7 +105,6 @@ export default function Setup() {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Usuário não criado');
 
-      // Atualizar perfil
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -63,19 +117,16 @@ export default function Setup() {
 
       if (profileError) throw profileError;
 
-      // Note: Role is automatically assigned by trigger to user_roles table
-
       setCreated(true);
       toast.success('Usuário admin criado com sucesso!');
       
-      // Redirecionar para login após 2 segundos
       setTimeout(() => {
         navigate('/auth');
       }, 2000);
       
     } catch (error: any) {
       if (error.message?.includes('already registered')) {
-        toast.error('Usuário admin já existe! Vá para a tela de login.');
+        toast.error('Este email já está registrado! Vá para a tela de login.');
         setTimeout(() => {
           navigate('/auth');
         }, 2000);
@@ -102,7 +153,7 @@ export default function Setup() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {loading ? (
+          {loading && !formData.email ? (
             <div className="text-center space-y-4">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
               <p className="text-sm text-muted-foreground">Verificando...</p>
@@ -117,15 +168,82 @@ export default function Setup() {
               </p>
             </div>
           ) : !created ? (
-            <>
-              <div className="rounded-lg bg-muted p-4 space-y-2">
-                <p className="font-semibold">Configuração do Admin:</p>
-                <p className="text-sm">Email: <span className="font-mono">admin@taliare.com</span></p>
-                <p className="text-sm text-muted-foreground">Uma senha será gerada automaticamente</p>
+            <form onSubmit={createAdminUser} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="nome">Nome do Administrador</Label>
+                <Input
+                  id="nome"
+                  type="text"
+                  value={formData.nome}
+                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                  placeholder="Nome completo"
+                  disabled={loading}
+                />
+                {errors.nome && <p className="text-sm text-destructive">{errors.nome}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="admin@empresa.com"
+                  disabled={loading}
+                />
+                {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Mínimo 8 caracteres"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                <p className="text-xs text-muted-foreground">
+                  Deve conter: maiúscula, minúscula, número e caractere especial
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    placeholder="Repita a senha"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
               </div>
               
               <Button 
-                onClick={createAdminUser} 
+                type="submit"
                 className="w-full" 
                 disabled={loading}
               >
@@ -135,7 +253,7 @@ export default function Setup() {
               <p className="text-xs text-center text-muted-foreground">
                 Esta página só precisa ser acessada uma única vez
               </p>
-            </>
+            </form>
           ) : (
             <div className="text-center space-y-4">
               <div className="text-green-600 dark:text-green-400">
