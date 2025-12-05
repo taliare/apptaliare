@@ -228,8 +228,8 @@ export default function CobrancaDiaria() {
 
   // Mutation para registrar entrega de kit
   const entregaKitMutation = useMutation({
-    mutationFn: async (data: { kitId: string; codigo: string; revendedora: string; vendedora?: string; dataVencimento: string }) => {
-      // 1. Criar cobrança para o kit entregue
+    mutationFn: async (data: { kitId: string; codigo: string; tipo: string; valor: number; revendedora: string; vendedora?: string; dataVencimento: string }) => {
+      // 1. Criar cobrança para o kit entregue usando o valor da produção
       const { error: cobrancaError } = await supabase
         .from('cobrancas_agendadas')
         .insert({
@@ -237,11 +237,11 @@ export default function CobrancaDiaria() {
           revendedora: data.revendedora,
           codigo_nota: data.codigo,
           tipo: 'kit',
-          valor_previsto: 0,
+          valor_previsto: data.valor,
           data_agendada: data.dataVencimento,
           status: 'pendente',
           vendedora: data.vendedora || null,
-          observacoes: `Entrega de kit - Código: ${data.codigo}`
+          observacoes: `Entrega de kit ${data.tipo} - Código: ${data.codigo}`
         });
 
       if (cobrancaError) throw cobrancaError;
@@ -290,6 +290,8 @@ export default function CobrancaDiaria() {
     entregaKitMutation.mutate({
       kitId: selectedKit,
       codigo: kit.codigo,
+      tipo: kit.tipo,
+      valor: kit.valor || 0,
       revendedora: revendedoraKit,
       vendedora: vincularVendedora ? vendedoraKit : undefined,
       dataVencimento: format(dataVencimentoKit, 'yyyy-MM-dd')
@@ -927,33 +929,43 @@ export default function CobrancaDiaria() {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
-                      <Label>Pesquisar Kit</Label>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar por código..."
-                          value={kitSearchTerm}
-                          onChange={(e) => setKitSearchTerm(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
                       <Label>Selecionar Kit *</Label>
                       <Select value={selectedKit} onValueChange={setSelectedKit}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione o kit" />
+                          <SelectValue placeholder="Pesquisar e selecionar kit..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {kitsFiltrados.map((kit: any) => (
-                            <SelectItem key={kit.id} value={kit.id}>
-                              {kit.codigo} ({kit.tipo})
-                            </SelectItem>
-                          ))}
+                          <div className="p-2">
+                            <Input
+                              placeholder="Buscar por código..."
+                              value={kitSearchTerm}
+                              onChange={(e) => setKitSearchTerm(e.target.value)}
+                              className="mb-2"
+                            />
+                          </div>
+                          {kitsFiltrados.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground text-center">Nenhum kit encontrado</div>
+                          ) : (
+                            kitsFiltrados.map((kit: any) => (
+                              <SelectItem key={kit.id} value={kit.id}>
+                                {kit.codigo} ({kit.tipo}) {kit.valor > 0 && `- R$ ${kit.valor.toFixed(2)}`}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {selectedKit && (() => {
+                      const kit = kitsEstoque.find((k: any) => k.id === selectedKit);
+                      return kit ? (
+                        <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
+                          <p><strong>Código:</strong> {kit.codigo}</p>
+                          <p><strong>Tipo:</strong> {kit.tipo}</p>
+                          <p><strong>Valor:</strong> R$ {(kit.valor || 0).toFixed(2)}</p>
+                        </div>
+                      ) : null;
+                    })()}
 
                     <div>
                       <Label>Nome da Revendedora *</Label>

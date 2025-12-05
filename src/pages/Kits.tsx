@@ -18,7 +18,7 @@ import { ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatarValor } from '@/lib/utils';
 
 interface KitEntregue {
   id: string;
@@ -36,19 +36,12 @@ export default function Kits() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingKit, setEditingKit] = useState<KitEntregue | null>(null);
-  const [isVendaDialogOpen, setIsVendaDialogOpen] = useState(false);
 
   // Form states
   const [codigoMostruario, setCodigoMostruario] = useState('');
   const [dataEntrega, setDataEntrega] = useState<Date>(new Date());
   const [dataVencimento, setDataVencimento] = useState<Date>(addDays(new Date(), 60));
   const [tipo, setTipo] = useState<'renovacao' | 'novo'>('novo');
-
-  // Form states para venda de kit
-  const [codigoKitVenda, setCodigoKitVenda] = useState('');
-  const [nomeRevendedora, setNomeRevendedora] = useState('');
-  const [dataVencimentoVenda, setDataVencimentoVenda] = useState<Date>(addDays(new Date(), 60));
-  const [nomeVendedora, setNomeVendedora] = useState('');
 
   // Query for kits (histórico de kits entregues)
   const { data: kits = [], isLoading } = useQuery({
@@ -136,79 +129,6 @@ export default function Kits() {
     setDataEntrega(new Date());
     setDataVencimento(addDays(new Date(), 60));
     setTipo('novo');
-  };
-
-  const resetVendaForm = () => {
-    setCodigoKitVenda('');
-    setNomeRevendedora('');
-    setDataVencimentoVenda(addDays(new Date(), 60));
-    setNomeVendedora('');
-  };
-
-  // Mutation para registrar venda de kit
-  const vendaKitMutation = useMutation({
-    mutationFn: async (data: { codigo: string; revendedora: string; vendedora: string; dataVencimento: string }) => {
-      // Buscar o kit no estoque
-      const { data: kit, error: kitError } = await supabase
-        .from('kits_estoque')
-        .select('*')
-        .eq('codigo', data.codigo)
-        .eq('representante_id', user?.id)
-        .eq('status', 'com_representante')
-        .maybeSingle();
-
-      if (kitError) throw kitError;
-      if (!kit) throw new Error('Kit não encontrado no seu estoque');
-
-      // Criar nova cobrança na agenda
-      const { error: cobrancaError } = await supabase
-        .from('cobrancas_agendadas')
-        .insert({
-          representante_id: user!.id,
-          revendedora: data.revendedora,
-          codigo_nota: data.codigo,
-          tipo: 'kit',
-          valor_previsto: 0,
-          data_agendada: data.dataVencimento,
-          status: 'pendente',
-          vendedora: data.vendedora,
-          observacoes: `Venda de kit ${kit.tipo} - Código: ${data.codigo}`
-        });
-
-      if (cobrancaError) throw cobrancaError;
-
-      // Atualizar o kit para "com_revendedora"
-      const { error: updateError } = await supabase
-        .from('kits_estoque')
-        .update({ status: 'com_revendedora' })
-        .eq('id', kit.id);
-
-      if (updateError) throw updateError;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
-      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
-      toast.success('Venda de kit registrada com sucesso!');
-      resetVendaForm();
-      setIsVendaDialogOpen(false);
-    },
-    onError: (error: any) => {
-      toast.error(`Erro ao registrar venda: ${error.message}`);
-    },
-  });
-
-  const handleSubmitVenda = () => {
-    if (!codigoKitVenda || !nomeRevendedora || !nomeVendedora) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
-
-    vendaKitMutation.mutate({
-      codigo: codigoKitVenda,
-      revendedora: nomeRevendedora,
-      vendedora: nomeVendedora,
-      dataVencimento: format(dataVencimentoVenda, 'yyyy-MM-dd')
-    });
   };
 
   const handleOpenDialog = (kit?: KitEntregue) => {
@@ -340,97 +260,95 @@ export default function Kits() {
           <h1 className="text-3xl font-bold text-foreground">Gestão de Kits</h1>
           <p className="text-muted-foreground">Acompanhe renovações e entregas de mostruários</p>
         </div>
-        <div className="flex gap-2">
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => handleOpenDialog()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Kit
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingKit ? 'Editar Kit' : 'Registrar Nova Entrega de Kit'}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="codigo">Código do Mostruário *</Label>
-                <Input
-                  id="codigo"
-                  value={codigoMostruario}
-                  onChange={(e) => setCodigoMostruario(e.target.value)}
-                  placeholder="Ex: MST-001"
-                />
-              </div>
-
-              <div>
-                <Label>Data de Entrega *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(dataEntrega, "dd/MM/yyyy", { locale: ptBR })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dataEntrega}
-                      onSelect={(date) => date && setDataEntrega(date)}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div>
-                <Label>Data de Vencimento *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(dataVencimento, "dd/MM/yyyy", { locale: ptBR })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dataVencimento}
-                      onSelect={(date) => date && setDataVencimento(date)}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div>
-                <Label htmlFor="tipo">Tipo *</Label>
-                <Select value={tipo} onValueChange={(v: 'renovacao' | 'novo') => setTipo(v)}>
-                  <SelectTrigger id="tipo">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="novo">Novo</SelectItem>
-                    <SelectItem value="renovacao">Renovação</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Kit
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingKit ? 'Editar Kit' : 'Registrar Nova Entrega de Kit'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="codigo">Código do Mostruário *</Label>
+              <Input
+                id="codigo"
+                value={codigoMostruario}
+                onChange={(e) => setCodigoMostruario(e.target.value)}
+                placeholder="Ex: MST-001"
+              />
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSubmit}>
-                {editingKit ? 'Atualizar' : 'Registrar'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        </div>
+
+            <div>
+              <Label>Data de Entrega *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(dataEntrega, "dd/MM/yyyy", { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dataEntrega}
+                    onSelect={(date) => date && setDataEntrega(date)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <Label>Data de Vencimento *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(dataVencimento, "dd/MM/yyyy", { locale: ptBR })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dataVencimento}
+                    onSelect={(date) => date && setDataVencimento(date)}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div>
+              <Label htmlFor="tipo">Tipo *</Label>
+              <Select value={tipo} onValueChange={(v: 'renovacao' | 'novo') => setTipo(v)}>
+                <SelectTrigger id="tipo">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="novo">Novo</SelectItem>
+                  <SelectItem value="renovacao">Renovação</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit}>
+              {editingKit ? 'Atualizar' : 'Registrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
 
       {/* Card com Kits Atualmente em Minha Posse */}
@@ -439,10 +357,13 @@ export default function Kits() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Kits Atualmente em Minha Posse
+              Kits Atualmente em Minha Posse ({kitsEstoque.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Para registrar a entrega de um kit a uma revendedora, acesse a <strong>Cobrança Diária</strong>.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {kitsEstoque.map((kit: any) => (
                 <div key={kit.id} className="p-4 border rounded-lg bg-card hover:bg-accent/50 transition-colors">
@@ -456,6 +377,11 @@ export default function Kits() {
                       {kit.tipo}
                     </Badge>
                   </div>
+                  {kit.valor > 0 && (
+                    <p className="text-sm font-medium text-primary">
+                      {formatarValor(kit.valor)}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Recebido em {format(new Date(kit.criado_em), 'dd/MM/yyyy', { locale: ptBR })}
                   </p>

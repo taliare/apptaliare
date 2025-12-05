@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Plus, X } from 'lucide-react';
+import { CalendarIcon, Plus, X, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -76,6 +76,10 @@ export function ModalReceberCobranca({
   const [comissaoValor, setComissaoValor] = useState(0);
   const [valorAReceber, setValorAReceber] = useState(0);
   
+  // Modo de edição manual de comissão
+  const [comissaoManual, setComissaoManual] = useState(false);
+  const [comissaoPercentualManual, setComissaoPercentualManual] = useState('');
+  
   // Pagamentos
   const [pagamento1, setPagamento1] = useState<PagamentoForm>({ forma: '', valor: '' });
   const [pagamento2, setPagamento2] = useState<PagamentoForm | null>(null);
@@ -87,7 +91,7 @@ export function ModalReceberCobranca({
   // Carregando
   const [loading, setLoading] = useState(false);
 
-  const calcularComissao = (valor: number) => {
+  const calcularComissao = (valor: number, percentualForced?: number) => {
     // Para REPASSE, não calcula comissão
     if (isRepasse) {
       const descontoValor = parseFloat(desconto.replace(',', '.')) || 0;
@@ -97,7 +101,17 @@ export function ModalReceberCobranca({
       return;
     }
     
-    // Para KIT, mantém a lógica de comissão
+    // Se tiver percentual forçado (manual), usa ele
+    if (percentualForced !== undefined) {
+      const comissao = valor * (percentualForced / 100);
+      const aReceber = valor - comissao;
+      setComissaoPercentual(percentualForced);
+      setComissaoValor(comissao);
+      setValorAReceber(aReceber);
+      return;
+    }
+    
+    // Para KIT, mantém a lógica de comissão automática
     let percentual = 0;
     if (valor < 300) {
       percentual = 20;
@@ -118,14 +132,16 @@ export function ModalReceberCobranca({
   };
 
   const handleValorVendaChange = (value: string) => {
-    // Remove tudo que não for número ou vírgula
     const cleanValue = value.replace(/[^\d,]/g, '');
     setValorVenda(cleanValue);
     
-    // Converte para número para cálculo
     const numeroValor = parseFloat(cleanValue.replace(',', '.'));
     if (!isNaN(numeroValor)) {
-      calcularComissao(numeroValor);
+      if (comissaoManual && comissaoPercentualManual) {
+        calcularComissao(numeroValor, parseFloat(comissaoPercentualManual));
+      } else {
+        calcularComissao(numeroValor);
+      }
     }
   };
   
@@ -133,10 +149,36 @@ export function ModalReceberCobranca({
     const cleanValue = value.replace(/[^\d,]/g, '');
     setDesconto(cleanValue);
     
-    // Recalcula o valor a receber com o desconto
     const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
     const descontoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
     setValorAReceber(valorVendaNum - descontoNum);
+  };
+
+  const handleComissaoManualChange = (value: string) => {
+    const cleanValue = value.replace(/[^\d,]/g, '');
+    setComissaoPercentualManual(cleanValue);
+    
+    const percentual = parseFloat(cleanValue.replace(',', '.')) || 0;
+    const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
+    
+    if (valorVendaNum > 0) {
+      calcularComissao(valorVendaNum, percentual);
+    }
+  };
+
+  const handleToggleComissaoManual = () => {
+    if (!comissaoManual) {
+      setComissaoManual(true);
+      setComissaoPercentualManual(comissaoPercentual.toString());
+    } else {
+      setComissaoManual(false);
+      setComissaoPercentualManual('');
+      // Recalcular com comissão automática
+      const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
+      if (valorVendaNum > 0) {
+        calcularComissao(valorVendaNum);
+      }
+    }
   };
 
   const handleDevolveuTudo = async () => {
@@ -200,7 +242,6 @@ export function ModalReceberCobranca({
   };
 
   const handleReceberPagamento = async () => {
-    // Validações
     if (!pagamento1.forma || !pagamento1.valor) {
       toast({
         title: "Atenção",
@@ -337,6 +378,8 @@ export function ModalReceberCobranca({
     setComissaoPercentual(0);
     setComissaoValor(0);
     setValorAReceber(0);
+    setComissaoManual(false);
+    setComissaoPercentualManual('');
     setPagamento1({ forma: '', valor: '' });
     setPagamento2(null);
     setValorRepasse('');
@@ -403,10 +446,35 @@ export function ModalReceberCobranca({
             {valorVenda && parseFloat(valorVenda.replace(',', '.')) > 0 && (
               <div className="p-4 bg-muted rounded-lg space-y-2">
                 {!isRepasse && (
-                  <div className="flex justify-between text-sm">
-                    <span>Comissão ({comissaoPercentual}%):</span>
-                    <span className="font-medium">{formatarValor(comissaoValor)}</span>
-                  </div>
+                  <>
+                    <div className="flex justify-between items-center text-sm">
+                      <span>Comissão ({comissaoPercentual}%):</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{formatarValor(comissaoValor)}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={handleToggleComissaoManual}
+                          title={comissaoManual ? "Usar comissão automática" : "Alterar comissão manualmente"}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    {comissaoManual && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs whitespace-nowrap">Comissão %:</Label>
+                        <Input
+                          type="text"
+                          className="h-8 text-sm"
+                          placeholder="Ex: 25"
+                          value={comissaoPercentualManual}
+                          onChange={(e) => handleComissaoManualChange(e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
                 {isRepasse && desconto && parseFloat(desconto.replace(',', '.')) > 0 && (
                   <div className="flex justify-between text-sm text-orange-600">
