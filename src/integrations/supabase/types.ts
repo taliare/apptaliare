@@ -222,6 +222,7 @@ export type Database = {
           representante_id: string | null
           status: string
           tipo: string
+          valor: number | null
         }
         Insert: {
           codigo: string
@@ -231,6 +232,7 @@ export type Database = {
           representante_id?: string | null
           status: string
           tipo: string
+          valor?: number | null
         }
         Update: {
           codigo?: string
@@ -240,6 +242,7 @@ export type Database = {
           representante_id?: string | null
           status?: string
           tipo?: string
+          valor?: number | null
         }
         Relationships: [
           {
@@ -422,6 +425,7 @@ export type Database = {
           data: string
           id: string
           tipo: string
+          valor: number | null
         }
         Insert: {
           codigo: string
@@ -430,6 +434,7 @@ export type Database = {
           data: string
           id?: string
           tipo: string
+          valor?: number | null
         }
         Update: {
           codigo?: string
@@ -438,6 +443,7 @@ export type Database = {
           data?: string
           id?: string
           tipo?: string
+          valor?: number | null
         }
         Relationships: []
       }

@@ -8,6 +8,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
+interface KitData {
+  codigo: string;
+  valor: string;
+}
+
 export default function ProducaoDiaria() {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
@@ -16,10 +21,10 @@ export default function ProducaoDiaria() {
     especial: 0,
     maleta: 0,
   });
-  const [codes, setCodes] = useState<{
-    inicial: string[];
-    especial: string[];
-    maleta: string[];
+  const [kits, setKits] = useState<{
+    inicial: KitData[];
+    especial: KitData[];
+    maleta: KitData[];
   }>({
     inicial: [],
     especial: [],
@@ -28,27 +33,36 @@ export default function ProducaoDiaria() {
   const [loading, setLoading] = useState(false);
 
   const handleConfirmQuantities = () => {
-    setCodes({
-      inicial: Array(quantities.inicial).fill(''),
-      especial: Array(quantities.especial).fill(''),
-      maleta: Array(quantities.maleta).fill(''),
+    setKits({
+      inicial: Array(quantities.inicial).fill(null).map(() => ({ codigo: '', valor: '' })),
+      especial: Array(quantities.especial).fill(null).map(() => ({ codigo: '', valor: '' })),
+      maleta: Array(quantities.maleta).fill(null).map(() => ({ codigo: '', valor: '' })),
     });
     setStep(2);
   };
 
-  const handleCodeChange = (tipo: 'inicial' | 'especial' | 'maleta', index: number, value: string) => {
-    setCodes(prev => ({
+  const handleKitChange = (tipo: 'inicial' | 'especial' | 'maleta', index: number, field: 'codigo' | 'valor', value: string) => {
+    setKits(prev => ({
       ...prev,
-      [tipo]: prev[tipo].map((c, i) => i === index ? value : c),
+      [tipo]: prev[tipo].map((kit, i) => 
+        i === index ? { ...kit, [field]: value } : kit
+      ),
     }));
+  };
+
+  const formatarValorInput = (valor: string): string => {
+    const apenasNumeros = valor.replace(/\D/g, '');
+    if (!apenasNumeros) return '';
+    const numero = parseFloat(apenasNumeros) / 100;
+    return numero.toFixed(2);
   };
 
   const handleRegister = async () => {
     if (!user) return;
 
-    const allCodes = [...codes.inicial, ...codes.especial, ...codes.maleta];
-    if (allCodes.some(c => !c.trim())) {
-      toast.error('Preencha todos os códigos');
+    const allKits = [...kits.inicial, ...kits.especial, ...kits.maleta];
+    if (allKits.some(k => !k.codigo.trim() || !k.valor.trim())) {
+      toast.error('Preencha todos os códigos e valores');
       return;
     }
 
@@ -56,11 +70,29 @@ export default function ProducaoDiaria() {
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // Registrar produção
+      // Registrar produção com valor
       const producaoData = [
-        ...codes.inicial.map(codigo => ({ data: today, tipo: 'inicial', codigo, criado_por: user.id })),
-        ...codes.especial.map(codigo => ({ data: today, tipo: 'especial', codigo, criado_por: user.id })),
-        ...codes.maleta.map(codigo => ({ data: today, tipo: 'maleta', codigo, criado_por: user.id })),
+        ...kits.inicial.map(kit => ({ 
+          data: today, 
+          tipo: 'inicial', 
+          codigo: kit.codigo, 
+          valor: parseFloat(kit.valor.replace(',', '.')),
+          criado_por: user.id 
+        })),
+        ...kits.especial.map(kit => ({ 
+          data: today, 
+          tipo: 'especial', 
+          codigo: kit.codigo, 
+          valor: parseFloat(kit.valor.replace(',', '.')),
+          criado_por: user.id 
+        })),
+        ...kits.maleta.map(kit => ({ 
+          data: today, 
+          tipo: 'maleta', 
+          codigo: kit.codigo, 
+          valor: parseFloat(kit.valor.replace(',', '.')),
+          criado_por: user.id 
+        })),
       ];
 
       const { data: producao, error: prodError } = await supabase
@@ -70,10 +102,11 @@ export default function ProducaoDiaria() {
 
       if (prodError) throw prodError;
 
-      // Adicionar ao estoque
+      // Adicionar ao estoque com valor
       const estoqueData = producao.map(p => ({
         tipo: p.tipo,
         codigo: p.codigo,
+        valor: p.valor,
         status: 'estoque',
         representante_id: null,
         origem_producao_id: p.id,
@@ -88,12 +121,44 @@ export default function ProducaoDiaria() {
       toast.success('Produção registrada com sucesso!');
       setStep(1);
       setQuantities({ inicial: 0, especial: 0, maleta: 0 });
-      setCodes({ inicial: [], especial: [], maleta: [] });
+      setKits({ inicial: [], especial: [], maleta: [] });
     } catch (error: any) {
       toast.error(error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderKitInputs = (tipo: 'inicial' | 'especial' | 'maleta', label: string) => {
+    if (kits[tipo].length === 0) return null;
+    
+    return (
+      <div>
+        <h3 className="font-semibold mb-2">{label} ({kits[tipo].length})</h3>
+        <div className="space-y-3">
+          {kits[tipo].map((kit, idx) => (
+            <div key={`${tipo}-${idx}`} className="grid grid-cols-2 gap-2">
+              <Input
+                placeholder={`Código ${idx + 1}`}
+                value={kit.codigo}
+                onChange={(e) => handleKitChange(tipo, idx, 'codigo', e.target.value)}
+              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                  R$
+                </span>
+                <Input
+                  placeholder="Valor"
+                  className="pl-10"
+                  value={kit.valor}
+                  onChange={(e) => handleKitChange(tipo, idx, 'valor', formatarValorInput(e.target.value))}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -107,7 +172,7 @@ export default function ProducaoDiaria() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            {step === 1 ? 'Passo 1: Quantidades' : 'Passo 2: Códigos dos Kits'}
+            {step === 1 ? 'Passo 1: Quantidades' : 'Passo 2: Códigos e Valores dos Kits'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -153,51 +218,9 @@ export default function ProducaoDiaria() {
             </div>
           ) : (
             <div className="space-y-6">
-              {codes.inicial.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-2">Kits Iniciais ({codes.inicial.length})</h3>
-                  <div className="space-y-2">
-                    {codes.inicial.map((code, idx) => (
-                      <Input
-                        key={`inicial-${idx}`}
-                        placeholder={`Código ${idx + 1}`}
-                        value={code}
-                        onChange={(e) => handleCodeChange('inicial', idx, e.target.value)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {codes.especial.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-2">Kits Especiais ({codes.especial.length})</h3>
-                  <div className="space-y-2">
-                    {codes.especial.map((code, idx) => (
-                      <Input
-                        key={`especial-${idx}`}
-                        placeholder={`Código ${idx + 1}`}
-                        value={code}
-                        onChange={(e) => handleCodeChange('especial', idx, e.target.value)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              {codes.maleta.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-2">Maletas ({codes.maleta.length})</h3>
-                  <div className="space-y-2">
-                    {codes.maleta.map((code, idx) => (
-                      <Input
-                        key={`maleta-${idx}`}
-                        placeholder={`Código ${idx + 1}`}
-                        value={code}
-                        onChange={(e) => handleCodeChange('maleta', idx, e.target.value)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+              {renderKitInputs('inicial', 'Kits Iniciais')}
+              {renderKitInputs('especial', 'Kits Especiais')}
+              {renderKitInputs('maleta', 'Maletas')}
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                   Voltar
