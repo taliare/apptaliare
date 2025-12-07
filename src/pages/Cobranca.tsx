@@ -547,7 +547,10 @@ export default function Cobranca() {
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('cobrancas_agendadas')
-        .update({ status: 'juridico' as any })
+        .update({ 
+          status: 'juridico' as any,
+          data_encaminhado_juridico: new Date().toISOString()
+        })
         .eq('id', id);
       
       if (error) throw error;
