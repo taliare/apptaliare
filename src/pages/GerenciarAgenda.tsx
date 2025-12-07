@@ -8,12 +8,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Edit, Search, Plus, Trash2 } from 'lucide-react';
+import { Edit, Search, Plus, Trash2, CheckSquare } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 import { formatarValor } from '@/lib/utils';
 
@@ -37,6 +38,12 @@ export default function GerenciarAgenda() {
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  
+  // Seleção em massa
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkStatusOpen, setIsBulkStatusOpen] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<StatusCobranca>('pendente');
   
   // Filtros
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
@@ -169,6 +176,48 @@ export default function GerenciarAgenda() {
     },
   });
 
+  // Mutation para exclusão em massa
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('cobrancas_agendadas')
+        .delete()
+        .in('id', ids);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
+      toast({ title: `${selectedIds.size} cobrança(s) excluída(s) com sucesso!` });
+      setSelectedIds(new Set());
+      setIsBulkDeleteOpen(false);
+    },
+    onError: () => {
+      toast({ title: 'Erro ao excluir cobranças', variant: 'destructive' });
+    },
+  });
+
+  // Mutation para alterar status em massa
+  const bulkStatusMutation = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: StatusCobranca }) => {
+      const { error } = await supabase
+        .from('cobrancas_agendadas')
+        .update({ status })
+        .in('id', ids);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
+      toast({ title: `Status de ${selectedIds.size} cobrança(s) alterado para ${statusConfig[bulkStatus].label}!` });
+      setSelectedIds(new Set());
+      setIsBulkStatusOpen(false);
+    },
+    onError: () => {
+      toast({ title: 'Erro ao alterar status', variant: 'destructive' });
+    },
+  });
+
   const handleEdit = (cobranca: Cobranca) => {
     setEditingCobranca(cobranca);
     setFormData({
@@ -208,6 +257,33 @@ export default function GerenciarAgenda() {
       return;
     }
     createMutation.mutate(createFormData);
+  };
+
+  // Funções de seleção em massa
+  const toggleSelectAll = () => {
+    if (selectedIds.size === cobrancasFiltradas.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(cobrancasFiltradas.map(c => c.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = () => {
+    bulkDeleteMutation.mutate(Array.from(selectedIds));
+  };
+
+  const handleBulkStatus = () => {
+    bulkStatusMutation.mutate({ ids: Array.from(selectedIds), status: bulkStatus });
   };
 
   // Filtrar cobranças
@@ -252,39 +328,60 @@ export default function GerenciarAgenda() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex items-center gap-2 flex-1">
-              <Search className="h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar por revendedora, código da nota ou representante..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-md"
-              />
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex items-center gap-2 flex-1">
+                <Search className="h-5 w-5 text-muted-foreground" />
+                <Input
+                  placeholder="Pesquisar por revendedora, código da nota ou representante..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-md"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Representante" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos Representantes</SelectItem>
+                    {representantes.map((rep) => (
+                      <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos Tipos</SelectItem>
+                    <SelectItem value="nova">Nova</SelectItem>
+                    <SelectItem value="repasse">Repasse</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Representante" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos Representantes</SelectItem>
-                  {representantes.map((rep) => (
-                    <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos Tipos</SelectItem>
-                  <SelectItem value="nova">Nova</SelectItem>
-                  <SelectItem value="repasse">Repasse</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            
+            {/* Barra de ações em massa */}
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <CheckSquare className="h-5 w-5 text-primary" />
+                <span className="font-medium">{selectedIds.size} selecionado(s)</span>
+                <div className="flex-1" />
+                <Button variant="outline" size="sm" onClick={() => setIsBulkStatusOpen(true)}>
+                  Alterar Status
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)}>
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Excluir
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+                  Limpar
+                </Button>
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -299,6 +396,13 @@ export default function GerenciarAgenda() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={selectedIds.size === cobrancasFiltradas.length && cobrancasFiltradas.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                     <TableHead>Representante</TableHead>
                     <TableHead>Revendedora</TableHead>
                     <TableHead>Código</TableHead>
@@ -311,7 +415,14 @@ export default function GerenciarAgenda() {
                 </TableHeader>
                 <TableBody>
                   {cobrancasFiltradas.map((cobranca) => (
-                    <TableRow key={cobranca.id}>
+                    <TableRow key={cobranca.id} className={selectedIds.has(cobranca.id) ? 'bg-muted/50' : ''}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(cobranca.id)}
+                          onCheckedChange={() => toggleSelect(cobranca.id)}
+                          aria-label={`Selecionar ${cobranca.revendedora}`}
+                        />
+                      </TableCell>
                       <TableCell>{(cobranca.profiles as any)?.nome || 'N/A'}</TableCell>
                       <TableCell className="font-medium">{cobranca.revendedora}</TableCell>
                       <TableCell>
@@ -579,6 +690,61 @@ export default function GerenciarAgenda() {
               Cancelar
             </Button>
             <Button onClick={handleCreate}>Cadastrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Exclusão em Massa */}
+      <AlertDialog open={isBulkDeleteOpen} onOpenChange={setIsBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão em Massa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir {selectedIds.size} cobrança(s)? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir {selectedIds.size} cobrança(s)
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de Alterar Status em Massa */}
+      <Dialog open={isBulkStatusOpen} onOpenChange={setIsBulkStatusOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Status em Massa</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">
+              Alterar o status de {selectedIds.size} cobrança(s) selecionada(s).
+            </p>
+            <div>
+              <Label>Novo Status</Label>
+              <Select value={bulkStatus} onValueChange={(value: StatusCobranca) => setBulkStatus(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="parcial">Parcial</SelectItem>
+                  <SelectItem value="pago">Pago</SelectItem>
+                  <SelectItem value="reagendado">Reagendado</SelectItem>
+                  <SelectItem value="juridico">Jurídico</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkStatusOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleBulkStatus}>
+              Alterar Status
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
