@@ -27,6 +27,7 @@ import ProducaoDiaria from "./pages/ProducaoDiaria";
 import DistribuicaoKits from "./pages/DistribuicaoKits";
 import EncomendaRepresentante from "./pages/EncomendaRepresentante";
 import EncomendaProducao from "./pages/EncomendaProducao";
+import Juridico from "./pages/Juridico";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -121,6 +122,11 @@ const App = () => {
                           <Route path="/relatorios" element={
                             <ProtectedRoute requiredRole="admin">
                               <Relatorios />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/juridico" element={
+                            <ProtectedRoute requiredRole="admin">
+                              <Juridico />
                             </ProtectedRoute>
                           } />
                           

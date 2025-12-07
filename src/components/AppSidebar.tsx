@@ -1,4 +1,4 @@
-import { Home, Users, Target, Upload, FileText, LogOut, Calendar, CalendarCheck, Package, Factory, ShoppingBag } from 'lucide-react';
+import { Home, Users, Target, Upload, FileText, LogOut, Calendar, CalendarCheck, Package, Factory, ShoppingBag, Scale } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -81,6 +81,7 @@ export function AppSidebar() {
     { title: 'Usuários', url: '/usuarios', icon: Users, badge: 0 },
     { title: 'Metas', url: '/metas', icon: Target, badge: 0 },
     { title: 'Gerenciar Agenda', url: '/gerenciar-agenda', icon: Calendar, badge: 0 },
+    { title: 'Jurídico', url: '/juridico', icon: Scale, badge: 0 },
     { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload, badge: 0 },
     { title: 'Relatórios', url: '/relatorios', icon: FileText, badge: 0 },
   ];

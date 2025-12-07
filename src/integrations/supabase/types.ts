@@ -19,6 +19,7 @@ export type Database = {
           codigo_nota: string | null
           criado_em: string | null
           data_agendada: string
+          data_encaminhado_juridico: string | null
           id: string
           observacoes: string | null
           representante_id: string
@@ -33,6 +34,7 @@ export type Database = {
           codigo_nota?: string | null
           criado_em?: string | null
           data_agendada: string
+          data_encaminhado_juridico?: string | null
           id?: string
           observacoes?: string | null
           representante_id: string
@@ -47,6 +49,7 @@ export type Database = {
           codigo_nota?: string | null
           criado_em?: string | null
           data_agendada?: string
+          data_encaminhado_juridico?: string | null
           id?: string
           observacoes?: string | null
           representante_id?: string

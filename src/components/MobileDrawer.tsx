@@ -1,4 +1,4 @@
-import { X, LogOut, ShoppingBag } from 'lucide-react';
+import { X, LogOut, ShoppingBag, Scale } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +38,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     { title: 'Dashboard Admin', url: '/dashboard-admin', icon: Home },
     { title: 'Usuários', url: '/usuarios', icon: Users },
     { title: 'Metas', url: '/metas', icon: Target },
+    { title: 'Gerenciar Agenda', url: '/gerenciar-agenda', icon: Calendar },
+    { title: 'Jurídico', url: '/juridico', icon: Scale },
     { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload },
     { title: 'Relatórios', url: '/relatorios', icon: FileText },
   ];
