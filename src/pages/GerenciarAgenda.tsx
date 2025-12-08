@@ -12,11 +12,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, getDate, getDay, getDaysInMonth, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Edit, Search, Plus, Trash2, CheckSquare } from 'lucide-react';
+import { Edit, Search, Plus, Trash2, CheckSquare, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 import { formatarValor } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'] & {
@@ -286,6 +287,28 @@ export default function GerenciarAgenda() {
     bulkStatusMutation.mutate({ ids: Array.from(selectedIds), status: bulkStatus });
   };
 
+  // Função para calcular a semana do mês com base na data
+  const getWeekOfMonth = (dateStr: string): number => {
+    const date = new Date(dateStr + 'T12:00:00');
+    const dayOfMonth = getDate(date);
+    const firstDayOfMonth = startOfMonth(date);
+    const firstDayWeekday = getDay(firstDayOfMonth); // 0 = domingo
+    
+    // Semana 1: dia 1 até o primeiro domingo
+    // Encontrar o primeiro domingo
+    const firstSunday = firstDayWeekday === 0 ? 1 : (7 - firstDayWeekday + 1);
+    
+    if (dayOfMonth <= firstSunday) {
+      return 1;
+    }
+    
+    // A partir do primeiro domingo, semanas de segunda a domingo
+    const daysAfterFirstSunday = dayOfMonth - firstSunday;
+    const weekNumber = Math.ceil(daysAfterFirstSunday / 7) + 1;
+    
+    return weekNumber;
+  };
+
   // Filtrar cobranças
   const cobrancasFiltradas = cobrancas.filter((c) => {
     // Filtro de busca
@@ -312,6 +335,38 @@ export default function GerenciarAgenda() {
     
     return true;
   });
+
+  // Agrupar cobranças por semana
+  const cobrancasPorSemana = cobrancasFiltradas.reduce((acc: Record<number, Cobranca[]>, cobranca) => {
+    const semana = getWeekOfMonth(cobranca.data_agendada);
+    if (!acc[semana]) {
+      acc[semana] = [];
+    }
+    acc[semana].push(cobranca);
+    return acc;
+  }, {});
+
+  // Ordenar cada semana por data
+  Object.keys(cobrancasPorSemana).forEach(semana => {
+    cobrancasPorSemana[Number(semana)].sort((a, b) => 
+      new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime()
+    );
+  });
+
+  const semanasOrdenadas = Object.keys(cobrancasPorSemana).map(Number).sort((a, b) => a - b);
+
+  // Estado para controlar quais semanas estão abertas
+  const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
+
+  const toggleWeek = (week: number) => {
+    const newOpenWeeks = new Set(openWeeks);
+    if (newOpenWeeks.has(week)) {
+      newOpenWeeks.delete(week);
+    } else {
+      newOpenWeeks.add(week);
+    }
+    setOpenWeeks(newOpenWeeks);
+  };
 
   return (
     <div className="space-y-6">
@@ -392,71 +447,103 @@ export default function GerenciarAgenda() {
               Nenhuma cobrança encontrada
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[50px]">
-                      <Checkbox
-                        checked={selectedIds.size === cobrancasFiltradas.length && cobrancasFiltradas.length > 0}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Selecionar todos"
-                      />
-                    </TableHead>
-                    <TableHead>Representante</TableHead>
-                    <TableHead>Revendedora</TableHead>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Data Vencimento</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cobrancasFiltradas.map((cobranca) => (
-                    <TableRow key={cobranca.id} className={selectedIds.has(cobranca.id) ? 'bg-muted/50' : ''}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.has(cobranca.id)}
-                          onCheckedChange={() => toggleSelect(cobranca.id)}
-                          aria-label={`Selecionar ${cobranca.revendedora}`}
-                        />
-                      </TableCell>
-                      <TableCell>{(cobranca.profiles as any)?.nome || 'N/A'}</TableCell>
-                      <TableCell className="font-medium">{cobranca.revendedora}</TableCell>
-                      <TableCell>
-                        <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
-                      </TableCell>
-                      <TableCell>
-                        {cobranca.tipo ? (
-                          <Badge variant="outline">{cobranca.tipo}</Badge>
-                        ) : (
-                          '-'
-                        )}
-                      </TableCell>
-                      <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
-                      <TableCell>
-                        {format(new Date(cobranca.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={statusConfig[cobranca.status].color}>
-                          {statusConfig[cobranca.status].label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(cobranca)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-4">
+              {semanasOrdenadas.map((semana) => (
+                <Collapsible key={semana} open={openWeeks.has(semana)} onOpenChange={() => toggleWeek(semana)}>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
+                    <div className="flex items-center gap-2">
+                      {openWeeks.has(semana) ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                      <span className="font-semibold">Semana {semana}</span>
+                      <Badge variant="secondary">{cobrancasPorSemana[semana].length} nota(s)</Badge>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      Total: {formatarValor(cobrancasPorSemana[semana].reduce((sum, c) => sum + c.valor_previsto, 0))}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="overflow-x-auto mt-2">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">
+                              <Checkbox
+                                checked={cobrancasPorSemana[semana].every(c => selectedIds.has(c.id))}
+                                onCheckedChange={() => {
+                                  const weekIds = cobrancasPorSemana[semana].map(c => c.id);
+                                  const allSelected = weekIds.every(id => selectedIds.has(id));
+                                  const newSelected = new Set(selectedIds);
+                                  if (allSelected) {
+                                    weekIds.forEach(id => newSelected.delete(id));
+                                  } else {
+                                    weekIds.forEach(id => newSelected.add(id));
+                                  }
+                                  setSelectedIds(newSelected);
+                                }}
+                                aria-label={`Selecionar semana ${semana}`}
+                              />
+                            </TableHead>
+                            <TableHead>Representante</TableHead>
+                            <TableHead>Revendedora</TableHead>
+                            <TableHead>Código</TableHead>
+                            <TableHead>Tipo</TableHead>
+                            <TableHead>Valor</TableHead>
+                            <TableHead>Data Vencimento</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {cobrancasPorSemana[semana].map((cobranca) => (
+                            <TableRow key={cobranca.id} className={selectedIds.has(cobranca.id) ? 'bg-muted/50' : ''}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedIds.has(cobranca.id)}
+                                  onCheckedChange={() => toggleSelect(cobranca.id)}
+                                  aria-label={`Selecionar ${cobranca.revendedora}`}
+                                />
+                              </TableCell>
+                              <TableCell>{(cobranca.profiles as any)?.nome || 'N/A'}</TableCell>
+                              <TableCell className="font-medium">{cobranca.revendedora}</TableCell>
+                              <TableCell>
+                                <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
+                              </TableCell>
+                              <TableCell>
+                                {cobranca.tipo ? (
+                                  <Badge variant="outline">{cobranca.tipo}</Badge>
+                                ) : (
+                                  '-'
+                                )}
+                              </TableCell>
+                              <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
+                              <TableCell>
+                                {format(new Date(cobranca.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={statusConfig[cobranca.status].color}>
+                                  {statusConfig[cobranca.status].label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(cobranca)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
             </div>
           )}
         </CardContent>

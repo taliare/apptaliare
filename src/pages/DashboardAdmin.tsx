@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { DollarSign, TrendingUp, Package, FileText, Users, TrendingDown } from 'lucide-react';
+import { DollarSign, TrendingUp, Package, FileText, Users, TrendingDown, Factory } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -176,12 +176,50 @@ export default function DashboardAdmin() {
     },
   });
 
+  // Query para produção diária (HOJE)
+  const { data: producaoHoje = [] } = useQuery({
+    queryKey: ['producao-hoje-admin', hoje],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('producao_diaria')
+        .select('tipo')
+        .eq('data', hoje);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Query para produção do período
+  const { data: producaoPeriodo = [] } = useQuery({
+    queryKey: ['producao-periodo-admin', startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('producao_diaria')
+        .select('tipo')
+        .gte('data', startDate)
+        .lte('data', endDate);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Cálculos dos totais
   const totalHoje = cobrancasHoje.reduce((sum, c) => sum + (c.total_cobrado || 0), 0);
   const totalMes = cobrancasMes.reduce((sum, c) => sum + c.total_cobrado, 0);
   const totalDespesas = cobrancasMes.reduce((sum, c) => sum + c.total_despesas, 0);
   const totalKits = kitsData?.length || 0;
   const totalNotas = notasData?.length || 0;
+
+  // Cálculos da produção
+  const totalProducaoHoje = producaoHoje.length;
+  const totalProducaoPeriodo = producaoPeriodo.length;
+  const producaoPorTipo = producaoPeriodo.reduce((acc: Record<string, number>, curr) => {
+    const tipo = curr.tipo?.toLowerCase() || 'outro';
+    acc[tipo] = (acc[tipo] || 0) + 1;
+    return acc;
+  }, {});
 
   // Combina dados dos representantes com suas cobranças e metas
   const representantesComDados = representantes.map(rep => {
@@ -277,6 +315,69 @@ export default function DashboardAdmin() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Seção Produção Taliare */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Factory className="h-5 w-5" />
+            Produção Taliare
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <Card className="bg-muted/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Produzidos Hoje</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatarNumero(totalProducaoHoje)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-muted/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Produzidos no Período</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatarNumero(totalProducaoPeriodo)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-muted/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Iniciais</CardTitle>
+                <Package className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatarNumero(producaoPorTipo['inicial'] || 0)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-muted/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Especiais</CardTitle>
+                <Package className="h-4 w-4 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatarNumero(producaoPorTipo['especial'] || 0)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-muted/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Maletas</CardTitle>
+                <Package className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatarNumero(producaoPorTipo['maleta'] || 0)}</div>
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
