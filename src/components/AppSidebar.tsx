@@ -81,6 +81,7 @@ export function AppSidebar() {
     { title: 'Usuários', url: '/usuarios', icon: Users, badge: 0 },
     { title: 'Metas', url: '/metas', icon: Target, badge: 0 },
     { title: 'Gerenciar Agenda', url: '/gerenciar-agenda', icon: Calendar, badge: 0 },
+    { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package, badge: 0 },
     { title: 'Jurídico', url: '/juridico', icon: Scale, badge: 0 },
     { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload, badge: 0 },
     { title: 'Relatórios', url: '/relatorios', icon: FileText, badge: 0 },

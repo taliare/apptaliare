@@ -39,6 +39,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     { title: 'Usuários', url: '/usuarios', icon: Users },
     { title: 'Metas', url: '/metas', icon: Target },
     { title: 'Gerenciar Agenda', url: '/gerenciar-agenda', icon: Calendar },
+    { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package },
     { title: 'Jurídico', url: '/juridico', icon: Scale },
     { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload },
     { title: 'Relatórios', url: '/relatorios', icon: FileText },
