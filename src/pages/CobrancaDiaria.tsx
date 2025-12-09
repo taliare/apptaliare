@@ -222,17 +222,21 @@ export default function CobrancaDiaria() {
     enabled: !!user?.id,
   });
 
-  // Query para entregas de kits do dia (cobranças tipo='kit' criadas hoje)
+  // Query para entregas de kits do dia (cobranças tipo='kit' criadas na data selecionada)
   const { data: entregasDoDia = [] } = useQuery({
     queryKey: ['entregas-kits-dia', dateStr, user?.id],
     queryFn: async () => {
+      // Buscar registros criados no dia selecionado (usando criado_em com timezone)
+      const startOfDay = `${dateStr}T00:00:00.000Z`;
+      const endOfDay = `${dateStr}T23:59:59.999Z`;
+      
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', user?.id)
         .eq('tipo', 'kit')
-        .gte('criado_em', `${dateStr}T00:00:00`)
-        .lt('criado_em', `${dateStr}T23:59:59.999`)
+        .gte('criado_em', startOfDay)
+        .lte('criado_em', endOfDay)
         .order('criado_em', { ascending: false });
       
       if (error) throw error;
@@ -973,89 +977,93 @@ export default function CobrancaDiaria() {
               )}
             </div>
 
-            {/* Resumo de Entregas de Kits do Dia */}
-            {entregasDoDia.length > 0 && (
-              <>
-                <div 
-                  className="p-4 bg-primary/10 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors"
-                  onClick={() => setIsEntregasDialogOpen(true)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-5 w-5 text-primary" />
-                      <span className="font-semibold">Kits Entregues Hoje</span>
-                    </div>
-                    <Badge variant="default" className="text-lg px-3 py-1">
-                      {entregasDoDia.length}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">Clique para ver detalhes</p>
+            {/* Resumo de Entregas de Kits do Dia - sempre visível */}
+            <div 
+              className={cn(
+                "p-4 rounded-lg transition-colors",
+                entregasDoDia.length > 0 
+                  ? "bg-primary/10 cursor-pointer hover:bg-primary/20" 
+                  : "bg-muted"
+              )}
+              onClick={() => entregasDoDia.length > 0 && setIsEntregasDialogOpen(true)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  <span className="font-semibold">Kits Entregues Hoje</span>
                 </div>
+                <Badge variant={entregasDoDia.length > 0 ? "default" : "secondary"} className="text-lg px-3 py-1">
+                  {entregasDoDia.length}
+                </Badge>
+              </div>
+              {entregasDoDia.length > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">Clique para ver detalhes</p>
+              )}
+            </div>
 
-                {/* Dialog de lista de entregas */}
-                <Dialog open={isEntregasDialogOpen} onOpenChange={setIsEntregasDialogOpen}>
-                  <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle className="flex items-center gap-2">
-                        <Package className="h-5 w-5" />
-                        Entregas de Kits - {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })}
-                      </DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                      {entregasDoDia.map((entrega: any) => (
-                        <div key={entrega.id} className="p-3 bg-muted rounded-lg">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium">{entrega.revendedora}</p>
-                              <p className="text-sm text-muted-foreground">Kit: {entrega.codigo_nota}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-semibold">{formatarValor(entrega.valor_previsto)}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Venc: {format(new Date(entrega.data_agendada + 'T12:00:00'), "dd/MM/yyyy")}
-                              </p>
-                            </div>
+            {entregasDoDia.length > 0 && (
+              <Dialog open={isEntregasDialogOpen} onOpenChange={setIsEntregasDialogOpen}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Package className="h-5 w-5" />
+                      Entregas de Kits - {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {entregasDoDia.map((entrega: any) => (
+                      <div key={entrega.id} className="p-3 bg-muted rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium">{entrega.revendedora}</p>
+                            <p className="text-sm text-muted-foreground">Kit: {entrega.codigo_nota}</p>
                           </div>
-                          <div className="mt-2 flex justify-end">
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                                  <Trash2 className="h-4 w-4 mr-1" />
-                                  Excluir
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => excluirEntregaMutation.mutate({ 
-                                      id: entrega.id, 
-                                      codigo_nota: entrega.codigo_nota 
-                                    })}
-                                  >
-                                    Excluir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold">{formatarValor(entrega.valor_previsto)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Venc: {format(new Date(entrega.data_agendada + 'T12:00:00'), "dd/MM/yyyy")}
+                            </p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsEntregasDialogOpen(false)}>
-                        Fechar
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </>
+                        <div className="mt-2 flex justify-end">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Excluir
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => excluirEntregaMutation.mutate({ 
+                                    id: entrega.id, 
+                                    codigo_nota: entrega.codigo_nota 
+                                  })}
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsEntregasDialogOpen(false)}>
+                      Fechar
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
 
             {/* Botão Registrar Entrega de Kit */}
