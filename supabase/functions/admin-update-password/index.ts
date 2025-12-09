@@ -67,10 +67,28 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Validate password
+    // Validate password complexity (matching client-side requirements)
     if (newPassword.length < 8) {
       return new Response(
-        JSON.stringify({ error: 'Password must be at least 8 characters' }),
+        JSON.stringify({ error: 'A senha deve ter pelo menos 8 caracteres' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      return new Response(
+        JSON.stringify({ error: 'A senha deve conter pelo menos uma letra maiúscula' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      return new Response(
+        JSON.stringify({ error: 'A senha deve conter pelo menos uma letra minúscula' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    if (!/[0-9]/.test(newPassword)) {
+      return new Response(
+        JSON.stringify({ error: 'A senha deve conter pelo menos um número' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
