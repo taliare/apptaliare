@@ -8,6 +8,7 @@ import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, Trash2, Cl
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subHours } from 'date-fns';
+import { formatDateBR } from '@/lib/utils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -481,7 +482,7 @@ export default function ImportarCobrancas() {
                         </span>
                       </TableCell>
                       <TableCell>R$ {row.valor_previsto.toFixed(2)}</TableCell>
-                      <TableCell>{format(new Date(row.data_agendada), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell>{formatDateBR(row.data_agendada)}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                           row.status === 'pendente' ? 'bg-yellow-100 text-yellow-800' :

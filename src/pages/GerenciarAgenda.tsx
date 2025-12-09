@@ -16,7 +16,7 @@ import { format, getDate, getDay, getDaysInMonth, startOfMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale';
 import { Edit, Search, Plus, Trash2, CheckSquare, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
-import { formatarValor } from '@/lib/utils';
+import { formatarValor, formatDateBR, parseLocalDate } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
@@ -349,7 +349,7 @@ export default function GerenciarAgenda() {
   // Ordenar cada semana por data
   Object.keys(cobrancasPorSemana).forEach(semana => {
     cobrancasPorSemana[Number(semana)].sort((a, b) => 
-      new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime()
+      parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime()
     );
   });
 
@@ -523,7 +523,7 @@ export default function GerenciarAgenda() {
                               </TableCell>
                               <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
                               <TableCell>
-                                {format(new Date(cobranca.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}
+                                {formatDateBR(cobranca.data_agendada)}
                               </TableCell>
                               <TableCell>
                                 <Badge className={statusConfig[cobranca.status].color}>

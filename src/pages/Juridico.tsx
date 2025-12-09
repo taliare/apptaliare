@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
-import { formatarValor } from '@/lib/utils';
+import { formatarValor, parseLocalDate, formatDateBR } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -125,7 +125,7 @@ export default function Juridico() {
 
   const handleRetornarClick = (cobranca: CobrancaJuridico) => {
     setCobrancaParaRetornar(cobranca);
-    setNovaDataVencimento(new Date(cobranca.data_agendada));
+    setNovaDataVencimento(parseLocalDate(cobranca.data_agendada));
     setModalRetornarOpen(true);
   };
 
@@ -284,7 +284,7 @@ export default function Juridico() {
                       
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <CalendarIcon className="h-4 w-4" />
-                        <span>Venc: {format(parseISO(cobranca.data_agendada), 'dd/MM/yyyy')}</span>
+                        <span>Venc: {formatDateBR(cobranca.data_agendada)}</span>
                       </div>
                       
                       {cobranca.data_encaminhado_juridico && (
@@ -364,7 +364,7 @@ export default function Juridico() {
                   </PopoverContent>
                 </Popover>
                 <p className="text-xs text-muted-foreground">
-                  Data atual: {format(parseISO(cobrancaParaRetornar.data_agendada), 'dd/MM/yyyy')}
+                  Data atual: {formatDateBR(cobrancaParaRetornar.data_agendada)}
                 </p>
               </div>
             </div>
