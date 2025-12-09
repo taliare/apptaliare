@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock, Package, Search } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock, Package, Wallet, DollarSign, Receipt } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState } from 'react';
@@ -68,7 +68,6 @@ export default function CobrancaDiaria() {
   const [vendedoraKit, setVendedoraKit] = useState('');
   const [revendedoraKit, setRevendedoraKit] = useState('');
   const [dataVencimentoKit, setDataVencimentoKit] = useState<Date>(addDays(new Date(), 60));
-  const [isEntregasDialogOpen, setIsEntregasDialogOpen] = useState(false);
 
   // Form states for Nota Promissória
   const [codigoNota, setCodigoNota] = useState('');
@@ -83,15 +82,9 @@ export default function CobrancaDiaria() {
 
   // Função para formatar valor monetário durante digitação
   const formatarValorInput = (valor: string): string => {
-    // Remove tudo que não é número
     const apenasNumeros = valor.replace(/\D/g, '');
-    
     if (!apenasNumeros) return '';
-    
-    // Converte para número e divide por 100 para ter 2 casas decimais
     const numero = parseFloat(apenasNumeros) / 100;
-    
-    // Formata com 2 casas decimais
     return numero.toFixed(2);
   };
 
@@ -175,7 +168,6 @@ export default function CobrancaDiaria() {
       
       if (error) throw error;
       
-      // Agrupar por data e contar
       const contagem: Record<string, number> = {};
       data.forEach((nota) => {
         contagem[nota.data] = (contagem[nota.data] || 0) + 1;
@@ -226,7 +218,6 @@ export default function CobrancaDiaria() {
   const { data: entregasDoDia = [] } = useQuery({
     queryKey: ['entregas-kits-dia', dateStr, user?.id],
     queryFn: async () => {
-      // Buscar registros criados no dia selecionado (usando criado_em com timezone)
       const startOfDay = `${dateStr}T00:00:00.000Z`;
       const endOfDay = `${dateStr}T23:59:59.999Z`;
       
@@ -253,7 +244,6 @@ export default function CobrancaDiaria() {
   // Mutation para registrar entrega de kit
   const entregaKitMutation = useMutation({
     mutationFn: async (data: { kitId: string; codigo: string; tipo: string; valor: number; revendedora: string; vendedora?: string; dataVencimento: string }) => {
-      // 1. Atualizar status do kit usando função SECURITY DEFINER
       const { data: updateResult, error: updateError } = await supabase
         .rpc('atualizar_status_kit_entrega', {
           p_kit_id: data.kitId,
@@ -263,7 +253,6 @@ export default function CobrancaDiaria() {
       if (updateError) throw updateError;
       if (!updateResult) throw new Error('Kit não encontrado ou não pertence a você');
 
-      // 2. Criar cobrança para o kit entregue usando o valor da produção
       const { error: cobrancaError } = await supabase
         .from('cobrancas_agendadas')
         .insert({
@@ -296,7 +285,6 @@ export default function CobrancaDiaria() {
   // Mutation para excluir entrega de kit
   const excluirEntregaMutation = useMutation({
     mutationFn: async (entrega: { id: string; codigo_nota: string }) => {
-      // 1. Reverter status do kit usando função SECURITY DEFINER
       const { error: revertError } = await supabase
         .rpc('reverter_entrega_kit', {
           p_codigo_kit: entrega.codigo_nota,
@@ -305,7 +293,6 @@ export default function CobrancaDiaria() {
 
       if (revertError) throw revertError;
 
-      // 2. Deletar a cobrança agendada
       const { error: deleteError } = await supabase
         .from('cobrancas_agendadas')
         .delete()
@@ -412,7 +399,6 @@ export default function CobrancaDiaria() {
   // Mutation para deletar nota e reverter cobrança se necessário
   const deleteNotaMutation = useMutation({
     mutationFn: async (id: string) => {
-      // 1. Buscar a nota que será deletada
       const { data: nota, error: notaError } = await supabase
         .from('notas_promissorias')
         .select('*')
@@ -421,7 +407,6 @@ export default function CobrancaDiaria() {
       
       if (notaError) throw notaError;
       
-      // 2. Buscar prestação de contas associada através do codigo_nota_referencia
       const { data: prestacao, error: prestacaoError } = await supabase
         .from('prestacoes_contas')
         .select('*')
@@ -430,9 +415,7 @@ export default function CobrancaDiaria() {
       
       if (prestacaoError) throw prestacaoError;
       
-      // 3. Se existe prestação associada (pagamento parcial), fazer rollback completo
       if (prestacao && prestacao.cobranca_id) {
-        // 3.1. Deletar repasse associado
         const { error: repasseError } = await supabase
           .from('repasses')
           .delete()
@@ -440,7 +423,6 @@ export default function CobrancaDiaria() {
         
         if (repasseError) throw repasseError;
         
-        // 3.2. Deletar prestação de contas
         const { error: deletePrestacaoError } = await supabase
           .from('prestacoes_contas')
           .delete()
@@ -448,7 +430,6 @@ export default function CobrancaDiaria() {
         
         if (deletePrestacaoError) throw deletePrestacaoError;
         
-        // 3.3. Reverter status da cobrança para pendente
         const { error: updateCobrancaError } = await supabase
           .from('cobrancas_agendadas')
           .update({ status: 'pendente' })
@@ -457,7 +438,6 @@ export default function CobrancaDiaria() {
         if (updateCobrancaError) throw updateCobrancaError;
       }
       
-      // 4. Deletar a nota promissória
       const { error: deleteNotaError } = await supabase
         .from('notas_promissorias')
         .delete()
@@ -493,25 +473,19 @@ export default function CobrancaDiaria() {
         finalizado: true,
       };
 
-      if (cobrancaDiaria) {
-        const { data, error } = await supabase
+      if (cobrancaDiaria?.id) {
+        const { error } = await supabase
           .from('cobrancas_diarias')
           .update(cobrancaData)
-          .eq('id', cobrancaDiaria.id)
-          .select()
-          .single();
+          .eq('id', cobrancaDiaria.id);
         
         if (error) throw error;
-        return data;
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('cobrancas_diarias')
-          .insert(cobrancaData)
-          .select()
-          .single();
+          .insert(cobrancaData);
         
         if (error) throw error;
-        return data;
       }
     },
     onSuccess: () => {
@@ -541,7 +515,7 @@ export default function CobrancaDiaria() {
       setFormaPagamento1(nota.forma_pagamento_1);
       setValorPagamento1(nota.valor_pagamento_1.toFixed(2));
       setFormaPagamento2(nota.forma_pagamento_2 || '');
-      setValorPagamento2(nota.valor_pagamento_2 ? nota.valor_pagamento_2.toFixed(2) : '');
+      setValorPagamento2(nota.valor_pagamento_2?.toFixed(2) || '');
     } else {
       resetNotaForm();
       setEditingNota(null);
@@ -550,61 +524,54 @@ export default function CobrancaDiaria() {
   };
 
   const handleDevolveuTudo = () => {
-    // Validação mínima
     if (!codigoNota) {
-      toast.error('Preencha o código da nota');
-      return;
-    }
-
-    const notaDevolvida = {
-      representante_id: user!.id,
-      data: dateStr,
-      codigo_nota: codigoNota,
-      valor_total: 0,
-      forma_pagamento_1: 'pix' as const,
-      valor_pagamento_1: 0,
-      forma_pagamento_2: null,
-      valor_pagamento_2: null,
-    };
-
-    addNotaMutation.mutate(notaDevolvida);
-    toast.success('Nota registrada como devolução total.');
-  };
-
-  const handleSubmitNota = () => {
-    // Validações
-    if (!codigoNota || !valorTotal || !valorPagamento1) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
-
-    const vTotal = parseValorFormatado(valorTotal);
-    const vPag1 = parseValorFormatado(valorPagamento1);
-    const vPag2 = valorPagamento2 ? parseValorFormatado(valorPagamento2) : 0;
-
-    // Validação com tolerância para problemas de precisão de ponto flutuante
-    const soma = Math.round((vPag1 + vPag2) * 100) / 100;
-    const total = Math.round(vTotal * 100) / 100;
-    
-    if (Math.abs(soma - total) > 0.01) {
-      toast.error('A soma dos pagamentos deve ser igual ao valor total');
-      return;
-    }
-
-    if (valorPagamento2 && !formaPagamento2) {
-      toast.error('Selecione a forma de pagamento 2');
+      toast.error('Informe o código da nota');
       return;
     }
 
     const notaData = {
       representante_id: user!.id,
-      data: dateStr,
       codigo_nota: codigoNota,
-      valor_total: vTotal,
+      data: dateStr,
+      valor_total: 0,
       forma_pagamento_1: formaPagamento1,
-      valor_pagamento_1: vPag1,
+      valor_pagamento_1: 0,
+      forma_pagamento_2: null,
+      valor_pagamento_2: null,
+    };
+
+    addNotaMutation.mutate(notaData);
+  };
+
+  const handleSubmitNota = () => {
+    if (!codigoNota) {
+      toast.error('Preencha o código da nota');
+      return;
+    }
+
+    const valor1 = parseValorFormatado(valorPagamento1);
+    const valor2 = formaPagamento2 ? parseValorFormatado(valorPagamento2) : 0;
+    const valorTotalNum = parseValorFormatado(valorTotal);
+
+    if (valorTotalNum === 0 && !editingNota) {
+      toast.error('O valor total não pode ser zero. Use "Devolveu tudo" para registrar devoluções.');
+      return;
+    }
+
+    if (Math.abs((valor1 + valor2) - valorTotalNum) > 0.01) {
+      toast.error('A soma dos pagamentos deve ser igual ao valor total');
+      return;
+    }
+
+    const notaData = {
+      representante_id: user!.id,
+      codigo_nota: codigoNota,
+      data: dateStr,
+      valor_total: valorTotalNum,
+      forma_pagamento_1: formaPagamento1,
+      valor_pagamento_1: valor1,
       forma_pagamento_2: formaPagamento2 || null,
-      valor_pagamento_2: vPag2 > 0 ? vPag2 : null,
+      valor_pagamento_2: valor2 || null,
     };
 
     if (editingNota) {
@@ -615,50 +582,58 @@ export default function CobrancaDiaria() {
   };
 
   const handleFinalizarDia = () => {
-    // Permite finalizar mesmo sem cobranças (apenas despesas ou entregas)
     finalizarDiaMutation.mutate();
   };
 
+  // Calcular totais
   const totalCobradoCalculado = notas.reduce((acc, nota) => acc + nota.valor_total, 0);
   const totalNotasDoDia = notas.length;
-  
-  // Calcular totais por forma de pagamento automaticamente
-  const totaisPorFormaPagamento = notas.reduce((acc, nota) => {
-    // Soma pagamento 1
-    acc[nota.forma_pagamento_1] = (acc[nota.forma_pagamento_1] || 0) + nota.valor_pagamento_1;
-    
-    // Soma pagamento 2 se existir
-    if (nota.forma_pagamento_2 && nota.valor_pagamento_2) {
-      acc[nota.forma_pagamento_2] = (acc[nota.forma_pagamento_2] || 0) + nota.valor_pagamento_2;
-    }
-    
-    return acc;
-  }, {} as Record<string, number>);
-  
+
+  const totaisPorFormaPagamento = notas.reduce(
+    (acc, nota) => {
+      acc[nota.forma_pagamento_1] = (acc[nota.forma_pagamento_1] || 0) + nota.valor_pagamento_1;
+      if (nota.forma_pagamento_2 && nota.valor_pagamento_2) {
+        acc[nota.forma_pagamento_2] = (acc[nota.forma_pagamento_2] || 0) + nota.valor_pagamento_2;
+      }
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
   const totalPixCalculado = totaisPorFormaPagamento['pix'] || 0;
   const totalDinheiroCalculado = totaisPorFormaPagamento['dinheiro'] || 0;
   const totalCartaoCalculado = totaisPorFormaPagamento['cartao'] || 0;
-  const totalTransferenciaCalculado = totaisPorFormaPagamento['transferencia'] || 0;
-  
-  const isDiaFinalizado = cobrancaDiaria?.finalizado;
 
-  const handleOpenHistoricoDialog = (date: string) => {
-    setSelectedHistoricoDate(date);
+  const isDiaFinalizado = cobrancaDiaria?.finalizado === true;
+
+  const handleOpenHistoricoDialog = (data: string) => {
+    setSelectedHistoricoDate(data);
     setHistoricoDialogOpen(true);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Título com data */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Cobrança Diária</h1>
-          <p className="text-muted-foreground">Registre suas notas promissórias e finalize o dia</p>
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+            Fechamento do Dia
+            {isDiaFinalizado && (
+              <Badge variant="default" className="text-sm">
+                <Lock className="h-3 w-3 mr-1" />
+                Finalizado
+              </Badge>
+            )}
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+          </p>
         </div>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[240px] justify-start">
+            <Button variant="outline">
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+              Alterar Data
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">
@@ -673,406 +648,122 @@ export default function CobrancaDiaria() {
         </Popover>
       </div>
 
-      {/* Notas Promissórias */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Notas Promissórias do Dia</CardTitle>
-          <Dialog open={isNotaDialogOpen} onOpenChange={setIsNotaDialogOpen}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingNota ? 'Editar Nota Promissória' : 'Nova Nota Promissória'}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="codigo_nota">Código da Nota *</Label>
-                  <Input
-                    id="codigo_nota"
-                    value={codigoNota}
-                    onChange={(e) => setCodigoNota(e.target.value)}
-                    placeholder="Ex: NP-001"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="valor_total">Valor Total *</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                      R$
-                    </span>
-                    <Input
-                      id="valor_total"
-                      type="text"
-                      value={valorTotal}
-                      onChange={(e) => handleValorChange(e.target.value, setValorTotal)}
-                      placeholder="0,00"
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="forma_pagamento_1">Forma de Pagamento 1 *</Label>
-                    <Select value={formaPagamento1} onValueChange={(v: any) => setFormaPagamento1(v)}>
-                      <SelectTrigger id="forma_pagamento_1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pix">PIX</SelectItem>
-                        <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                        <SelectItem value="cartao">Cartão</SelectItem>
-                        <SelectItem value="transferencia">Transferência</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="valor_pagamento_1">Valor Pagamento 1 *</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        R$
-                      </span>
-                      <Input
-                        id="valor_pagamento_1"
-                        type="text"
-                        value={valorPagamento1}
-                        onChange={(e) => handleValorChange(e.target.value, setValorPagamento1)}
-                        placeholder="0,00"
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="forma_pagamento_2">Forma de Pagamento 2 (Opcional)</Label>
-                    <Select value={formaPagamento2} onValueChange={(v: any) => setFormaPagamento2(v)}>
-                      <SelectTrigger id="forma_pagamento_2">
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pix">PIX</SelectItem>
-                        <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                        <SelectItem value="cartao">Cartão</SelectItem>
-                        <SelectItem value="transferencia">Transferência</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="valor_pagamento_2">Valor Pagamento 2</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        R$
-                      </span>
-                      <Input
-                        id="valor_pagamento_2"
-                        type="text"
-                        value={valorPagamento2}
-                        onChange={(e) => handleValorChange(e.target.value, setValorPagamento2)}
-                        placeholder="0,00"
-                        className="pl-10"
-                        disabled={!formaPagamento2}
-                      />
-                    </div>
-                  </div>
-                </div>
+      {/* Três blocos visuais */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Bloco Cobranças de Hoje */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Receipt className="h-5 w-5 text-primary" />
+              Cobranças de Hoje
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingNotas ? (
+              <div className="text-center py-4 text-muted-foreground text-sm">Carregando...</div>
+            ) : notas.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground text-sm">
+                Nenhuma cobrança registrada
               </div>
-              <DialogFooter className="flex-col sm:flex-row gap-2">
-                <Button variant="outline" onClick={() => setIsNotaDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                {!editingNota && (
-                  <Button 
-                    variant="secondary" 
-                    onClick={handleDevolveuTudo}
-                    className="bg-amber-600 hover:bg-amber-700 text-white"
-                  >
-                    Devolveu tudo
-                  </Button>
-                )}
-                <Button onClick={handleSubmitNota}>
-                  {editingNota ? 'Atualizar' : 'Adicionar'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </CardHeader>
-        <CardContent>
-          {loadingNotas ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : notas.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma nota promissória registrada para este dia
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Valor Total</TableHead>
-                  <TableHead>Pagamento 1</TableHead>
-                  <TableHead>Pagamento 2</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            ) : (
+              <div className="space-y-2 max-h-[200px] overflow-y-auto">
                 {notas.map((nota) => (
-                  <TableRow key={nota.id}>
-                    <TableCell className="font-medium">{nota.codigo_nota}</TableCell>
-                    <TableCell>{formatarValor(nota.valor_total)}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {formaPagamentoLabels[nota.forma_pagamento_1]}: {formatarValor(nota.valor_pagamento_1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {nota.forma_pagamento_2 && nota.valor_pagamento_2 ? (
-                        <Badge variant="secondary">
-                          {formaPagamentoLabels[nota.forma_pagamento_2]}: {formatarValor(nota.valor_pagamento_2)}
-                        </Badge>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenNotaDialog(nota)}
-                          disabled={isDiaFinalizado}
-                        >
-                          Editar
-                        </Button>
+                  <div key={nota.id} className="flex justify-between items-center p-2 bg-muted/50 rounded-lg text-sm">
+                    <span className="font-medium truncate max-w-[120px]">{nota.codigo_nota}</span>
+                    <span className="font-semibold text-primary">{formatarValor(nota.valor_total)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-3 pt-3 border-t flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">{notas.length} notas</span>
+              <span className="font-bold text-primary">{formatarValor(totalCobradoCalculado)}</span>
+            </div>
+            {!isDiaFinalizado && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full mt-3"
+                onClick={() => handleOpenNotaDialog()}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Adicionar Nota
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Bloco Entregas de Kits */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Package className="h-5 w-5 text-primary" />
+              Entregas de Kits
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {entregasDoDia.length === 0 ? (
+              <div className="text-center py-4 text-muted-foreground text-sm">
+                Nenhuma entrega hoje
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                {entregasDoDia.map((entrega: any) => (
+                  <div key={entrega.id} className="p-2 bg-muted/50 rounded-lg text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="font-mono font-medium">{entrega.codigo_nota}</span>
+                      {!isDiaFinalizado && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              disabled={isDiaFinalizado}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <Trash2 className="h-3 w-3 text-destructive" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir Nota Promissória</AlertDialogTitle>
+                              <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Tem certeza que deseja excluir a nota {nota.codigo_nota}? Esta ação não pode ser desfeita.
+                                Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteNotaMutation.mutate(nota.id)}>
+                              <AlertDialogAction 
+                                onClick={() => excluirEntregaMutation.mutate({ 
+                                  id: entrega.id, 
+                                  codigo_nota: entrega.codigo_nota 
+                                })}
+                              >
                                 Excluir
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{entrega.revendedora}</p>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Fechamento do Dia */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Fechamento do Dia
-            {isDiaFinalizado && (
-              <Badge variant="default" className="ml-2">
-                <Lock className="h-3 w-3 mr-1" />
-                Finalizado
-              </Badge>
+              </div>
             )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="total_pix">Total PIX</Label>
-              <Input
-                id="total_pix"
-                type="text"
-                value={formatarValor(totalPixCalculado)}
-                readOnly
-                className="bg-muted"
-              />
+            <div className="mt-3 pt-3 border-t flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">{entregasDoDia.length} entregas</span>
+              <span className="font-bold text-primary">
+                {formatarValor(entregasDoDia.reduce((acc: number, e: any) => acc + (e.valor_previsto || 0), 0))}
+              </span>
             </div>
-            <div>
-              <Label htmlFor="total_dinheiro">Total Dinheiro</Label>
-              <Input
-                id="total_dinheiro"
-                type="text"
-                value={formatarValor(totalDinheiroCalculado)}
-                readOnly
-                className="bg-muted"
-              />
-            </div>
-            <div>
-              <Label htmlFor="total_cartao">Total Cartão</Label>
-              <Input
-                id="total_cartao"
-                type="text"
-                value={formatarValor(totalCartaoCalculado)}
-                readOnly
-                className="bg-muted"
-              />
-            </div>
-            <div>
-              <Label htmlFor="despesa_cobranca">Despesa de Cobrança</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  R$
-                </span>
-                <Input
-                  id="despesa_cobranca"
-                  type="text"
-                  value={despesaCobranca}
-                  onChange={(e) => handleValorChange(e.target.value, setDespesaCobranca)}
-                  placeholder="0,00"
-                  className="pl-10"
-                  disabled={isDiaFinalizado}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {/* Resumo Financeiro */}
-            <div className="p-4 bg-muted rounded-lg space-y-3">
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <p className="text-sm text-muted-foreground">Total de notas cobradas</p>
-                <p className="text-xl font-bold">{formatarNumero(totalNotasDoDia)}</p>
-              </div>
-              
-              <div className="flex items-center justify-between border-b border-border pb-2">
-                <p className="text-sm text-muted-foreground">Total Cobrado (soma das notas)</p>
-                <p className="text-xl font-bold">{formatarValor(totalCobradoCalculado)}</p>
-              </div>
-              
-              {despesaCobranca && parseFloat(despesaCobranca) > 0 && (
-                <>
-                  <div className="flex items-center justify-between border-b border-border pb-2">
-                    <p className="text-sm text-muted-foreground">Despesa de Cobrança</p>
-                    <p className="text-xl font-semibold text-destructive">- {formatarValor(parseFloat(despesaCobranca))}</p>
-                  </div>
-                  
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="text-sm font-semibold text-foreground">Saldo Final</p>
-                    <p className="text-2xl font-bold text-primary">
-                      {formatarValor(totalCobradoCalculado - parseFloat(despesaCobranca))}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Resumo de Entregas de Kits do Dia - sempre visível */}
-            <div 
-              className={cn(
-                "p-4 rounded-lg transition-colors",
-                entregasDoDia.length > 0 
-                  ? "bg-primary/10 cursor-pointer hover:bg-primary/20" 
-                  : "bg-muted"
-              )}
-              onClick={() => entregasDoDia.length > 0 && setIsEntregasDialogOpen(true)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Package className="h-5 w-5 text-primary" />
-                  <span className="font-semibold">Kits Entregues Hoje</span>
-                </div>
-                <Badge variant={entregasDoDia.length > 0 ? "default" : "secondary"} className="text-lg px-3 py-1">
-                  {entregasDoDia.length}
-                </Badge>
-              </div>
-              {entregasDoDia.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-1">Clique para ver detalhes</p>
-              )}
-            </div>
-
-            {entregasDoDia.length > 0 && (
-              <Dialog open={isEntregasDialogOpen} onOpenChange={setIsEntregasDialogOpen}>
-                <DialogContent className="max-w-lg">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Package className="h-5 w-5" />
-                      Entregas de Kits - {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                    {entregasDoDia.map((entrega: any) => (
-                      <div key={entrega.id} className="p-3 bg-muted rounded-lg">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-medium">{entrega.revendedora}</p>
-                            <p className="text-sm text-muted-foreground">Kit: {entrega.codigo_nota}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold">{formatarValor(entrega.valor_previsto)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Venc: {format(new Date(entrega.data_agendada + 'T12:00:00'), "dd/MM/yyyy")}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-2 flex justify-end">
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Excluir
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => excluirEntregaMutation.mutate({ 
-                                    id: entrega.id, 
-                                    codigo_nota: entrega.codigo_nota 
-                                  })}
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsEntregasDialogOpen(false)}>
-                      Fechar
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-
-            {/* Botão Registrar Entrega de Kit */}
             {!isDiaFinalizado && (
               <Dialog open={isKitEntregaDialogOpen} onOpenChange={setIsKitEntregaDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="lg" className="w-full" onClick={resetKitEntregaForm}>
-                    <Package className="h-4 w-4 mr-2" />
-                    Registrar Entrega de Kit ({kitsEstoque.length} em posse)
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-3"
+                    onClick={resetKitEntregaForm}
+                    disabled={kitsEstoque.length === 0}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Entregar Kit ({kitsEstoque.length})
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -1184,35 +875,215 @@ export default function CobrancaDiaria() {
                 </DialogContent>
               </Dialog>
             )}
+          </CardContent>
+        </Card>
 
-            {/* Botão Finalizar */}
-            {!isDiaFinalizado && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="lg" className="w-full">
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Finalizar Dia
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Finalizar Cobrança Diária</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tem certeza que deseja finalizar o dia? Após finalizar, não será possível adicionar ou editar notas promissórias para esta data.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleFinalizarDia}>
-                      Confirmar Finalização
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+        {/* Bloco Despesas do Dia */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Wallet className="h-5 w-5 text-primary" />
+              Despesas do Dia
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="despesa_cobranca" className="text-sm">Valor da Despesa</Label>
+                <div className="relative mt-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    id="despesa_cobranca"
+                    type="text"
+                    value={despesaCobranca}
+                    onChange={(e) => handleValorChange(e.target.value, setDespesaCobranca)}
+                    placeholder="0,00"
+                    className="pl-10"
+                    disabled={isDiaFinalizado}
+                  />
+                </div>
+              </div>
+              
+              <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">PIX</span>
+                  <span className="font-medium">{formatarValor(totalPixCalculado)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Dinheiro</span>
+                  <span className="font-medium">{formatarValor(totalDinheiroCalculado)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Cartão</span>
+                  <span className="font-medium">{formatarValor(totalCartaoCalculado)}</span>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Saldo Final</span>
+                  <span className="text-xl font-bold text-primary">
+                    {formatarValor(totalCobradoCalculado - parseValorFormatado(despesaCobranca))}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Botão grande de confirmar fechamento */}
+      {!isDiaFinalizado && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="lg" className="w-full h-14 text-lg">
+              <CheckCircle2 className="h-5 w-5 mr-2" />
+              Confirmar Fechamento do Dia
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja finalizar o dia? Após finalizar, não será possível editar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleFinalizarDia}>
+                Confirmar Finalização
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {/* Dialog para adicionar/editar nota */}
+      <Dialog open={isNotaDialogOpen} onOpenChange={setIsNotaDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingNota ? 'Editar Nota Promissória' : 'Nova Nota Promissória'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="codigo_nota">Código da Nota *</Label>
+              <Input
+                id="codigo_nota"
+                value={codigoNota}
+                onChange={(e) => setCodigoNota(e.target.value)}
+                placeholder="Ex: NP-001"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="valor_total">Valor Total *</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  R$
+                </span>
+                <Input
+                  id="valor_total"
+                  type="text"
+                  value={valorTotal}
+                  onChange={(e) => handleValorChange(e.target.value, setValorTotal)}
+                  placeholder="0,00"
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="forma_pagamento_1">Forma de Pagamento 1 *</Label>
+                <Select value={formaPagamento1} onValueChange={(v: any) => setFormaPagamento1(v)}>
+                  <SelectTrigger id="forma_pagamento_1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="cartao">Cartão</SelectItem>
+                    <SelectItem value="transferencia">Transferência</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="valor_pagamento_1">Valor Pagamento 1 *</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    id="valor_pagamento_1"
+                    type="text"
+                    value={valorPagamento1}
+                    onChange={(e) => handleValorChange(e.target.value, setValorPagamento1)}
+                    placeholder="0,00"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="forma_pagamento_2">Forma de Pagamento 2 (Opcional)</Label>
+                <Select value={formaPagamento2} onValueChange={(v: any) => setFormaPagamento2(v)}>
+                  <SelectTrigger id="forma_pagamento_2">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="cartao">Cartão</SelectItem>
+                    <SelectItem value="transferencia">Transferência</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="valor_pagamento_2">Valor Pagamento 2</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    id="valor_pagamento_2"
+                    type="text"
+                    value={valorPagamento2}
+                    onChange={(e) => handleValorChange(e.target.value, setValorPagamento2)}
+                    placeholder="0,00"
+                    className="pl-10"
+                    disabled={!formaPagamento2}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsNotaDialogOpen(false)}>
+              Cancelar
+            </Button>
+            {!editingNota && (
+              <Button 
+                variant="secondary" 
+                onClick={handleDevolveuTudo}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                Devolveu tudo
+              </Button>
+            )}
+            <Button onClick={handleSubmitNota}>
+              {editingNota ? 'Atualizar' : 'Adicionar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Histórico de Fechamentos */}
       <Card>
@@ -1246,7 +1117,6 @@ export default function CobrancaDiaria() {
                         key={cobranca.id}
                         className="cursor-pointer hover:bg-muted/50 transition-colors"
                         onClick={() => handleOpenHistoricoDialog(cobranca.data)}
-                        style={{ cursor: 'pointer' }}
                       >
                         <TableCell className="font-medium">
                           {format(new Date(cobranca.data + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
@@ -1358,58 +1228,6 @@ export default function CobrancaDiaria() {
                     <p className="text-sm text-muted-foreground">Total Cobrado</p>
                     <p className="text-lg font-bold">
                       {formatarValor(notasHistorico.reduce((acc, n) => acc + n.valor_total, 0))}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total PIX</p>
-                    <p className="text-lg font-semibold">
-                      {formatarValor(
-                        notasHistorico.reduce((acc, n) => {
-                          let total = 0;
-                          if (n.forma_pagamento_1 === 'pix') total += n.valor_pagamento_1;
-                          if (n.forma_pagamento_2 === 'pix' && n.valor_pagamento_2) total += n.valor_pagamento_2;
-                          return acc + total;
-                        }, 0)
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Dinheiro</p>
-                    <p className="text-lg font-semibold">
-                      {formatarValor(
-                        notasHistorico.reduce((acc, n) => {
-                          let total = 0;
-                          if (n.forma_pagamento_1 === 'dinheiro') total += n.valor_pagamento_1;
-                          if (n.forma_pagamento_2 === 'dinheiro' && n.valor_pagamento_2) total += n.valor_pagamento_2;
-                          return acc + total;
-                        }, 0)
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Cartão</p>
-                    <p className="text-lg font-semibold">
-                      {formatarValor(
-                        notasHistorico.reduce((acc, n) => {
-                          let total = 0;
-                          if (n.forma_pagamento_1 === 'cartao') total += n.valor_pagamento_1;
-                          if (n.forma_pagamento_2 === 'cartao' && n.valor_pagamento_2) total += n.valor_pagamento_2;
-                          return acc + total;
-                        }, 0)
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Transferência</p>
-                    <p className="text-lg font-semibold">
-                      {formatarValor(
-                        notasHistorico.reduce((acc, n) => {
-                          let total = 0;
-                          if (n.forma_pagamento_1 === 'transferencia') total += n.valor_pagamento_1;
-                          if (n.forma_pagamento_2 === 'transferencia' && n.valor_pagamento_2) total += n.valor_pagamento_2;
-                          return acc + total;
-                        }, 0)
-                      )}
                     </p>
                   </div>
                 </div>
