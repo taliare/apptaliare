@@ -276,6 +276,11 @@ export default function CobrancaDiaria() {
   };
 
   const handleSubmitKitEntrega = () => {
+    if (!user?.id) {
+      toast.error('Usuário não autenticado. Faça login novamente.');
+      return;
+    }
+
     if (!selectedKit || !revendedoraKit) {
       toast.error('Selecione um kit e informe o nome da revendedora');
       return;
