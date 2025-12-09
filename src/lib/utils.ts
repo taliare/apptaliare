@@ -42,3 +42,26 @@ export function formatarNumero(valor: number | string | null | undefined): strin
     maximumFractionDigits: 0
   });
 }
+
+/**
+ * Converte uma string de data no formato YYYY-MM-DD para um objeto Date 
+ * usando o fuso horário local (evita problema de -1 dia por conversão UTC).
+ * @param dateString - Data no formato "YYYY-MM-DD"
+ * @returns Objeto Date no fuso horário local
+ */
+export function parseLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * Formata uma data do banco (YYYY-MM-DD) para exibição no formato brasileiro (DD/MM/YYYY)
+ * sem problemas de timezone.
+ * @param dateString - Data no formato "YYYY-MM-DD"
+ * @returns String formatada como "10/12/2025"
+ */
+export function formatDateBR(dateString: string): string {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('-');
+  return `${day}/${month}/${year}`;
+}

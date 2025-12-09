@@ -14,7 +14,7 @@ import { format, isToday, isBefore, isAfter, addDays, startOfDay } from 'date-fn
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import type { Database } from '@/integrations/supabase/types';
-import { formatarValor } from '@/lib/utils';
+import { formatarValor, parseLocalDate, formatDateBR } from '@/lib/utils';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
 import { ModalSenhaAdmin } from '@/components/cobranca/ModalSenhaAdmin';
 import { Calendar } from '@/components/ui/calendar';
@@ -448,7 +448,7 @@ export default function Cobranca() {
 
   const handleReagendarClick = (cobranca: Cobranca) => {
     setCobrancaParaReagendar(cobranca);
-    setNovaDataAgendada(new Date(cobranca.data_agendada));
+    setNovaDataAgendada(parseLocalDate(cobranca.data_agendada));
     setModalReagendarOpen(true);
   };
 
@@ -604,23 +604,23 @@ export default function Cobranca() {
 
   const cobrancasVencidas = aplicarFiltroPesquisa(
     cobrancas
-      .filter(c => isBefore(new Date(c.data_agendada), hoje))
-      .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime())
+      .filter(c => isBefore(parseLocalDate(c.data_agendada), hoje))
+      .sort((a, b) => parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime())
   );
   
   const cobrancasHoje = aplicarFiltroPesquisa(
     cobrancas
-      .filter(c => isToday(new Date(c.data_agendada)))
-      .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime())
+      .filter(c => isToday(parseLocalDate(c.data_agendada)))
+      .sort((a, b) => parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime())
   );
   
   const cobrancasProximos7 = aplicarFiltroPesquisa(
     cobrancas
       .filter(c => {
-        const data = new Date(c.data_agendada);
+        const data = parseLocalDate(c.data_agendada);
         return isAfter(data, hoje) && !isToday(data) && isBefore(data, proximos7Dias);
       })
-      .sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime())
+      .sort((a, b) => parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime())
   );
 
   const cobrancasFiltradas = (() => {
@@ -957,7 +957,7 @@ export default function Cobranca() {
               <div className="p-4 bg-muted rounded-lg space-y-2">
                 <p className="text-sm"><strong>Revendedora:</strong> {cobrancaParaReagendar.revendedora}</p>
                 <p className="text-sm"><strong>Valor:</strong> {formatarValor(cobrancaParaReagendar.valor_previsto)}</p>
-                <p className="text-sm"><strong>Data Atual:</strong> {format(new Date(cobrancaParaReagendar.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                <p className="text-sm"><strong>Data Atual:</strong> {formatDateBR(cobrancaParaReagendar.data_agendada)}</p>
               </div>
               
               <div className="space-y-2">
@@ -1010,7 +1010,7 @@ export default function Cobranca() {
               <div className="p-4 bg-muted rounded-lg space-y-2">
                 <p className="text-sm"><strong>Revendedora:</strong> {cobrancaParaAdiantar.revendedora}</p>
                 <p className="text-sm"><strong>Valor Total:</strong> {formatarValor(cobrancaParaAdiantar.valor_previsto)}</p>
-                <p className="text-sm"><strong>Data de Vencimento:</strong> {format(new Date(cobrancaParaAdiantar.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                <p className="text-sm"><strong>Data de Vencimento:</strong> {formatDateBR(cobrancaParaAdiantar.data_agendada)}</p>
                 {cobrancaParaAdiantar.valor_adiantado > 0 && (
                   <p className="text-sm"><strong>Valor já Adiantado:</strong> <span className="text-green-600 font-semibold">{formatarValor(cobrancaParaAdiantar.valor_adiantado)}</span></p>
                 )}
@@ -1137,7 +1137,7 @@ function CobrancaItem({
                   "font-medium",
                   destacarVencida && "text-destructive font-semibold"
                 )}>
-                  {format(new Date(cobranca.data_agendada), 'dd/MM/yyyy', { locale: ptBR })}
+                  {formatDateBR(cobranca.data_agendada)}
                 </span>
               </div>
             </div>
