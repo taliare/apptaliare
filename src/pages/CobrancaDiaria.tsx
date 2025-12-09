@@ -249,7 +249,17 @@ export default function CobrancaDiaria() {
   // Mutation para registrar entrega de kit
   const entregaKitMutation = useMutation({
     mutationFn: async (data: { kitId: string; codigo: string; tipo: string; valor: number; revendedora: string; vendedora?: string; dataVencimento: string }) => {
-      // 1. Criar cobrança para o kit entregue usando o valor da produção
+      // 1. Atualizar status do kit usando função SECURITY DEFINER
+      const { data: updateResult, error: updateError } = await supabase
+        .rpc('atualizar_status_kit_entrega', {
+          p_kit_id: data.kitId,
+          p_user_id: user!.id
+        });
+
+      if (updateError) throw updateError;
+      if (!updateResult) throw new Error('Kit não encontrado ou não pertence a você');
+
+      // 2. Criar cobrança para o kit entregue usando o valor da produção
       const { error: cobrancaError } = await supabase
         .from('cobrancas_agendadas')
         .insert({
@@ -265,14 +275,6 @@ export default function CobrancaDiaria() {
         });
 
       if (cobrancaError) throw cobrancaError;
-
-      // 2. Atualizar status do kit para "com_revendedora"
-      const { error: updateError } = await supabase
-        .from('kits_estoque')
-        .update({ status: 'com_revendedora' })
-        .eq('id', data.kitId);
-
-      if (updateError) throw updateError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep-diaria'] });
