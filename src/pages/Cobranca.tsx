@@ -718,6 +718,17 @@ export default function Cobranca() {
       .sort((a, b) => parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime())
   );
 
+  // Cobranças futuras (após a semana atual, não incluídas em vencidas, hoje ou semana)
+  const cobrancasFuturas = aplicarFiltroPesquisa(
+    cobrancas
+      .filter(c => {
+        const data = parseLocalDate(c.data_agendada);
+        // Futuras = após a semana atual E não é hoje E não é vencida
+        return isAfter(data, weekBounds.end) && !isToday(data);
+      })
+      .sort((a, b) => parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime())
+  );
+
   const cobrancasFiltradas = (() => {
     let filtered = [];
     switch (filtroAtivo) {
@@ -981,6 +992,31 @@ export default function Cobranca() {
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
               {cobrancasSemana.map((cobranca) => (
+                <CobrancaItem
+                  key={cobranca.id}
+                  cobranca={cobranca}
+                  onEdit={handleEdit}
+                  onPagar={handlePagarClick}
+                  onReagendar={handleReagendarClick}
+                  onAdiantamento={handleAdiantamentoClick}
+                  onJuridico={handleJuridicoClick}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Cobranças Futuras - apenas visível quando filtro "Todas" está ativo */}
+        {filtroAtivo === 'todas' && cobrancasFuturas.length > 0 && (
+          <Card className="border-muted">
+            <CardHeader className="border-b bg-muted/30">
+              <CardTitle className="flex items-center gap-2">
+                <CalendarDays className="h-5 w-5" />
+                Próximas Cobranças ({cobrancasFuturas.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-3">
+              {cobrancasFuturas.map((cobranca) => (
                 <CobrancaItem
                   key={cobranca.id}
                   cobranca={cobranca}
