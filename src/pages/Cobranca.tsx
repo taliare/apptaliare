@@ -65,6 +65,7 @@ export default function Cobranca() {
   const [cobrancaParaAdiantar, setCobrancaParaAdiantar] = useState<Cobranca | null>(null);
   const [valorAdiantamento, setValorAdiantamento] = useState('');
   const [formaPagamentoAdiantamento, setFormaPagamentoAdiantamento] = useState<'pix' | 'dinheiro' | 'cartao'>('pix');
+  const [dataAdiantamento, setDataAdiantamento] = useState<Date>(new Date());
   
   const [formData, setFormData] = useState<CobrancaFormData>({
     revendedora: '',
@@ -491,12 +492,12 @@ export default function Cobranca() {
   const handleAdiantamentoClick = (cobranca: Cobranca) => {
     setCobrancaParaAdiantar(cobranca);
     setValorAdiantamento('');
+    setDataAdiantamento(new Date());
     setModalAdiantamentoOpen(true);
   };
 
   const adiantamentoMutation = useMutation({
-    mutationFn: async ({ cobrancaId, valor, forma }: { cobrancaId: string; valor: number; forma: string }) => {
-      const dataHoje = format(new Date(), 'yyyy-MM-dd');
+    mutationFn: async ({ cobrancaId, valor, forma, dataNota }: { cobrancaId: string; valor: number; forma: string; dataNota: string }) => {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
       
       // Criar nota promissória para o adiantamento
@@ -505,7 +506,7 @@ export default function Cobranca() {
         .insert({
           representante_id: userId!,
           codigo_nota: `ADT-${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`,
-          data: dataHoje,
+          data: dataNota,
           valor_total: valor,
           forma_pagamento_1: forma as any,
           valor_pagamento_1: valor,
@@ -553,7 +554,8 @@ export default function Cobranca() {
     adiantamentoMutation.mutate({
       cobrancaId: cobrancaParaAdiantar.id,
       valor,
-      forma: formaPagamentoAdiantamento
+      forma: formaPagamentoAdiantamento,
+      dataNota: format(dataAdiantamento, 'yyyy-MM-dd')
     });
   };
 
@@ -1069,6 +1071,56 @@ export default function Cobranca() {
                     placeholder="0,00"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Data do Adiantamento</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !dataAdiantamento && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dataAdiantamento ? format(dataAdiantamento, "PPP", { locale: ptBR }) : "Selecione uma data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dataAdiantamento}
+                      onSelect={(date) => date && setDataAdiantamento(date)}
+                      disabled={(date) => {
+                        const hoje = new Date();
+                        hoje.setHours(0, 0, 0, 0);
+                        const checkDate = new Date(date);
+                        checkDate.setHours(0, 0, 0, 0);
+                        
+                        // Permite hoje
+                        if (checkDate.getTime() === hoje.getTime()) return false;
+                        
+                        // Se for no passado, verifica se está na lista de não finalizados
+                        if (checkDate < hoje) {
+                          const dateStr = format(checkDate, 'yyyy-MM-dd');
+                          return !diasNaoFinalizados.includes(dateStr);
+                        }
+                        
+                        // Bloqueia datas futuras
+                        return true;
+                      }}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                {diasNaoFinalizados.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Você pode selecionar dias anteriores que ainda não foram finalizados.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
