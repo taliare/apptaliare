@@ -355,17 +355,20 @@ export default function GerenciarAgenda() {
 
   const semanasOrdenadas = Object.keys(cobrancasPorSemana).map(Number).sort((a, b) => a - b);
 
-  // Estado para controlar quais semanas estão abertas
-  const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
+  // Estado para controlar quais semanas estão abertas (objeto é mais estável que Set para React)
+  const [openWeeks, setOpenWeeks] = useState<Record<number, boolean>>({
+    1: true,
+    2: true,
+    3: true,
+    4: true,
+    5: true,
+  });
 
   const toggleWeek = (week: number) => {
-    const newOpenWeeks = new Set(openWeeks);
-    if (newOpenWeeks.has(week)) {
-      newOpenWeeks.delete(week);
-    } else {
-      newOpenWeeks.add(week);
-    }
-    setOpenWeeks(newOpenWeeks);
+    setOpenWeeks(prev => ({
+      ...prev,
+      [week]: !prev[week]
+    }));
   };
 
   return (
@@ -449,10 +452,10 @@ export default function GerenciarAgenda() {
           ) : (
             <div className="space-y-4">
               {semanasOrdenadas.map((semana) => (
-                <Collapsible key={semana} open={openWeeks.has(semana)} onOpenChange={() => toggleWeek(semana)}>
+                <Collapsible key={semana} open={openWeeks[semana] ?? true} onOpenChange={() => toggleWeek(semana)}>
                   <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
                     <div className="flex items-center gap-2">
-                      {openWeeks.has(semana) ? (
+                      {openWeeks[semana] ?? true ? (
                         <ChevronDown className="h-4 w-4" />
                       ) : (
                         <ChevronRight className="h-4 w-4" />
