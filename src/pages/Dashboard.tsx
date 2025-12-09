@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, TrendingUp, DollarSign, Target, TrendingDown, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -19,7 +19,8 @@ interface CobrancaDiaria {
 }
 
 interface KitEntregue {
-  data_entrega: string;
+  data_vencimento: string;
+  tipo: string | null;
 }
 
 interface MetaCobranca {
@@ -53,19 +54,25 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Query para kits entregues no período
+  // Ciclo padrão de kits: vencimento é 2 meses à frente (mesmo critério da tela KitsEntregues)
+  const mesVencimentoKits = format(addMonths(new Date(), 2), 'yyyy-MM');
+
+  // Query para kits entregues filtrado pelo mês de vencimento (mesmo critério da tela KitsEntregues)
   const { data: kitsDoMes = [] } = useQuery({
-    queryKey: ['kits-mes', user?.id, startDate, endDate],
+    queryKey: ['kits-mes-dashboard', user?.id, mesVencimentoKits],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kits_entregues')
-        .select('data_entrega')
-        .eq('representante_id', user!.id)
-        .gte('data_entrega', startDate)
-        .lte('data_entrega', endDate);
+        .select('data_vencimento, tipo')
+        .eq('representante_id', user!.id);
       
       if (error) throw error;
-      return data as KitEntregue[];
+      
+      // Filtrar pelo mês de vencimento (mesmo critério da tela KitsEntregues)
+      return (data as KitEntregue[]).filter(kit => {
+        const vencimentoMes = kit.data_vencimento.substring(0, 7); // yyyy-MM
+        return vencimentoMes === mesVencimentoKits;
+      });
     },
     enabled: !!user?.id,
   });
@@ -226,13 +233,13 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kits Entregues</CardTitle>
+            <CardTitle className="text-sm font-medium">Kits Entregues (Ciclo)</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatarNumero(totalKits)}</div>
             <p className="text-xs text-muted-foreground">
-              Neste mês
+              Vencimento: {format(addMonths(new Date(), 2), "MMM/yyyy", { locale: ptBR })}
             </p>
           </CardContent>
         </Card>
