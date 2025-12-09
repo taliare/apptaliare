@@ -547,6 +547,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      atualizar_status_kit_entrega: {
+        Args: { p_kit_id: string; p_user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
