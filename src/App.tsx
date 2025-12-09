@@ -83,9 +83,7 @@ const App = () => {
                             </ProtectedRoute>
                           } />
                           <Route path="/distribuicao-kits" element={
-                            <ProtectedRoute requiredRole="producao">
-                              <DistribuicaoKits />
-                            </ProtectedRoute>
+                            <DistribuicaoKits />
                           } />
                           <Route path="/encomendas-producao" element={
                             <ProtectedRoute requiredRole="producao">
