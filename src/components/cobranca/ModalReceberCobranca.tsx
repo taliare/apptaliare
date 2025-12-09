@@ -618,10 +618,20 @@ export function ModalReceberCobranca({
 
             {/* Pagamento 1 */}
             <div className="space-y-2">
-              <Label>Primeira Forma de Pagamento</Label>
+              <Label>{pagamento2 ? 'Primeira Forma de Pagamento' : 'Forma de Pagamento'}</Label>
               <Select
                 value={pagamento1.forma}
-                onValueChange={(value) => setPagamento1({ ...pagamento1, forma: value as FormaPagamento })}
+                onValueChange={(value) => {
+                  // Ao selecionar a forma, preenche automaticamente com o valor total (se não tiver segundo pagamento)
+                  if (!pagamento2) {
+                    setPagamento1({ 
+                      forma: value as FormaPagamento, 
+                      valor: valorAReceber.toFixed(2).replace('.', ',') 
+                    });
+                  } else {
+                    setPagamento1({ ...pagamento1, forma: value as FormaPagamento });
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione" />
@@ -633,15 +643,18 @@ export function ModalReceberCobranca({
                   <SelectItem value="transferencia">Transferência</SelectItem>
                 </SelectContent>
               </Select>
-              <Input
-                type="text"
-                placeholder="Valor recebido"
-                value={pagamento1.valor}
-                onChange={(e) => {
-                  const clean = e.target.value.replace(/[^\d,]/g, '');
-                  setPagamento1({ ...pagamento1, valor: clean });
-                }}
-              />
+              {/* Só mostra input de valor se tiver segundo pagamento */}
+              {pagamento2 && (
+                <Input
+                  type="text"
+                  placeholder="Valor recebido"
+                  value={pagamento1.valor}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/[^\d,]/g, '');
+                    setPagamento1({ ...pagamento1, valor: clean });
+                  }}
+                />
+              )}
             </div>
 
             {/* Pagamento 2 */}
@@ -649,7 +662,12 @@ export function ModalReceberCobranca({
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={adicionarSegundoPagamento}
+                onClick={() => {
+                  // Ao adicionar segundo pagamento, limpa o valor do primeiro para ele editar
+                  setPagamento1({ ...pagamento1, valor: '' });
+                  setPagamento2({ forma: '', valor: '' });
+                }}
+                disabled={!pagamento1.forma}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Segunda Forma de Pagamento
@@ -660,7 +678,14 @@ export function ModalReceberCobranca({
                   variant="ghost"
                   size="icon"
                   className="absolute top-1 right-1 h-6 w-6"
-                  onClick={removerSegundoPagamento}
+                  onClick={() => {
+                    // Ao remover segundo pagamento, restaura o valor total no primeiro
+                    setPagamento1({ 
+                      ...pagamento1, 
+                      valor: valorAReceber.toFixed(2).replace('.', ',') 
+                    });
+                    setPagamento2(null);
+                  }}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -691,7 +716,7 @@ export function ModalReceberCobranca({
               </div>
             )}
 
-            {calcularTotalRecebido() > 0 && (
+            {pagamento2 && calcularTotalRecebido() > 0 && (
               <div className="p-3 bg-muted rounded-lg">
                 <div className="flex justify-between text-sm">
                   <span>Total Recebido:</span>
