@@ -68,6 +68,7 @@ export default function CobrancaDiaria() {
   const [vendedoraKit, setVendedoraKit] = useState('');
   const [revendedoraKit, setRevendedoraKit] = useState('');
   const [dataVencimentoKit, setDataVencimentoKit] = useState<Date>(addDays(new Date(), 60));
+  const [isEntregasDialogOpen, setIsEntregasDialogOpen] = useState(false);
 
   // Form states for Nota Promissória
   const [codigoNota, setCodigoNota] = useState('');
@@ -221,6 +222,25 @@ export default function CobrancaDiaria() {
     enabled: !!user?.id,
   });
 
+  // Query para entregas de kits do dia (cobranças tipo='kit' criadas hoje)
+  const { data: entregasDoDia = [] } = useQuery({
+    queryKey: ['entregas-kits-dia', dateStr, user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cobrancas_agendadas')
+        .select('*')
+        .eq('representante_id', user?.id)
+        .eq('tipo', 'kit')
+        .gte('criado_em', `${dateStr}T00:00:00`)
+        .lt('criado_em', `${dateStr}T23:59:59.999`)
+        .order('criado_em', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   // Filtrar kits pela pesquisa
   const kitsFiltrados = kitsEstoque.filter((kit: any) =>
     kit.codigo.toLowerCase().includes(kitSearchTerm.toLowerCase())
@@ -257,6 +277,7 @@ export default function CobrancaDiaria() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep-diaria'] });
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      queryClient.invalidateQueries({ queryKey: ['entregas-kits-dia'] });
       toast.success('Entrega de kit registrada com sucesso!');
       resetKitEntregaForm();
       setIsKitEntregaDialogOpen(false);
@@ -919,13 +940,67 @@ export default function CobrancaDiaria() {
               )}
             </div>
 
+            {/* Resumo de Entregas de Kits do Dia */}
+            {entregasDoDia.length > 0 && (
+              <>
+                <div 
+                  className="p-4 bg-primary/10 rounded-lg cursor-pointer hover:bg-primary/20 transition-colors"
+                  onClick={() => setIsEntregasDialogOpen(true)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-5 w-5 text-primary" />
+                      <span className="font-semibold">Kits Entregues Hoje</span>
+                    </div>
+                    <Badge variant="default" className="text-lg px-3 py-1">
+                      {entregasDoDia.length}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">Clique para ver detalhes</p>
+                </div>
+
+                {/* Dialog de lista de entregas */}
+                <Dialog open={isEntregasDialogOpen} onOpenChange={setIsEntregasDialogOpen}>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Package className="h-5 w-5" />
+                        Entregas de Kits - {format(selectedDate, "dd/MM/yyyy", { locale: ptBR })}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {entregasDoDia.map((entrega: any) => (
+                        <div key={entrega.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
+                          <div>
+                            <p className="font-medium">{entrega.revendedora}</p>
+                            <p className="text-sm text-muted-foreground">Kit: {entrega.codigo_nota}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold">{formatarValor(entrega.valor_previsto)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Venc: {format(new Date(entrega.data_agendada + 'T12:00:00'), "dd/MM/yyyy")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsEntregasDialogOpen(false)}>
+                        Fechar
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
+
             {/* Botão Registrar Entrega de Kit */}
             {!isDiaFinalizado && (
               <Dialog open={isKitEntregaDialogOpen} onOpenChange={setIsKitEntregaDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="lg" className="w-full" onClick={resetKitEntregaForm}>
                     <Package className="h-4 w-4 mr-2" />
-                    Registrar Entrega de Kit
+                    Registrar Entrega de Kit ({kitsEstoque.length} em posse)
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -934,7 +1009,7 @@ export default function CobrancaDiaria() {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
-                      <Label>Selecionar Kit *</Label>
+                      <Label>Selecionar Kit * ({kitsEstoque.length} disponíveis)</Label>
                       <Select value={selectedKit} onValueChange={setSelectedKit}>
                         <SelectTrigger>
                           <SelectValue placeholder="Pesquisar e selecionar kit..." />
@@ -1030,8 +1105,8 @@ export default function CobrancaDiaria() {
                     <Button variant="outline" onClick={() => setIsKitEntregaDialogOpen(false)}>
                       Cancelar
                     </Button>
-                    <Button onClick={handleSubmitKitEntrega}>
-                      Registrar Entrega
+                    <Button onClick={handleSubmitKitEntrega} disabled={entregaKitMutation.isPending}>
+                      {entregaKitMutation.isPending ? 'Registrando...' : 'Registrar Entrega'}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
