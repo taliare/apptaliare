@@ -80,11 +80,11 @@ export function AppSidebar() {
   });
 
   const representanteItems = [
-    { title: "Dashboard", url: "/dashboard", icon: Home, badge: 0 },
-    { title: "Agenda de Cobrança", url: "/cobranca", icon: Calendar, badge: 0 },
-    { title: "Cobrança Diária", url: "/cobranca-diaria", icon: CalendarCheck, badge: 0 },
-    { title: "Kits", url: "/kits", icon: Package, badge: 0 },
-    { title: "Encomendas", url: "/encomendas", icon: ShoppingBag, badge: encomendasProntas },
+    { title: "Início", url: "/dashboard", icon: Home, badge: 0 },
+    { title: "Agenda", url: "/cobranca", icon: Calendar, badge: 0 },
+    { title: "Fechamento do Dia", url: "/cobranca-diaria", icon: CalendarCheck, badge: 0 },
+    { title: "Kits em Mãos", url: "/kits", icon: Package, badge: 0 },
+    { title: "Pedidos de Kit", url: "/encomendas", icon: ShoppingBag, badge: encomendasProntas },
   ];
 
   const producaoItems = [
