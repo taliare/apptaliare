@@ -19,9 +19,11 @@ interface KitEntregue {
   prestacao_id: string | null;
 }
 
-interface PrestacaoComKit {
+interface CobrancaKit {
+  codigo_nota: string;
   revendedora: string;
-  total_venda: number;
+  valor_previsto: number;
+  data_agendada: string;
 }
 
 export default function KitsEntregues() {
@@ -45,7 +47,6 @@ export default function KitsEntregues() {
   }, []);
 
   // Ciclo padrão: kits entregues cujo vencimento é 2 meses à frente
-  // Exemplo: entrega em dezembro → vencimento em fevereiro
   const mesVencimentoPadrao = format(addMonths(new Date(), 2), 'yyyy-MM');
   const [mesVencimentoFiltro, setMesVencimentoFiltro] = useState(mesVencimentoPadrao);
 
@@ -67,35 +68,37 @@ export default function KitsEntregues() {
     enabled: !!userId,
   });
 
-  // Buscar prestações de contas para obter nome da revendedora e valor
-  const prestacaoIds = kitsEntregues
-    .filter(k => k.prestacao_id)
-    .map(k => k.prestacao_id as string);
+  // Buscar cobranças de tipo kit para obter nome da revendedora e valor
+  const codigoKits = kitsEntregues.map(k => k.codigo_mostruario);
 
-  const { data: prestacoes = [] } = useQuery({
-    queryKey: ['prestacoes-kits', prestacaoIds],
+  const { data: cobrancasKit = [] } = useQuery({
+    queryKey: ['cobrancas-kit', codigoKits, userId],
     queryFn: async () => {
-      if (prestacaoIds.length === 0) return [];
+      if (codigoKits.length === 0 || !userId) return [];
       
       const { data, error } = await supabase
-        .from('prestacoes_contas')
-        .select('id, revendedora, total_venda')
-        .in('id', prestacaoIds);
+        .from('cobrancas_agendadas')
+        .select('codigo_nota, revendedora, valor_previsto, data_agendada')
+        .eq('representante_id', userId)
+        .eq('tipo', 'kit')
+        .in('codigo_nota', codigoKits);
 
       if (error) throw error;
-      return data as (PrestacaoComKit & { id: string })[];
+      return data as CobrancaKit[];
     },
-    enabled: prestacaoIds.length > 0,
+    enabled: codigoKits.length > 0 && !!userId,
   });
 
-  // Mapear prestações por id
-  const prestacoesMap = useMemo(() => {
-    const map: Record<string, PrestacaoComKit> = {};
-    prestacoes.forEach(p => {
-      map[p.id] = { revendedora: p.revendedora, total_venda: p.total_venda };
+  // Mapear cobranças por código do kit
+  const cobrancasMap = useMemo(() => {
+    const map: Record<string, CobrancaKit> = {};
+    cobrancasKit.forEach(c => {
+      if (c.codigo_nota) {
+        map[c.codigo_nota] = c;
+      }
     });
     return map;
-  }, [prestacoes]);
+  }, [cobrancasKit]);
 
   // Filtrar kits pelo mês de vencimento selecionado
   const kitsFiltrados = useMemo(() => {
@@ -127,10 +130,11 @@ export default function KitsEntregues() {
     };
   }, [kitsFiltrados]);
 
-  // Obter valor do kit (da prestação ou valor padrão)
+  // Obter valor do kit (da cobrança ou valor padrão)
   const getValorKit = (kit: KitEntregue): number => {
-    if (kit.prestacao_id && prestacoesMap[kit.prestacao_id]) {
-      return prestacoesMap[kit.prestacao_id].total_venda;
+    const cobranca = cobrancasMap[kit.codigo_mostruario];
+    if (cobranca) {
+      return cobranca.valor_previsto;
     }
     // Valor padrão baseado no tipo
     const tipo = kit.tipo?.toLowerCase() || '';
@@ -141,8 +145,9 @@ export default function KitsEntregues() {
 
   // Obter revendedora do kit
   const getRevendedora = (kit: KitEntregue): string => {
-    if (kit.prestacao_id && prestacoesMap[kit.prestacao_id]) {
-      return prestacoesMap[kit.prestacao_id].revendedora;
+    const cobranca = cobrancasMap[kit.codigo_mostruario];
+    if (cobranca) {
+      return cobranca.revendedora;
     }
     return 'Não informada';
   };
