@@ -91,10 +91,24 @@ export default function Kits() {
         });
 
       if (cobrancaError) throw cobrancaError;
+
+      // 3. Registrar na tabela kits_entregues para alimentar a tela "Kits Entregues"
+      const { error: kitEntregueError } = await supabase
+        .from('kits_entregues')
+        .insert({
+          representante_id: user!.id,
+          codigo_mostruario: data.codigo,
+          tipo: data.tipo,
+          data_entrega: format(new Date(), 'yyyy-MM-dd'),
+          data_vencimento: data.dataVencimento
+        });
+
+      if (kitEntregueError) throw kitEntregueError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-entregues-representante'] });
       toast.success('Entrega de kit registrada com sucesso!');
       resetKitEntregaForm();
       setIsKitEntregaDialogOpen(false);
