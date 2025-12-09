@@ -17,6 +17,7 @@ import DashboardAdmin from "./pages/DashboardAdmin";
 import Cobranca from "./pages/Cobranca";
 import CobrancaDiaria from "./pages/CobrancaDiaria";
 import Kits from "./pages/Kits";
+import KitsEntregues from "./pages/KitsEntregues";
 import Usuarios from "./pages/Usuarios";
 import Metas from "./pages/Metas";
 import GerenciarAgenda from "./pages/GerenciarAgenda";
@@ -69,6 +70,7 @@ const App = () => {
                           <Route path="/cobranca" element={<Cobranca />} />
                           <Route path="/cobranca-diaria" element={<CobrancaDiaria />} />
                           <Route path="/kits" element={<Kits />} />
+                          <Route path="/kits-entregues" element={<KitsEntregues />} />
                           <Route path="/encomendas" element={<EncomendaRepresentante />} />
                           
                           {/* Producao routes */}

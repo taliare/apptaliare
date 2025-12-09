@@ -10,7 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { format, isToday, isBefore, isAfter, addDays, startOfDay } from 'date-fns';
+import { format, isToday, isBefore, isAfter, addDays, startOfDay, getDate, getDay, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import type { Database } from '@/integrations/supabase/types';
@@ -50,7 +50,7 @@ export default function Cobranca() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
-  const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'vencidas' | 'hoje' | 'proximos7'>('todas');
+  const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'vencidas' | 'hoje' | 'semana'>('hoje');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modais de pagamento, senha, reagendamento e adiantamento
@@ -628,7 +628,63 @@ export default function Cobranca() {
 
   // Funções de filtragem por data
   const hoje = startOfDay(new Date());
-  const proximos7Dias = addDays(hoje, 7);
+
+  // Função para calcular a semana do mês com base na data (mesma lógica do GerenciarAgenda)
+  const getWeekOfMonth = (dateStr: string): number => {
+    const date = new Date(dateStr + 'T12:00:00');
+    const dayOfMonth = getDate(date);
+    const firstDayOfMonth = startOfMonth(date);
+    const firstDayWeekday = getDay(firstDayOfMonth); // 0 = domingo
+    
+    // Semana 1: dia 1 até o primeiro domingo
+    const firstSunday = firstDayWeekday === 0 ? 1 : (7 - firstDayWeekday + 1);
+    
+    if (dayOfMonth <= firstSunday) {
+      return 1;
+    }
+    
+    // A partir do primeiro domingo, semanas de segunda a domingo
+    const daysAfterFirstSunday = dayOfMonth - firstSunday;
+    const weekNumber = Math.ceil(daysAfterFirstSunday / 7) + 1;
+    
+    return weekNumber;
+  };
+
+  // Obter limites da semana atual do mês
+  const getWeekBounds = (weekNumber: number): { start: Date; end: Date } => {
+    const now = new Date();
+    const firstDayOfMonth = startOfMonth(now);
+    const firstDayWeekday = getDay(firstDayOfMonth); // 0 = domingo
+    
+    // Calcular primeiro domingo
+    const firstSunday = firstDayWeekday === 0 ? 1 : (7 - firstDayWeekday + 1);
+    
+    let startDay: number;
+    let endDay: number;
+    
+    if (weekNumber === 1) {
+      startDay = 1;
+      endDay = firstSunday;
+    } else {
+      // Semana 2 em diante
+      startDay = firstSunday + 1 + (weekNumber - 2) * 7;
+      endDay = startDay + 6;
+    }
+    
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    endDay = Math.min(endDay, daysInMonth);
+    
+    return {
+      start: new Date(year, month, startDay),
+      end: new Date(year, month, endDay, 23, 59, 59)
+    };
+  };
+
+  const semanaAtual = getWeekOfMonth(format(hoje, 'yyyy-MM-dd'));
+  const weekBounds = getWeekBounds(semanaAtual);
 
   // Função auxiliar para aplicar filtro de pesquisa
   const aplicarFiltroPesquisa = (lista: Cobranca[]) => {
@@ -652,11 +708,12 @@ export default function Cobranca() {
       .sort((a, b) => parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime())
   );
   
-  const cobrancasProximos7 = aplicarFiltroPesquisa(
+  const cobrancasSemana = aplicarFiltroPesquisa(
     cobrancas
       .filter(c => {
         const data = parseLocalDate(c.data_agendada);
-        return isAfter(data, hoje) && !isToday(data) && isBefore(data, proximos7Dias);
+        // Filtrar notas cuja data de vencimento está dentro da semana atual do mês
+        return data >= weekBounds.start && data <= weekBounds.end;
       })
       .sort((a, b) => parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime())
   );
@@ -670,10 +727,11 @@ export default function Cobranca() {
       case 'hoje':
         filtered = cobrancasHoje;
         break;
-      case 'proximos7':
-        filtered = cobrancasProximos7;
+      case 'semana':
+        filtered = cobrancasSemana;
         break;
       default:
+        // "Todas" - mostrar TODAS as notas sem limitar ao mês atual
         filtered = aplicarFiltroPesquisa(cobrancas);
     }
 
@@ -824,15 +882,15 @@ export default function Cobranca() {
             />
           </div>
 
-          {/* Filtros */}
+          {/* Filtros - Ordem: Hoje, Vencidas, Semana X, Todas */}
           <div className="flex flex-wrap items-center gap-3">
             <Filter className="h-5 w-5 text-muted-foreground" />
             <Button
-              variant={filtroAtivo === 'todas' ? 'default' : 'outline'}
+              variant={filtroAtivo === 'hoje' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFiltroAtivo('todas')}
+              onClick={() => setFiltroAtivo('hoje')}
             >
-              Todas ({aplicarFiltroPesquisa(cobrancas).length})
+              Hoje ({cobrancasHoje.length})
             </Button>
             <Button
               variant={filtroAtivo === 'vencidas' ? 'destructive' : 'outline'}
@@ -842,18 +900,18 @@ export default function Cobranca() {
               Vencidas ({cobrancasVencidas.length})
             </Button>
             <Button
-              variant={filtroAtivo === 'hoje' ? 'default' : 'outline'}
+              variant={filtroAtivo === 'semana' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFiltroAtivo('hoje')}
+              onClick={() => setFiltroAtivo('semana')}
             >
-              Hoje ({cobrancasHoje.length})
+              Semana {semanaAtual} ({cobrancasSemana.length})
             </Button>
             <Button
-              variant={filtroAtivo === 'proximos7' ? 'default' : 'outline'}
+              variant={filtroAtivo === 'todas' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setFiltroAtivo('proximos7')}
+              onClick={() => setFiltroAtivo('todas')}
             >
-              Próximos 7 dias ({cobrancasProximos7.length})
+              Todas ({aplicarFiltroPesquisa(cobrancas).length})
             </Button>
           </div>
         </CardContent>
@@ -912,17 +970,17 @@ export default function Cobranca() {
           </Card>
         )}
 
-        {/* Próximos 7 dias */}
-        {(filtroAtivo === 'todas' || filtroAtivo === 'proximos7') && cobrancasProximos7.length > 0 && (
+        {/* Semana atual */}
+        {(filtroAtivo === 'todas' || filtroAtivo === 'semana') && cobrancasSemana.length > 0 && (
           <Card className="border-muted">
             <CardHeader className="border-b">
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5" />
-                Próximos 7 dias ({cobrancasProximos7.length})
+                Semana {semanaAtual} ({cobrancasSemana.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
-              {cobrancasProximos7.map((cobranca) => (
+              {cobrancasSemana.map((cobranca) => (
                 <CobrancaItem
                   key={cobranca.id}
                   cobranca={cobranca}

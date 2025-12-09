@@ -11,6 +11,7 @@ import {
   Factory,
   ShoppingBag,
   Scale,
+  PackageCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -84,6 +85,7 @@ export function AppSidebar() {
     { title: "Agenda", url: "/cobranca", icon: Calendar, badge: 0 },
     { title: "Fechamento do Dia", url: "/cobranca-diaria", icon: CalendarCheck, badge: 0 },
     { title: "Kits em Mãos", url: "/kits", icon: Package, badge: 0 },
+    { title: "Kits Entregues", url: "/kits-entregues", icon: PackageCheck, badge: 0 },
     { title: "Pedidos de Kit", url: "/encomendas", icon: ShoppingBag, badge: encomendasProntas },
   ];
 
