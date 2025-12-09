@@ -29,6 +29,7 @@ interface ModalReceberCobrancaProps {
     valor_previsto: number;
     tipo?: string | null;
   };
+  diasNaoFinalizados?: string[]; // Array de datas YYYY-MM-DD que não foram finalizadas
   onPagamentoCompleto: (dados: {
     valor_venda: number;
     comissao_percentual: number;
@@ -36,6 +37,7 @@ interface ModalReceberCobrancaProps {
     valor_devido_empresa: number;
     pagamentos: Array<{ forma: FormaPagamento; valor: number }>;
     tipo: 'completo' | 'devolucao';
+    dataNota: string; // Data selecionada para a nota (YYYY-MM-DD)
   }) => Promise<void>;
   onPagamentoParcial: (dados: {
     valor_venda: number;
@@ -46,6 +48,7 @@ interface ModalReceberCobrancaProps {
     pagamentos: Array<{ forma: FormaPagamento; valor: number }>;
     valor_repasse: number;
     data_repasse: Date;
+    dataNota: string; // Data selecionada para a nota (YYYY-MM-DD)
   }) => Promise<void>;
 }
 
@@ -53,6 +56,7 @@ export function ModalReceberCobranca({
   open,
   onOpenChange,
   cobranca,
+  diasNaoFinalizados = [],
   onPagamentoCompleto,
   onPagamentoParcial
 }: ModalReceberCobrancaProps) {
@@ -83,6 +87,9 @@ export function ModalReceberCobranca({
   // Pagamentos
   const [pagamento1, setPagamento1] = useState<PagamentoForm>({ forma: '', valor: '' });
   const [pagamento2, setPagamento2] = useState<PagamentoForm | null>(null);
+  
+  // Data da nota (padrão: hoje)
+  const [dataNota, setDataNota] = useState<Date>(new Date());
   
   // Repasse
   const [valorRepasse, setValorRepasse] = useState('');
@@ -192,7 +199,8 @@ export function ModalReceberCobranca({
         comissao_valor: 0,
         valor_devido_empresa: 0,
         pagamentos: [],
-        tipo: 'devolucao'
+        tipo: 'devolucao',
+        dataNota: format(dataNota, 'yyyy-MM-dd')
       });
       
       toast({
@@ -292,7 +300,8 @@ export function ModalReceberCobranca({
           comissao_valor: comissaoValor,
           valor_devido_empresa: valorAReceber,
           pagamentos,
-          tipo: 'completo'
+          tipo: 'completo',
+          dataNota: format(dataNota, 'yyyy-MM-dd')
         });
         
         toast({
@@ -349,7 +358,8 @@ export function ModalReceberCobranca({
         valor_recebido: calcularTotalRecebido(),
         pagamentos,
         valor_repasse: parseFloat(valorRepasse.replace(',', '.')),
-        data_repasse: dataRepasse
+        data_repasse: dataRepasse,
+        dataNota: format(dataNota, 'yyyy-MM-dd')
       });
       
       toast({
@@ -384,6 +394,26 @@ export function ModalReceberCobranca({
     setPagamento2(null);
     setValorRepasse('');
     setDataRepasse(undefined);
+    setDataNota(new Date());
+  };
+
+  // Verifica se uma data pode ser selecionada (hoje ou dias não finalizados no passado)
+  const isDataDisponivel = (date: Date): boolean => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    
+    // Sempre permite hoje
+    if (date.getTime() === hoje.getTime()) return true;
+    
+    // Se for no passado, verifica se está na lista de não finalizados
+    if (date < hoje) {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      return diasNaoFinalizados.includes(dateStr);
+    }
+    
+    // Não permite datas futuras
+    return false;
   };
 
   return (
@@ -502,6 +532,57 @@ export function ModalReceberCobranca({
         {/* Etapa 2: Formas de Pagamento */}
         {etapa === 'pagamento' && (
           <div className="space-y-4">
+            {/* Seletor de Data da Nota */}
+            <div className="space-y-2">
+              <Label>Data da Cobrança</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dataNota && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dataNota ? format(dataNota, "PPP", { locale: ptBR }) : "Selecione uma data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dataNota}
+                    onSelect={(date) => date && setDataNota(date)}
+                    disabled={(date) => {
+                      const hoje = new Date();
+                      hoje.setHours(0, 0, 0, 0);
+                      const checkDate = new Date(date);
+                      checkDate.setHours(0, 0, 0, 0);
+                      
+                      // Permite hoje
+                      if (checkDate.getTime() === hoje.getTime()) return false;
+                      
+                      // Se for no passado, verifica se está na lista de não finalizados
+                      if (checkDate < hoje) {
+                        const dateStr = format(checkDate, 'yyyy-MM-dd');
+                        return !diasNaoFinalizados.includes(dateStr);
+                      }
+                      
+                      // Bloqueia datas futuras
+                      return true;
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              {diasNaoFinalizados.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Você pode selecionar dias anteriores que ainda não foram finalizados.
+                </p>
+              )}
+            </div>
+
             <div className="p-4 bg-muted rounded-lg">
               <div className="text-sm font-medium mb-1">Valor a Receber</div>
               <div className="text-2xl font-bold text-primary">{formatarValor(valorAReceber)}</div>

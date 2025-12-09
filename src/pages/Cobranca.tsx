@@ -119,6 +119,40 @@ export default function Cobranca() {
     enabled: !!userId,
   });
 
+  // Query para buscar dias não finalizados (cobrança diária)
+  const { data: diasNaoFinalizados = [] } = useQuery({
+    queryKey: ['dias-nao-finalizados', userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      
+      // Buscar últimos 30 dias
+      const hoje = new Date();
+      const diasAnteriores: string[] = [];
+      
+      for (let i = 1; i <= 30; i++) {
+        const data = new Date(hoje);
+        data.setDate(data.getDate() - i);
+        diasAnteriores.push(format(data, 'yyyy-MM-dd'));
+      }
+      
+      // Buscar quais desses dias já foram finalizados
+      const { data: finalizados, error } = await supabase
+        .from('cobrancas_diarias')
+        .select('data')
+        .eq('representante_id', userId)
+        .eq('finalizado', true)
+        .in('data', diasAnteriores);
+      
+      if (error) throw error;
+      
+      const datasFinalizadas = new Set(finalizados?.map(f => f.data) || []);
+      
+      // Retornar dias que NÃO foram finalizados
+      return diasAnteriores.filter(d => !datasFinalizadas.has(d));
+    },
+    enabled: !!userId,
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: CobrancaFormData) => {
       const valorNumerico = parseValorFormatado(data.valor_previsto);
@@ -212,10 +246,11 @@ export default function Cobranca() {
     valor_devido_empresa: number;
     pagamentos: Array<{ forma: any; valor: number }>;
     tipo: 'completo' | 'devolucao';
+    dataNota: string;
   }) => {
     try {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
-      const dataHoje = format(new Date(), 'yyyy-MM-dd');
+      const dataNota = dados.dataNota; // Usar a data selecionada pelo usuário
       
       // 1. Criar prestação de contas
       const { error: prestacaoError } = await supabase
@@ -231,7 +266,7 @@ export default function Cobranca() {
           valor_pago: dados.valor_devido_empresa,
           saldo_devedor: 0,
           forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0].forma,
-          data_execucao: dataHoje
+          data_execucao: dataNota
         });
 
       if (prestacaoError) throw prestacaoError;
@@ -243,7 +278,7 @@ export default function Cobranca() {
           .insert({
             representante_id: userId!,
             codigo_nota: `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`,
-            data: dataHoje,
+            data: dataNota,
             valor_total: dados.valor_devido_empresa,
             forma_pagamento_1: dados.pagamentos[0].forma,
             valor_pagamento_1: dados.pagamentos[0].valor,
@@ -279,11 +314,12 @@ export default function Cobranca() {
     pagamentos: Array<{ forma: any; valor: number }>;
     valor_repasse: number;
     data_repasse: Date;
+    dataNota: string;
   }) => {
     try {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
       const isRepasse = cobranca?.tipo?.toLowerCase() === 'repasse';
-      const dataHoje = format(new Date(), 'yyyy-MM-dd');
+      const dataNota = dados.dataNota; // Usar a data selecionada pelo usuário
       const codigoNota = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
       
       // 1. Criar nota promissória para alimentar a Cobrança Diária (valor parcial recebido)
@@ -293,7 +329,7 @@ export default function Cobranca() {
           .insert({
             representante_id: userId!,
             codigo_nota: codigoNota,
-            data: dataHoje,
+            data: dataNota,
             valor_total: dados.valor_recebido,
             forma_pagamento_1: dados.pagamentos[0].forma,
             valor_pagamento_1: dados.pagamentos[0].valor,
@@ -344,7 +380,7 @@ export default function Cobranca() {
             valor_pago: dados.valor_recebido,
             saldo_devedor: dados.valor_repasse,
             forma_pagamento: dados.pagamentos[0].forma,
-            data_execucao: dataHoje,
+            data_execucao: dataNota,
             codigo_nota_referencia: codigoNota
           });
 
@@ -920,6 +956,7 @@ export default function Cobranca() {
           }
         }}
         cobranca={cobrancaParaPagar || { id: '', revendedora: '', valor_previsto: 0, tipo: null }}
+        diasNaoFinalizados={diasNaoFinalizados}
         onPagamentoCompleto={async (dados) => {
           if (cobrancaParaPagar) {
             await handlePagamentoCompleto(cobrancaParaPagar.id, dados);
