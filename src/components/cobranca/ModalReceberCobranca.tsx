@@ -65,20 +65,20 @@ export function ModalReceberCobranca({
   // Verifica se é cobrança de REPASSE (não calcula comissão)
   const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
   
-  // Estado do fluxo
-  const [etapa, setEtapa] = useState<'venda' | 'pagamento' | 'repasse'>('venda');
+  // Estado do fluxo - REPASSE já começa na etapa de pagamento
+  const [etapa, setEtapa] = useState<'venda' | 'pagamento' | 'repasse'>(isRepasse ? 'pagamento' : 'venda');
   
-  // Dados da venda
-  const [valorVenda, setValorVenda] = useState('');
+  // Dados da venda - Para REPASSE, já usa o valor_previsto
+  const [valorVenda, setValorVenda] = useState(isRepasse ? cobranca.valor_previsto.toString().replace('.', ',') : '');
   const [devolveuTudo, setDevolveuTudo] = useState(false);
   
   // Desconto para repasses
   const [desconto, setDesconto] = useState('');
   
-  // Cálculos automáticos
+  // Cálculos automáticos - Para REPASSE, já inicia com o valor_previsto
   const [comissaoPercentual, setComissaoPercentual] = useState(0);
   const [comissaoValor, setComissaoValor] = useState(0);
-  const [valorAReceber, setValorAReceber] = useState(0);
+  const [valorAReceber, setValorAReceber] = useState(isRepasse ? cobranca.valor_previsto : 0);
   
   // Modo de edição manual de comissão
   const [comissaoManual, setComissaoManual] = useState(false);
@@ -156,9 +156,10 @@ export function ModalReceberCobranca({
     const cleanValue = value.replace(/[^\d,]/g, '');
     setDesconto(cleanValue);
     
-    const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
+    // Para REPASSE, usa o valor_previsto da cobrança como base
+    const valorBase = isRepasse ? cobranca.valor_previsto : (parseFloat(valorVenda.replace(',', '.')) || 0);
     const descontoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
-    setValorAReceber(valorVendaNum - descontoNum);
+    setValorAReceber(valorBase - descontoNum);
   };
 
   const handleComissaoManualChange = (value: string) => {
@@ -381,13 +382,14 @@ export function ModalReceberCobranca({
   };
 
   const resetarFormulario = () => {
-    setEtapa('venda');
-    setValorVenda('');
+    // REPASSE já começa na etapa de pagamento
+    setEtapa(isRepasse ? 'pagamento' : 'venda');
+    setValorVenda(isRepasse ? cobranca.valor_previsto.toString().replace('.', ',') : '');
     setDevolveuTudo(false);
     setDesconto('');
     setComissaoPercentual(0);
     setComissaoValor(0);
-    setValorAReceber(0);
+    setValorAReceber(isRepasse ? cobranca.valor_previsto : 0);
     setComissaoManual(false);
     setComissaoPercentualManual('');
     setPagamento1({ forma: '', valor: '' });
@@ -532,6 +534,27 @@ export function ModalReceberCobranca({
         {/* Etapa 2: Formas de Pagamento */}
         {etapa === 'pagamento' && (
           <div className="space-y-4">
+            {isRepasse && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-700 dark:text-blue-300">
+                Nota de <strong>REPASSE</strong> - Valor: <strong>{formatarValor(cobranca.valor_previsto)}</strong>
+              </div>
+            )}
+
+            {/* Desconto opcional para REPASSE */}
+            {isRepasse && (
+              <div className="space-y-2">
+                <Label htmlFor="desconto-pagamento">Desconto (opcional)</Label>
+                <Input
+                  id="desconto-pagamento"
+                  type="text"
+                  placeholder="0,00"
+                  value={desconto}
+                  onChange={(e) => handleDescontoChange(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+            )}
+
             {/* Seletor de Data da Nota */}
             <div className="space-y-2">
               <Label>Data da Cobrança</Label>
@@ -586,6 +609,11 @@ export function ModalReceberCobranca({
             <div className="p-4 bg-muted rounded-lg">
               <div className="text-sm font-medium mb-1">Valor a Receber</div>
               <div className="text-2xl font-bold text-primary">{formatarValor(valorAReceber)}</div>
+              {isRepasse && desconto && parseFloat(desconto.replace(',', '.')) > 0 && (
+                <div className="text-sm text-orange-600 mt-1">
+                  Desconto aplicado: -{formatarValor(parseFloat(desconto.replace(',', '.')))}
+                </div>
+              )}
             </div>
 
             {/* Pagamento 1 */}
