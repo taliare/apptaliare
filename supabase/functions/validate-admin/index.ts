@@ -5,6 +5,59 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Simple in-memory rate limiter
+const rateLimitMap = new Map<string, { attempts: number; lastAttempt: number }>();
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 60 * 1000; // 1 minute window
+const LOCKOUT_MS = 5 * 60 * 1000; // 5 minute lockout after max attempts
+
+function isRateLimited(identifier: string): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(identifier);
+  
+  if (!record) {
+    return false;
+  }
+  
+  // Reset if window has passed and not in lockout
+  if (now - record.lastAttempt > WINDOW_MS && record.attempts < MAX_ATTEMPTS) {
+    rateLimitMap.delete(identifier);
+    return false;
+  }
+  
+  // Check if in lockout period
+  if (record.attempts >= MAX_ATTEMPTS) {
+    if (now - record.lastAttempt < LOCKOUT_MS) {
+      return true;
+    }
+    // Lockout period passed, reset
+    rateLimitMap.delete(identifier);
+    return false;
+  }
+  
+  return false;
+}
+
+function recordAttempt(identifier: string, success: boolean): void {
+  const now = Date.now();
+  const record = rateLimitMap.get(identifier);
+  
+  if (success) {
+    // Clear on successful authentication
+    rateLimitMap.delete(identifier);
+    return;
+  }
+  
+  if (!record) {
+    rateLimitMap.set(identifier, { attempts: 1, lastAttempt: now });
+  } else {
+    rateLimitMap.set(identifier, { 
+      attempts: record.attempts + 1, 
+      lastAttempt: now 
+    });
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -12,6 +65,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Get client IP for rate limiting (use X-Forwarded-For if behind proxy)
+    const clientIP = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || 
+                     req.headers.get("x-real-ip") || 
+                     "unknown";
+
+    // Check rate limit before processing
+    if (isRateLimited(clientIP)) {
+      console.log("Rate limit exceeded for IP:", clientIP);
+      return new Response(
+        JSON.stringify({ error: "Muitas tentativas. Tente novamente em 5 minutos." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -34,7 +101,8 @@ Deno.serve(async (req) => {
     });
 
     if (signInError || !signInData.user) {
-      console.log("Admin validation failed: invalid credentials");
+      console.log("Admin validation failed: invalid credentials for IP:", clientIP);
+      recordAttempt(clientIP, false);
       return new Response(
         JSON.stringify({ error: "Credenciais inválidas" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -49,13 +117,16 @@ Deno.serve(async (req) => {
       .single();
 
     if (roleError || roleData?.role !== "admin") {
-      console.log("Admin validation failed: user is not admin");
+      console.log("Admin validation failed: user is not admin, IP:", clientIP);
+      recordAttempt(clientIP, false);
       return new Response(
         JSON.stringify({ error: "Usuário não é administrador" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Success - clear rate limit record
+    recordAttempt(clientIP, true);
     console.log("Admin validation successful for:", email);
     return new Response(
       JSON.stringify({ success: true, adminId: signInData.user.id }),
