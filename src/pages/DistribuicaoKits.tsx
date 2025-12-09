@@ -1,13 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, closestCenter } from '@dnd-kit/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Package, Trash2 } from 'lucide-react';
+import { Package, Trash2, Search } from 'lucide-react';
+
+// Função para ordenar kits por código numérico/alfanumérico
+function sortKitsByCodigo(kits: Kit[]): Kit[] {
+  return [...kits].sort((a, b) => {
+    const numA = parseFloat(a.codigo);
+    const numB = parseFloat(b.codigo);
+    
+    // Se ambos são numéricos, ordenar por valor
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return numA - numB;
+    }
+    // Se apenas um é numérico, o numérico vem primeiro
+    if (!isNaN(numA)) return -1;
+    if (!isNaN(numB)) return 1;
+    // Se ambos são alfanuméricos, ordenar como string
+    return a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true });
+  });
+}
 import { useAuth } from '@/contexts/AuthContext';
 import {
   AlertDialog,
@@ -126,6 +145,7 @@ export default function DistribuicaoKits() {
   const queryClient = useQueryClient();
   const [draggedKit, setDraggedKit] = useState<Kit | null>(null);
   const [kitToDelete, setKitToDelete] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Verificar se o usuário tem permissão (admin ou producao)
   useEffect(() => {
@@ -252,7 +272,26 @@ export default function DistribuicaoKits() {
     }
   };
 
-  const estoqueKits = kits.filter(k => k.status === 'estoque');
+  // Filtrar kits pela busca
+  const filteredKits = useMemo(() => {
+    if (!searchQuery.trim()) return kits;
+    const query = searchQuery.toLowerCase().trim();
+    return kits.filter(k => k.codigo.toLowerCase().includes(query));
+  }, [kits, searchQuery]);
+
+  // Kits do estoque, filtrados e ordenados
+  const estoqueKits = useMemo(() => {
+    const filtered = filteredKits.filter(k => k.status === 'estoque');
+    return sortKitsByCodigo(filtered);
+  }, [filteredKits]);
+
+  // Função para obter kits de um representante, filtrados e ordenados
+  const getRepKits = (repId: string) => {
+    const filtered = filteredKits.filter(k => 
+      k.representante_id === repId && k.status === 'com_representante'
+    );
+    return sortKitsByCodigo(filtered);
+  };
 
   if (isLoadingKits || isLoadingReps) {
     return (
@@ -265,9 +304,20 @@ export default function DistribuicaoKits() {
   return (
     <>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Distribuição de Kits</h1>
-          <p className="text-muted-foreground">Arraste os kits entre estoque e representantes</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Distribuição de Kits</h1>
+            <p className="text-muted-foreground">Arraste os kits entre estoque e representantes</p>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por código..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -283,21 +333,16 @@ export default function DistribuicaoKits() {
           </div>
 
           {/* Colunas dos Representantes */}
-          {representantes.map(rep => {
-            const repKits = kits.filter(k => 
-              k.representante_id === rep.id && k.status === 'com_representante'
-            );
-            return (
-              <div key={rep.id} onDrop={(e) => handleDrop(e, rep.id)}>
-                <DroppableColumn
-                  id={rep.id}
-                  title={rep.nome}
-                  kits={repKits}
-                  onDragOver={handleDragOver}
-                />
-              </div>
-            );
-          })}
+          {representantes.map(rep => (
+            <div key={rep.id} onDrop={(e) => handleDrop(e, rep.id)}>
+              <DroppableColumn
+                id={rep.id}
+                title={rep.nome}
+                kits={getRepKits(rep.id)}
+                onDragOver={handleDragOver}
+              />
+            </div>
+          ))}
         </div>
       </div>
 
