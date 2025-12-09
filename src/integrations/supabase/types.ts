@@ -558,6 +558,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      reverter_entrega_kit: {
+        Args: { p_codigo_kit: string; p_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "representante" | "producao"

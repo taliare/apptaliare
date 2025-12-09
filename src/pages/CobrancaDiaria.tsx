@@ -289,6 +289,37 @@ export default function CobrancaDiaria() {
     },
   });
 
+  // Mutation para excluir entrega de kit
+  const excluirEntregaMutation = useMutation({
+    mutationFn: async (entrega: { id: string; codigo_nota: string }) => {
+      // 1. Reverter status do kit usando função SECURITY DEFINER
+      const { error: revertError } = await supabase
+        .rpc('reverter_entrega_kit', {
+          p_codigo_kit: entrega.codigo_nota,
+          p_user_id: user!.id
+        });
+
+      if (revertError) throw revertError;
+
+      // 2. Deletar a cobrança agendada
+      const { error: deleteError } = await supabase
+        .from('cobrancas_agendadas')
+        .delete()
+        .eq('id', entrega.id);
+
+      if (deleteError) throw deleteError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep-diaria'] });
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      queryClient.invalidateQueries({ queryKey: ['entregas-kits-dia'] });
+      toast.success('Entrega excluída! Kit voltou para sua posse.');
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao excluir entrega: ${error.message}`);
+    },
+  });
+
   const resetKitEntregaForm = () => {
     setSelectedKit('');
     setKitSearchTerm('');
@@ -972,16 +1003,47 @@ export default function CobrancaDiaria() {
                     </DialogHeader>
                     <div className="space-y-2 max-h-[400px] overflow-y-auto">
                       {entregasDoDia.map((entrega: any) => (
-                        <div key={entrega.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{entrega.revendedora}</p>
-                            <p className="text-sm text-muted-foreground">Kit: {entrega.codigo_nota}</p>
+                        <div key={entrega.id} className="p-3 bg-muted rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium">{entrega.revendedora}</p>
+                              <p className="text-sm text-muted-foreground">Kit: {entrega.codigo_nota}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold">{formatarValor(entrega.valor_previsto)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Venc: {format(new Date(entrega.data_agendada + 'T12:00:00'), "dd/MM/yyyy")}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold">{formatarValor(entrega.valor_previsto)}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Venc: {format(new Date(entrega.data_agendada + 'T12:00:00'), "dd/MM/yyyy")}
-                            </p>
+                          <div className="mt-2 flex justify-end">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Excluir
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => excluirEntregaMutation.mutate({ 
+                                      id: entrega.id, 
+                                      codigo_nota: entrega.codigo_nota 
+                                    })}
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </div>
                       ))}
