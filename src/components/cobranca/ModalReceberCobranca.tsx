@@ -540,21 +540,6 @@ export function ModalReceberCobranca({
               </div>
             )}
 
-            {/* Desconto opcional para REPASSE */}
-            {isRepasse && (
-              <div className="space-y-2">
-                <Label htmlFor="desconto-pagamento">Desconto (opcional)</Label>
-                <Input
-                  id="desconto-pagamento"
-                  type="text"
-                  placeholder="0,00"
-                  value={desconto}
-                  onChange={(e) => handleDescontoChange(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-            )}
-
             {/* Seletor de Data da Nota */}
             <div className="space-y-2">
               <Label>Data da Cobrança</Label>
@@ -609,10 +594,56 @@ export function ModalReceberCobranca({
             <div className="p-4 bg-muted rounded-lg">
               <div className="text-sm font-medium mb-1">Valor a Receber</div>
               <div className="text-2xl font-bold text-primary">{formatarValor(valorAReceber)}</div>
-              {isRepasse && desconto && parseFloat(desconto.replace(',', '.')) > 0 && (
-                <div className="text-sm text-orange-600 mt-1">
-                  Desconto aplicado: -{formatarValor(parseFloat(desconto.replace(',', '.')))}
-                </div>
+              
+              {/* Botão discreto para aplicar desconto - só para REPASSE */}
+              {isRepasse && (
+                <>
+                  {desconto && parseFloat(desconto.replace(',', '.')) > 0 ? (
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-sm text-orange-600">
+                        Desconto: -{formatarValor(parseFloat(desconto.replace(',', '.')))}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs text-muted-foreground hover:text-destructive"
+                        onClick={() => {
+                          setDesconto('');
+                          setValorAReceber(cobranca.valor_previsto);
+                        }}
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Remover
+                      </Button>
+                    </div>
+                  ) : (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2 h-6 text-xs text-muted-foreground"
+                        >
+                          Aplicar desconto
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-3" align="start">
+                        <div className="space-y-2">
+                          <Label htmlFor="desconto-popup" className="text-sm">Valor do desconto</Label>
+                          <Input
+                            id="desconto-popup"
+                            type="text"
+                            placeholder="0,00"
+                            value={desconto}
+                            onChange={(e) => handleDescontoChange(e.target.value)}
+                            className="h-8"
+                            autoFocus
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </>
               )}
             </div>
 
