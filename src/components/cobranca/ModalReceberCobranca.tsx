@@ -95,6 +95,21 @@ export function ModalReceberCobranca({
   const [valorRepasse, setValorRepasse] = useState('');
   const [dataRepasse, setDataRepasse] = useState<Date>();
   
+  // Edição do valor a receber (pagamento parcial)
+  const [editandoValorReceber, setEditandoValorReceber] = useState(false);
+  const [valorRecebidoEditado, setValorRecebidoEditado] = useState('');
+  const [dataProximaCobranca, setDataProximaCobranca] = useState<Date>();
+  
+  // Valor original a receber (sem edições)
+  const valorOriginalAReceber = isRepasse 
+    ? cobranca.valor_previsto - (parseFloat(desconto.replace(',', '.')) || 0)
+    : valorAReceber;
+  
+  // Valor restante para próxima cobrança
+  const valorRestante = valorRecebidoEditado 
+    ? valorOriginalAReceber - (parseFloat(valorRecebidoEditado.replace(',', '.')) || 0)
+    : 0;
+  
   // Carregando
   const [loading, setLoading] = useState(false);
 
@@ -254,7 +269,7 @@ export function ModalReceberCobranca({
     if (!pagamento1.forma || !pagamento1.valor) {
       toast({
         title: "Atenção",
-        description: "Informe a forma e o valor do primeiro pagamento.",
+        description: "Informe a forma e o valor do pagamento.",
         variant: "destructive"
       });
       return;
@@ -270,6 +285,62 @@ export function ModalReceberCobranca({
     }
 
     const totalRecebido = calcularTotalRecebido();
+    
+    // Se editou o valor para menos, precisa de data da próxima cobrança
+    if (editandoValorReceber && valorRestante > 0) {
+      if (!dataProximaCobranca) {
+        toast({
+          title: "Atenção",
+          description: "Selecione a data da próxima cobrança para o valor restante.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Pagamento parcial com nova cobrança
+      setLoading(true);
+      try {
+        const pagamentos: Array<{ forma: FormaPagamento; valor: number }> = [
+          { forma: pagamento1.forma as FormaPagamento, valor: parseFloat(pagamento1.valor.replace(',', '.')) }
+        ];
+        
+        if (pagamento2) {
+          pagamentos.push({
+            forma: pagamento2.forma as FormaPagamento,
+            valor: parseFloat(pagamento2.valor.replace(',', '.'))
+          });
+        }
+
+        await onPagamentoParcial({
+          valor_venda: parseFloat(valorVenda.replace(',', '.')),
+          comissao_percentual: comissaoPercentual,
+          comissao_valor: comissaoValor,
+          valor_devido_empresa: totalRecebido,
+          valor_recebido: totalRecebido,
+          pagamentos,
+          valor_repasse: valorRestante,
+          data_repasse: dataProximaCobranca,
+          dataNota: format(dataNota, 'yyyy-MM-dd')
+        });
+        
+        toast({
+          title: "Sucesso",
+          description: `Pagamento de ${formatarValor(totalRecebido)} registrado. Nova cobrança de ${formatarValor(valorRestante)} criada para ${format(dataProximaCobranca, "dd/MM/yyyy")}.`,
+        });
+        
+        onOpenChange(false);
+        resetarFormulario();
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Erro ao registrar pagamento.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     
     if (totalRecebido > valorAReceber) {
       toast({
@@ -397,6 +468,9 @@ export function ModalReceberCobranca({
     setValorRepasse('');
     setDataRepasse(undefined);
     setDataNota(new Date());
+    setEditandoValorReceber(false);
+    setValorRecebidoEditado('');
+    setDataProximaCobranca(undefined);
   };
 
   // Verifica se uma data pode ser selecionada (hoje ou dias não finalizados no passado)
@@ -591,15 +665,119 @@ export function ModalReceberCobranca({
               )}
             </div>
 
-            <div className="p-4 bg-muted rounded-lg">
-              <div className="text-sm font-medium mb-1">Valor a Receber</div>
-              <div className="text-2xl font-bold text-primary">{formatarValor(valorAReceber)}</div>
+            <div className="p-4 bg-muted rounded-lg space-y-2">
+              <div className="text-sm font-medium">Valor a Receber</div>
+              
+              {/* Valor editável */}
+              {editandoValorReceber ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      placeholder="0,00"
+                      value={valorRecebidoEditado}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/[^\d,]/g, '');
+                        setValorRecebidoEditado(clean);
+                        // Atualiza pagamento1 se já tiver forma selecionada
+                        if (pagamento1.forma && !pagamento2) {
+                          setPagamento1({
+                            ...pagamento1,
+                            valor: clean
+                          });
+                        }
+                      }}
+                      className="text-lg font-bold"
+                      autoFocus
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditandoValorReceber(false);
+                        setValorRecebidoEditado('');
+                        setDataProximaCobranca(undefined);
+                        // Restaura o valor total no pagamento
+                        if (pagamento1.forma && !pagamento2) {
+                          setPagamento1({
+                            ...pagamento1,
+                            valor: valorAReceber.toFixed(2).replace('.', ',')
+                          });
+                        }
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {/* Mostra valor restante e data da próxima cobrança */}
+                  {valorRestante > 0 && (
+                    <div className="p-3 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg space-y-3">
+                      <div className="text-sm">
+                        <span className="text-orange-700 dark:text-orange-300">Valor restante: </span>
+                        <span className="font-bold text-orange-600">{formatarValor(valorRestante)}</span>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <Label className="text-sm text-orange-700 dark:text-orange-300">Data da próxima cobrança</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !dataProximaCobranca && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {dataProximaCobranca ? format(dataProximaCobranca, "PPP", { locale: ptBR }) : "Selecione uma data"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={dataProximaCobranca}
+                              onSelect={setDataProximaCobranca}
+                              disabled={(date) => {
+                                const hoje = new Date();
+                                hoje.setHours(0, 0, 0, 0);
+                                const checkDate = new Date(date);
+                                checkDate.setHours(0, 0, 0, 0);
+                                // Só permite datas a partir de hoje
+                                return checkDate < hoje;
+                              }}
+                              initialFocus
+                              className="pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="text-2xl font-bold text-primary">{formatarValor(valorAReceber)}</div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => {
+                      setEditandoValorReceber(true);
+                      setValorRecebidoEditado(valorAReceber.toFixed(2).replace('.', ','));
+                    }}
+                    title="Editar valor (pagamento parcial)"
+                  >
+                    <Edit2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
               
               {/* Botão discreto para aplicar desconto - só para REPASSE */}
-              {isRepasse && (
+              {isRepasse && !editandoValorReceber && (
                 <>
                   {desconto && parseFloat(desconto.replace(',', '.')) > 0 ? (
-                    <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center justify-between">
                       <span className="text-sm text-orange-600">
                         Desconto: -{formatarValor(parseFloat(desconto.replace(',', '.')))}
                       </span>
@@ -622,7 +800,7 @@ export function ModalReceberCobranca({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="mt-2 h-6 text-xs text-muted-foreground"
+                          className="h-6 text-xs text-muted-foreground"
                         >
                           Aplicar desconto
                         </Button>
@@ -653,11 +831,15 @@ export function ModalReceberCobranca({
               <Select
                 value={pagamento1.forma}
                 onValueChange={(value) => {
-                  // Ao selecionar a forma, preenche automaticamente com o valor total (se não tiver segundo pagamento)
+                  // Ao selecionar a forma, preenche automaticamente com o valor (se não tiver segundo pagamento)
                   if (!pagamento2) {
+                    // Se estiver editando, usa o valor editado; senão usa o valor total
+                    const valorPreencher = editandoValorReceber && valorRecebidoEditado
+                      ? valorRecebidoEditado
+                      : valorAReceber.toFixed(2).replace('.', ',');
                     setPagamento1({ 
                       forma: value as FormaPagamento, 
-                      valor: valorAReceber.toFixed(2).replace('.', ',') 
+                      valor: valorPreencher 
                     });
                   } else {
                     setPagamento1({ ...pagamento1, forma: value as FormaPagamento });
