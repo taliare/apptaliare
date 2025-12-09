@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, closestCenter } from '@dnd-kit/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Package, Trash2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -119,9 +121,20 @@ function DroppableColumn({
 }
 
 export default function DistribuicaoKits() {
+  const { profile, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [draggedKit, setDraggedKit] = useState<Kit | null>(null);
   const [kitToDelete, setKitToDelete] = useState<string | null>(null);
+
+  // Verificar se o usuário tem permissão (admin ou producao)
+  useEffect(() => {
+    if (!authLoading && profile) {
+      if (profile.role !== 'admin' && profile.role !== 'producao') {
+        navigate('/dashboard');
+      }
+    }
+  }, [profile, authLoading, navigate]);
 
   const { data: kits = [], isLoading: isLoadingKits } = useQuery({
     queryKey: ['kits-estoque'],
