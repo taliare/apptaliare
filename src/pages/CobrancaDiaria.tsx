@@ -485,6 +485,62 @@ export default function CobrancaDiaria() {
     },
   });
 
+  // Mutation para excluir nota da cobrança de hoje e devolver para agenda
+  const excluirNotaDaCobrancaMutation = useMutation({
+    mutationFn: async (nota: NotaPromissoria) => {
+      // Buscar dados da cobrança agendada original para preservar
+      const { data: cobrancaOriginal } = await supabase
+        .from('cobrancas_agendadas')
+        .select('*')
+        .eq('representante_id', user?.id)
+        .eq('codigo_nota', nota.codigo_nota)
+        .maybeSingle();
+
+      // Deletar a nota promissória (registro da cobrança de hoje)
+      const { error: deleteError } = await supabase
+        .from('notas_promissorias')
+        .delete()
+        .eq('id', nota.id);
+
+      if (deleteError) throw deleteError;
+
+      // Se existia cobrança agendada, apenas garantir que está pendente
+      if (cobrancaOriginal) {
+        const { error: updateError } = await supabase
+          .from('cobrancas_agendadas')
+          .update({ status: 'pendente' })
+          .eq('id', cobrancaOriginal.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Se não existia, criar uma nova cobrança agendada para não perder a nota
+        const revendedora = revendedoraMap[nota.codigo_nota] || 'Revendedora não identificada';
+        const { error: insertError } = await supabase
+          .from('cobrancas_agendadas')
+          .insert({
+            representante_id: user!.id,
+            revendedora: revendedora,
+            codigo_nota: nota.codigo_nota,
+            valor_previsto: nota.valor_total,
+            data_agendada: dateStr,
+            status: 'pendente',
+            observacoes: 'Nota devolvida da cobrança diária'
+          });
+
+        if (insertError) throw insertError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      queryClient.invalidateQueries({ queryKey: ['notas-por-dia'] });
+      toast.success('Nota removida da cobrança de hoje e devolvida para a Agenda!');
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao remover nota: ${error.message}`);
+    },
+  });
+
   // Mutation para deletar nota e reverter cobrança se necessário
   const deleteNotaMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -767,7 +823,37 @@ export default function CobrancaDiaria() {
                           )}
                           <p className="text-xs text-muted-foreground font-mono">{nota.codigo_nota}</p>
                         </div>
-                        <span className="font-semibold text-primary whitespace-nowrap">{formatarValor(nota.valor_total)}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-primary whitespace-nowrap">{formatarValor(nota.valor_total)}</span>
+                          {!isDiaFinalizado && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0">
+                                  <XCircle className="h-3.5 w-3.5 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir da Cobrança de Hoje</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    A nota <strong>{nota.codigo_nota}</strong> será removida da cobrança de hoje e voltará para a <strong>Agenda de Cobrança</strong> como pendente.
+                                    <br /><br />
+                                    A nota NÃO será apagada do sistema.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => excluirNotaDaCobrancaMutation.mutate(nota)}
+                                    disabled={excluirNotaDaCobrancaMutation.isPending}
+                                  >
+                                    {excluirNotaDaCobrancaMutation.isPending ? 'Removendo...' : 'Confirmar'}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
