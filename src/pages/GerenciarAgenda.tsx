@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDate, getDay, startOfMonth, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Edit, Search, Plus, Trash2, CheckSquare, ChevronDown, ChevronRight } from 'lucide-react';
+import { Edit, Search, Plus, Trash2, CheckSquare, ChevronRight } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, formatDateBR, parseLocalDate } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -371,14 +371,8 @@ export default function GerenciarAgenda() {
 
   const semanasOrdenadas = Object.keys(cobrancasPorSemana).map(Number).sort((a, b) => a - b);
 
-  // Estado para controlar quais semanas estão abertas (objeto é mais estável que Set para React)
-  const [openWeeks, setOpenWeeks] = useState<Record<number, boolean>>({
-    1: true,
-    2: true,
-    3: true,
-    4: true,
-    5: true,
-  });
+  // Estado para controlar quais semanas estão abertas - TODAS FECHADAS por padrão
+  const [openWeeks, setOpenWeeks] = useState<Record<number, boolean>>({});
 
   const toggleWeek = (week: number) => {
     setOpenWeeks(prev => ({
@@ -497,102 +491,126 @@ export default function GerenciarAgenda() {
             </div>
           ) : (
             <div className="space-y-4">
-              {semanasOrdenadas.map((semana) => (
-                <Collapsible key={semana} open={openWeeks[semana] ?? true} onOpenChange={() => toggleWeek(semana)}>
-                  <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors">
-                    <div className="flex items-center gap-2">
-                      {openWeeks[semana] ?? true ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                      <span className="font-semibold">Semana {semana}</span>
-                      <Badge variant="secondary">{cobrancasPorSemana[semana].length} nota(s)</Badge>
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      Total: {formatarValor(cobrancasPorSemana[semana].reduce((sum, c) => sum + c.valor_previsto, 0))}
-                    </span>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="overflow-x-auto mt-2">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[50px]">
-                              <Checkbox
-                                checked={cobrancasPorSemana[semana].every(c => selectedIds.has(c.id))}
-                                onCheckedChange={() => {
-                                  const weekIds = cobrancasPorSemana[semana].map(c => c.id);
-                                  const allSelected = weekIds.every(id => selectedIds.has(id));
-                                  const newSelected = new Set(selectedIds);
-                                  if (allSelected) {
-                                    weekIds.forEach(id => newSelected.delete(id));
-                                  } else {
-                                    weekIds.forEach(id => newSelected.add(id));
-                                  }
-                                  setSelectedIds(newSelected);
-                                }}
-                                aria-label={`Selecionar semana ${semana}`}
-                              />
-                            </TableHead>
-                            <TableHead>Representante</TableHead>
-                            <TableHead>Revendedora</TableHead>
-                            <TableHead>Código</TableHead>
-                            <TableHead>Tipo</TableHead>
-                            <TableHead>Valor</TableHead>
-                            <TableHead>Data Vencimento</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {cobrancasPorSemana[semana].map((cobranca) => (
-                            <TableRow key={cobranca.id} className={selectedIds.has(cobranca.id) ? 'bg-muted/50' : ''}>
-                              <TableCell>
+              {semanasOrdenadas.map((semana) => {
+                const isOpen = openWeeks[semana] ?? false;
+                const notasSemana = cobrancasPorSemana[semana];
+                const totalSemana = notasSemana.reduce((sum, c) => sum + c.valor_previsto, 0);
+                
+                return (
+                  <Collapsible 
+                    key={semana} 
+                    open={isOpen} 
+                    onOpenChange={() => toggleWeek(semana)}
+                    className="group"
+                  >
+                    <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 bg-card border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                      <div className="flex items-center gap-3">
+                        <ChevronRight 
+                          className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} 
+                        />
+                        <div className="flex flex-col items-start">
+                          <span className="font-semibold text-foreground">Semana {semana}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {notasSemana.length} nota{notasSemana.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-sm font-medium text-foreground">
+                            {formatarValor(totalSemana)}
+                          </span>
+                          <span className="text-xs text-muted-foreground block">previsto</span>
+                        </div>
+                        <Badge 
+                          variant="secondary" 
+                          className="bg-primary/10 text-primary border-0"
+                        >
+                          {notasSemana.filter(c => c.status === 'pendente').length} pendente{notasSemana.filter(c => c.status === 'pendente').length !== 1 ? 's' : ''}
+                        </Badge>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                      <div className="overflow-x-auto mt-2 border border-border rounded-lg bg-card/50">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                              <TableHead className="w-[50px]">
                                 <Checkbox
-                                  checked={selectedIds.has(cobranca.id)}
-                                  onCheckedChange={() => toggleSelect(cobranca.id)}
-                                  aria-label={`Selecionar ${cobranca.revendedora}`}
+                                  checked={notasSemana.every(c => selectedIds.has(c.id))}
+                                  onCheckedChange={() => {
+                                    const weekIds = notasSemana.map(c => c.id);
+                                    const allSelected = weekIds.every(id => selectedIds.has(id));
+                                    const newSelected = new Set(selectedIds);
+                                    if (allSelected) {
+                                      weekIds.forEach(id => newSelected.delete(id));
+                                    } else {
+                                      weekIds.forEach(id => newSelected.add(id));
+                                    }
+                                    setSelectedIds(newSelected);
+                                  }}
+                                  aria-label={`Selecionar semana ${semana}`}
                                 />
-                              </TableCell>
-                              <TableCell>{(cobranca.profiles as any)?.nome || 'N/A'}</TableCell>
-                              <TableCell className="font-medium">{cobranca.revendedora}</TableCell>
-                              <TableCell>
-                                <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
-                              </TableCell>
-                              <TableCell>
-                                {cobranca.tipo ? (
-                                  <Badge variant="outline">{cobranca.tipo}</Badge>
-                                ) : (
-                                  '-'
-                                )}
-                              </TableCell>
-                              <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
-                              <TableCell>
-                                {formatDateBR(cobranca.data_agendada)}
-                              </TableCell>
-                              <TableCell>
-                                <Badge className={statusConfig[cobranca.status].color}>
-                                  {statusConfig[cobranca.status].label}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEdit(cobranca)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
+                              </TableHead>
+                              <TableHead>Representante</TableHead>
+                              <TableHead>Revendedora</TableHead>
+                              <TableHead>Código</TableHead>
+                              <TableHead>Tipo</TableHead>
+                              <TableHead>Valor</TableHead>
+                              <TableHead>Data Vencimento</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Ações</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
+                          </TableHeader>
+                          <TableBody>
+                            {notasSemana.map((cobranca) => (
+                              <TableRow key={cobranca.id} className={selectedIds.has(cobranca.id) ? 'bg-primary/5' : ''}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={selectedIds.has(cobranca.id)}
+                                    onCheckedChange={() => toggleSelect(cobranca.id)}
+                                    aria-label={`Selecionar ${cobranca.revendedora}`}
+                                  />
+                                </TableCell>
+                                <TableCell>{(cobranca.profiles as any)?.nome || 'N/A'}</TableCell>
+                                <TableCell className="font-medium">{cobranca.revendedora}</TableCell>
+                                <TableCell>
+                                  <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
+                                </TableCell>
+                                <TableCell>
+                                  {cobranca.tipo ? (
+                                    <Badge variant="outline">{cobranca.tipo}</Badge>
+                                  ) : (
+                                    '-'
+                                  )}
+                                </TableCell>
+                                <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
+                                <TableCell>
+                                  {formatDateBR(cobranca.data_agendada)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={statusConfig[cobranca.status].color}>
+                                    {statusConfig[cobranca.status].label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEdit(cobranca)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
             </div>
           )}
         </CardContent>
