@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, getDate, getDay, getDaysInMonth, startOfMonth } from 'date-fns';
+import { format, getDate, getDay, startOfMonth, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Edit, Search, Plus, Trash2, CheckSquare, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
@@ -49,6 +49,12 @@ export default function GerenciarAgenda() {
   // Filtros
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  
+  // Filtro de mês/ano - padrão: mês atual
+  const [filtroMesAno, setFiltroMesAno] = useState<string>(() => {
+    const hoje = new Date();
+    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  });
   
   const [formData, setFormData] = useState({
     revendedora: '',
@@ -309,8 +315,18 @@ export default function GerenciarAgenda() {
     return weekNumber;
   };
 
-  // Filtrar cobranças
+  // Filtrar cobranças por mês/ano primeiro e depois por outros filtros
   const cobrancasFiltradas = cobrancas.filter((c) => {
+    // Filtro de mês/ano (principal)
+    const [anoFiltro, mesFiltro] = filtroMesAno.split('-').map(Number);
+    const dataCobranca = new Date(c.data_agendada + 'T12:00:00');
+    const mesCobranca = dataCobranca.getMonth() + 1;
+    const anoCobranca = dataCobranca.getFullYear();
+    
+    if (anoCobranca !== anoFiltro || mesCobranca !== mesFiltro) {
+      return false;
+    }
+    
     // Filtro de busca
     if (searchTerm) {
       const termo = searchTerm.toLowerCase();
@@ -386,6 +402,14 @@ export default function GerenciarAgenda() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-lg">
+            Agenda de {(() => {
+              const [ano, mes] = filtroMesAno.split('-').map(Number);
+              const data = new Date(ano, mes - 1, 1);
+              const label = format(data, "MMMM 'de' yyyy", { locale: ptBR });
+              return label.charAt(0).toUpperCase() + label.slice(1);
+            })()}
+          </CardTitle>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex items-center gap-2 flex-1">
@@ -397,7 +421,29 @@ export default function GerenciarAgenda() {
                   className="max-w-md"
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {/* Filtro de Mês/Ano */}
+                <Select value={filtroMesAno} onValueChange={setFiltroMesAno}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Mês/Ano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(() => {
+                      const meses = [];
+                      const hoje = new Date();
+                      // Gerar 6 meses para trás e 6 meses para frente
+                      for (let i = -6; i <= 6; i++) {
+                        const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+                        const valor = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+                        const label = format(data, "MMMM/yyyy", { locale: ptBR });
+                        meses.push({ valor, label: label.charAt(0).toUpperCase() + label.slice(1) });
+                      }
+                      return meses.map((m) => (
+                        <SelectItem key={m.valor} value={m.valor}>{m.label}</SelectItem>
+                      ));
+                    })()}
+                  </SelectContent>
+                </Select>
                 <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Representante" />
