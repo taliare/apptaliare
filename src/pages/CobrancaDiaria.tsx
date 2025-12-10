@@ -197,6 +197,29 @@ export default function CobrancaDiaria() {
     enabled: !!user?.id && !!selectedHistoricoDate,
   });
 
+  // Query para buscar revendedoras das cobranças agendadas (lookup por codigo_nota)
+  const { data: cobrancasAgendadas = [] } = useQuery({
+    queryKey: ['cobrancas-agendadas-lookup', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cobrancas_agendadas')
+        .select('codigo_nota, revendedora')
+        .eq('representante_id', user?.id);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Criar mapa de codigo_nota -> revendedora para lookup rápido
+  const revendedoraMap = cobrancasAgendadas.reduce((acc, item) => {
+    if (item.codigo_nota) {
+      acc[item.codigo_nota] = item.revendedora;
+    }
+    return acc;
+  }, {} as Record<string, string>);
+
   // Query para kits em estoque do representante
   const { data: kitsEstoque = [] } = useQuery({
     queryKey: ['kits-estoque-rep-diaria', user?.id],
@@ -680,13 +703,23 @@ export default function CobrancaDiaria() {
                 Nenhuma cobrança registrada
               </div>
             ) : (
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {notas.map((nota) => (
-                  <div key={nota.id} className="flex justify-between items-center p-2 bg-muted/50 rounded-lg text-sm">
-                    <span className="font-medium truncate max-w-[120px]">{nota.codigo_nota}</span>
-                    <span className="font-semibold text-primary">{formatarValor(nota.valor_total)}</span>
-                  </div>
-                ))}
+              <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                {notas.map((nota) => {
+                  const revendedora = revendedoraMap[nota.codigo_nota];
+                  return (
+                    <div key={nota.id} className="p-2 bg-muted/50 rounded-lg text-sm space-y-1">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          {revendedora && (
+                            <p className="font-medium text-foreground truncate">{revendedora}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground font-mono">{nota.codigo_nota}</p>
+                        </div>
+                        <span className="font-semibold text-primary whitespace-nowrap">{formatarValor(nota.valor_total)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
             <div className="mt-3 pt-3 border-t flex justify-between items-center">
