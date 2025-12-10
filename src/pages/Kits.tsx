@@ -107,6 +107,7 @@ export default function Kits() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] }); // Invalidar cache do Kanban de distribuição
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       queryClient.invalidateQueries({ queryKey: ['kits-entregues-representante'] });
       toast.success('Entrega de kit registrada com sucesso!');

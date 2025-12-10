@@ -162,6 +162,7 @@ export default function DistribuicaoKits() {
       const { data, error } = await supabase
         .from('kits_estoque')
         .select('*')
+        .in('status', ['estoque', 'com_representante']) // Excluir kits já entregues (com_revendedora)
         .order('criado_em', { ascending: false });
       if (error) throw error;
       return data as Kit[];
