@@ -237,26 +237,63 @@ export default function CobrancaDiaria() {
     enabled: !!user?.id,
   });
 
-  // Query para entregas de kits do dia (cobranças tipo='kit' criadas na data selecionada)
-  const { data: entregasDoDia = [] } = useQuery({
-    queryKey: ['entregas-kits-dia', dateStr, user?.id],
+  // Query para entregas de kits do dia (usando kits_entregues com data_entrega real)
+  const { data: kitsEntreguesDoDia = [] } = useQuery({
+    queryKey: ['kits-entregues-dia', dateStr, user?.id],
     queryFn: async () => {
-      const startOfDay = `${dateStr}T00:00:00.000Z`;
-      const endOfDay = `${dateStr}T23:59:59.999Z`;
-      
       const { data, error } = await supabase
-        .from('cobrancas_agendadas')
+        .from('kits_entregues')
         .select('*')
         .eq('representante_id', user?.id)
-        .eq('tipo', 'kit')
-        .gte('criado_em', startOfDay)
-        .lte('criado_em', endOfDay)
+        .eq('data_entrega', dateStr)
         .order('criado_em', { ascending: false });
       
       if (error) throw error;
       return data;
     },
     enabled: !!user?.id,
+  });
+
+  // Buscar detalhes das cobranças (revendedora, valor) para os kits entregues do dia
+  const codigosKitsDoDia = kitsEntreguesDoDia.map((k: any) => k.codigo_mostruario);
+  
+  const { data: detalhesKitsCobrancas = [] } = useQuery({
+    queryKey: ['detalhes-kits-cobrancas', codigosKitsDoDia, user?.id],
+    queryFn: async () => {
+      if (codigosKitsDoDia.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('cobrancas_agendadas')
+        .select('codigo_nota, revendedora, valor_previsto')
+        .eq('representante_id', user?.id)
+        .eq('tipo', 'kit')
+        .in('codigo_nota', codigosKitsDoDia);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: codigosKitsDoDia.length > 0 && !!user?.id,
+  });
+
+  // Mapear detalhes por código do kit
+  const detalhesKitMap = detalhesKitsCobrancas.reduce((acc: Record<string, any>, item: any) => {
+    if (item.codigo_nota) {
+      acc[item.codigo_nota] = item;
+    }
+    return acc;
+  }, {});
+
+  // Combinar kits entregues com detalhes das cobranças para exibição
+  const entregasDoDia = kitsEntreguesDoDia.map((kit: any) => {
+    const detalhes = detalhesKitMap[kit.codigo_mostruario];
+    return {
+      id: kit.id,
+      codigo_nota: kit.codigo_mostruario,
+      revendedora: detalhes?.revendedora || 'Não informada',
+      valor_previsto: detalhes?.valor_previsto || 0,
+      tipo: kit.tipo,
+      data_entrega: kit.data_entrega,
+    };
   });
 
   // Filtrar kits pela pesquisa
@@ -308,7 +345,8 @@ export default function CobrancaDiaria() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep-diaria'] });
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
-      queryClient.invalidateQueries({ queryKey: ['entregas-kits-dia'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-entregues-dia'] });
+      queryClient.invalidateQueries({ queryKey: ['detalhes-kits-cobrancas'] });
       queryClient.invalidateQueries({ queryKey: ['kits-entregues-representante'] });
       toast.success('Entrega de kit registrada com sucesso!');
       resetKitEntregaForm();
@@ -322,6 +360,7 @@ export default function CobrancaDiaria() {
   // Mutation para excluir entrega de kit
   const excluirEntregaMutation = useMutation({
     mutationFn: async (entrega: { id: string; codigo_nota: string }) => {
+      // Reverter status do kit no estoque
       const { error: revertError } = await supabase
         .rpc('reverter_entrega_kit', {
           p_codigo_kit: entrega.codigo_nota,
@@ -330,17 +369,30 @@ export default function CobrancaDiaria() {
 
       if (revertError) throw revertError;
 
-      const { error: deleteError } = await supabase
-        .from('cobrancas_agendadas')
+      // Deletar da tabela kits_entregues
+      const { error: deleteKitEntregueError } = await supabase
+        .from('kits_entregues')
         .delete()
         .eq('id', entrega.id);
 
-      if (deleteError) throw deleteError;
+      if (deleteKitEntregueError) throw deleteKitEntregueError;
+
+      // Deletar da tabela cobrancas_agendadas pelo código do kit
+      const { error: deleteCobrancaError } = await supabase
+        .from('cobrancas_agendadas')
+        .delete()
+        .eq('representante_id', user!.id)
+        .eq('codigo_nota', entrega.codigo_nota)
+        .eq('tipo', 'kit');
+
+      if (deleteCobrancaError) throw deleteCobrancaError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep-diaria'] });
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
-      queryClient.invalidateQueries({ queryKey: ['entregas-kits-dia'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-entregues-dia'] });
+      queryClient.invalidateQueries({ queryKey: ['detalhes-kits-cobrancas'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-entregues-representante'] });
       toast.success('Entrega excluída! Kit voltou para sua posse.');
     },
     onError: (error: any) => {
