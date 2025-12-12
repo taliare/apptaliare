@@ -65,7 +65,7 @@ export default function CobrancaDiaria() {
   const [kitSearchTerm, setKitSearchTerm] = useState('');
   const [selectedKit, setSelectedKit] = useState<string>('');
   const [vincularVendedora, setVincularVendedora] = useState(false);
-  const [vendedoraKit, setVendedoraKit] = useState('');
+  const [vendedoraId, setVendedoraId] = useState('');
   const [revendedoraKit, setRevendedoraKit] = useState('');
   const [dataVencimentoKit, setDataVencimentoKit] = useState<Date>(addDays(new Date(), 60));
 
@@ -237,6 +237,21 @@ export default function CobrancaDiaria() {
     enabled: !!user?.id,
   });
 
+  // Query para vendedoras ativas
+  const { data: vendedoras = [] } = useQuery({
+    queryKey: ['vendedoras-ativas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vendedoras')
+        .select('*')
+        .eq('ativo', true)
+        .order('nome', { ascending: true });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Query para entregas de kits do dia (usando kits_entregues com data_entrega real)
   const { data: kitsEntreguesDoDia = [] } = useQuery({
     queryKey: ['kits-entregues-dia', dateStr, user?.id],
@@ -404,7 +419,7 @@ export default function CobrancaDiaria() {
     setSelectedKit('');
     setKitSearchTerm('');
     setVincularVendedora(false);
-    setVendedoraKit('');
+    setVendedoraId('');
     setRevendedoraKit('');
     setDataVencimentoKit(addDays(new Date(), 60));
   };
@@ -426,13 +441,14 @@ export default function CobrancaDiaria() {
       return;
     }
 
+    const vendedoraSelecionada = vendedoras.find((v: any) => v.id === vendedoraId);
     entregaKitMutation.mutate({
       kitId: selectedKit,
       codigo: kit.codigo,
       tipo: kit.tipo,
       valor: kit.valor || 0,
       revendedora: revendedoraKit,
-      vendedora: vincularVendedora ? vendedoraKit : undefined,
+      vendedora: vincularVendedora && vendedoraSelecionada ? vendedoraSelecionada.nome : undefined,
       dataVencimento: format(dataVencimentoKit, 'yyyy-MM-dd')
     });
   };
