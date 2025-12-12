@@ -300,35 +300,50 @@ export default function Kits() {
                 className="rounded"
               />
               <Label htmlFor="vincular-vendedora" className="cursor-pointer">
-                Vincular a uma vendedora (venda externa)
+                Vincular a uma vendedora/recrutadora
               </Label>
             </div>
 
             {vincularVendedora && (
-              <div>
-                <Label>Vendedora *</Label>
-                <Select value={selectedVendedoraId} onValueChange={setSelectedVendedoraId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione uma vendedora..." />
-                  </SelectTrigger>
-                  <SelectContent className="z-[200]">
-                    {vendedoras.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground text-center">
-                        Nenhuma vendedora cadastrada
-                      </div>
-                    ) : (
-                      vendedoras.map((vendedora) => (
+              <div className="space-y-2">
+                <Label>Vendedora/Recrutadora *</Label>
+                {vendedoras.length === 0 ? (
+                  <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
+                    Nenhuma vendedora cadastrada. Peça ao admin para cadastrar.
+                  </p>
+                ) : vendedoras.length <= 6 ? (
+                  // Chips para até 6 vendedoras
+                  <div className="flex flex-wrap gap-2">
+                    {vendedoras.map((vendedora) => (
+                      <button
+                        key={vendedora.id}
+                        type="button"
+                        onClick={() => setSelectedVendedoraId(vendedora.id)}
+                        className={cn(
+                          "px-4 py-2.5 rounded-lg font-medium text-sm transition-all border-2",
+                          selectedVendedoraId === vendedora.id
+                            ? "bg-primary text-primary-foreground border-primary shadow-md"
+                            : "bg-muted hover:bg-accent border-transparent hover:border-primary/30"
+                        )}
+                      >
+                        {vendedora.nome.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  // Select com busca para mais de 6 vendedoras
+                  <Select value={selectedVendedoraId} onValueChange={setSelectedVendedoraId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione a vendedora..." />
+                    </SelectTrigger>
+                    <SelectContent className="z-[200]">
+                      {vendedoras.map((vendedora) => (
                         <SelectItem key={vendedora.id} value={vendedora.id}>
                           {vendedora.nome}
                         </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                {vendedoras.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Peça ao admin para cadastrar vendedoras.
-                  </p>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             )}
