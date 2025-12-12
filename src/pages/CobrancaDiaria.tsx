@@ -67,7 +67,7 @@ export default function CobrancaDiaria() {
   const [vincularVendedora, setVincularVendedora] = useState(false);
   const [vendedoraId, setVendedoraId] = useState('');
   const [revendedoraKit, setRevendedoraKit] = useState('');
-  const [dataVencimentoKit, setDataVencimentoKit] = useState<Date>(addDays(new Date(), 60));
+  const [dataVencimentoKit, setDataVencimentoKit] = useState<string>(format(addDays(new Date(), 60), 'yyyy-MM-dd'));
 
   // Form states for Nota Promissória
   const [codigoNota, setCodigoNota] = useState('');
@@ -421,7 +421,7 @@ export default function CobrancaDiaria() {
     setVincularVendedora(false);
     setVendedoraId('');
     setRevendedoraKit('');
-    setDataVencimentoKit(addDays(new Date(), 60));
+    setDataVencimentoKit(format(addDays(new Date(), 60), 'yyyy-MM-dd'));
   };
 
   const handleSubmitKitEntrega = () => {
@@ -449,7 +449,7 @@ export default function CobrancaDiaria() {
       valor: kit.valor || 0,
       revendedora: revendedoraKit,
       vendedora: vincularVendedora && vendedoraSelecionada ? vendedoraSelecionada.nome : undefined,
-      dataVencimento: format(dataVencimentoKit, 'yyyy-MM-dd')
+      dataVencimento: dataVencimentoKit
     });
   };
 
@@ -1058,23 +1058,12 @@ export default function CobrancaDiaria() {
 
                     <div>
                       <Label>Data de Vencimento</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="w-full justify-start">
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {format(dataVencimentoKit, "dd/MM/yyyy", { locale: ptBR })}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0 z-[9999]" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={dataVencimentoKit}
-                            onSelect={(date) => date && setDataVencimentoKit(date)}
-                            initialFocus
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <Input
+                        type="date"
+                        value={dataVencimentoKit}
+                        onChange={(e) => setDataVencimentoKit(e.target.value)}
+                        className="w-full"
+                      />
                     </div>
                   </div>
                   <DialogFooter>
