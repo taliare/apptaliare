@@ -278,13 +278,26 @@ export default function DistribuicaoKits() {
   // Mutation para editar kit
   const editMutation = useMutation({
     mutationFn: async ({ id, codigo, valor, tipo }: { id: string; codigo: string; valor: number; tipo: string }) => {
-      const { error } = await supabase
+      console.log('Atualizando kit:', { id, codigo, valor, tipo });
+      
+      const { data, error } = await supabase
         .from('kits_estoque')
         .update({ codigo, valor, tipo })
         .eq('id', id)
-        .eq('status', 'estoque'); // Só permite editar kits em estoque
+        .eq('status', 'estoque')
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro no update:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        throw new Error('Kit não encontrado ou não está no estoque');
+      }
+      
+      console.log('Kit atualizado:', data);
+      return data;
     },
     onSuccess: () => {
       toast.success('Kit atualizado com sucesso!');
