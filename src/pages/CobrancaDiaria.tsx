@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn, formatarValor, formatarNumero } from '@/lib/utils';
+import { notaPromissoriaInsertSchema, notaPromissoriaUpdateSchema, cobrancaInsertSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
 
 interface NotaPromissoria {
   id: string;
@@ -319,6 +320,19 @@ export default function CobrancaDiaria() {
   // Mutation para registrar entrega de kit
   const entregaKitMutation = useMutation({
     mutationFn: async (data: { kitId: string; codigo: string; tipo: string; valor: number; revendedora: string; vendedora?: string; dataVencimento: string }) => {
+      // Validate revendedora input
+      if (!data.revendedora || data.revendedora.trim().length === 0) {
+        throw new Error('Nome da revendedora é obrigatório');
+      }
+      if (data.revendedora.length > 100) {
+        throw new Error('Nome da revendedora muito longo (máximo 100 caracteres)');
+      }
+      
+      const sanitizedRevendedora = sanitizeString(data.revendedora);
+      const sanitizedVendedora = data.vendedora ? sanitizeString(data.vendedora) : undefined;
+      const sanitizedCodigo = sanitizeString(data.codigo);
+      const sanitizedTipo = sanitizeString(data.tipo);
+      
       const { data: updateResult, error: updateError } = await supabase
         .rpc('atualizar_status_kit_entrega', {
           p_kit_id: data.kitId,
@@ -328,19 +342,27 @@ export default function CobrancaDiaria() {
       if (updateError) throw updateError;
       if (!updateResult) throw new Error('Kit não encontrado ou não pertence a você');
 
+      // Validate cobranca data before insert
+      const cobrancaData = {
+        representante_id: user!.id,
+        revendedora: sanitizedRevendedora,
+        codigo_nota: sanitizedCodigo,
+        tipo: 'kit',
+        valor_previsto: data.valor,
+        data_agendada: data.dataVencimento,
+        status: 'pendente' as const,
+        vendedora: sanitizedVendedora || null,
+        observacoes: `Entrega de kit ${sanitizedTipo} - Código: ${sanitizedCodigo}`
+      };
+      
+      const validation = validateData(cobrancaInsertSchema, cobrancaData);
+      if (!validation.success) {
+        throw new Error((validation as { success: false; errors: string[] }).errors.join(', '));
+      }
+
       const { error: cobrancaError } = await supabase
         .from('cobrancas_agendadas')
-        .insert({
-          representante_id: user!.id,
-          revendedora: data.revendedora,
-          codigo_nota: data.codigo,
-          tipo: 'kit',
-          valor_previsto: data.valor,
-          data_agendada: data.dataVencimento,
-          status: 'pendente',
-          vendedora: data.vendedora || null,
-          observacoes: `Entrega de kit ${data.tipo} - Código: ${data.codigo}`
-        });
+        .insert(cobrancaData);
 
       if (cobrancaError) throw cobrancaError;
 
@@ -349,8 +371,8 @@ export default function CobrancaDiaria() {
         .from('kits_entregues')
         .insert({
           representante_id: user!.id,
-          codigo_mostruario: data.codigo,
-          tipo: data.tipo,
+          codigo_mostruario: sanitizedCodigo,
+          tipo: sanitizedTipo,
           data_entrega: format(new Date(), 'yyyy-MM-dd'),
           data_vencimento: data.dataVencimento
         });
@@ -456,9 +478,20 @@ export default function CobrancaDiaria() {
   // Mutation para adicionar nota
   const addNotaMutation = useMutation({
     mutationFn: async (nota: Omit<NotaPromissoria, 'id' | 'criado_em'>) => {
+      // Validate and sanitize nota data
+      const sanitizedNota = {
+        ...nota,
+        codigo_nota: sanitizeString(nota.codigo_nota),
+      };
+      
+      const validation = validateData(notaPromissoriaInsertSchema, sanitizedNota);
+      if (!validation.success) {
+        throw new Error((validation as { success: false; errors: string[] }).errors.join(', '));
+      }
+      
       const { data, error } = await supabase
         .from('notas_promissorias')
-        .insert(nota)
+        .insert(sanitizedNota)
         .select()
         .single();
       
@@ -471,7 +504,7 @@ export default function CobrancaDiaria() {
       resetNotaForm();
       setIsNotaDialogOpen(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Erro ao adicionar nota: ${error.message}`);
     },
   });
