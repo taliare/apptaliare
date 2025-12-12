@@ -967,7 +967,7 @@ export default function CobrancaDiaria() {
                     Entregar Kit ({kitsEstoque.length})
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="overflow-visible">
                   <DialogHeader>
                     <DialogTitle>Registrar Entrega de Kit</DialogTitle>
                   </DialogHeader>
@@ -1065,7 +1065,7 @@ export default function CobrancaDiaria() {
                             {format(dataVencimentoKit, "dd/MM/yyyy", { locale: ptBR })}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent className="w-auto p-0 z-[9999]" align="start">
                           <Calendar
                             mode="single"
                             selected={dataVencimentoKit}
