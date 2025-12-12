@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, Search } from 'lucide-react';
+import { Package, CalendarIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,16 +15,7 @@ import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
 import { cn, formatarValor } from '@/lib/utils';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
 
 interface Vendedora {
   id: string;
@@ -41,7 +32,7 @@ export default function Kits() {
   const [selectedKit, setSelectedKit] = useState<string>('');
   const [vincularVendedora, setVincularVendedora] = useState(false);
   const [selectedVendedoraId, setSelectedVendedoraId] = useState<string>('');
-  const [vendedoraPopoverOpen, setVendedoraPopoverOpen] = useState(false);
+  
   const [revendedoraKit, setRevendedoraKit] = useState('');
   const [dataVencimentoKit, setDataVencimentoKit] = useState<Date>(addDays(new Date(), 60));
 
@@ -213,7 +204,6 @@ export default function Kits() {
     }
   };
 
-  const vendedoraSelecionada = vendedoras.find(v => v.id === selectedVendedoraId);
 
   return (
     <div className="space-y-6">
@@ -316,45 +306,28 @@ export default function Kits() {
 
             {vincularVendedora && (
               <div>
-                <Label>Selecionar Vendedora *</Label>
-                <Popover open={vendedoraPopoverOpen} onOpenChange={setVendedoraPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={vendedoraPopoverOpen}
-                      className="w-full justify-between"
-                    >
-                      {vendedoraSelecionada ? vendedoraSelecionada.nome : "Selecione uma vendedora..."}
-                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Buscar vendedora..." />
-                      <CommandList>
-                        <CommandEmpty>Nenhuma vendedora encontrada.</CommandEmpty>
-                        <CommandGroup>
-                          {vendedoras.map((vendedora) => (
-                            <CommandItem
-                              key={vendedora.id}
-                              value={vendedora.nome}
-                              onSelect={() => {
-                                setSelectedVendedoraId(vendedora.id);
-                                setVendedoraPopoverOpen(false);
-                              }}
-                            >
-                              {vendedora.nome}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <Label>Vendedora *</Label>
+                <Select value={selectedVendedoraId} onValueChange={setSelectedVendedoraId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione uma vendedora..." />
+                  </SelectTrigger>
+                  <SelectContent className="z-[200]">
+                    {vendedoras.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground text-center">
+                        Nenhuma vendedora cadastrada
+                      </div>
+                    ) : (
+                      vendedoras.map((vendedora) => (
+                        <SelectItem key={vendedora.id} value={vendedora.id}>
+                          {vendedora.nome}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
                 {vendedoras.length === 0 && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Nenhuma vendedora cadastrada. Peça ao admin para cadastrar.
+                    Peça ao admin para cadastrar vendedoras.
                   </p>
                 )}
               </div>
