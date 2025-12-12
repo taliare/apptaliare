@@ -17,6 +17,19 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { cn, formatarValor } from '@/lib/utils';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+
+interface Vendedora {
+  id: string;
+  nome: string;
+}
 
 export default function Kits() {
   const { user } = useAuth();
@@ -27,7 +40,8 @@ export default function Kits() {
   const [kitSearchTerm, setKitSearchTerm] = useState('');
   const [selectedKit, setSelectedKit] = useState<string>('');
   const [vincularVendedora, setVincularVendedora] = useState(false);
-  const [vendedoraKit, setVendedoraKit] = useState('');
+  const [selectedVendedoraId, setSelectedVendedoraId] = useState<string>('');
+  const [vendedoraPopoverOpen, setVendedoraPopoverOpen] = useState(false);
   const [revendedoraKit, setRevendedoraKit] = useState('');
   const [dataVencimentoKit, setDataVencimentoKit] = useState<Date>(addDays(new Date(), 60));
 
@@ -48,6 +62,21 @@ export default function Kits() {
     enabled: !!user?.id,
   });
 
+  // Query para vendedoras ativas
+  const { data: vendedoras = [] } = useQuery({
+    queryKey: ['vendedoras-ativas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vendedoras')
+        .select('id, nome')
+        .eq('ativo', true)
+        .order('nome');
+      
+      if (error) throw error;
+      return data as Vendedora[];
+    },
+  });
+
   // Filtrar kits pela pesquisa
   const kitsFiltrados = kitsEstoque.filter((kit: any) =>
     kit.codigo.toLowerCase().includes(kitSearchTerm.toLowerCase())
@@ -57,14 +86,23 @@ export default function Kits() {
     setSelectedKit('');
     setKitSearchTerm('');
     setVincularVendedora(false);
-    setVendedoraKit('');
+    setSelectedVendedoraId('');
     setRevendedoraKit('');
     setDataVencimentoKit(addDays(new Date(), 60));
   };
 
   // Mutation para registrar entrega de kit
   const entregaKitMutation = useMutation({
-    mutationFn: async (data: { kitId: string; codigo: string; tipo: string; valor: number; revendedora: string; vendedora?: string; dataVencimento: string }) => {
+    mutationFn: async (data: { 
+      kitId: string; 
+      codigo: string; 
+      tipo: string; 
+      valor: number; 
+      revendedora: string; 
+      vendedoraId?: string; 
+      vendedoraNome?: string;
+      dataVencimento: string 
+    }) => {
       // 1. Atualizar status do kit usando função SECURITY DEFINER
       const { data: updateResult, error: updateError } = await supabase
         .rpc('atualizar_status_kit_entrega', {
@@ -86,7 +124,8 @@ export default function Kits() {
           valor_previsto: data.valor,
           data_agendada: data.dataVencimento,
           status: 'pendente',
-          vendedora: data.vendedora || null,
+          vendedora_id: data.vendedoraId || null,
+          vendedora: data.vendedoraNome || null,
           observacoes: `Entrega de kit ${data.tipo} - Código: ${data.codigo}`
         });
 
@@ -107,9 +146,10 @@ export default function Kits() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
-      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] }); // Invalidar cache do Kanban de distribuição
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       queryClient.invalidateQueries({ queryKey: ['kits-entregues-representante'] });
+      queryClient.invalidateQueries({ queryKey: ['vendas-externas'] });
       toast.success('Entrega de kit registrada com sucesso!');
       resetKitEntregaForm();
       setIsKitEntregaDialogOpen(false);
@@ -130,11 +170,18 @@ export default function Kits() {
       return;
     }
 
+    if (vincularVendedora && !selectedVendedoraId) {
+      toast.error('Selecione uma vendedora');
+      return;
+    }
+
     const kit = kitsEstoque.find((k: any) => k.id === selectedKit);
     if (!kit) {
       toast.error('Kit não encontrado');
       return;
     }
+
+    const vendedoraSelecionada = vendedoras.find(v => v.id === selectedVendedoraId);
 
     entregaKitMutation.mutate({
       kitId: selectedKit,
@@ -142,7 +189,8 @@ export default function Kits() {
       tipo: kit.tipo,
       valor: kit.valor || 0,
       revendedora: revendedoraKit,
-      vendedora: vincularVendedora ? vendedoraKit : undefined,
+      vendedoraId: vincularVendedora ? selectedVendedoraId : undefined,
+      vendedoraNome: vincularVendedora ? vendedoraSelecionada?.nome : undefined,
       dataVencimento: format(dataVencimentoKit, 'yyyy-MM-dd')
     });
   };
@@ -164,6 +212,8 @@ export default function Kits() {
       default: return 'bg-muted';
     }
   };
+
+  const vendedoraSelecionada = vendedoras.find(v => v.id === selectedVendedoraId);
 
   return (
     <div className="space-y-6">
@@ -251,22 +301,62 @@ export default function Kits() {
                 type="checkbox"
                 id="vincular-vendedora"
                 checked={vincularVendedora}
-                onChange={(e) => setVincularVendedora(e.target.checked)}
+                onChange={(e) => {
+                  setVincularVendedora(e.target.checked);
+                  if (!e.target.checked) {
+                    setSelectedVendedoraId('');
+                  }
+                }}
                 className="rounded"
               />
               <Label htmlFor="vincular-vendedora" className="cursor-pointer">
-                Vincular a uma vendedora
+                Vincular a uma vendedora (venda externa)
               </Label>
             </div>
 
             {vincularVendedora && (
               <div>
-                <Label>Nome da Vendedora</Label>
-                <Input
-                  value={vendedoraKit}
-                  onChange={(e) => setVendedoraKit(e.target.value)}
-                  placeholder="Ex: Ana Costa"
-                />
+                <Label>Selecionar Vendedora *</Label>
+                <Popover open={vendedoraPopoverOpen} onOpenChange={setVendedoraPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={vendedoraPopoverOpen}
+                      className="w-full justify-between"
+                    >
+                      {vendedoraSelecionada ? vendedoraSelecionada.nome : "Selecione uma vendedora..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar vendedora..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhuma vendedora encontrada.</CommandEmpty>
+                        <CommandGroup>
+                          {vendedoras.map((vendedora) => (
+                            <CommandItem
+                              key={vendedora.id}
+                              value={vendedora.nome}
+                              onSelect={() => {
+                                setSelectedVendedoraId(vendedora.id);
+                                setVendedoraPopoverOpen(false);
+                              }}
+                            >
+                              {vendedora.nome}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {vendedoras.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nenhuma vendedora cadastrada. Peça ao admin para cadastrar.
+                  </p>
+                )}
               </div>
             )}
 

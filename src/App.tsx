@@ -30,6 +30,7 @@ import EncomendaRepresentante from "./pages/EncomendaRepresentante";
 import EncomendaProducao from "./pages/EncomendaProducao";
 import Juridico from "./pages/Juridico";
 import VendaExterna from "./pages/VendaExterna";
+import Vendedoras from "./pages/Vendedoras";
 import RevendedorasInativas from "./pages/RevendedorasInativas";
 import NotFound from "./pages/NotFound";
 
@@ -135,6 +136,11 @@ const App = () => {
                           <Route path="/venda-externa" element={
                             <ProtectedRoute requiredRole="admin">
                               <VendaExterna />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/vendedoras" element={
+                            <ProtectedRoute requiredRole="admin">
+                              <Vendedoras />
                             </ProtectedRoute>
                           } />
                           

@@ -23,7 +23,8 @@ import {
 
 interface EntregaVendedora {
   id: string;
-  vendedora: string;
+  vendedora_id: string;
+  vendedora_nome: string;
   revendedora: string;
   representante_nome: string;
   codigo_kit: string;
@@ -31,6 +32,11 @@ interface EntregaVendedora {
   valor: number;
   data_entrega: string;
   data_vencimento: string;
+}
+
+interface Vendedora {
+  id: string;
+  nome: string;
 }
 
 export default function VendaExterna() {
@@ -45,29 +51,51 @@ export default function VendaExterna() {
   const startDate = format(currentWeekStart, 'yyyy-MM-dd');
   const endDate = format(weekEnd, 'yyyy-MM-dd');
 
-  // Query para buscar entregas com vendedora vinculada
+  // Query para buscar vendedoras cadastradas
+  const { data: vendedorasMap = new Map() } = useQuery({
+    queryKey: ['vendedoras-map'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vendedoras')
+        .select('id, nome');
+      
+      if (error) throw error;
+      return new Map((data as Vendedora[]).map(v => [v.id, v.nome]));
+    },
+  });
+
+  // Query para buscar entregas com vendedora_id vinculada (filtro por data de entrega)
   const { data: entregas = [], isLoading } = useQuery({
     queryKey: ['vendas-externas', startDate, endDate],
     queryFn: async () => {
-      // Buscar cobrancas agendadas que têm vendedora preenchida
+      // Buscar kits entregues no período
+      const { data: kitsEntregues, error: kitsError } = await supabase
+        .from('kits_entregues')
+        .select('codigo_mostruario, data_entrega, data_vencimento, representante_id')
+        .gte('data_entrega', startDate)
+        .lte('data_entrega', endDate);
+      
+      if (kitsError) throw kitsError;
+
+      const codigoNotas = kitsEntregues?.map(k => k.codigo_mostruario) || [];
+      
+      if (codigoNotas.length === 0) return [];
+
+      // Buscar cobrancas agendadas que têm vendedora_id preenchida
       const { data: cobrancas, error: cobrancasError } = await supabase
         .from('cobrancas_agendadas')
         .select(`
           id,
+          vendedora_id,
           vendedora,
           revendedora,
           representante_id,
           codigo_nota,
           tipo,
-          valor_previsto,
-          data_agendada,
-          criado_em
+          valor_previsto
         `)
-        .not('vendedora', 'is', null)
-        .neq('vendedora', '')
-        .gte('criado_em', startDate)
-        .lte('criado_em', endDate + 'T23:59:59')
-        .order('criado_em', { ascending: false });
+        .not('vendedora_id', 'is', null)
+        .in('codigo_nota', codigoNotas);
       
       if (cobrancasError) throw cobrancasError;
 
@@ -81,26 +109,26 @@ export default function VendaExterna() {
       if (profilesError) throw profilesError;
 
       const profileMap = new Map(profiles?.map(p => [p.id, p.nome]) || []);
-
-      // Buscar kits entregues para pegar data de entrega
-      const codigoNotas = cobrancas?.map(c => c.codigo_nota).filter(Boolean) || [];
-      const { data: kitsEntregues } = await supabase
-        .from('kits_entregues')
-        .select('codigo_mostruario, data_entrega, data_vencimento')
-        .in('codigo_mostruario', codigoNotas);
-
       const kitsMap = new Map(kitsEntregues?.map(k => [k.codigo_mostruario, k]) || []);
+
+      // Buscar vendedoras para mapear nomes
+      const { data: vendedoras } = await supabase
+        .from('vendedoras')
+        .select('id, nome');
+      
+      const vendedoraMap = new Map((vendedoras || []).map(v => [v.id, v.nome]));
 
       return cobrancas?.map(c => ({
         id: c.id,
-        vendedora: c.vendedora || '',
+        vendedora_id: c.vendedora_id || '',
+        vendedora_nome: vendedoraMap.get(c.vendedora_id) || c.vendedora || 'Desconhecida',
         revendedora: c.revendedora || '',
         representante_nome: profileMap.get(c.representante_id) || 'Desconhecido',
         codigo_kit: c.codigo_nota || '',
         tipo: c.tipo || 'inicial',
         valor: c.valor_previsto || 0,
-        data_entrega: kitsMap.get(c.codigo_nota)?.data_entrega || c.criado_em?.split('T')[0] || '',
-        data_vencimento: kitsMap.get(c.codigo_nota)?.data_vencimento || c.data_agendada || '',
+        data_entrega: kitsMap.get(c.codigo_nota)?.data_entrega || '',
+        data_vencimento: kitsMap.get(c.codigo_nota)?.data_vencimento || '',
       })) as EntregaVendedora[];
     },
   });
@@ -110,7 +138,7 @@ export default function VendaExterna() {
     mutationFn: async (entregaId: string) => {
       const { error } = await supabase
         .from('cobrancas_agendadas')
-        .update({ vendedora: null })
+        .update({ vendedora_id: null, vendedora: null })
         .eq('id', entregaId);
       
       if (error) throw error;
@@ -130,39 +158,50 @@ export default function VendaExterna() {
     if (!searchTerm) return entregas;
     const termo = searchTerm.toLowerCase();
     return entregas.filter(e => 
-      e.vendedora.toLowerCase().includes(termo) ||
+      e.vendedora_nome.toLowerCase().includes(termo) ||
       e.revendedora.toLowerCase().includes(termo) ||
       e.representante_nome.toLowerCase().includes(termo) ||
       e.codigo_kit.toLowerCase().includes(termo)
     );
   }, [entregas, searchTerm]);
 
-  // Agrupar por vendedora
+  // Agrupar por vendedora_id (usando o id como chave, não o nome)
   const entregasAgrupadas = useMemo(() => {
-    const grupos: Record<string, EntregaVendedora[]> = {};
+    const grupos: Record<string, { nome: string; entregas: EntregaVendedora[] }> = {};
     
     entregasFiltradas.forEach(entrega => {
-      const vendedora = entrega.vendedora || 'Sem nome';
-      if (!grupos[vendedora]) {
-        grupos[vendedora] = [];
+      const vendedoraId = entrega.vendedora_id;
+      if (!grupos[vendedoraId]) {
+        grupos[vendedoraId] = {
+          nome: entrega.vendedora_nome,
+          entregas: []
+        };
       }
-      grupos[vendedora].push(entrega);
+      grupos[vendedoraId].entregas.push(entrega);
     });
 
-    // Ordenar grupos por nome da vendedora e manter ordem por data dentro de cada grupo
-    return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b));
+    // Ordenar por data de entrega dentro de cada grupo e ordenar grupos por nome
+    Object.values(grupos).forEach(grupo => {
+      grupo.entregas.sort((a, b) => 
+        new Date(b.data_entrega).getTime() - new Date(a.data_entrega).getTime()
+      );
+    });
+
+    return Object.entries(grupos).sort(([, a], [, b]) => a.nome.localeCompare(b.nome));
   }, [entregasFiltradas]);
 
   const tipoLabels: Record<string, string> = {
     inicial: 'Inicial',
     especial: 'Especial',
     maleta: 'Maleta',
+    kit: 'Kit',
   };
 
   const tipoColors: Record<string, string> = {
     inicial: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
     especial: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
     maleta: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    kit: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
   };
 
   const navegarSemana = (direcao: 'anterior' | 'proxima') => {
@@ -179,10 +218,10 @@ export default function VendaExterna() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Venda Externa</h1>
-        <p className="text-muted-foreground">Controle de entregas vinculadas a vendedoras</p>
+        <p className="text-muted-foreground">Entregas vinculadas a vendedoras cadastradas</p>
       </div>
 
-      {/* Filtro por semana */}
+      {/* Filtro por semana (baseado na data de entrega) */}
       <Card>
         <CardContent className="py-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -220,7 +259,7 @@ export default function VendaExterna() {
       {/* Card resumo simplificado */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Total de Entregas</CardTitle>
+          <CardTitle className="text-sm font-medium">Total de Entregas no Período</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{entregasFiltradas.length}</div>
@@ -244,16 +283,16 @@ export default function VendaExterna() {
             </div>
           ) : (
             <div className="space-y-6">
-              {entregasAgrupadas.map(([vendedora, entregasGrupo]) => (
-                <div key={vendedora} className="border rounded-lg overflow-hidden">
+              {entregasAgrupadas.map(([vendedoraId, grupo]) => (
+                <div key={vendedoraId} className="border rounded-lg overflow-hidden">
                   <div className="bg-muted/50 px-4 py-3 border-b">
-                    <h3 className="font-semibold text-lg">{vendedora}</h3>
+                    <h3 className="font-semibold text-lg">{grupo.nome}</h3>
                     <span className="text-sm text-muted-foreground">
-                      {entregasGrupo.length} entrega{entregasGrupo.length !== 1 ? 's' : ''}
+                      {grupo.entregas.length} entrega{grupo.entregas.length !== 1 ? 's' : ''}
                     </span>
                   </div>
                   <div className="divide-y">
-                    {entregasGrupo.map((entrega) => (
+                    {grupo.entregas.map((entrega) => (
                       <div key={entrega.id} className="px-4 py-3 hover:bg-muted/30 transition-colors">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -320,7 +359,7 @@ export default function VendaExterna() {
           <AlertDialogHeader>
             <AlertDialogTitle>Desvincular vendedora?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja desvincular a vendedora <strong>{entregaParaDesvincular?.vendedora}</strong> do registro do kit <strong>{entregaParaDesvincular?.codigo_kit}</strong>?
+              Tem certeza que deseja desvincular a vendedora <strong>{entregaParaDesvincular?.vendedora_nome}</strong> do registro do kit <strong>{entregaParaDesvincular?.codigo_kit}</strong>?
               <br /><br />
               <span className="text-muted-foreground">
                 A nota e a agenda do representante não serão alteradas. Apenas a vinculação com a vendedora será removida.
