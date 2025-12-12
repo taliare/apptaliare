@@ -18,6 +18,7 @@ import { Edit, Search, Plus, Trash2, CheckSquare, ChevronRight } from 'lucide-re
 import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, formatDateBR, parseLocalDate } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cobrancaInsertSchema, cobrancaUpdateSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'] & {
@@ -108,9 +109,24 @@ export default function GerenciarAgenda() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      // Sanitize input data
+      const sanitizedData = {
+        ...data,
+        revendedora: data.revendedora ? sanitizeString(data.revendedora) : undefined,
+        codigo_nota: data.codigo_nota ? sanitizeString(data.codigo_nota) : null,
+        tipo: data.tipo ? sanitizeString(data.tipo) : null,
+        observacoes: data.observacoes ? sanitizeString(data.observacoes) : null,
+      };
+      
+      // Validate with schema
+      const validation = validateData(cobrancaUpdateSchema, sanitizedData);
+      if (!validation.success) {
+        throw new Error((validation as { success: false; errors: string[] }).errors.join(', '));
+      }
+      
       const { error } = await supabase
         .from('cobrancas_agendadas')
-        .update(data)
+        .update(sanitizedData)
         .eq('id', id);
       
       if (error) throw error;
@@ -121,8 +137,8 @@ export default function GerenciarAgenda() {
       setIsDialogOpen(false);
       setEditingCobranca(null);
     },
-    onError: () => {
-      toast({ title: 'Erro ao atualizar cobrança', variant: 'destructive' });
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao atualizar cobrança', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -148,19 +164,32 @@ export default function GerenciarAgenda() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof createFormData) => {
-      const valorNumerico = parseFloat(data.valor_previsto.replace(/\D/g, '')) / 100;
+      const valorNumerico = parseMonetaryValue(data.valor_previsto);
+      if (valorNumerico === null) {
+        throw new Error('Valor inválido');
+      }
+      
+      // Sanitize input data
+      const insertData = {
+        representante_id: data.representante_id,
+        revendedora: sanitizeString(data.revendedora),
+        codigo_nota: data.codigo_nota ? sanitizeString(data.codigo_nota) : null,
+        tipo: data.tipo ? sanitizeString(data.tipo) : null,
+        valor_previsto: valorNumerico,
+        data_agendada: data.data_agendada,
+        status: 'pendente' as const,
+        observacoes: data.observacoes ? sanitizeString(data.observacoes) : null,
+      };
+      
+      // Validate with schema
+      const validation = validateData(cobrancaInsertSchema, insertData);
+      if (!validation.success) {
+        throw new Error((validation as { success: false; errors: string[] }).errors.join(', '));
+      }
+      
       const { error } = await supabase
         .from('cobrancas_agendadas')
-        .insert({
-          representante_id: data.representante_id,
-          revendedora: data.revendedora,
-          codigo_nota: data.codigo_nota || null,
-          tipo: data.tipo || null,
-          valor_previsto: valorNumerico,
-          data_agendada: data.data_agendada,
-          status: 'pendente',
-          observacoes: data.observacoes || null,
-        });
+        .insert(insertData);
       
       if (error) throw error;
     },
@@ -178,8 +207,8 @@ export default function GerenciarAgenda() {
         observacoes: '',
       });
     },
-    onError: () => {
-      toast({ title: 'Erro ao cadastrar cobrança', variant: 'destructive' });
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao cadastrar cobrança', description: error.message, variant: 'destructive' });
     },
   });
 
