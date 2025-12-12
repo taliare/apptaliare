@@ -1,16 +1,24 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { DndContext, DragEndEvent, DragOverlay, useSensor, useSensors, PointerSensor, closestCenter } from '@dnd-kit/core';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { Package, Trash2, Search, Pencil } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  closestCenter,
+} from "@dnd-kit/core";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Package, Trash2, Search, Pencil } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,28 +28,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Função para ordenar kits por código numérico/alfanumérico
 function sortKitsByCodigo(kits: Kit[]): Kit[] {
   return [...kits].sort((a, b) => {
     const numA = parseFloat(a.codigo);
     const numB = parseFloat(b.codigo);
-    
+
     // Se ambos são numéricos, ordenar por valor
     if (!isNaN(numA) && !isNaN(numB)) {
       return numA - numB;
@@ -50,7 +46,7 @@ function sortKitsByCodigo(kits: Kit[]): Kit[] {
     if (!isNaN(numA)) return -1;
     if (!isNaN(numB)) return 1;
     // Se ambos são alfanuméricos, ordenar como string
-    return a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true });
+    return a.codigo.localeCompare(b.codigo, "pt-BR", { numeric: true });
   });
 }
 
@@ -68,19 +64,19 @@ interface Representante {
   nome: string;
 }
 
-function KitCard({ 
-  kit, 
-  onDelete, 
-  onEdit 
-}: { 
-  kit: Kit; 
+function KitCard({
+  kit,
+  onDelete,
+  onEdit,
+}: {
+  kit: Kit;
   onDelete?: (kitId: string) => void;
   onEdit?: (kit: Kit) => void;
 }) {
   const tipoColors: Record<string, string> = {
-    inicial: 'bg-blue-500',
-    especial: 'bg-purple-500',
-    maleta: 'bg-green-500',
+    inicial: "bg-blue-500",
+    especial: "bg-purple-500",
+    maleta: "bg-green-500",
   };
 
   return (
@@ -91,9 +87,7 @@ function KitCard({
           <span className="font-mono text-sm font-medium">{kit.codigo}</span>
         </div>
         <div className="flex items-center gap-1">
-          <Badge className={tipoColors[kit.tipo] || 'bg-gray-500'}>
-            {kit.tipo}
-          </Badge>
+          <Badge className={tipoColors[kit.tipo] || "bg-gray-500"}>{kit.tipo}</Badge>
           {onEdit && (
             <Button
               variant="ghost"
@@ -126,23 +120,23 @@ function KitCard({
   );
 }
 
-function DroppableColumn({ 
-  id, 
-  title, 
-  kits, 
+function DroppableColumn({
+  id,
+  title,
+  kits,
   onDragOver,
   onDeleteKit,
-  onEditKit
-}: { 
-  id: string; 
-  title: string; 
+  onEditKit,
+}: {
+  id: string;
+  title: string;
   kits: Kit[];
   onDragOver: (e: React.DragEvent) => void;
   onDeleteKit?: (kitId: string) => void;
   onEditKit?: (kit: Kit) => void;
 }) {
   return (
-    <Card 
+    <Card
       className="min-h-[400px] flex flex-col"
       onDragOver={onDragOver}
       onDrop={(e) => e.preventDefault()}
@@ -151,28 +145,26 @@ function DroppableColumn({
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center justify-between">
           <span className="truncate">{title}</span>
-          <Badge variant="secondary" className="ml-2">{kits.length}</Badge>
+          <Badge variant="secondary" className="ml-2">
+            {kits.length}
+          </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 flex-1 overflow-y-auto">
-        {kits.map(kit => (
-          <div 
+        {kits.map((kit) => (
+          <div
             key={kit.id}
             draggable
             onDragStart={(e) => {
-              e.dataTransfer.effectAllowed = 'move';
-              e.dataTransfer.setData('kitId', kit.id);
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("kitId", kit.id);
             }}
             className="cursor-move"
           >
             <KitCard kit={kit} onDelete={onDeleteKit} onEdit={onEditKit} />
           </div>
         ))}
-        {kits.length === 0 && (
-          <div className="text-center text-muted-foreground text-sm py-8">
-            Nenhum kit
-          </div>
-        )}
+        {kits.length === 0 && <div className="text-center text-muted-foreground text-sm py-8">Nenhum kit</div>}
       </CardContent>
     </Card>
   );
@@ -180,20 +172,20 @@ function DroppableColumn({
 
 // Função para formatar valor como moeda
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
   }).format(value);
 }
 
 // Função para parsear valor de moeda brasileira para número
 function parseCurrency(value: string): number {
   // Remove "R$", espaços e caracteres não numéricos (exceto , e .)
-  let cleaned = value.replace(/R\$\s?/g, '').trim();
+  let cleaned = value.replace(/R\$\s?/g, "").trim();
   // Remove separador de milhar (ponto) - ex: "1.000,00" -> "1000,00"
-  cleaned = cleaned.replace(/\./g, '');
+  cleaned = cleaned.replace(/\./g, "");
   // Troca vírgula decimal por ponto - ex: "1000,00" -> "1000.00"
-  cleaned = cleaned.replace(',', '.');
+  cleaned = cleaned.replace(",", ".");
   return parseFloat(cleaned) || 0;
 }
 
@@ -204,18 +196,18 @@ export default function DistribuicaoKits() {
   const [draggedKit, setDraggedKit] = useState<Kit | null>(null);
   const [kitToDelete, setKitToDelete] = useState<string | null>(null);
   const [kitToEdit, setKitToEdit] = useState<Kit | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Estado do formulário de edição
-  const [editCodigo, setEditCodigo] = useState('');
-  const [editValor, setEditValor] = useState('');
-  const [editTipo, setEditTipo] = useState('');
+  const [editCodigo, setEditCodigo] = useState("");
+  const [editValor, setEditValor] = useState("");
+  const [editTipo, setEditTipo] = useState("");
 
   // Verificar se o usuário tem permissão (admin ou producao)
   useEffect(() => {
     if (!authLoading && profile) {
-      if (profile.role !== 'admin' && profile.role !== 'producao') {
-        navigate('/dashboard');
+      if (profile.role !== "admin" && profile.role !== "producao") {
+        navigate("/dashboard");
       }
     }
   }, [profile, authLoading, navigate]);
@@ -224,58 +216,58 @@ export default function DistribuicaoKits() {
   useEffect(() => {
     if (kitToEdit) {
       setEditCodigo(kitToEdit.codigo);
-      setEditValor(kitToEdit.valor ? formatCurrency(kitToEdit.valor) : 'R$ 0,00');
+      setEditValor(kitToEdit.valor ? String(kitToEdit.valor) : "");
       setEditTipo(kitToEdit.tipo);
     }
   }, [kitToEdit]);
 
   const { data: kits = [], isLoading: isLoadingKits } = useQuery({
-    queryKey: ['kits-estoque'],
+    queryKey: ["kits-estoque"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('kits_estoque')
-        .select('*')
-        .in('status', ['estoque', 'com_representante']) // Excluir kits já entregues (com_revendedora)
-        .order('criado_em', { ascending: false });
+        .from("kits_estoque")
+        .select("*")
+        .in("status", ["estoque", "com_representante"]) // Excluir kits já entregues (com_revendedora)
+        .order("criado_em", { ascending: false });
       if (error) throw error;
       return data as Kit[];
     },
   });
 
   const { data: representantes = [], isLoading: isLoadingReps } = useQuery({
-    queryKey: ['representantes-ativos'],
+    queryKey: ["representantes-ativos"],
     queryFn: async () => {
       // Buscar user_roles com role='representante'
       const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'representante');
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "representante");
 
       if (rolesError) {
-        console.error('Erro ao buscar roles:', rolesError);
+        console.error("Erro ao buscar roles:", rolesError);
         throw rolesError;
       }
 
       if (!roles || roles.length === 0) {
-        console.log('Nenhuma role de representante encontrada');
+        console.log("Nenhuma role de representante encontrada");
         return [];
       }
 
-      const representanteIds = roles.map(r => r.user_id);
+      const representanteIds = roles.map((r) => r.user_id);
 
       // Buscar profiles dos representantes
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, nome')
-        .in('id', representanteIds)
-        .eq('ativo', true);
-      
+        .from("profiles")
+        .select("id, nome")
+        .in("id", representanteIds)
+        .eq("ativo", true);
+
       if (profilesError) {
-        console.error('Erro ao buscar profiles:', profilesError);
+        console.error("Erro ao buscar profiles:", profilesError);
         throw profilesError;
       }
 
-      console.log('Representantes encontrados:', profiles);
+      console.log("Representantes encontrados:", profiles);
       return (profiles || []) as Representante[];
     },
   });
@@ -283,34 +275,34 @@ export default function DistribuicaoKits() {
   // Mutation para editar kit
   const editMutation = useMutation({
     mutationFn: async ({ id, codigo, valor, tipo }: { id: string; codigo: string; valor: number; tipo: string }) => {
-      console.log('Atualizando kit:', { id, codigo, valor, tipo });
-      
+      console.log("Atualizando kit:", { id, codigo, valor, tipo });
+
       const { data, error } = await supabase
-        .from('kits_estoque')
+        .from("kits_estoque")
         .update({ codigo, valor, tipo })
-        .eq('id', id)
-        .eq('status', 'estoque')
+        .eq("id", id)
+        .eq("status", "estoque")
         .select();
 
       if (error) {
-        console.error('Erro no update:', error);
+        console.error("Erro no update:", error);
         throw error;
       }
-      
+
       if (!data || data.length === 0) {
-        throw new Error('Kit não encontrado ou não está no estoque');
+        throw new Error("Kit não encontrado ou não está no estoque");
       }
-      
-      console.log('Kit atualizado:', data);
+
+      console.log("Kit atualizado:", data);
       return data;
     },
     onSuccess: () => {
-      toast.success('Kit atualizado com sucesso!');
-      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
+      toast.success("Kit atualizado com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
       setKitToEdit(null);
     },
     onError: (error: any) => {
-      toast.error('Erro ao atualizar kit: ' + error.message);
+      toast.error("Erro ao atualizar kit: " + error.message);
     },
   });
 
@@ -319,43 +311,40 @@ export default function DistribuicaoKits() {
       activationConstraint: {
         distance: 8,
       },
-    })
+    }),
   );
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = "move";
   };
 
   const handleDrop = async (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
-    const kitId = e.dataTransfer.getData('kitId');
-    
+    const kitId = e.dataTransfer.getData("kitId");
+
     if (!kitId) return;
 
     try {
       const updates: Partial<Kit> = {};
-      
-      if (targetColumnId === 'estoque') {
-        updates.status = 'estoque';
+
+      if (targetColumnId === "estoque") {
+        updates.status = "estoque";
         updates.representante_id = null;
       } else {
-        updates.status = 'com_representante';
+        updates.status = "com_representante";
         updates.representante_id = targetColumnId;
       }
 
-      const { error } = await supabase
-        .from('kits_estoque')
-        .update(updates)
-        .eq('id', kitId);
+      const { error } = await supabase.from("kits_estoque").update(updates).eq("id", kitId);
 
       if (error) throw error;
 
-      toast.success('Kit movido com sucesso!');
-      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
-      queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
+      toast.success("Kit movido com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
+      queryClient.invalidateQueries({ queryKey: ["kits-estoque-rep"] });
     } catch (error: any) {
-      toast.error('Erro ao mover kit: ' + error.message);
+      toast.error("Erro ao mover kit: " + error.message);
     }
   };
 
@@ -363,18 +352,15 @@ export default function DistribuicaoKits() {
     if (!kitToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('kits_estoque')
-        .delete()
-        .eq('id', kitToDelete);
+      const { error } = await supabase.from("kits_estoque").delete().eq("id", kitToDelete);
 
       if (error) throw error;
 
-      toast.success('Kit excluído com sucesso!');
-      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
-      queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
+      toast.success("Kit excluído com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
+      queryClient.invalidateQueries({ queryKey: ["kits-estoque-rep"] });
     } catch (error: any) {
-      toast.error('Erro ao excluir kit: ' + error.message);
+      toast.error("Erro ao excluir kit: " + error.message);
     } finally {
       setKitToDelete(null);
     }
@@ -382,15 +368,15 @@ export default function DistribuicaoKits() {
 
   const handleSaveEdit = () => {
     if (!kitToEdit) return;
-    
+
     const codigo = editCodigo.trim();
     if (!codigo) {
-      toast.error('O código do kit é obrigatório');
+      toast.error("O código do kit é obrigatório");
       return;
     }
 
     const valor = parseCurrency(editValor);
-    
+
     editMutation.mutate({
       id: kitToEdit.id,
       codigo,
@@ -403,20 +389,18 @@ export default function DistribuicaoKits() {
   const filteredKits = useMemo(() => {
     if (!searchQuery.trim()) return kits;
     const query = searchQuery.toLowerCase().trim();
-    return kits.filter(k => k.codigo.toLowerCase().includes(query));
+    return kits.filter((k) => k.codigo.toLowerCase().includes(query));
   }, [kits, searchQuery]);
 
   // Kits do estoque, filtrados e ordenados
   const estoqueKits = useMemo(() => {
-    const filtered = filteredKits.filter(k => k.status === 'estoque');
+    const filtered = filteredKits.filter((k) => k.status === "estoque");
     return sortKitsByCodigo(filtered);
   }, [filteredKits]);
 
   // Função para obter kits de um representante, filtrados e ordenados
   const getRepKits = (repId: string) => {
-    const filtered = filteredKits.filter(k => 
-      k.representante_id === repId && k.status === 'com_representante'
-    );
+    const filtered = filteredKits.filter((k) => k.representante_id === repId && k.status === "com_representante");
     return sortKitsByCodigo(filtered);
   };
 
@@ -449,7 +433,7 @@ export default function DistribuicaoKits() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Coluna Estoque - com opções de excluir e editar */}
-          <div onDrop={(e) => handleDrop(e, 'estoque')}>
+          <div onDrop={(e) => handleDrop(e, "estoque")}>
             <DroppableColumn
               id="estoque"
               title="Estoque"
@@ -461,14 +445,9 @@ export default function DistribuicaoKits() {
           </div>
 
           {/* Colunas dos Representantes - sem opções de excluir/editar */}
-          {representantes.map(rep => (
+          {representantes.map((rep) => (
             <div key={rep.id} onDrop={(e) => handleDrop(e, rep.id)}>
-              <DroppableColumn
-                id={rep.id}
-                title={rep.nome}
-                kits={getRepKits(rep.id)}
-                onDragOver={handleDragOver}
-              />
+              <DroppableColumn id={rep.id} title={rep.nome} kits={getRepKits(rep.id)} onDragOver={handleDragOver} />
             </div>
           ))}
         </div>
@@ -485,7 +464,10 @@ export default function DistribuicaoKits() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteKit} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDeleteKit}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -508,7 +490,7 @@ export default function DistribuicaoKits() {
                 placeholder="Ex: 001"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="edit-valor">Valor do Kit</Label>
               <Input
@@ -517,14 +499,14 @@ export default function DistribuicaoKits() {
                 onChange={(e) => {
                   const value = e.target.value;
                   // Permite apenas números, vírgula e ponto
-                  const numericValue = value.replace(/[^\d,.-]/g, '');
+                  const numericValue = value.replace(/[^\d,.-]/g, "");
                   const parsed = parseCurrency(numericValue);
                   setEditValor(formatCurrency(parsed));
                 }}
                 placeholder="R$ 0,00"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="edit-tipo">Tipo do Kit</Label>
               <Select value={editTipo} onValueChange={setEditTipo}>
@@ -544,7 +526,7 @@ export default function DistribuicaoKits() {
               Cancelar
             </Button>
             <Button onClick={handleSaveEdit} disabled={editMutation.isPending}>
-              {editMutation.isPending ? 'Salvando...' : 'Salvar'}
+              {editMutation.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
