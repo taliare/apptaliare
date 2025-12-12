@@ -1018,15 +1018,27 @@ export default function CobrancaDiaria() {
                     </div>
 
                     {vincularVendedora && (
-                      <div>
-                        <Label>Nome da Vendedora</Label>
-                        <Input
-                          value={vendedoraKit}
-                          onChange={(e) => setVendedoraKit(e.target.value)}
-                          placeholder="Ex: Ana Costa"
-                        />
-                      </div>
-                    )}
+  <div className="space-y-2">
+    <Label>Vendedora / Recrutadora</Label>
+
+    <Select
+      value={vendedoraId}
+      onValueChange={setVendedoraId}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Selecione a vendedora" />
+      </SelectTrigger>
+
+      <SelectContent>
+        {vendedoras.map((vendedora) => (
+          <SelectItem key={vendedora.id} value={vendedora.id}>
+            {vendedora.nome}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  </div>
+)}
 
                     <div>
                       <Label>Data de Vencimento</Label>
