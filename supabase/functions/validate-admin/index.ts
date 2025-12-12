@@ -1,9 +1,21 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const allowedOrigins = [
+  Deno.env.get('APP_URL') || '',
+  'https://lovable.dev',
+].filter(Boolean);
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') || '';
+  const isAllowed = allowedOrigins.some(allowed => origin === allowed) || 
+                    origin.endsWith('.lovable.dev') || 
+                    origin.endsWith('.lovableproject.com');
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : (allowedOrigins[0] || ''),
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
 
 // Simple in-memory rate limiter
 const rateLimitMap = new Map<string, { attempts: number; lastAttempt: number }>();
@@ -59,6 +71,8 @@ function recordAttempt(identifier: string, success: boolean): void {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -135,6 +149,7 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error("Error in validate-admin:", error);
+    const corsHeaders = getCorsHeaders(req);
     return new Response(
       JSON.stringify({ error: "Erro interno do servidor" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
