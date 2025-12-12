@@ -186,9 +186,14 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-// Função para parsear valor de moeda para número
+// Função para parsear valor de moeda brasileira para número
 function parseCurrency(value: string): number {
-  const cleaned = value.replace(/[^\d,.-]/g, '').replace(',', '.');
+  // Remove "R$", espaços e caracteres não numéricos (exceto , e .)
+  let cleaned = value.replace(/R\$\s?/g, '').trim();
+  // Remove separador de milhar (ponto) - ex: "1.000,00" -> "1000,00"
+  cleaned = cleaned.replace(/\./g, '');
+  // Troca vírgula decimal por ponto - ex: "1000,00" -> "1000.00"
+  cleaned = cleaned.replace(',', '.');
   return parseFloat(cleaned) || 0;
 }
 
