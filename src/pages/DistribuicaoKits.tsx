@@ -216,7 +216,8 @@ export default function DistribuicaoKits() {
   useEffect(() => {
     if (kitToEdit) {
       setEditCodigo(kitToEdit.codigo);
-      setEditValor(kitToEdit.valor ? String(kitToEdit.valor) : "");
+      // Converte valor numérico para formato BR (ex: 1000.5 -> "1000,5")
+      setEditValor(kitToEdit.valor != null ? String(kitToEdit.valor).replace('.', ',') : "");
       setEditTipo(kitToEdit.tipo);
     }
   }, [kitToEdit]);
@@ -375,12 +376,15 @@ export default function DistribuicaoKits() {
       return;
     }
 
-    const valor = parseCurrency(editValor);
+    // Converte valor BR para número: "1.000,50" -> 1000.50
+    const valorNum = parseFloat(
+      editValor.replace(/\./g, "").replace(",", ".")
+    ) || 0;
 
     editMutation.mutate({
       id: kitToEdit.id,
       codigo,
-      valor,
+      valor: valorNum,
       tipo: editTipo,
     });
   };
@@ -496,14 +500,9 @@ export default function DistribuicaoKits() {
               <Input
                 id="edit-valor"
                 value={editValor}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  // Permite apenas números, vírgula e ponto
-                  const numericValue = value.replace(/[^\d,.-]/g, "");
-                  const parsed = parseCurrency(numericValue);
-                  setEditValor(formatCurrency(parsed));
-                }}
-                placeholder="R$ 0,00"
+                onChange={(e) => setEditValor(e.target.value)}
+                inputMode="decimal"
+                placeholder="Ex: 120,00"
               />
             </div>
 
