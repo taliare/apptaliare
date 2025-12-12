@@ -104,6 +104,7 @@ export function AppSidebar() {
     { title: "Gerenciar Agenda", url: "/gerenciar-agenda", icon: Calendar, badge: 0 },
     { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package, badge: 0 },
     { title: "Venda Externa", url: "/venda-externa", icon: Users, badge: 0 },
+    { title: "Vendedoras", url: "/vendedoras", icon: Users, badge: 0 },
     { title: "Jurídico", url: "/juridico", icon: Scale, badge: 0 },
     { title: "Importar Cobranças", url: "/importar-cobrancas", icon: Upload, badge: 0 },
     { title: "Relatórios", url: "/relatorios", icon: FileText, badge: 0 },

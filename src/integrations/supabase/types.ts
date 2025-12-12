@@ -29,6 +29,7 @@ export type Database = {
           valor_adiantado: number | null
           valor_previsto: number
           vendedora: string | null
+          vendedora_id: string | null
         }
         Insert: {
           codigo_nota?: string | null
@@ -44,6 +45,7 @@ export type Database = {
           valor_adiantado?: number | null
           valor_previsto: number
           vendedora?: string | null
+          vendedora_id?: string | null
         }
         Update: {
           codigo_nota?: string | null
@@ -59,6 +61,7 @@ export type Database = {
           valor_adiantado?: number | null
           valor_previsto?: number
           vendedora?: string | null
+          vendedora_id?: string | null
         }
         Relationships: [
           {
@@ -66,6 +69,13 @@ export type Database = {
             columns: ["representante_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobrancas_agendadas_vendedora_id_fkey"
+            columns: ["vendedora_id"]
+            isOneToOne: false
+            referencedRelation: "vendedoras"
             referencedColumns: ["id"]
           },
         ]
@@ -539,6 +549,27 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vendedoras: {
+        Row: {
+          ativo: boolean
+          criado_em: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          criado_em?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          criado_em?: string
+          id?: string
+          nome?: string
         }
         Relationships: []
       }
