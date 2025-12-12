@@ -12,6 +12,17 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatarValor, formatarNumero } from '@/lib/utils';
 
+// Sanitize HTML to prevent XSS attacks
+function escapeHtml(unsafe: string | null | undefined): string {
+  if (unsafe == null) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 interface Profile {
   id: string;
   nome: string;
@@ -136,7 +147,7 @@ export default function Relatorios() {
         <div class="header">
           <h1>TALIARE SEMIJOIAS</h1>
           <h2>Relatório Financeiro - ${format(new Date(mesAno + '-01'), "MMMM 'de' yyyy", { locale: ptBR })}</h2>
-          ${representanteId !== 'todos' ? `<p><strong>Representante:</strong> ${representantes.find(r => r.id === representanteId)?.nome}</p>` : ''}
+          ${representanteId !== 'todos' ? `<p><strong>Representante:</strong> ${escapeHtml(representantes.find(r => r.id === representanteId)?.nome)}</p>` : ''}
         </div>
 
         <div class="summary">
@@ -196,7 +207,7 @@ export default function Relatorios() {
           <tbody>
             ${notas.map(n => `
               <tr>
-                <td>${n.codigo_nota}</td>
+                <td>${escapeHtml(n.codigo_nota)}</td>
                 <td>${format(new Date(n.data + 'T00:00:00'), 'dd/MM/yyyy')}</td>
                 <td>${formatarValor(n.valor_total)}</td>
               </tr>
