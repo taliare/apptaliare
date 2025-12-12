@@ -5,10 +5,36 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Package, Trash2, Search } from 'lucide-react';
+import { Package, Trash2, Search, Pencil } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Função para ordenar kits por código numérico/alfanumérico
 function sortKitsByCodigo(kits: Kit[]): Kit[] {
@@ -27,17 +53,6 @@ function sortKitsByCodigo(kits: Kit[]): Kit[] {
     return a.codigo.localeCompare(b.codigo, 'pt-BR', { numeric: true });
   });
 }
-import { useAuth } from '@/contexts/AuthContext';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 interface Kit {
   id: string;
@@ -45,6 +60,7 @@ interface Kit {
   codigo: string;
   status: string;
   representante_id: string | null;
+  valor: number | null;
 }
 
 interface Representante {
@@ -52,7 +68,15 @@ interface Representante {
   nome: string;
 }
 
-function KitCard({ kit, onDelete }: { kit: Kit; onDelete?: (kitId: string) => void }) {
+function KitCard({ 
+  kit, 
+  onDelete, 
+  onEdit 
+}: { 
+  kit: Kit; 
+  onDelete?: (kitId: string) => void;
+  onEdit?: (kit: Kit) => void;
+}) {
   const tipoColors: Record<string, string> = {
     inicial: 'bg-blue-500',
     especial: 'bg-purple-500',
@@ -66,10 +90,23 @@ function KitCard({ kit, onDelete }: { kit: Kit; onDelete?: (kitId: string) => vo
           <Package className="h-4 w-4 text-muted-foreground" />
           <span className="font-mono text-sm font-medium">{kit.codigo}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Badge className={tipoColors[kit.tipo] || 'bg-gray-500'}>
             {kit.tipo}
           </Badge>
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(kit);
+              }}
+            >
+              <Pencil className="h-3 w-3 text-muted-foreground" />
+            </Button>
+          )}
           {onDelete && (
             <Button
               variant="ghost"
@@ -94,13 +131,15 @@ function DroppableColumn({
   title, 
   kits, 
   onDragOver,
-  onDeleteKit
+  onDeleteKit,
+  onEditKit
 }: { 
   id: string; 
   title: string; 
   kits: Kit[];
   onDragOver: (e: React.DragEvent) => void;
   onDeleteKit?: (kitId: string) => void;
+  onEditKit?: (kit: Kit) => void;
 }) {
   return (
     <Card 
@@ -126,7 +165,7 @@ function DroppableColumn({
             }}
             className="cursor-move"
           >
-            <KitCard kit={kit} onDelete={onDeleteKit} />
+            <KitCard kit={kit} onDelete={onDeleteKit} onEdit={onEditKit} />
           </div>
         ))}
         {kits.length === 0 && (
@@ -139,13 +178,33 @@ function DroppableColumn({
   );
 }
 
+// Função para formatar valor como moeda
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value);
+}
+
+// Função para parsear valor de moeda para número
+function parseCurrency(value: string): number {
+  const cleaned = value.replace(/[^\d,.-]/g, '').replace(',', '.');
+  return parseFloat(cleaned) || 0;
+}
+
 export default function DistribuicaoKits() {
   const { profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [draggedKit, setDraggedKit] = useState<Kit | null>(null);
   const [kitToDelete, setKitToDelete] = useState<string | null>(null);
+  const [kitToEdit, setKitToEdit] = useState<Kit | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Estado do formulário de edição
+  const [editCodigo, setEditCodigo] = useState('');
+  const [editValor, setEditValor] = useState('');
+  const [editTipo, setEditTipo] = useState('');
 
   // Verificar se o usuário tem permissão (admin ou producao)
   useEffect(() => {
@@ -155,6 +214,15 @@ export default function DistribuicaoKits() {
       }
     }
   }, [profile, authLoading, navigate]);
+
+  // Quando abrir o modal de edição, preencher os campos
+  useEffect(() => {
+    if (kitToEdit) {
+      setEditCodigo(kitToEdit.codigo);
+      setEditValor(kitToEdit.valor ? formatCurrency(kitToEdit.valor) : 'R$ 0,00');
+      setEditTipo(kitToEdit.tipo);
+    }
+  }, [kitToEdit]);
 
   const { data: kits = [], isLoading: isLoadingKits } = useQuery({
     queryKey: ['kits-estoque'],
@@ -204,6 +272,27 @@ export default function DistribuicaoKits() {
 
       console.log('Representantes encontrados:', profiles);
       return (profiles || []) as Representante[];
+    },
+  });
+
+  // Mutation para editar kit
+  const editMutation = useMutation({
+    mutationFn: async ({ id, codigo, valor, tipo }: { id: string; codigo: string; valor: number; tipo: string }) => {
+      const { error } = await supabase
+        .from('kits_estoque')
+        .update({ codigo, valor, tipo })
+        .eq('id', id)
+        .eq('status', 'estoque'); // Só permite editar kits em estoque
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Kit atualizado com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
+      setKitToEdit(null);
+    },
+    onError: (error: any) => {
+      toast.error('Erro ao atualizar kit: ' + error.message);
     },
   });
 
@@ -273,6 +362,25 @@ export default function DistribuicaoKits() {
     }
   };
 
+  const handleSaveEdit = () => {
+    if (!kitToEdit) return;
+    
+    const codigo = editCodigo.trim();
+    if (!codigo) {
+      toast.error('O código do kit é obrigatório');
+      return;
+    }
+
+    const valor = parseCurrency(editValor);
+    
+    editMutation.mutate({
+      id: kitToEdit.id,
+      codigo,
+      valor,
+      tipo: editTipo,
+    });
+  };
+
   // Filtrar kits pela busca
   const filteredKits = useMemo(() => {
     if (!searchQuery.trim()) return kits;
@@ -322,7 +430,7 @@ export default function DistribuicaoKits() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Coluna Estoque */}
+          {/* Coluna Estoque - com opções de excluir e editar */}
           <div onDrop={(e) => handleDrop(e, 'estoque')}>
             <DroppableColumn
               id="estoque"
@@ -330,10 +438,11 @@ export default function DistribuicaoKits() {
               kits={estoqueKits}
               onDragOver={handleDragOver}
               onDeleteKit={setKitToDelete}
+              onEditKit={setKitToEdit}
             />
           </div>
 
-          {/* Colunas dos Representantes */}
+          {/* Colunas dos Representantes - sem opções de excluir/editar */}
           {representantes.map(rep => (
             <div key={rep.id} onDrop={(e) => handleDrop(e, rep.id)}>
               <DroppableColumn
@@ -347,6 +456,7 @@ export default function DistribuicaoKits() {
         </div>
       </div>
 
+      {/* Dialog de confirmação de exclusão */}
       <AlertDialog open={!!kitToDelete} onOpenChange={(open) => !open && setKitToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -363,6 +473,64 @@ export default function DistribuicaoKits() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de edição do kit */}
+      <Dialog open={!!kitToEdit} onOpenChange={(open) => !open && setKitToEdit(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Alterar Kit</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-codigo">Código do Kit</Label>
+              <Input
+                id="edit-codigo"
+                value={editCodigo}
+                onChange={(e) => setEditCodigo(e.target.value)}
+                placeholder="Ex: 001"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-valor">Valor do Kit</Label>
+              <Input
+                id="edit-valor"
+                value={editValor}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  // Permite apenas números, vírgula e ponto
+                  const numericValue = value.replace(/[^\d,.-]/g, '');
+                  const parsed = parseCurrency(numericValue);
+                  setEditValor(formatCurrency(parsed));
+                }}
+                placeholder="R$ 0,00"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-tipo">Tipo do Kit</Label>
+              <Select value={editTipo} onValueChange={setEditTipo}>
+                <SelectTrigger id="edit-tipo">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inicial">Inicial</SelectItem>
+                  <SelectItem value="especial">Especial</SelectItem>
+                  <SelectItem value="maleta">Maleta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setKitToEdit(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={editMutation.isPending}>
+              {editMutation.isPending ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
