@@ -87,6 +87,7 @@ export function AppSidebar() {
     { title: "Kits em Mãos", url: "/kits", icon: Package, badge: 0 },
     { title: "Kits Entregues", url: "/kits-entregues", icon: PackageCheck, badge: 0 },
     { title: "Pedidos de Kit", url: "/encomendas", icon: ShoppingBag, badge: encomendasProntas },
+    { title: "Revendedoras Inativas", url: "/revendedoras-inativas", icon: Users, badge: 0 },
   ];
 
   const producaoItems = [
@@ -102,6 +103,7 @@ export function AppSidebar() {
     { title: "Metas", url: "/metas", icon: Target, badge: 0 },
     { title: "Gerenciar Agenda", url: "/gerenciar-agenda", icon: Calendar, badge: 0 },
     { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package, badge: 0 },
+    { title: "Venda Externa", url: "/venda-externa", icon: Users, badge: 0 },
     { title: "Jurídico", url: "/juridico", icon: Scale, badge: 0 },
     { title: "Importar Cobranças", url: "/importar-cobrancas", icon: Upload, badge: 0 },
     { title: "Relatórios", url: "/relatorios", icon: FileText, badge: 0 },

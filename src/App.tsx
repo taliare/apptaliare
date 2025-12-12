@@ -29,6 +29,8 @@ import DistribuicaoKits from "./pages/DistribuicaoKits";
 import EncomendaRepresentante from "./pages/EncomendaRepresentante";
 import EncomendaProducao from "./pages/EncomendaProducao";
 import Juridico from "./pages/Juridico";
+import VendaExterna from "./pages/VendaExterna";
+import RevendedorasInativas from "./pages/RevendedorasInativas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +74,7 @@ const App = () => {
                           <Route path="/kits" element={<Kits />} />
                           <Route path="/kits-entregues" element={<KitsEntregues />} />
                           <Route path="/encomendas" element={<EncomendaRepresentante />} />
+                          <Route path="/revendedoras-inativas" element={<RevendedorasInativas />} />
                           
                           {/* Producao routes */}
                           <Route path="/producao" element={
@@ -127,6 +130,11 @@ const App = () => {
                           <Route path="/juridico" element={
                             <ProtectedRoute requiredRole="admin">
                               <Juridico />
+                            </ProtectedRoute>
+                          } />
+                          <Route path="/venda-externa" element={
+                            <ProtectedRoute requiredRole="admin">
+                              <VendaExterna />
                             </ProtectedRoute>
                           } />
                           

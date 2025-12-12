@@ -1270,65 +1270,68 @@ export default function CobrancaDiaria() {
         </DialogContent>
       </Dialog>
 
-      {/* Histórico de Fechamentos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico de Fechamentos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {historico.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhum fechamento registrado ainda
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead className="text-right">Total Cobrado</TableHead>
-                    <TableHead className="text-right">Despesas</TableHead>
-                    <TableHead className="text-right">Qtd Notas</TableHead>
-                    <TableHead className="text-right">Saldo do Dia</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {historico.map((cobranca) => {
-                    const qtdNotas = notasPorDia[cobranca.data] || 0;
-                    const saldo = cobranca.total_cobrado - (cobranca.despesa_cobranca || 0);
-                    
-                    return (
-                      <TableRow 
-                        key={cobranca.id}
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => handleOpenHistoricoDialog(cobranca.data)}
-                      >
-                        <TableCell className="font-medium">
-                          {format(new Date(cobranca.data + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatarValor(cobranca.total_cobrado)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatarValor(cobranca.despesa_cobranca || 0)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant="secondary" className="font-semibold">
-                            {formatarNumero(qtdNotas)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-foreground">
-                          {formatarValor(saldo)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Histórico de Fechamentos - Colapsável */}
+      {historico.length > 0 && (
+        <details className="group">
+          <summary className="cursor-pointer list-none">
+            <Card className="group-open:rounded-b-none">
+              <CardHeader className="flex flex-row items-center justify-between py-4">
+                <CardTitle className="text-base font-medium">Ver histórico de fechamentos anteriores</CardTitle>
+                <Badge variant="secondary">{historico.length} registros</Badge>
+              </CardHeader>
+            </Card>
+          </summary>
+          <Card className="rounded-t-none border-t-0">
+            <CardContent className="pt-4">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="text-right">Total Cobrado</TableHead>
+                      <TableHead className="text-right">Despesas</TableHead>
+                      <TableHead className="text-right">Qtd Notas</TableHead>
+                      <TableHead className="text-right">Saldo do Dia</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historico.map((cobranca) => {
+                      const qtdNotas = notasPorDia[cobranca.data] || 0;
+                      const saldo = cobranca.total_cobrado - (cobranca.despesa_cobranca || 0);
+                      
+                      return (
+                        <TableRow 
+                          key={cobranca.id}
+                          className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => handleOpenHistoricoDialog(cobranca.data)}
+                        >
+                          <TableCell className="font-medium">
+                            {format(new Date(cobranca.data + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatarValor(cobranca.total_cobrado)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {formatarValor(cobranca.despesa_cobranca || 0)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant="secondary" className="font-semibold">
+                              {formatarNumero(qtdNotas)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-foreground">
+                            {formatarValor(saldo)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </details>
+      )}
 
       {/* Dialog de Detalhes do Histórico */}
       <Dialog open={historicoDialogOpen} onOpenChange={setHistoricoDialogOpen}>

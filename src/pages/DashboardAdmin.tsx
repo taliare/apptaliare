@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
-import { DollarSign, TrendingUp, Package, FileText, Users, TrendingDown, Factory } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { DollarSign, TrendingUp, Package, FileText, Users, TrendingDown, Factory, Warehouse } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -28,9 +30,18 @@ interface MetaData {
   meta_valor: number;
 }
 
+interface CobrancaHojeRepresentante {
+  representante_id: string;
+  nome: string;
+  total_cobrado: number;
+  despesa: number;
+}
+
 export default function DashboardAdmin() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [estoqueDialogOpen, setEstoqueDialogOpen] = useState(false);
+  const [cobrancaHojeDialogOpen, setCobrancaHojeDialogOpen] = useState(false);
   
   // Meta sempre do mês atual, não do período filtrado
   const mesAtual = format(new Date(), 'yyyy-MM');
@@ -94,13 +105,13 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para cobranças de hoje
+  // Query para cobranças de hoje (com detalhamento por representante)
   const { data: cobrancasHoje = [] } = useQuery({
     queryKey: ['cobrancas-hoje-admin', hoje],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_diarias')
-        .select('total_cobrado')
+        .select('representante_id, total_cobrado, despesa_cobranca')
         .eq('data', hoje);
       
       if (error) throw error;
@@ -176,7 +187,7 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para produção diária (HOJE)
+  // Query para produção de HOJE (corrigido - usando a tabela producao_diaria)
   const { data: producaoHoje = [] } = useQuery({
     queryKey: ['producao-hoje-admin', hoje],
     queryFn: async () => {
@@ -190,15 +201,14 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para produção do período
-  const { data: producaoPeriodo = [] } = useQuery({
-    queryKey: ['producao-periodo-admin', startDate, endDate],
+  // Query para kits em estoque (status = 'estoque')
+  const { data: kitsEstoque = [] } = useQuery({
+    queryKey: ['kits-estoque-admin'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('producao_diaria')
+        .from('kits_estoque')
         .select('tipo')
-        .gte('data', startDate)
-        .lte('data', endDate);
+        .eq('status', 'estoque');
       
       if (error) throw error;
       return data;
@@ -212,14 +222,27 @@ export default function DashboardAdmin() {
   const totalKits = kitsData?.length || 0;
   const totalNotas = notasData?.length || 0;
 
-  // Cálculos da produção
+  // Cálculos da produção de hoje
   const totalProducaoHoje = producaoHoje.length;
-  const totalProducaoPeriodo = producaoPeriodo.length;
-  const producaoPorTipo = producaoPeriodo.reduce((acc: Record<string, number>, curr) => {
+
+  // Cálculos do estoque
+  const totalEstoque = kitsEstoque.length;
+  const estoquePorTipo = kitsEstoque.reduce((acc: Record<string, number>, curr) => {
     const tipo = curr.tipo?.toLowerCase() || 'outro';
     acc[tipo] = (acc[tipo] || 0) + 1;
     return acc;
   }, {});
+
+  // Detalhamento de cobranças de hoje por representante
+  const cobrancasHojeDetalhadas: CobrancaHojeRepresentante[] = cobrancasHoje.map(c => {
+    const rep = representantes.find(r => r.id === c.representante_id);
+    return {
+      representante_id: c.representante_id,
+      nome: rep?.nome || 'Desconhecido',
+      total_cobrado: c.total_cobrado || 0,
+      despesa: c.despesa_cobranca || 0,
+    };
+  }).sort((a, b) => b.total_cobrado - a.total_cobrado);
 
   // Combina dados dos representantes com suas cobranças e metas
   const representantesComDados = representantes.map(rep => {
@@ -257,19 +280,24 @@ export default function DashboardAdmin() {
       />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card>
+        {/* Card Total Hoje - Clicável */}
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setCobrancaHojeDialogOpen(true)}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Hoje</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatarValor(totalHoje)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Clique para ver detalhes</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Mês</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Período</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -300,7 +328,7 @@ export default function DashboardAdmin() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatarNumero(totalKits)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Entregues no mês</p>
+            <p className="text-xs text-muted-foreground mt-1">Entregues no período</p>
           </CardContent>
         </Card>
 
@@ -311,12 +339,12 @@ export default function DashboardAdmin() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatarNumero(totalNotas)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Registradas no mês</p>
+            <p className="text-xs text-muted-foreground mt-1">Registradas no período</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Seção Produção Taliare */}
+      {/* Seção Produção Taliare - Simplificada */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -325,7 +353,7 @@ export default function DashboardAdmin() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2">
             <Card className="bg-muted/50">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Produzidos Hoje</CardTitle>
@@ -336,43 +364,18 @@ export default function DashboardAdmin() {
               </CardContent>
             </Card>
 
-            <Card className="bg-muted/50">
+            {/* Card Kits em Estoque - Clicável */}
+            <Card 
+              className="bg-muted/50 cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => setEstoqueDialogOpen(true)}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Produzidos no Período</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Kits em Estoque</CardTitle>
+                <Warehouse className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatarNumero(totalProducaoPeriodo)}</div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-muted/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Iniciais</CardTitle>
-                <Package className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatarNumero(producaoPorTipo['inicial'] || 0)}</div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-muted/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Especiais</CardTitle>
-                <Package className="h-4 w-4 text-purple-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatarNumero(producaoPorTipo['especial'] || 0)}</div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-muted/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Maletas</CardTitle>
-                <Package className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatarNumero(producaoPorTipo['maleta'] || 0)}</div>
+                <div className="text-2xl font-bold">{formatarNumero(totalEstoque)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Clique para ver detalhes</p>
               </CardContent>
             </Card>
           </div>
@@ -442,6 +445,107 @@ export default function DashboardAdmin() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de Estoque */}
+      <Dialog open={estoqueDialogOpen} onOpenChange={setEstoqueDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Warehouse className="h-5 w-5" />
+              Detalhes do Estoque
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">Kits Iniciais</p>
+                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  {formatarNumero(estoquePorTipo['inicial'] || 0)}
+                </p>
+              </div>
+              <div className="bg-purple-50 dark:bg-purple-950 p-4 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">Kits Especiais</p>
+                <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                  {formatarNumero(estoquePorTipo['especial'] || 0)}
+                </p>
+              </div>
+            </div>
+            <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg text-center">
+              <p className="text-sm text-muted-foreground">Maletas</p>
+              <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                {formatarNumero(estoquePorTipo['maleta'] || 0)}
+              </p>
+            </div>
+            <div className="border-t pt-4">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Total Geral</span>
+                <span className="text-2xl font-bold">{formatarNumero(totalEstoque)}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEstoqueDialogOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Cobranças de Hoje */}
+      <Dialog open={cobrancaHojeDialogOpen} onOpenChange={setCobrancaHojeDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Cobranças de Hoje por Representante
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {cobrancasHojeDetalhadas.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhuma cobrança registrada hoje
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {cobrancasHojeDetalhadas.map((item) => (
+                  <div 
+                    key={item.representante_id} 
+                    className="flex justify-between items-center p-3 bg-muted/50 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium">{item.nome}</p>
+                      {item.despesa > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Despesa: {formatarValor(item.despesa)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-primary">{formatarValor(item.total_cobrado)}</p>
+                      {item.despesa > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Líquido: {formatarValor(item.total_cobrado - item.despesa)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="border-t pt-4">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Total do Dia</span>
+                <span className="text-2xl font-bold text-primary">{formatarValor(totalHoje)}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCobrancaHojeDialogOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
