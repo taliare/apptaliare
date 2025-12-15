@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { PWAUpdateNotification } from "@/components/PWAUpdateNotification";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileTopbar } from "@/components/MobileTopbar";
 import { MobileDrawer } from "@/components/MobileDrawer";
@@ -44,6 +45,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <PWAUpdateNotification />
         <BrowserRouter>
           <AuthProvider>
             <Routes>
