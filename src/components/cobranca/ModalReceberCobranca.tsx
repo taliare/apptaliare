@@ -419,7 +419,7 @@ export function ModalReceberCobranca({
           {/* Data da Cobrança */}
           <div className="space-y-2">
             <Label>Data da Cobrança</Label>
-            <Popover>
+            <Popover modal={false}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -432,7 +432,7 @@ export function ModalReceberCobranca({
                   {format(dataNota, "PPP", { locale: ptBR })}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-[100]" align="start">
                 <Calendar
                   mode="single"
                   selected={dataNota}
@@ -572,7 +572,7 @@ export function ModalReceberCobranca({
                       
                       <div className="space-y-1">
                         <Label className="text-sm">Data da próxima cobrança</Label>
-                        <Popover>
+                        <Popover modal={false}>
                           <PopoverTrigger asChild>
                             <Button
                               variant="outline"
