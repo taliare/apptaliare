@@ -30,6 +30,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import taliare_horizontal from "@/assets/taliare-horizontal-escuro.png";
 import taliare_icone from "@/assets/taliare-icone-escuro.png";
 
@@ -166,10 +167,16 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Botão de sair no rodapé */}
+        {/* Push notifications e botão de sair no rodapé */}
         <SidebarGroup className="mt-auto border-t border-sidebar-border pt-2">
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between px-2'}`}>
+                  {!collapsed && <span className="text-sm text-muted-foreground">Notificações</span>}
+                  <PushNotificationToggle />
+                </div>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={signOut}
