@@ -298,9 +298,13 @@ export default function DistribuicaoKits() {
       return data;
     },
     onSuccess: () => {
-      toast.success("Kit atualizado com sucesso!");
-      queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
+      // Close modal first, then invalidate queries to avoid DOM reconciliation issues
       setKitToEdit(null);
+      // Use setTimeout to ensure modal is fully closed before re-rendering the list
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
+        toast.success("Kit atualizado com sucesso!");
+      }, 100);
     },
     onError: (error: any) => {
       toast.error("Erro ao atualizar kit: " + error.message);
