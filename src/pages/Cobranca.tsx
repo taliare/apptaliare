@@ -392,7 +392,7 @@ export default function Cobranca() {
 
         if (updateError) throw updateError;
       } else {
-        // Para KIT: criar prestação de contas e repasse (comportamento original)
+        // Para KIT: criar prestação de contas e nova cobrança do tipo repasse
         const { error: prestacaoError } = await supabase
           .from('prestacoes_contas')
           .insert({
@@ -412,25 +412,27 @@ export default function Cobranca() {
 
         if (prestacaoError) throw prestacaoError;
 
-        // Criar repasse
-        const { error: repasseError } = await supabase
-          .from('repasses')
+        // Criar nova cobrança do tipo REPASSE com o valor restante
+        const { error: novaCobrancaError } = await supabase
+          .from('cobrancas_agendadas')
           .insert({
-            cobranca_id: cobrancaId,
-            valor_repasse: dados.valor_repasse,
-            data_repasse: format(dados.data_repasse, 'yyyy-MM-dd'),
-            status: 'agendado'
+            representante_id: userId!,
+            revendedora: cobranca?.revendedora || '',
+            codigo_nota: cobranca?.codigo_nota || null,
+            tipo: 'repasse',
+            valor_previsto: dados.valor_repasse,
+            data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
+            status: 'pendente',
+            observacoes: `Saldo restante de cobrança anterior`,
+            vendedora: cobranca?.vendedora || null
           });
 
-        if (repasseError) throw repasseError;
+        if (novaCobrancaError) throw novaCobrancaError;
 
-        // Atualizar status da cobrança para 'parcial' e data para data do repasse
+        // Marcar a cobrança original como paga (some da agenda)
         const { error: updateError } = await supabase
           .from('cobrancas_agendadas')
-          .update({ 
-            status: 'parcial',
-            data_agendada: format(dados.data_repasse, 'yyyy-MM-dd')
-          })
+          .update({ status: 'pago' })
           .eq('id', cobrancaId);
 
         if (updateError) throw updateError;
