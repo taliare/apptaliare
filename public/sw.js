@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taliare-v1';
+const CACHE_NAME = 'taliare-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -11,7 +11,7 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
   );
-  self.skipWaiting();
+  // Don't skip waiting - let the client decide when to update
 });
 
 // Activate event
@@ -30,16 +30,21 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Message event - handle skipWaiting from client
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Fetch event - Network first, fallback to cache
 self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Clone the response
         const responseClone = response.clone();
         caches.open(CACHE_NAME)
           .then((cache) => {
-            // Only cache same-origin requests
             if (event.request.url.startsWith(self.location.origin)) {
               cache.put(event.request, responseClone);
             }
