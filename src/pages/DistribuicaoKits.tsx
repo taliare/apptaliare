@@ -196,6 +196,7 @@ export default function DistribuicaoKits() {
   const [draggedKit, setDraggedKit] = useState<Kit | null>(null);
   const [kitToDelete, setKitToDelete] = useState<string | null>(null);
   const [kitToEdit, setKitToEdit] = useState<Kit | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Estado do formulário de edição
@@ -219,6 +220,7 @@ export default function DistribuicaoKits() {
       // Converte valor numérico para formato BR (ex: 1000.5 -> "1000,5")
       setEditValor(kitToEdit.valor != null ? String(kitToEdit.valor).replace('.', ',') : "");
       setEditTipo(kitToEdit.tipo);
+      setIsEditDialogOpen(true);
     }
   }, [kitToEdit]);
 
@@ -298,13 +300,9 @@ export default function DistribuicaoKits() {
       return data;
     },
     onSuccess: () => {
-      // Close modal first, then invalidate queries to avoid DOM reconciliation issues
-      setKitToEdit(null);
-      // Use setTimeout to ensure modal is fully closed before re-rendering the list
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
-        toast.success("Kit atualizado com sucesso!");
-      }, 100);
+      toast.success("Kit atualizado com sucesso!");
+      // Close dialog first, then clear kit data and invalidate after animation completes
+      setIsEditDialogOpen(false);
     },
     onError: (error: any) => {
       toast.error("Erro ao atualizar kit: " + error.message);
@@ -483,7 +481,19 @@ export default function DistribuicaoKits() {
       </AlertDialog>
 
       {/* Dialog de edição do kit */}
-      <Dialog open={!!kitToEdit} onOpenChange={(open) => !open && setKitToEdit(null)}>
+      <Dialog 
+        open={isEditDialogOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsEditDialogOpen(false);
+            // Delay clearing the kit data and invalidating queries until dialog animation completes
+            setTimeout(() => {
+              setKitToEdit(null);
+              queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
+            }, 150);
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Alterar Kit</DialogTitle>
@@ -525,7 +535,7 @@ export default function DistribuicaoKits() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setKitToEdit(null)}>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancelar
             </Button>
             <Button onClick={handleSaveEdit} disabled={editMutation.isPending}>
