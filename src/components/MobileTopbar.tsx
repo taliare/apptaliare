@@ -1,6 +1,7 @@
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import taliare_horizontal from "@/assets/taliare-horizontal-escuro.png";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 
 interface MobileTopbarProps {
   onMenuClick: () => void;
@@ -21,24 +22,28 @@ export function MobileTopbar({ onMenuClick }: MobileTopbarProps) {
     >
       <img src={taliare_horizontal} alt="TALIARE SEMIJOIAS" className="h-8 w-auto" />
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={onMenuClick}
-        aria-label="Abrir menu"
-        className="
-          flex items-center justify-center
-          rounded-full
-          bg-[#531B24]
-          text-white
-          hover:bg-[#6A2931]
-          active:scale-95
-          transition
-        "
-      >
-        <Menu className="h-6 w-6" />
-      </Button>
+      <div className="flex items-center gap-2">
+        <PushNotificationToggle />
+        
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          aria-label="Abrir menu"
+          className="
+            flex items-center justify-center
+            rounded-full
+            bg-[#531B24]
+            text-white
+            hover:bg-[#6A2931]
+            active:scale-95
+            transition
+          "
+        >
+          <Menu className="h-6 w-6" />
+        </Button>
+      </div>
     </div>
   );
 }
