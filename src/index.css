@@ -1,94 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* 
+  TALIARE Dark Futuristic Design System
+  Minimalista, elegante e com efeitos sutis
 */
 
 @layer base {
   :root {
-    /* TALIARE Brand Colors */
-    --taliare-burgundy: 352 57% 21%; /* #531B24 */
-    --taliare-wine: 350 47% 28%; /* #6A2931 */
-    --taliare-beige: 36 26% 74%; /* #C6B7A2 */
-    --taliare-cream: 38 42% 82%; /* #E7D8C3 */
+    /* TALIARE Brand Colors - Burgundy/Wine palette */
+    --taliare-burgundy: 352 57% 21%;
+    --taliare-wine: 350 47% 28%;
+    --taliare-beige: 36 26% 74%;
+    --taliare-cream: 38 42% 82%;
     
-    --background: 38 42% 82%; /* cream background */
-    --foreground: 352 57% 21%; /* burgundy text */
+    /* Dark Theme - Default */
+    --background: 240 10% 4%;
+    --foreground: 0 0% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 352 57% 21%;
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 352 57% 21%;
+    --popover: 240 10% 8%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 350 47% 28%; /* wine */
-    --primary-foreground: 38 42% 82%; /* cream */
+    /* Primary = Wine/Burgundy da Taliare */
+    --primary: 350 47% 38%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 36 26% 74%; /* beige */
-    --secondary-foreground: 352 57% 21%; /* burgundy */
+    --secondary: 240 6% 12%;
+    --secondary-foreground: 0 0% 85%;
 
-    --muted: 36 26% 84%;
-    --muted-foreground: 350 30% 40%;
+    --muted: 240 6% 15%;
+    --muted-foreground: 240 5% 55%;
 
-    --accent: 36 26% 74%;
-    --accent-foreground: 352 57% 21%;
+    --accent: 350 47% 28%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 36 26% 64%;
-    --input: 0 0% 100%;
-    --ring: 350 47% 28%;
+    --border: 240 6% 18%;
+    --input: 240 6% 15%;
+    --ring: 350 47% 45%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 352 57% 21%; /* burgundy sidebar */
-    --sidebar-foreground: 38 42% 82%; /* cream text */
-    --sidebar-primary: 350 47% 28%;
-    --sidebar-primary-foreground: 38 42% 82%;
-    --sidebar-accent: 350 47% 35%;
-    --sidebar-accent-foreground: 38 42% 82%;
-    --sidebar-border: 350 47% 28%;
-    --sidebar-ring: 36 26% 74%;
+    /* Sidebar - Dark with brand accent */
+    --sidebar-background: 240 10% 5%;
+    --sidebar-foreground: 0 0% 85%;
+    --sidebar-primary: 350 47% 38%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 350 47% 25%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 6% 15%;
+    --sidebar-ring: 350 47% 45%;
+
+    /* Custom Effects */
+    --glow-primary: 0 0 30px hsl(350 47% 38% / 0.3);
+    --glow-subtle: 0 0 20px hsl(350 47% 28% / 0.15);
+    
+    /* Success/Warning/Info */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
   }
 
-  .dark {
-    --background: 352 57% 21%;
-    --foreground: 38 42% 82%;
+  /* Light mode - if needed */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
 
-    --card: 350 47% 28%;
-    --card-foreground: 38 42% 82%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
 
-    --popover: 350 47% 28%;
-    --popover-foreground: 38 42% 82%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
 
-    --primary: 38 42% 82%;
-    --primary-foreground: 352 57% 21%;
+    --primary: 350 47% 28%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 350 47% 35%;
-    --secondary-foreground: 38 42% 82%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
 
-    --muted: 350 47% 35%;
-    --muted-foreground: 36 26% 74%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
 
-    --accent: 350 47% 35%;
-    --accent-foreground: 38 42% 82%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 38 42% 82%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 350 47% 35%;
-    --input: 350 47% 35%;
-    --ring: 36 26% 74%;
-    
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 350 47% 35%;
+
     --sidebar-background: 352 57% 21%;
-    --sidebar-foreground: 38 42% 82%;
+    --sidebar-foreground: 38 42% 90%;
     --sidebar-primary: 350 47% 28%;
-    --sidebar-primary-foreground: 38 42% 82%;
+    --sidebar-primary-foreground: 38 42% 90%;
     --sidebar-accent: 350 47% 35%;
-    --sidebar-accent-foreground: 38 42% 82%;
+    --sidebar-accent-foreground: 38 42% 90%;
     --sidebar-border: 350 47% 28%;
     --sidebar-ring: 36 26% 74%;
   }
@@ -100,10 +119,20 @@ All colors MUST be HSL.
     -webkit-tap-highlight-color: transparent;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Space Grotesk', sans-serif;
+    @apply tracking-tight;
   }
 
   button {
@@ -118,7 +147,6 @@ All colors MUST be HSL.
     cursor: not-allowed;
   }
 
-  /* Garantir que elementos clicáveis funcionem no Chrome mobile */
   [role="button"],
   button,
   a {
@@ -126,10 +154,218 @@ All colors MUST be HSL.
     touch-action: manipulation;
   }
 
-  /* Melhorar rendering no Chrome */
   * {
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
+  }
+}
+
+@layer components {
+  /* Glass morphism effect */
+  .glass {
+    @apply bg-card/50 backdrop-blur-xl border border-border/50;
+  }
+
+  .glass-subtle {
+    @apply bg-card/30 backdrop-blur-md border border-border/30;
+  }
+
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: var(--glow-primary);
+  }
+
+  .glow-subtle {
+    box-shadow: var(--glow-subtle);
+  }
+
+  /* Gradient backgrounds */
+  .gradient-primary {
+    @apply bg-gradient-to-br from-primary/20 via-primary/5 to-transparent;
+  }
+
+  .gradient-card {
+    @apply bg-gradient-to-br from-card via-card to-background;
+  }
+
+  /* Animated border gradient */
+  .border-gradient {
+    position: relative;
+    background: hsl(var(--card));
+    border-radius: var(--radius);
+  }
+
+  .border-gradient::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: calc(var(--radius) + 1px);
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.5), transparent, hsl(var(--primary) / 0.2));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Status badges */
+  .status-success {
+    @apply bg-success/15 text-success border border-success/30;
+  }
+
+  .status-warning {
+    @apply bg-warning/15 text-warning border border-warning/30;
+  }
+
+  .status-info {
+    @apply bg-info/15 text-info border border-info/30;
+  }
+
+  .status-error {
+    @apply bg-destructive/15 text-destructive border border-destructive/30;
+  }
+
+  /* Interactive hover states */
+  .hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .hover-lift:hover {
+    @apply -translate-y-0.5;
+    box-shadow: 0 10px 40px -15px hsl(var(--primary) / 0.2);
+  }
+
+  /* Smooth scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-muted/30 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+
+  /* Page container */
+  .page-container {
+    @apply min-h-screen bg-background;
+  }
+
+  /* Content wrapper with consistent padding */
+  .content-wrapper {
+    @apply px-4 py-6 md:px-6 lg:px-8;
+  }
+
+  /* Mobile safe area */
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+
+@layer utilities {
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
+  }
+
+  /* Pulse animation for notifications */
+  .pulse-dot {
+    @apply relative;
+  }
+
+  .pulse-dot::after {
+    content: '';
+    @apply absolute -top-1 -right-1 h-2.5 w-2.5 bg-primary rounded-full;
+    animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  /* Fade in animation */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Slide in from left */
+  .animate-slide-in-left {
+    animation: slideInLeft 0.3s ease-out;
+  }
+
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* Scale in animation */
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 }

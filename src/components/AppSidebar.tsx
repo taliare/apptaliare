@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   Scale,
   PackageCheck,
+  ChevronRight,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,8 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
-import taliare_horizontal from "@/assets/taliare-horizontal-escuro.png";
-import taliare_icone from "@/assets/taliare-icone-escuro.png";
+import taliare_icone from "@/assets/taliare-icone-claro.png";
 
 export function AppSidebar() {
   const { profile, signOut } = useAuth();
@@ -44,7 +44,7 @@ export function AppSidebar() {
   const isRepresentante = !isAdmin && !isProducao;
 
   const menuLabel = isAdmin ? "Admin" : "Menu";
-  const roleLabel = isAdmin ? "Painel Administrativo" : isProducao ? "Produção" : "Representante";
+  const roleLabel = isAdmin ? "Administrador" : isProducao ? "Produção" : "Representante";
 
   // Badge de encomendas prontas para representante
   const { data: encomendasProntas = 0 } = useQuery({
@@ -117,45 +117,66 @@ export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      className={collapsed ? "w-14 border-r border-sidebar-border" : "w-60 border-r border-sidebar-border"}
+      className={`${collapsed ? "w-16" : "w-64"} border-r border-sidebar-border bg-sidebar transition-all duration-300`}
     >
-      {/* Logo / Topo */}
-      <div className="flex flex-col items-center gap-2 px-4 py-4 border-b border-sidebar-border">
-        {collapsed ? (
-          <img src={taliare_icone} alt="TALIARE" className="h-10 w-10" />
-        ) : (
-          <>
-            <img src={taliare_horizontal} alt="TALIARE SEMIJOIAS" className="h-10 w-auto" />
-            <span className="text-xs text-muted-foreground tracking-wide uppercase">{roleLabel}</span>
-          </>
+      {/* Logo / Header */}
+      <div className="flex flex-col items-center gap-3 px-4 py-5 border-b border-sidebar-border">
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full scale-150" />
+          <img 
+            src={taliare_icone} 
+            alt="TALIARE" 
+            className={`${collapsed ? "h-8 w-8" : "h-12 w-12"} relative z-10 transition-all duration-300`}
+          />
+        </div>
+        {!collapsed && (
+          <div className="text-center animate-fade-in">
+            <span className="font-display font-semibold text-sidebar-foreground tracking-wide text-lg">
+              TALIARE
+            </span>
+            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest mt-0.5">
+              {roleLabel}
+            </p>
+          </div>
         )}
       </div>
 
-      {/* Trigger de colapso */}
-      <div className="flex justify-center py-2 border-b border-sidebar-border">
-        <SidebarTrigger />
+      {/* Collapse trigger */}
+      <div className="flex justify-center py-3 border-b border-sidebar-border">
+        <SidebarTrigger className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
       </div>
 
-      <SidebarContent className="flex flex-col h-full">
+      <SidebarContent className="flex flex-col h-full custom-scrollbar">
         {/* Menu principal */}
-        <SidebarGroup className="flex-1">
-          <SidebarGroupLabel>{menuLabel}</SidebarGroupLabel>
+        <SidebarGroup className="flex-1 py-4">
+          <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10px] uppercase tracking-widest px-4 mb-2">
+            {menuLabel}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="px-2 space-y-1">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
                       to={item.url}
-                      className="hover:bg-sidebar-accent/50 transition-colors flex items-center justify-between w-full"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      className="
+                        flex items-center justify-between w-full
+                        px-3 py-2.5
+                        rounded-xl
+                        text-sidebar-foreground/70
+                        hover:bg-sidebar-accent
+                        hover:text-sidebar-foreground
+                        transition-all duration-200
+                        group
+                      "
+                      activeClassName="bg-primary text-primary-foreground shadow-glow-sm font-medium"
                     >
-                      <div className="flex items-center gap-2">
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
+                      <div className="flex items-center gap-3">
+                        <item.icon className="h-4 w-4 flex-shrink-0" />
+                        {!collapsed && <span className="text-sm">{item.title}</span>}
                       </div>
                       {!collapsed && item.badge > 0 && (
-                        <Badge variant="default" className="ml-auto">
+                        <Badge variant="glow" className="ml-auto text-[10px] px-2 py-0">
                           {item.badge}
                         </Badge>
                       )}
@@ -167,23 +188,48 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Push notifications e botão de sair no rodapé */}
-        <SidebarGroup className="mt-auto border-t border-sidebar-border pt-2">
+        {/* Footer */}
+        <SidebarGroup className="mt-auto border-t border-sidebar-border py-3">
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="px-2 space-y-1">
+              {/* Notificações */}
               <SidebarMenuItem>
-                <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between px-2'}`}>
-                  {!collapsed && <span className="text-sm text-muted-foreground">Notificações</span>}
+                <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between px-3"} py-2`}>
+                  {!collapsed && (
+                    <span className="text-xs text-sidebar-foreground/50">Notificações</span>
+                  )}
                   <PushNotificationToggle />
                 </div>
               </SidebarMenuItem>
+
+              {/* User info (when expanded) */}
+              {!collapsed && profile && (
+                <SidebarMenuItem>
+                  <div className="px-3 py-2 mb-1">
+                    <p className="text-sm font-medium text-sidebar-foreground truncate">
+                      {profile.nome}
+                    </p>
+                  </div>
+                </SidebarMenuItem>
+              )}
+
+              {/* Sair */}
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={signOut}
-                  className="hover:bg-destructive/10 hover:text-destructive flex items-center gap-2"
+                  className="
+                    flex items-center gap-3
+                    px-3 py-2.5
+                    rounded-xl
+                    text-sidebar-foreground/70
+                    hover:bg-destructive/10
+                    hover:text-destructive
+                    transition-all duration-200
+                    w-full
+                  "
                 >
-                  <LogOut className="h-4 w-4" />
-                  {!collapsed && <span>Sair</span>}
+                  <LogOut className="h-4 w-4 flex-shrink-0" />
+                  {!collapsed && <span className="text-sm">Sair</span>}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
