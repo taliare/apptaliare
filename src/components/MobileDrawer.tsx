@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/sheet';
 import { useAuth } from '@/contexts/AuthContext';
 import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory } from 'lucide-react';
-import taliare_icone from '@/assets/taliare-icone-claro.png';
+import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
 
 interface MobileDrawerProps {
   open: boolean;
@@ -61,23 +61,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       >
         {/* Header */}
         <SheetHeader className="flex flex-row items-center justify-between border-b border-sidebar-border p-3 xs:p-4">
-          <div className="flex items-center gap-2 xs:gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full" />
-              <img 
-                src={taliare_icone} 
-                alt="TALIARE" 
-                className="h-8 w-8 xs:h-10 xs:w-10 relative z-10"
-              />
-            </div>
-            <div>
-              <span className="font-display font-semibold text-sidebar-foreground tracking-wide text-base xs:text-lg">
-                TALIARE
-              </span>
-              <p className="text-[10px] xs:text-xs text-sidebar-foreground/60 uppercase tracking-wider">
-                {roleLabel}
-              </p>
-            </div>
+          <div className="flex items-center">
+            <img 
+              src={taliareLogoHorizontal} 
+              alt="Taliare Semijoias" 
+              className="h-8 xs:h-10"
+            />
           </div>
           <Button
             variant="ghost"
@@ -89,6 +78,13 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
           </Button>
           <SheetTitle className="sr-only">Menu</SheetTitle>
         </SheetHeader>
+
+        {/* Role label */}
+        <div className="px-4 py-2 border-b border-sidebar-border/50">
+          <p className="text-[10px] xs:text-xs text-sidebar-foreground/60 uppercase tracking-wider">
+            {roleLabel}
+          </p>
+        </div>
 
         {/* Navigation */}
         <div className="flex flex-col h-[calc(100%-65px)] xs:h-[calc(100%-73px)]">
