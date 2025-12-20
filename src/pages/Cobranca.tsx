@@ -780,19 +780,19 @@ export default function Cobranca() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4" />
-          <p className="text-muted-foreground">Carregando cobranças...</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-4 shadow-glow" />
+          <p className="text-muted-foreground animate-pulse">Carregando cobranças...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto p-4 space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-slide-up">
         <div>
-          <h1 className="text-3xl font-bold">Agenda de Cobranças</h1>
+          <h1 className="text-3xl font-display font-bold">Agenda de Cobranças</h1>
           <p className="text-muted-foreground">Organize suas cobranças por data de vencimento</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -907,7 +907,7 @@ export default function Cobranca() {
       </div>
 
       {/* Filtros Rápidos e Pesquisa */}
-      <Card>
+      <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
         <CardContent className="pt-6 space-y-4">
           {/* Campo de Pesquisa */}
           <div className="flex items-center gap-2">
@@ -922,11 +922,12 @@ export default function Cobranca() {
 
           {/* Filtros - Ordem: Hoje, Vencidas, Semana X, Todas */}
           <div className="flex flex-wrap items-center gap-3">
-            <Filter className="h-5 w-5 text-muted-foreground" />
+            <Filter className="h-5 w-5 text-muted-foreground icon-hover-rotate" />
             <Button
               variant={filtroAtivo === 'hoje' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFiltroAtivo('hoje')}
+              className="transition-all duration-200"
             >
               Hoje ({cobrancasHoje.length})
             </Button>
@@ -934,6 +935,7 @@ export default function Cobranca() {
               variant={filtroAtivo === 'vencidas' ? 'destructive' : 'outline'}
               size="sm"
               onClick={() => setFiltroAtivo('vencidas')}
+              className="transition-all duration-200"
             >
               Vencidas ({cobrancasVencidas.length})
             </Button>
@@ -941,6 +943,7 @@ export default function Cobranca() {
               variant={filtroAtivo === 'semana' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFiltroAtivo('semana')}
+              className="transition-all duration-200"
             >
               Semana {semanaAtual} ({cobrancasSemana.length})
             </Button>
@@ -948,6 +951,7 @@ export default function Cobranca() {
               variant={filtroAtivo === 'todas' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFiltroAtivo('todas')}
+              className="transition-all duration-200"
             >
               Todas ({aplicarFiltroPesquisa(cobrancas).length})
             </Button>
@@ -959,15 +963,15 @@ export default function Cobranca() {
       <div className="space-y-4">
         {/* Vencidas */}
         {(filtroAtivo === 'todas' || filtroAtivo === 'vencidas') && cobrancasVencidas.length > 0 && (
-          <Card className="border-destructive/50 bg-destructive/5">
+          <Card className="border-destructive/50 bg-destructive/5 animate-fade-in" style={{ animationDelay: '0.15s' }}>
             <CardHeader className="bg-destructive/10 border-b border-destructive/20">
-              <CardTitle className="text-destructive flex items-center gap-2">
-                <AlertCircle className="h-5 w-5" />
+              <CardTitle className="text-destructive flex items-center gap-2 font-display">
+                <AlertCircle className="h-5 w-5 animate-glow-pulse" />
                 Cobranças Vencidas ({cobrancasVencidas.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
-              {cobrancasVencidas.map((cobranca) => (
+              {cobrancasVencidas.map((cobranca, index) => (
                 <CobrancaItem
                   key={cobranca.id}
                   cobranca={cobranca}
@@ -977,6 +981,7 @@ export default function Cobranca() {
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
                   destacarVencida
+                  animationDelay={index * 0.05}
                 />
               ))}
             </CardContent>
@@ -985,15 +990,15 @@ export default function Cobranca() {
 
         {/* Hoje */}
         {(filtroAtivo === 'todas' || filtroAtivo === 'hoje') && cobrancasHoje.length > 0 && (
-          <Card className="border-primary/50 bg-primary/5">
-            <CardHeader className="bg-primary/10 border-b">
-              <CardTitle className="flex items-center gap-2 text-primary">
+          <Card variant="glow" className="border-primary/50 bg-primary/5 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <CardHeader className="bg-primary/10 border-b border-primary/20">
+              <CardTitle className="flex items-center gap-2 text-primary font-display">
                 <CalendarIcon className="h-5 w-5" />
                 Hoje - {format(hoje, "dd/MM/yyyy", { locale: ptBR })} ({cobrancasHoje.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
-              {cobrancasHoje.map((cobranca) => (
+              {cobrancasHoje.map((cobranca, index) => (
                 <CobrancaItem
                   key={cobranca.id}
                   cobranca={cobranca}
@@ -1002,6 +1007,7 @@ export default function Cobranca() {
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
+                  animationDelay={index * 0.05}
                 />
               ))}
             </CardContent>
@@ -1010,15 +1016,15 @@ export default function Cobranca() {
 
         {/* Semana atual */}
         {(filtroAtivo === 'todas' || filtroAtivo === 'semana') && cobrancasSemana.length > 0 && (
-          <Card className="border-muted">
-            <CardHeader className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
+          <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
+            <CardHeader className="border-b border-border/50">
+              <CardTitle className="flex items-center gap-2 font-display">
+                <Clock className="h-5 w-5 text-muted-foreground" />
                 Semana {semanaAtual} ({cobrancasSemana.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
-              {cobrancasSemana.map((cobranca) => (
+              {cobrancasSemana.map((cobranca, index) => (
                 <CobrancaItem
                   key={cobranca.id}
                   cobranca={cobranca}
@@ -1027,6 +1033,7 @@ export default function Cobranca() {
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
+                  animationDelay={index * 0.05}
                 />
               ))}
             </CardContent>
@@ -1035,15 +1042,15 @@ export default function Cobranca() {
 
         {/* Cobranças Futuras - apenas visível quando filtro "Todas" está ativo */}
         {filtroAtivo === 'todas' && cobrancasFuturas.length > 0 && (
-          <Card className="border-muted">
-            <CardHeader className="border-b bg-muted/30">
-              <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5" />
+          <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            <CardHeader className="border-b border-border/50 bg-muted/30">
+              <CardTitle className="flex items-center gap-2 font-display">
+                <CalendarDays className="h-5 w-5 text-muted-foreground" />
                 Próximas Cobranças ({cobrancasFuturas.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
-              {cobrancasFuturas.map((cobranca) => (
+              {cobrancasFuturas.map((cobranca, index) => (
                 <CobrancaItem
                   key={cobranca.id}
                   cobranca={cobranca}
@@ -1052,6 +1059,7 @@ export default function Cobranca() {
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
+                  animationDelay={index * 0.05}
                 />
               ))}
             </CardContent>
@@ -1060,10 +1068,10 @@ export default function Cobranca() {
 
         {/* Lista vazia */}
         {cobrancasFiltradas.length === 0 && (
-          <Card>
+          <Card variant="glass" className="animate-fade-in">
             <CardContent className="py-12 text-center text-muted-foreground">
-              <CalendarDays className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-lg font-medium">Nenhuma cobrança encontrada</p>
+              <CalendarDays className="h-12 w-12 mx-auto mb-3 opacity-50 animate-float" />
+              <p className="text-lg font-display font-medium">Nenhuma cobrança encontrada</p>
               <p className="text-sm">Crie uma nova cobrança para começar</p>
             </CardContent>
           </Card>
@@ -1283,6 +1291,7 @@ function CobrancaItem({
   onAdiantamento,
   onJuridico,
   destacarVencida = false,
+  animationDelay = 0,
 }: {
   cobranca: Cobranca;
   onEdit: (cobranca: Cobranca) => void;
@@ -1291,32 +1300,38 @@ function CobrancaItem({
   onAdiantamento: (cobranca: Cobranca) => void;
   onJuridico: (cobranca: Cobranca) => void;
   destacarVencida?: boolean;
+  animationDelay?: number;
 }) {
   const { profile } = useAuth();
   
   return (
-    <Card className={cn(
-      "transition-all hover:shadow-md",
-      destacarVencida && "border-destructive/60 bg-destructive/5"
-    )}>
+    <Card 
+      variant="interactive"
+      className={cn(
+        "animate-fade-in",
+        destacarVencida && "border-destructive/60 bg-destructive/5 hover:border-destructive"
+      )}
+      style={{ animationDelay: `${animationDelay}s` }}
+    >
       <CardContent className="p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex-1 space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="font-semibold text-lg flex items-center gap-2">
+              <div className="font-semibold text-lg flex items-center gap-2 font-display">
                 <User className="h-4 w-4 text-muted-foreground" />
                 {cobranca.revendedora}
               </div>
               {destacarVencida && (
-                <AlertCircle className="h-4 w-4 text-destructive" />
+                <AlertCircle className="h-4 w-4 text-destructive animate-glow-pulse" />
               )}
-              <Badge className={statusConfig[cobranca.status].color}>
+              <Badge className={cn(statusConfig[cobranca.status].color, "transition-all duration-200 hover:scale-105")}>
                 {statusConfig[cobranca.status].label}
               </Badge>
               {cobranca.tipo && (
                 <Badge 
                   variant="outline"
                   className={cn(
+                    "transition-all duration-200 hover:scale-105",
                     cobranca.tipo === 'kit' 
                       ? 'border-primary/50 bg-primary/10 text-primary' 
                       : 'border-muted-foreground/50 bg-muted text-muted-foreground'
