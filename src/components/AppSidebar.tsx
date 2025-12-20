@@ -32,7 +32,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
-import taliare_icone from "@/assets/taliare-icone-claro.png";
+import taliareLogoHorizontal from "@/assets/taliare-logo-horizontal.png";
+import taliareIcone from "@/assets/taliare-icone-claro.png";
 
 export function AppSidebar() {
   const { profile, signOut } = useAuth();
@@ -120,21 +121,24 @@ export function AppSidebar() {
       className={`${collapsed ? "w-16" : "w-64"} border-r border-sidebar-border bg-sidebar transition-all duration-300`}
     >
       {/* Logo / Header */}
-      <div className="flex flex-col items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-        <div className="relative">
-          <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full scale-150" />
-          <img 
-            src={taliare_icone} 
-            alt="TALIARE" 
-            className={`${collapsed ? "h-8 w-8" : "h-12 w-12"} relative z-10 transition-all duration-300`}
-          />
-        </div>
-        {!collapsed && (
-          <div className="text-center animate-fade-in">
-            <span className="font-display font-semibold text-sidebar-foreground tracking-wide text-lg">
-              TALIARE
-            </span>
-            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest mt-0.5">
+      <div className="flex flex-col items-center gap-2 px-4 py-4 border-b border-sidebar-border">
+        {collapsed ? (
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full scale-150" />
+            <img 
+              src={taliareIcone} 
+              alt="Taliare" 
+              className="h-8 w-8 relative z-10 transition-all duration-300"
+            />
+          </div>
+        ) : (
+          <div className="animate-fade-in">
+            <img 
+              src={taliareLogoHorizontal} 
+              alt="Taliare Semijoias" 
+              className="h-10 transition-all duration-300"
+            />
+            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest mt-2 text-center">
               {roleLabel}
             </p>
           </div>
