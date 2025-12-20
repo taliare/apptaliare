@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
-import taliare_logo from '@/assets/taliare-icone-claro.png';
+import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
 
 export default function Setup() {
   const [loading, setLoading] = useState(true);
@@ -143,7 +143,7 @@ export default function Setup() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
-            <img src={taliare_logo} alt="TALIARE SEMIJOIAS" className="h-20 w-20" />
+            <img src={taliareLogoHorizontal} alt="Taliare Semijoias" className="h-12" />
           </div>
           <div className="space-y-2 text-center">
             <CardTitle className="text-2xl">Configuração Inicial</CardTitle>

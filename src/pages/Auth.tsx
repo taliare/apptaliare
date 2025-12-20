@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import taliare_logo from '@/assets/taliare-icone-claro.png';
+import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
 import { Loader2 } from 'lucide-react';
 
 export default function Auth() {
@@ -64,17 +64,14 @@ export default function Auth() {
             <div className="relative">
               <div className="absolute inset-0 bg-primary/30 blur-2xl rounded-full scale-150" />
               <img 
-                src={taliare_logo} 
-                alt="TALIARE SEMIJOIAS" 
-                className="h-20 w-20 relative z-10 drop-shadow-lg"
+                src={taliareLogoHorizontal} 
+                alt="Taliare Semijoias" 
+                className="h-12 relative z-10 drop-shadow-lg"
               />
             </div>
           </div>
           
-          <div className="space-y-2 text-center">
-            <CardTitle className="text-2xl font-display tracking-wide">
-              TALIARE
-            </CardTitle>
+          <div className="text-center">
             <CardDescription className="text-muted-foreground">
               Sistema Interno de Gestão
             </CardDescription>

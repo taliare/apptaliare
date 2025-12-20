@@ -33,7 +33,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import taliareLogoHorizontal from "@/assets/taliare-logo-horizontal.png";
-import taliareIcone from "@/assets/taliare-icone-claro.png";
 
 export function AppSidebar() {
   const { profile, signOut } = useAuth();
@@ -122,27 +121,29 @@ export function AppSidebar() {
     >
       {/* Logo / Header */}
       <div className="flex flex-col items-center gap-2 px-4 py-4 border-b border-sidebar-border">
-        {collapsed ? (
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full scale-150" />
-            <img 
-              src={taliareIcone} 
-              alt="Taliare" 
-              className="h-8 w-8 relative z-10 transition-all duration-300"
-            />
-          </div>
-        ) : (
-          <div className="animate-fade-in">
-            <img 
-              src={taliareLogoHorizontal} 
-              alt="Taliare Semijoias" 
-              className="h-10 transition-all duration-300"
-            />
-            <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest mt-2 text-center">
-              {roleLabel}
-            </p>
-          </div>
-        )}
+        <div className={collapsed ? "relative" : "animate-fade-in"}>
+          {collapsed ? (
+            <>
+              <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full scale-150" />
+              <img 
+                src={taliareLogoHorizontal} 
+                alt="Taliare" 
+                className="h-8 relative z-10 transition-all duration-300"
+              />
+            </>
+          ) : (
+            <>
+              <img 
+                src={taliareLogoHorizontal} 
+                alt="Taliare Semijoias" 
+                className="h-10 transition-all duration-300"
+              />
+              <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest mt-2 text-center">
+                {roleLabel}
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Collapse trigger */}
