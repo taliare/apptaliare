@@ -1,6 +1,6 @@
-import { Menu, Sparkles } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import taliare_icone from "@/assets/taliare-icone-claro.png";
+import taliareLogoHorizontal from "@/assets/taliare-logo-horizontal.png";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 
 interface MobileTopbarProps {
@@ -22,18 +22,12 @@ export function MobileTopbar({ onMenuClick }: MobileTopbarProps) {
       "
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 xs:gap-3">
-        <div className="relative">
-          <div className="absolute inset-0 bg-primary/20 blur-lg rounded-full" />
-          <img 
-            src={taliare_icone} 
-            alt="TALIARE" 
-            className="h-7 w-7 xs:h-8 xs:w-8 relative z-10"
-          />
-        </div>
-        <span className="font-display font-semibold text-foreground tracking-wide text-sm xs:text-base">
-          TALIARE
-        </span>
+      <div className="flex items-center">
+        <img 
+          src={taliareLogoHorizontal} 
+          alt="Taliare Semijoias" 
+          className="h-7 xs:h-8"
+        />
       </div>
 
       {/* Actions */}
