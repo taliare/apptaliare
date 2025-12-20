@@ -57,24 +57,24 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="left" 
-        className="w-[85%] max-w-sm p-0 bg-sidebar border-r border-sidebar-border [&>button]:hidden"
+        className="w-[88%] xs:w-[85%] max-w-sm p-0 bg-sidebar border-r border-sidebar-border [&>button]:hidden"
       >
         {/* Header */}
-        <SheetHeader className="flex flex-row items-center justify-between border-b border-sidebar-border p-4">
-          <div className="flex items-center gap-3">
+        <SheetHeader className="flex flex-row items-center justify-between border-b border-sidebar-border p-3 xs:p-4">
+          <div className="flex items-center gap-2 xs:gap-3">
             <div className="relative">
               <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full" />
               <img 
                 src={taliare_icone} 
                 alt="TALIARE" 
-                className="h-10 w-10 relative z-10"
+                className="h-8 w-8 xs:h-10 xs:w-10 relative z-10"
               />
             </div>
             <div>
-              <span className="font-display font-semibold text-sidebar-foreground tracking-wide text-lg">
+              <span className="font-display font-semibold text-sidebar-foreground tracking-wide text-base xs:text-lg">
                 TALIARE
               </span>
-              <p className="text-xs text-sidebar-foreground/60 uppercase tracking-wider">
+              <p className="text-[10px] xs:text-xs text-sidebar-foreground/60 uppercase tracking-wider">
                 {roleLabel}
               </p>
             </div>
@@ -85,15 +85,15 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             onClick={() => onOpenChange(false)}
             className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4 xs:h-5 xs:w-5" />
           </Button>
           <SheetTitle className="sr-only">Menu</SheetTitle>
         </SheetHeader>
 
         {/* Navigation */}
-        <div className="flex flex-col h-[calc(100%-73px)]">
-          <nav className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar">
-            <div className="space-y-1">
+        <div className="flex flex-col h-[calc(100%-65px)] xs:h-[calc(100%-73px)]">
+          <nav className="flex-1 overflow-y-auto px-2 xs:px-3 py-3 xs:py-4 custom-scrollbar">
+            <div className="space-y-0.5 xs:space-y-1">
               {items.map((item, index) => (
                 <NavLink
                   key={item.title}
@@ -101,8 +101,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                   onClick={handleLinkClick}
                   className="
                     flex items-center justify-between
-                    px-4 py-3.5
-                    rounded-xl
+                    px-3 xs:px-4 py-3 xs:py-3.5
+                    rounded-lg xs:rounded-xl
                     text-sidebar-foreground/80
                     hover:bg-sidebar-accent
                     hover:text-sidebar-foreground
@@ -112,22 +112,22 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                   activeClassName="bg-primary text-primary-foreground shadow-glow-sm"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div className="flex items-center gap-3">
-                    <item.icon className="h-5 w-5" />
-                    <span className="font-medium">{item.title}</span>
+                  <div className="flex items-center gap-2.5 xs:gap-3">
+                    <item.icon className="h-4 w-4 xs:h-5 xs:w-5" />
+                    <span className="font-medium text-sm xs:text-base">{item.title}</span>
                   </div>
-                  <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ChevronRight className="h-3.5 w-3.5 xs:h-4 xs:w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </NavLink>
               ))}
             </div>
           </nav>
 
           {/* Footer */}
-          <div className="flex-shrink-0 border-t border-sidebar-border p-3">
+          <div className="flex-shrink-0 border-t border-sidebar-border p-2 xs:p-3">
             {/* User info */}
             {profile && (
-              <div className="px-4 py-3 mb-2">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">
+              <div className="px-3 xs:px-4 py-2 xs:py-3 mb-1 xs:mb-2">
+                <p className="text-xs xs:text-sm font-medium text-sidebar-foreground truncate">
                   {profile.nome}
                 </p>
               </div>
@@ -140,16 +140,17 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 onOpenChange(false);
               }}
               className="
-                w-full justify-start gap-3
-                px-4 py-3
+                w-full justify-start gap-2.5 xs:gap-3
+                px-3 xs:px-4 py-2.5 xs:py-3
                 text-sidebar-foreground/80
                 hover:bg-destructive/10
                 hover:text-destructive
-                rounded-xl
+                rounded-lg xs:rounded-xl
                 transition-all duration-200
+                text-sm xs:text-base
               "
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-4 w-4 xs:h-5 xs:w-5" />
               <span>Sair</span>
             </Button>
           </div>

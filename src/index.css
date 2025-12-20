@@ -126,6 +126,8 @@
 
   html {
     scroll-behavior: smooth;
+    /* Prevent font scaling on rotation */
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
@@ -133,11 +135,26 @@
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Minimum font size for accessibility */
+    font-size: clamp(14px, 3.5vw, 16px);
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Space Grotesk', sans-serif;
     @apply tracking-tight;
+  }
+
+  /* Responsive typography for very small screens */
+  h1 {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+  }
+
+  h2 {
+    font-size: clamp(1.25rem, 5vw, 1.5rem);
+  }
+
+  h3 {
+    font-size: clamp(1.1rem, 4vw, 1.25rem);
   }
 
   button {
@@ -163,6 +180,25 @@
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
+  }
+
+  /* Extra small screen adjustments */
+  @media (max-width: 374px) {
+    html {
+      font-size: 14px;
+    }
+
+    h1 {
+      font-size: 1.35rem;
+    }
+
+    h2 {
+      font-size: 1.15rem;
+    }
+
+    h3 {
+      font-size: 1rem;
+    }
   }
 }
 

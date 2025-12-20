@@ -68,12 +68,12 @@ const buttonVariants = cva(
         ].join(" "),
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3 text-xs",
-        lg: "h-12 rounded-lg px-8 text-base",
-        icon: "h-10 w-10",
-        "icon-sm": "h-8 w-8",
-        "icon-lg": "h-12 w-12",
+        default: "h-9 xs:h-10 px-3 xs:px-4 py-2 text-sm",
+        sm: "h-8 xs:h-9 rounded-md px-2.5 xs:px-3 text-xs",
+        lg: "h-11 xs:h-12 rounded-lg px-6 xs:px-8 text-sm xs:text-base",
+        icon: "h-9 w-9 xs:h-10 xs:w-10",
+        "icon-sm": "h-7 w-7 xs:h-8 xs:w-8",
+        "icon-lg": "h-11 w-11 xs:h-12 xs:w-12",
       },
     },
     defaultVariants: {

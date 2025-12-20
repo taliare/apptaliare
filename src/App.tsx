@@ -48,7 +48,7 @@ const App = () => {
                       <MobileDrawer open={showMobileMenu} onOpenChange={setShowMobileMenu} />
 
                       {/* Main Content with Page Transitions */}
-                      <main className="flex-1 px-4 py-4 md:p-6 bg-background w-full pt-20 md:pt-6 overflow-x-hidden">
+                      <main className="flex-1 px-2.5 xs:px-4 py-3 xs:py-4 md:p-6 bg-background w-full pt-16 xs:pt-20 md:pt-6 overflow-x-hidden">
                         <AnimatedRoutes />
                       </main>
                     </div>
