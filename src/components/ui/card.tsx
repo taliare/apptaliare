@@ -4,21 +4,45 @@ import { cn } from "@/lib/utils";
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
-    variant?: "default" | "glass" | "gradient" | "glow";
+    variant?: "default" | "glass" | "gradient" | "glow" | "interactive";
   }
 >(({ className, variant = "default", ...props }, ref) => {
   const variants = {
-    default: "bg-card border border-border shadow-soft",
-    glass: "bg-card/50 backdrop-blur-xl border border-border/50",
-    gradient: "bg-gradient-to-br from-card via-card to-background border border-border",
-    glow: "bg-card border border-primary/20 shadow-glow-sm",
+    default: [
+      "bg-card border border-border shadow-soft",
+      "transition-all duration-300 ease-out",
+    ].join(" "),
+    glass: [
+      "bg-card/50 backdrop-blur-xl border border-border/50",
+      "transition-all duration-300 ease-out",
+      "hover:bg-card/60 hover:border-border/70",
+    ].join(" "),
+    gradient: [
+      "bg-gradient-to-br from-card via-card to-background border border-border",
+      "transition-all duration-300 ease-out",
+    ].join(" "),
+    glow: [
+      "bg-card border border-primary/20",
+      "shadow-[0_0_20px_hsl(var(--primary)/0.15)]",
+      "transition-all duration-300 ease-out",
+      "hover:shadow-[0_0_30px_hsl(var(--primary)/0.25)]",
+      "hover:border-primary/30",
+    ].join(" "),
+    interactive: [
+      "bg-card border border-border shadow-soft",
+      "transition-all duration-300 ease-out",
+      "hover:-translate-y-1 hover:shadow-soft-lg",
+      "hover:border-primary/30",
+      "cursor-pointer",
+      "group",
+    ].join(" "),
   };
 
   return (
     <div
       ref={ref}
       className={cn(
-        "rounded-xl text-card-foreground transition-all duration-300",
+        "rounded-xl text-card-foreground",
         variants[variant],
         className
       )}
@@ -48,6 +72,8 @@ const CardTitle = React.forwardRef<
     ref={ref}
     className={cn(
       "font-display text-xl font-semibold leading-none tracking-tight",
+      "transition-colors duration-300",
+      "group-hover:text-primary",
       className
     )}
     {...props}

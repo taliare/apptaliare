@@ -5,26 +5,67 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium",
+    "transition-all duration-300 ease-out",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    "disabled:pointer-events-none disabled:opacity-50",
+    "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+    "active:scale-[0.97] active:transition-transform active:duration-100",
+    "relative overflow-hidden",
+  ].join(" "),
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-primary-foreground shadow-glow-sm hover:bg-primary/90 hover:shadow-glow",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline:
-          "border border-border bg-transparent hover:bg-secondary hover:text-secondary-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost:
+        default: [
+          "bg-primary text-primary-foreground",
+          "shadow-[0_0_20px_hsl(var(--primary)/0.3)]",
+          "hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)]",
+          "hover:bg-primary/90 hover:-translate-y-0.5",
+          "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent",
+          "before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-700",
+        ].join(" "),
+        destructive: [
+          "bg-destructive text-destructive-foreground",
+          "hover:bg-destructive/90 hover:-translate-y-0.5",
+          "hover:shadow-[0_0_20px_hsl(var(--destructive)/0.4)]",
+        ].join(" "),
+        outline: [
+          "border border-border bg-transparent",
+          "hover:bg-secondary hover:text-secondary-foreground hover:border-primary/50",
+          "hover:-translate-y-0.5 hover:shadow-soft",
+        ].join(" "),
+        secondary: [
+          "bg-secondary text-secondary-foreground",
+          "hover:bg-secondary/80 hover:-translate-y-0.5",
+          "hover:shadow-soft",
+        ].join(" "),
+        ghost: [
           "hover:bg-secondary hover:text-secondary-foreground",
-        link:
-          "text-primary underline-offset-4 hover:underline",
-        glow:
-          "bg-primary text-primary-foreground shadow-glow hover:shadow-glow-lg hover:bg-primary/90",
-        glass:
-          "bg-card/50 backdrop-blur-xl border border-border/50 text-foreground hover:bg-card/70",
+          "hover:shadow-none",
+        ].join(" "),
+        link: [
+          "text-primary underline-offset-4",
+          "hover:underline",
+        ].join(" "),
+        glow: [
+          "bg-primary text-primary-foreground",
+          "shadow-[0_0_25px_hsl(var(--primary)/0.4)]",
+          "hover:shadow-[0_0_40px_hsl(var(--primary)/0.6)]",
+          "hover:bg-primary/90 hover:-translate-y-1",
+          "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
+          "before:translate-x-[-200%] hover:before:translate-x-[200%] before:transition-transform before:duration-500",
+        ].join(" "),
+        glass: [
+          "bg-card/50 backdrop-blur-xl border border-border/50 text-foreground",
+          "hover:bg-card/70 hover:border-primary/30",
+          "hover:-translate-y-0.5 hover:shadow-soft",
+        ].join(" "),
+        success: [
+          "bg-success text-success-foreground",
+          "hover:bg-success/90 hover:-translate-y-0.5",
+          "hover:shadow-[0_0_20px_hsl(var(--success)/0.4)]",
+        ].join(" "),
       },
       size: {
         default: "h-10 px-4 py-2",
