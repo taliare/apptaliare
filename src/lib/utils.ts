@@ -65,3 +65,34 @@ export function formatDateBR(dateString: string): string {
   const [year, month, day] = dateString.split('-');
   return `${day}/${month}/${year}`;
 }
+
+/**
+ * Converte um objeto Date para string no formato YYYY-MM-DD
+ * usando o fuso horário LOCAL (não UTC).
+ * 
+ * IMPORTANTE: Use esta função sempre que precisar salvar uma data no banco!
+ * Evita o problema de -1 dia causado por toISOString() que converte para UTC.
+ * 
+ * @param date - Objeto Date (opcional, default = agora)
+ * @returns String no formato "2025-12-20"
+ * 
+ * @example
+ * // Em vez de: new Date().toISOString().split('T')[0]  ❌
+ * // Use: getLocalDateString()  ✅
+ */
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Retorna a data atual no formato YYYY-MM para uso em metas/relatórios
+ * @returns String no formato "2025-12"
+ */
+export function getLocalMonthString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}

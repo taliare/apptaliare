@@ -15,7 +15,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { formatarValor } from '@/lib/utils';
+import { formatarValor, getLocalDateString, getLocalMonthString } from '@/lib/utils';
 
 interface MetaCobranca {
   id: string;
@@ -96,12 +96,12 @@ export default function Metas() {
   });
 
   // Query for cobranças do mês atual (para calcular realizado no progresso)
-  const mesAtualCalculo = format(new Date(), 'yyyy-MM');
+  const mesAtualCalculo = getLocalMonthString();
   const { data: cobrancasDoMes = [] } = useQuery({
     queryKey: ['cobrancas-mes-atual', mesAtualCalculo],
     queryFn: async () => {
-      const inicio = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      const fim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+      const inicio = getLocalDateString(startOfMonth(new Date()));
+      const fim = getLocalDateString(endOfMonth(new Date()));
 
       const { data, error } = await supabase
         .from('cobrancas_diarias')

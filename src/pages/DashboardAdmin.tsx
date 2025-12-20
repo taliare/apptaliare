@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { formatarValor, formatarNumero } from '@/lib/utils';
+import { formatarValor, formatarNumero, getLocalDateString, getLocalMonthString } from '@/lib/utils';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 
 interface Profile {
@@ -38,14 +38,14 @@ interface CobrancaHojeRepresentante {
 }
 
 export default function DashboardAdmin() {
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(getLocalDateString(startOfMonth(new Date())));
+  const [endDate, setEndDate] = useState(getLocalDateString(endOfMonth(new Date())));
   const [estoqueDialogOpen, setEstoqueDialogOpen] = useState(false);
   const [cobrancaHojeDialogOpen, setCobrancaHojeDialogOpen] = useState(false);
   
   // Meta sempre do mês atual, não do período filtrado
-  const mesAtual = format(new Date(), 'yyyy-MM');
-  const hoje = format(new Date(), 'yyyy-MM-dd');
+  const mesAtual = getLocalMonthString();
+  const hoje = getLocalDateString();
 
   // Query para representantes ativos (excluindo admins)
   const { data: representantes = [] } = useQuery({

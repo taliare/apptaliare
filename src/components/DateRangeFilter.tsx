@@ -3,23 +3,24 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar, X } from 'lucide-react';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth, endOfMonth } from 'date-fns';
+import { getLocalDateString } from '@/lib/utils';
 
 interface DateRangeFilterProps {
   onFilterChange: (startDate: string, endDate: string) => void;
 }
 
 export function DateRangeFilter({ onFilterChange }: DateRangeFilterProps) {
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [startDate, setStartDate] = useState(getLocalDateString(startOfMonth(new Date())));
+  const [endDate, setEndDate] = useState(getLocalDateString(endOfMonth(new Date())));
 
   const handleApply = () => {
     onFilterChange(startDate, endDate);
   };
 
   const handleClear = () => {
-    const newStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-    const newEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+    const newStart = getLocalDateString(startOfMonth(new Date()));
+    const newEnd = getLocalDateString(endOfMonth(new Date()));
     setStartDate(newStart);
     setEndDate(newEnd);
     onFilterChange(newStart, newEnd);

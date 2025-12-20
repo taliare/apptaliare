@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { cn, formatarValor, formatarNumero } from '@/lib/utils';
+import { cn, formatarValor, formatarNumero, getLocalDateString } from '@/lib/utils';
 import { notaPromissoriaInsertSchema, notaPromissoriaUpdateSchema, cobrancaInsertSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
 
 interface NotaPromissoria {
@@ -68,7 +68,7 @@ export default function CobrancaDiaria() {
   const [vincularVendedora, setVincularVendedora] = useState(false);
   const [vendedoraId, setVendedoraId] = useState('');
   const [revendedoraKit, setRevendedoraKit] = useState('');
-  const [dataVencimentoKit, setDataVencimentoKit] = useState<string>(format(addDays(new Date(), 60), 'yyyy-MM-dd'));
+  const [dataVencimentoKit, setDataVencimentoKit] = useState<string>(getLocalDateString(addDays(new Date(), 60)));
 
   // Form states for Nota Promissória
   const [codigoNota, setCodigoNota] = useState('');
@@ -405,7 +405,7 @@ export default function CobrancaDiaria() {
     setVincularVendedora(false);
     setVendedoraId('');
     setRevendedoraKit('');
-    setDataVencimentoKit(format(addDays(new Date(), 60), 'yyyy-MM-dd'));
+    setDataVencimentoKit(getLocalDateString(addDays(new Date(), 60)));
   };
 
   const handleSubmitKitEntrega = () => {

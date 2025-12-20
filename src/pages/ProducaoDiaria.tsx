@@ -7,6 +7,7 @@ import { Package, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { getLocalDateString } from '@/lib/utils';
 
 interface KitData {
   codigo: string;
@@ -68,7 +69,7 @@ export default function ProducaoDiaria() {
 
     setLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       
       // Registrar produção com valor
       const producaoData = [
