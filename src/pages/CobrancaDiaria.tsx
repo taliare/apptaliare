@@ -317,9 +317,9 @@ export default function CobrancaDiaria() {
     kit.codigo.toLowerCase().includes(kitSearchTerm.toLowerCase())
   );
 
-  // Mutation para registrar entrega de kit
+  // Mutation para registrar entrega de kit usando função RPC atômica
   const entregaKitMutation = useMutation({
-    mutationFn: async (data: { kitId: string; codigo: string; tipo: string; valor: number; revendedora: string; vendedora?: string; dataVencimento: string }) => {
+    mutationFn: async (data: { kitId: string; revendedora: string; vendedoraId?: string; vendedoraNome?: string; dataVencimento: string }) => {
       // Validate revendedora input
       if (!data.revendedora || data.revendedora.trim().length === 0) {
         throw new Error('Nome da revendedora é obrigatório');
@@ -329,55 +329,28 @@ export default function CobrancaDiaria() {
       }
       
       const sanitizedRevendedora = sanitizeString(data.revendedora);
-      const sanitizedVendedora = data.vendedora ? sanitizeString(data.vendedora) : undefined;
-      const sanitizedCodigo = sanitizeString(data.codigo);
-      const sanitizedTipo = sanitizeString(data.tipo);
+      const sanitizedVendedora = data.vendedoraNome ? sanitizeString(data.vendedoraNome) : null;
       
-      const { data: updateResult, error: updateError } = await supabase
-        .rpc('atualizar_status_kit_entrega', {
+      // Usar função RPC atômica que faz tudo em uma única transação
+      const { data: result, error } = await supabase
+        .rpc('entregar_kit_para_revendedora', {
           p_kit_id: data.kitId,
-          p_user_id: user!.id
+          p_user_id: user!.id,
+          p_revendedora: sanitizedRevendedora,
+          p_data_vencimento: data.dataVencimento,
+          p_vendedora_id: data.vendedoraId || null,
+          p_vendedora_nome: sanitizedVendedora
         });
 
-      if (updateError) throw updateError;
-      if (!updateResult) throw new Error('Kit não encontrado ou não pertence a você');
-
-      // Validate cobranca data before insert
-      const cobrancaData = {
-        representante_id: user!.id,
-        revendedora: sanitizedRevendedora,
-        codigo_nota: sanitizedCodigo,
-        tipo: 'kit',
-        valor_previsto: data.valor,
-        data_agendada: data.dataVencimento,
-        status: 'pendente' as const,
-        vendedora: sanitizedVendedora || null,
-        observacoes: `Entrega de kit ${sanitizedTipo} - Código: ${sanitizedCodigo}`
-      };
+      if (error) throw error;
       
-      const validation = validateData(cobrancaInsertSchema, cobrancaData);
-      if (!validation.success) {
-        throw new Error((validation as { success: false; errors: string[] }).errors.join(', '));
+      // A função retorna JSON com success: true/false
+      const response = result as { success: boolean; error?: string };
+      if (!response.success) {
+        throw new Error(response.error || 'Erro ao registrar entrega');
       }
-
-      const { error: cobrancaError } = await supabase
-        .from('cobrancas_agendadas')
-        .insert(cobrancaData);
-
-      if (cobrancaError) throw cobrancaError;
-
-      // Registrar na tabela kits_entregues para alimentar a tela "Kits Entregues"
-      const { error: kitEntregueError } = await supabase
-        .from('kits_entregues')
-        .insert({
-          representante_id: user!.id,
-          codigo_mostruario: sanitizedCodigo,
-          tipo: sanitizedTipo,
-          data_entrega: format(new Date(), 'yyyy-MM-dd'),
-          data_vencimento: data.dataVencimento
-        });
-
-      if (kitEntregueError) throw kitEntregueError;
+      
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep-diaria'] });
@@ -394,35 +367,24 @@ export default function CobrancaDiaria() {
     },
   });
 
-  // Mutation para excluir entrega de kit
+  // Mutation para excluir entrega de kit usando função RPC atômica
   const excluirEntregaMutation = useMutation({
     mutationFn: async (entrega: { id: string; codigo_nota: string }) => {
-      // Reverter status do kit no estoque
-      const { error: revertError } = await supabase
-        .rpc('reverter_entrega_kit', {
-          p_codigo_kit: entrega.codigo_nota,
+      // Usar função RPC atômica para reverter tudo de uma vez
+      const { data: result, error } = await supabase
+        .rpc('reverter_entrega_kit_atomico', {
+          p_kit_entregue_id: entrega.id,
           p_user_id: user!.id
         });
 
-      if (revertError) throw revertError;
-
-      // Deletar da tabela kits_entregues
-      const { error: deleteKitEntregueError } = await supabase
-        .from('kits_entregues')
-        .delete()
-        .eq('id', entrega.id);
-
-      if (deleteKitEntregueError) throw deleteKitEntregueError;
-
-      // Deletar da tabela cobrancas_agendadas pelo código do kit
-      const { error: deleteCobrancaError } = await supabase
-        .from('cobrancas_agendadas')
-        .delete()
-        .eq('representante_id', user!.id)
-        .eq('codigo_nota', entrega.codigo_nota)
-        .eq('tipo', 'kit');
-
-      if (deleteCobrancaError) throw deleteCobrancaError;
+      if (error) throw error;
+      
+      const response = result as { success: boolean; error?: string };
+      if (!response.success) {
+        throw new Error(response.error || 'Erro ao reverter entrega');
+      }
+      
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep-diaria'] });
@@ -466,11 +428,9 @@ export default function CobrancaDiaria() {
     const vendedoraSelecionada = vendedoras.find((v: any) => v.id === vendedoraId);
     entregaKitMutation.mutate({
       kitId: selectedKit,
-      codigo: kit.codigo,
-      tipo: kit.tipo,
-      valor: kit.valor || 0,
       revendedora: revendedoraKit,
-      vendedora: vincularVendedora && vendedoraSelecionada ? vendedoraSelecionada.nome : undefined,
+      vendedoraId: vincularVendedora ? vendedoraId : undefined,
+      vendedoraNome: vincularVendedora && vendedoraSelecionada ? vendedoraSelecionada.nome : undefined,
       dataVencimento: dataVencimentoKit
     });
   };

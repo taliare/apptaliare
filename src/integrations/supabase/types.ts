@@ -609,6 +609,17 @@ export type Database = {
         Args: { p_kit_id: string; p_user_id: string }
         Returns: boolean
       }
+      entregar_kit_para_revendedora: {
+        Args: {
+          p_data_vencimento: string
+          p_kit_id: string
+          p_revendedora: string
+          p_user_id: string
+          p_vendedora_id?: string
+          p_vendedora_nome?: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -619,6 +630,10 @@ export type Database = {
       reverter_entrega_kit: {
         Args: { p_codigo_kit: string; p_user_id: string }
         Returns: boolean
+      }
+      reverter_entrega_kit_atomico: {
+        Args: { p_kit_entregue_id: string; p_user_id: string }
+        Returns: Json
       }
     }
     Enums: {

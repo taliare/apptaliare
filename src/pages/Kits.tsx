@@ -82,58 +82,35 @@ export default function Kits() {
     setDataVencimentoKit(addDays(new Date(), 60));
   };
 
-  // Mutation para registrar entrega de kit
+  // Mutation para registrar entrega de kit usando função RPC atômica
   const entregaKitMutation = useMutation({
     mutationFn: async (data: { 
       kitId: string; 
-      codigo: string; 
-      tipo: string; 
-      valor: number; 
       revendedora: string; 
       vendedoraId?: string; 
       vendedoraNome?: string;
       dataVencimento: string 
     }) => {
-      // 1. Atualizar status do kit usando função SECURITY DEFINER
-      const { data: updateResult, error: updateError } = await supabase
-        .rpc('atualizar_status_kit_entrega', {
+      // Usar função RPC atômica que faz tudo em uma única transação
+      const { data: result, error } = await supabase
+        .rpc('entregar_kit_para_revendedora', {
           p_kit_id: data.kitId,
-          p_user_id: user!.id
+          p_user_id: user!.id,
+          p_revendedora: data.revendedora,
+          p_data_vencimento: data.dataVencimento,
+          p_vendedora_id: data.vendedoraId || null,
+          p_vendedora_nome: data.vendedoraNome || null
         });
 
-      if (updateError) throw updateError;
-      if (!updateResult) throw new Error('Kit não encontrado ou não pertence a você');
-
-      // 2. Criar cobrança para o kit entregue usando o valor da produção
-      const { error: cobrancaError } = await supabase
-        .from('cobrancas_agendadas')
-        .insert({
-          representante_id: user!.id,
-          revendedora: data.revendedora,
-          codigo_nota: data.codigo,
-          tipo: 'kit',
-          valor_previsto: data.valor,
-          data_agendada: data.dataVencimento,
-          status: 'pendente',
-          vendedora_id: data.vendedoraId || null,
-          vendedora: data.vendedoraNome || null,
-          observacoes: `Entrega de kit ${data.tipo} - Código: ${data.codigo}`
-        });
-
-      if (cobrancaError) throw cobrancaError;
-
-      // 3. Registrar na tabela kits_entregues para alimentar a tela "Kits Entregues"
-      const { error: kitEntregueError } = await supabase
-        .from('kits_entregues')
-        .insert({
-          representante_id: user!.id,
-          codigo_mostruario: data.codigo,
-          tipo: data.tipo,
-          data_entrega: format(new Date(), 'yyyy-MM-dd'),
-          data_vencimento: data.dataVencimento
-        });
-
-      if (kitEntregueError) throw kitEntregueError;
+      if (error) throw error;
+      
+      // A função retorna JSON com success: true/false
+      const response = result as { success: boolean; error?: string };
+      if (!response.success) {
+        throw new Error(response.error || 'Erro ao registrar entrega');
+      }
+      
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
@@ -176,9 +153,6 @@ export default function Kits() {
 
     entregaKitMutation.mutate({
       kitId: selectedKit,
-      codigo: kit.codigo,
-      tipo: kit.tipo,
-      valor: kit.valor || 0,
       revendedora: revendedoraKit,
       vendedoraId: vincularVendedora ? selectedVendedoraId : undefined,
       vendedoraNome: vincularVendedora ? vendedoraSelecionada?.nome : undefined,
