@@ -1,6 +1,6 @@
-import { Menu } from "lucide-react";
+import { Menu, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import taliare_horizontal from "@/assets/taliare-horizontal-escuro.png";
+import taliare_icone from "@/assets/taliare-icone-claro.png";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 
 interface MobileTopbarProps {
@@ -9,19 +9,34 @@ interface MobileTopbarProps {
 
 export function MobileTopbar({ onMenuClick }: MobileTopbarProps) {
   return (
-    <div
+    <header
       className="
         md:hidden
         fixed top-0 left-0 right-0 z-40
         flex items-center justify-between
         px-4 py-3
-        bg-[#E7D8C3]
-        border-b border-[#C6B7A2]
-        shadow-sm
+        bg-background/80
+        backdrop-blur-xl
+        border-b border-border/50
+        safe-top
       "
     >
-      <img src={taliare_horizontal} alt="TALIARE SEMIJOIAS" className="h-8 w-auto" />
+      {/* Logo */}
+      <div className="flex items-center gap-3">
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/20 blur-lg rounded-full" />
+          <img 
+            src={taliare_icone} 
+            alt="TALIARE" 
+            className="h-8 w-8 relative z-10"
+          />
+        </div>
+        <span className="font-display font-semibold text-foreground tracking-wide">
+          TALIARE
+        </span>
+      </div>
 
+      {/* Actions */}
       <div className="flex items-center gap-2">
         <PushNotificationToggle />
         
@@ -32,18 +47,18 @@ export function MobileTopbar({ onMenuClick }: MobileTopbarProps) {
           onClick={onMenuClick}
           aria-label="Abrir menu"
           className="
-            flex items-center justify-center
-            rounded-full
-            bg-[#531B24]
-            text-white
-            hover:bg-[#6A2931]
-            active:scale-95
-            transition
+            relative
+            rounded-lg
+            bg-secondary
+            text-foreground
+            hover:bg-primary
+            hover:text-primary-foreground
+            transition-all duration-200
           "
         >
-          <Menu className="h-6 w-6" />
+          <Menu className="h-5 w-5" />
         </Button>
       </div>
-    </div>
+    </header>
   );
 }

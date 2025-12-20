@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import taliare_logo from '@/assets/taliare-icone-claro.png';
+import { Loader2 } from 'lucide-react';
 
 export default function Auth() {
   const [loading, setLoading] = useState(false);
@@ -48,21 +49,44 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Background effects */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-primary/10 via-transparent to-transparent rounded-full blur-3xl" />
+        <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-primary/5 via-transparent to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-pulse-subtle" />
+      </div>
+
+      <Card variant="glass" className="w-full max-w-md animate-scale-in relative z-10">
+        <CardHeader className="space-y-6 pb-4">
+          {/* Logo with glow effect */}
           <div className="flex justify-center">
-            <img src={taliare_logo} alt="TALIARE SEMIJOIAS" className="h-20 w-20" />
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/30 blur-2xl rounded-full scale-150" />
+              <img 
+                src={taliare_logo} 
+                alt="TALIARE SEMIJOIAS" 
+                className="h-20 w-20 relative z-10 drop-shadow-lg"
+              />
+            </div>
           </div>
+          
           <div className="space-y-2 text-center">
-            <CardTitle className="text-2xl">TALIARE SEMIJOIAS</CardTitle>
-            <CardDescription>Sistema Interno de Gestão</CardDescription>
+            <CardTitle className="text-2xl font-display tracking-wide">
+              TALIARE
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">
+              Sistema Interno de Gestão
+            </CardDescription>
           </div>
         </CardHeader>
+
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4 pt-4">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
+              <Label htmlFor="login-email" className="text-sm font-medium text-foreground/80">
+                Email
+              </Label>
               <Input
                 id="login-email"
                 type="email"
@@ -70,10 +94,15 @@ export default function Auth() {
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 required
+                autoComplete="email"
+                className="h-12"
               />
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="login-password">Senha</Label>
+              <Label htmlFor="login-password" className="text-sm font-medium text-foreground/80">
+                Senha
+              </Label>
               <Input
                 id="login-password"
                 type="password"
@@ -81,12 +110,34 @@ export default function Auth() {
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 required
+                autoComplete="current-password"
+                className="h-12"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Entrando...' : 'Entrar'}
+
+            <Button 
+              type="submit" 
+              className="w-full h-12 text-base font-medium mt-2" 
+              variant="glow"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Entrando...
+                </>
+              ) : (
+                'Entrar'
+              )}
             </Button>
           </form>
+
+          {/* Subtle footer */}
+          <div className="mt-8 pt-6 border-t border-border/50">
+            <p className="text-xs text-center text-muted-foreground">
+              © {new Date().getFullYear()} Taliare Semijoias
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

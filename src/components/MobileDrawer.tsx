@@ -1,4 +1,4 @@
-import { X, LogOut, ShoppingBag, Scale, PackageCheck } from 'lucide-react';
+import { LogOut, ShoppingBag, Scale, PackageCheck, X, ChevronRight } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/sheet';
 import { useAuth } from '@/contexts/AuthContext';
 import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory } from 'lucide-react';
-import taliare_horizontal from '@/assets/taliare-horizontal-escuro.png';
+import taliare_icone from '@/assets/taliare-icone-claro.png';
 
 interface MobileDrawerProps {
   open: boolean;
@@ -20,12 +20,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { profile, signOut } = useAuth();
 
   const representanteItems = [
-    { title: 'Dashboard', url: '/dashboard', icon: Home },
+    { title: 'Início', url: '/dashboard', icon: Home },
     { title: 'Agenda', url: '/cobranca', icon: Calendar },
     { title: 'Fechamento do Dia', url: '/cobranca-diaria', icon: CalendarCheck },
     { title: 'Kits em Mãos', url: '/kits', icon: Package },
     { title: 'Kits Entregues', url: '/kits-entregues', icon: PackageCheck },
-    { title: 'Encomendas', url: '/encomendas', icon: ShoppingBag },
+    { title: 'Pedidos de Kit', url: '/encomendas', icon: ShoppingBag },
   ];
 
   const producaoItems = [
@@ -47,6 +47,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   ];
 
   const items = profile?.role === 'admin' ? adminItems : profile?.role === 'producao' ? producaoItems : representanteItems;
+  const roleLabel = profile?.role === 'admin' ? 'Admin' : profile?.role === 'producao' ? 'Produção' : 'Menu';
 
   const handleLinkClick = () => {
     onOpenChange(false);
@@ -56,42 +57,97 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="left" 
-        className="w-[80%] max-w-sm p-0 bg-[#531B24] border-r border-[#6A2931] [&>button]:text-white [&>button]:hover:bg-[#6A2931]"
+        className="w-[85%] max-w-sm p-0 bg-sidebar border-r border-sidebar-border [&>button]:hidden"
       >
-        <SheetHeader className="flex flex-row items-center justify-between border-b border-[#6A2931] p-4">
-          <img src={taliare_horizontal} alt="TALIARE SEMIJOIAS" className="h-8 w-auto brightness-0 invert" />
+        {/* Header */}
+        <SheetHeader className="flex flex-row items-center justify-between border-b border-sidebar-border p-4">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full" />
+              <img 
+                src={taliare_icone} 
+                alt="TALIARE" 
+                className="h-10 w-10 relative z-10"
+              />
+            </div>
+            <div>
+              <span className="font-display font-semibold text-sidebar-foreground tracking-wide text-lg">
+                TALIARE
+              </span>
+              <p className="text-xs text-sidebar-foreground/60 uppercase tracking-wider">
+                {roleLabel}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onOpenChange(false)}
+            className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <X className="h-5 w-5" />
+          </Button>
           <SheetTitle className="sr-only">Menu</SheetTitle>
         </SheetHeader>
 
-        <div className="flex flex-col h-[calc(100%-65px)]">
-          <div className="flex-1 overflow-y-auto px-4 py-6">
+        {/* Navigation */}
+        <div className="flex flex-col h-[calc(100%-73px)]">
+          <nav className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar">
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-[#E7D8C3] mb-3 px-3">
-                {profile?.role === 'admin' ? 'ADMIN' : profile?.role === 'producao' ? 'PRODUÇÃO' : 'MENU'}
-              </p>
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <NavLink
                   key={item.title}
                   to={item.url}
                   onClick={handleLinkClick}
-                  className="flex items-center gap-3 px-3 py-3 rounded-md text-[#E7D8C3] hover:bg-[#6A2931] transition-colors"
-                  activeClassName="bg-[#E7D8C3] text-[#531B24] font-medium"
+                  className="
+                    flex items-center justify-between
+                    px-4 py-3.5
+                    rounded-xl
+                    text-sidebar-foreground/80
+                    hover:bg-sidebar-accent
+                    hover:text-sidebar-foreground
+                    transition-all duration-200
+                    group
+                  "
+                  activeClassName="bg-primary text-primary-foreground shadow-glow-sm"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.title}</span>
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-5 w-5" />
+                    <span className="font-medium">{item.title}</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </NavLink>
               ))}
             </div>
-          </div>
+          </nav>
 
-          <div className="flex-shrink-0 border-t border-[#6A2931] p-4">
+          {/* Footer */}
+          <div className="flex-shrink-0 border-t border-sidebar-border p-3">
+            {/* User info */}
+            {profile && (
+              <div className="px-4 py-3 mb-2">
+                <p className="text-sm font-medium text-sidebar-foreground truncate">
+                  {profile.nome}
+                </p>
+              </div>
+            )}
+
             <Button
               variant="ghost"
               onClick={() => {
                 signOut();
                 onOpenChange(false);
               }}
-              className="w-full justify-start gap-3 text-[#E7D8C3] hover:bg-[#6A2931] hover:text-[#E7D8C3]"
+              className="
+                w-full justify-start gap-3
+                px-4 py-3
+                text-sidebar-foreground/80
+                hover:bg-destructive/10
+                hover:text-destructive
+                rounded-xl
+                transition-all duration-200
+              "
             >
               <LogOut className="h-5 w-5" />
               <span>Sair</span>
