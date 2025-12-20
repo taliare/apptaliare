@@ -165,10 +165,14 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-4 md:space-y-6 px-0">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Bem-vindo, {profile?.nome}</h1>
-        <p className="text-sm md:text-base text-muted-foreground">Acompanhe seu desempenho e metas</p>
+    <div className="space-y-4 md:space-y-6 px-0 animate-fade-in">
+      <div className="animate-slide-up">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+          Bem-vindo, {profile?.nome}
+        </h1>
+        <p className="text-sm md:text-base text-muted-foreground">
+          Acompanhe seu desempenho e metas
+        </p>
       </div>
 
       <DateRangeFilter 
@@ -179,80 +183,94 @@ export default function Dashboard() {
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 md:gap-4">
-        <Card>
+        <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.05s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Cobrado (Mês)</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-lg bg-primary/10 icon-hover-rotate">
+              <DollarSign className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarValor(totalCobrado)}</div>
+            <div className="text-2xl font-display font-bold">{formatarValor(totalCobrado)}</div>
             <p className="text-xs text-muted-foreground">
               {formatarNumero(cobrancas.length)} dia{cobrancas.length !== 1 ? 's' : ''} de cobrança
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Notas Cobradas (Mês)</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-lg bg-chart-2/10 icon-hover-rotate">
+              <FileText className="h-4 w-4 text-chart-2" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarNumero(totalNotas)}</div>
+            <div className="text-2xl font-display font-bold">{formatarNumero(totalNotas)}</div>
             <p className="text-xs text-muted-foreground">
               Notas promissórias
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.15s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-lg bg-chart-3/10 icon-hover-rotate">
+              <TrendingUp className="h-4 w-4 text-chart-3" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarValor(ticketMedio)}</div>
+            <div className="text-2xl font-display font-bold">{formatarValor(ticketMedio)}</div>
             <p className="text-xs text-muted-foreground">
               Valor médio por nota
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Despesas (Mês)</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-lg bg-destructive/10 icon-hover-rotate">
+              <TrendingDown className="h-4 w-4 text-destructive" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarValor(totalDespesas)}</div>
+            <div className="text-2xl font-display font-bold">{formatarValor(totalDespesas)}</div>
             <p className="text-xs text-muted-foreground">
               Líquido: {formatarValor(totalCobrado - totalDespesas)}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Kits Entregues (Ciclo)</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-lg bg-chart-4/10 icon-hover-rotate">
+              <Package className="h-4 w-4 text-chart-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarNumero(totalKits)}</div>
+            <div className="text-2xl font-display font-bold">{formatarNumero(totalKits)}</div>
             <p className="text-xs text-muted-foreground">
               Vencimento: {format(addMonths(new Date(), 2), "MMM/yyyy", { locale: ptBR })}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="glow" className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Meta do Mês</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
+            <div className="p-2 rounded-lg bg-primary/10 animate-glow-pulse">
+              <Target className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
             {metaDoMes ? (
               <>
-                <div className="text-2xl font-bold">{percentualMeta.toFixed(1)}%</div>
+                <div className="text-2xl font-display font-bold text-primary">
+                  {percentualMeta.toFixed(1)}%
+                </div>
                 <Progress value={Math.min(percentualMeta, 100)} className="mt-2" />
                 <p className="text-xs text-muted-foreground mt-2">
                   {formatarValor(metaDoMes.meta_valor)}
@@ -260,7 +278,7 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                <div className="text-2xl font-bold">-</div>
+                <div className="text-2xl font-display font-bold">-</div>
                 <p className="text-xs text-muted-foreground">Meta não definida</p>
               </>
             )}
@@ -269,24 +287,34 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-        <Card>
+        <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.35s' }}>
           <CardHeader>
-            <CardTitle>Evolução Diária das Cobranças</CardTitle>
+            <CardTitle className="font-display">Evolução Diária das Cobranças</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={dadosGrafico}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="dia" 
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   angle={-45}
                   textAnchor="end"
                   height={60}
+                  stroke="hsl(var(--border))"
                 />
-                <YAxis tick={{ fontSize: 12 }} />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                  stroke="hsl(var(--border))"
+                />
                 <Tooltip 
                   formatter={(value: number) => formatarValor(value)}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 25px -5px hsl(var(--primary) / 0.1)'
+                  }}
                 />
                 <Legend />
                 <Line 
@@ -295,6 +323,8 @@ export default function Dashboard() {
                   stroke="hsl(var(--primary))" 
                   strokeWidth={2}
                   name="Cobrado no Dia"
+                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: 'hsl(var(--primary))', stroke: 'hsl(var(--background))' }}
                 />
                 <Line 
                   type="monotone" 
@@ -302,30 +332,46 @@ export default function Dashboard() {
                   stroke="hsl(var(--chart-2))" 
                   strokeWidth={2}
                   name="Acumulado"
+                  dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: 'hsl(var(--chart-2))', stroke: 'hsl(var(--background))' }}
                 />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
           <CardHeader>
-            <CardTitle>Meta vs Realizado</CardTitle>
+            <CardTitle className="font-display">Meta vs Realizado</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={dadosMetaVsRealizado}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis tick={{ fontSize: 12 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis 
+                  dataKey="name" 
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  stroke="hsl(var(--border))"
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                  stroke="hsl(var(--border))"
+                />
                 <Tooltip 
                   formatter={(value: number) => formatarValor(value)}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    boxShadow: '0 10px 25px -5px hsl(var(--primary) / 0.1)'
+                  }}
                 />
                 <Legend />
                 <Bar 
                   dataKey="valor" 
                   fill="hsl(var(--primary))" 
                   name="Valor (R$)"
+                  radius={[4, 4, 0, 0]}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -334,11 +380,11 @@ export default function Dashboard() {
       </div>
 
       {cobrancas.length === 0 && (
-        <Card>
+        <Card variant="glass" className="animate-fade-in">
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
-              <TrendingUp className="h-16 w-16 mx-auto mb-4" />
-              <p className="text-lg">Nenhuma cobrança registrada este mês</p>
+              <TrendingUp className="h-16 w-16 mx-auto mb-4 animate-float" />
+              <p className="text-lg font-display">Nenhuma cobrança registrada este mês</p>
               <p className="text-sm">Registre suas cobranças diárias para ver seus dados aqui</p>
             </div>
           </CardContent>
