@@ -14,7 +14,7 @@ import { format, isToday, isBefore, isAfter, addDays, startOfDay, getDate, getDa
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import type { Database } from '@/integrations/supabase/types';
-import { formatarValor, parseLocalDate, formatDateBR } from '@/lib/utils';
+import { formatarValor, parseLocalDate, formatDateBR, getLocalDateString } from '@/lib/utils';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
 import { ModalSenhaAdmin } from '@/components/cobranca/ModalSenhaAdmin';
 import { Calendar } from '@/components/ui/calendar';
@@ -73,7 +73,7 @@ export default function Cobranca() {
     codigo_nota: '',
     tipo: '',
     valor_previsto: '',
-    data_agendada: format(new Date(), 'yyyy-MM-dd'),
+    data_agendada: getLocalDateString(),
     observacoes: '',
   });
 
@@ -638,7 +638,7 @@ export default function Cobranca() {
     
     reagendarMutation.mutate({
       id: cobrancaParaReagendar.id,
-      novaData: format(novaDataAgendada, 'yyyy-MM-dd')
+      novaData: getLocalDateString(novaDataAgendada)
     });
   };
 
@@ -648,7 +648,7 @@ export default function Cobranca() {
       codigo_nota: '',
       tipo: '',
       valor_previsto: '',
-      data_agendada: format(new Date(), 'yyyy-MM-dd'),
+      data_agendada: getLocalDateString(),
       observacoes: '',
     });
   };

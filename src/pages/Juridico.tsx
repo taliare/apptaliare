@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
-import { formatarValor, parseLocalDate, formatDateBR } from '@/lib/utils';
+import { formatarValor, parseLocalDate, formatDateBR, getLocalDateString } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -134,7 +134,7 @@ export default function Juridico() {
     
     retornarMutation.mutate({
       id: cobrancaParaRetornar.id,
-      novaData: novaDataVencimento ? format(novaDataVencimento, 'yyyy-MM-dd') : undefined
+      novaData: novaDataVencimento ? getLocalDateString(novaDataVencimento) : undefined
     });
   };
 

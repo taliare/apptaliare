@@ -15,7 +15,7 @@ import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn, formatarValor } from '@/lib/utils';
+import { cn, formatarValor, getLocalDateString } from '@/lib/utils';
 
 interface Vendedora {
   id: string;
@@ -156,7 +156,7 @@ export default function Kits() {
       revendedora: revendedoraKit,
       vendedoraId: vincularVendedora ? selectedVendedoraId : undefined,
       vendedoraNome: vincularVendedora ? vendedoraSelecionada?.nome : undefined,
-      dataVencimento: format(dataVencimentoKit, 'yyyy-MM-dd')
+      dataVencimento: getLocalDateString(dataVencimentoKit)
     });
   };
 

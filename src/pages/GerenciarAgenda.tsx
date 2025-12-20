@@ -16,7 +16,7 @@ import { format, getDate, getDay, startOfMonth, getMonth, getYear } from 'date-f
 import { ptBR } from 'date-fns/locale';
 import { Edit, Search, Plus, Trash2, CheckSquare, ChevronRight } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
-import { formatarValor, formatDateBR, parseLocalDate } from '@/lib/utils';
+import { formatarValor, formatDateBR, parseLocalDate, getLocalDateString } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cobrancaInsertSchema, cobrancaUpdateSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
 
@@ -73,7 +73,7 @@ export default function GerenciarAgenda() {
     codigo_nota: '',
     tipo: 'kit',
     valor_previsto: '',
-    data_agendada: format(new Date(), 'yyyy-MM-dd'),
+    data_agendada: getLocalDateString(),
     observacoes: '',
   });
 
