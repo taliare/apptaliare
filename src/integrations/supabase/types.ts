@@ -21,6 +21,7 @@ export type Database = {
           data_agendada: string
           data_encaminhado_juridico: string | null
           id: string
+          kit_entregue_id: string | null
           observacoes: string | null
           representante_id: string
           revendedora: string
@@ -37,6 +38,7 @@ export type Database = {
           data_agendada: string
           data_encaminhado_juridico?: string | null
           id?: string
+          kit_entregue_id?: string | null
           observacoes?: string | null
           representante_id: string
           revendedora: string
@@ -53,6 +55,7 @@ export type Database = {
           data_agendada?: string
           data_encaminhado_juridico?: string | null
           id?: string
+          kit_entregue_id?: string | null
           observacoes?: string | null
           representante_id?: string
           revendedora?: string
@@ -64,6 +67,13 @@ export type Database = {
           vendedora_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "cobrancas_agendadas_kit_entregue_id_fkey"
+            columns: ["kit_entregue_id"]
+            isOneToOne: false
+            referencedRelation: "kits_entregues"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cobrancas_agendadas_representante_id_fkey"
             columns: ["representante_id"]
@@ -185,6 +195,7 @@ export type Database = {
           data_entrega: string
           data_vencimento: string
           id: string
+          kit_estoque_id: string | null
           prestacao_id: string | null
           representante_id: string
           tipo: string | null
@@ -195,6 +206,7 @@ export type Database = {
           data_entrega: string
           data_vencimento: string
           id?: string
+          kit_estoque_id?: string | null
           prestacao_id?: string | null
           representante_id: string
           tipo?: string | null
@@ -205,11 +217,19 @@ export type Database = {
           data_entrega?: string
           data_vencimento?: string
           id?: string
+          kit_estoque_id?: string | null
           prestacao_id?: string | null
           representante_id?: string
           tipo?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "kits_entregues_kit_estoque_id_fkey"
+            columns: ["kit_estoque_id"]
+            isOneToOne: false
+            referencedRelation: "kits_estoque"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "kits_entregues_prestacao_id_fkey"
             columns: ["prestacao_id"]
