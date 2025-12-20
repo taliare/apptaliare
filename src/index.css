@@ -62,6 +62,11 @@
     /* Custom Effects */
     --glow-primary: 0 0 30px hsl(350 47% 38% / 0.3);
     --glow-subtle: 0 0 20px hsl(350 47% 28% / 0.15);
+
+    /* Timing functions */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
     
     /* Success/Warning/Info */
     --success: 142 71% 45%;
@@ -228,12 +233,101 @@
 
   /* Interactive hover states */
   .hover-lift {
-    @apply transition-all duration-300 ease-out;
+    @apply transition-all duration-300;
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .hover-lift:hover {
-    @apply -translate-y-0.5;
-    box-shadow: 0 10px 40px -15px hsl(var(--primary) / 0.2);
+    @apply -translate-y-1;
+    box-shadow: 0 15px 40px -15px hsl(var(--primary) / 0.25);
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-300;
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .card-hover:hover {
+    @apply -translate-y-1 shadow-soft-lg;
+    border-color: hsl(var(--primary) / 0.3);
+  }
+
+  /* Ripple effect for buttons */
+  .ripple-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ripple-effect::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, hsl(var(--primary-foreground) / 0.3) 0%, transparent 70%);
+    transform: scale(0);
+    opacity: 0;
+    transition: transform 0.5s ease-out, opacity 0.3s ease-out;
+  }
+
+  .ripple-effect:active::after {
+    transform: scale(2.5);
+    opacity: 1;
+    transition: transform 0s, opacity 0s;
+  }
+
+  /* Icon hover rotation */
+  .icon-hover-rotate {
+    @apply transition-transform duration-300;
+  }
+
+  .icon-hover-rotate:hover {
+    transform: rotate(15deg);
+  }
+
+  /* Link underline animation */
+  .link-underline {
+    position: relative;
+  }
+
+  .link-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: hsl(var(--primary));
+    transition: width 0.3s ease-out;
+  }
+
+  .link-underline:hover::after {
+    width: 100%;
+  }
+
+  /* Shine effect */
+  .shine-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shine-effect::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--primary-foreground) / 0.1),
+      transparent
+    );
+    transition: left 0.5s ease-out;
+  }
+
+  .shine-effect:hover::before {
+    left: 100%;
   }
 
   /* Smooth scrollbar */
