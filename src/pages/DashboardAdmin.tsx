@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
-  DollarSign, TrendingUp, Package, FileText, Users, TrendingDown, 
+  DollarSign, TrendingUp, Package, Users, TrendingDown, 
   Factory, Warehouse, ChevronDown, ChevronUp, Sparkles, Sun, Moon, 
   CloudSun, Flame, Target, Calendar
 } from 'lucide-react';
@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatarValor, formatarNumero, getLocalDateString, getLocalMonthString } from '@/lib/utils';
-import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { DateRangeFilterPopover } from '@/components/DateRangeFilterPopover';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -337,95 +337,96 @@ export default function DashboardAdmin() {
   }).sort((a, b) => b.total_cobrado - a.total_cobrado);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 md:space-y-6 animate-fade-in overflow-x-hidden">
       {/* Hero Section - Saudação */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background border border-primary/20 p-6 md:p-8">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-chart-2/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+      <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background border border-primary/20 p-4 md:p-8">
+        <div className="absolute top-0 right-0 w-32 md:w-64 h-32 md:h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-24 md:w-48 h-24 md:h-48 bg-chart-2/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
         
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-primary/20 animate-glow-pulse">
-                <SaudacaoIcon className="h-6 w-6 text-primary" />
+        <div className="relative z-10 flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+              <div className="p-2 md:p-3 rounded-lg md:rounded-xl bg-primary/20 animate-glow-pulse shrink-0">
+                <SaudacaoIcon className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+              <div className="min-w-0">
+                <h1 className="text-lg md:text-3xl font-display font-bold text-foreground truncate">
                   {saudacao.texto}, {profile?.nome?.split(' ')[0]} {saudacao.emoji}
                 </h1>
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-1 md:gap-2">
+                  <Calendar className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+                  <span className="truncate">{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}</span>
                 </p>
               </div>
             </div>
             
-            <div className="flex items-start gap-2 bg-background/50 backdrop-blur-sm rounded-lg p-3 border border-primary/10">
-              <Sparkles className="h-5 w-5 text-primary mt-0.5 animate-pulse" />
-              <p className="text-sm text-muted-foreground italic">
-                "{fraseMotivacional}"
-              </p>
-            </div>
+            {/* Filtro de Período */}
+            <DateRangeFilterPopover 
+              onFilterChange={(start, end) => {
+                setStartDate(start);
+                setEndDate(end);
+              }}
+              className="shrink-0"
+            />
+          </div>
+          
+          <div className="flex items-start gap-2 bg-background/50 backdrop-blur-sm rounded-lg p-2 md:p-3 border border-primary/10">
+            <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-primary mt-0.5 animate-pulse shrink-0" />
+            <p className="text-xs md:text-sm text-muted-foreground italic line-clamp-2">
+              "{fraseMotivacional}"
+            </p>
           </div>
 
           {/* Quick Stats */}
-          <div className="flex items-center gap-4">
-            <div className="text-center p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/50">
-              <p className="text-xs text-muted-foreground mb-1">Hoje</p>
-              <p className="text-xl font-bold text-primary">{formatarValor(totalHoje)}</p>
+          <div className="flex items-center gap-2 md:gap-4">
+            <div className="flex-1 text-center p-2 md:p-3 bg-background/60 backdrop-blur-sm rounded-lg md:rounded-xl border border-border/50">
+              <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Hoje</p>
+              <p className="text-sm md:text-xl font-bold text-primary truncate">{formatarValor(totalHoje)}</p>
             </div>
-            <div className="text-center p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/50">
-              <p className="text-xs text-muted-foreground mb-1">Mês</p>
-              <p className="text-xl font-bold text-chart-2">{formatarValor(totalMes)}</p>
+            <div className="flex-1 text-center p-2 md:p-3 bg-background/60 backdrop-blur-sm rounded-lg md:rounded-xl border border-border/50">
+              <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Período</p>
+              <p className="text-sm md:text-xl font-bold text-chart-2 truncate">{formatarValor(totalMes)}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filtro de Data */}
-      <DateRangeFilter 
-        onFilterChange={(start, end) => {
-          setStartDate(start);
-          setEndDate(end);
-        }} 
-      />
-
       {/* Cards Principais - Grid Responsivo */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         {/* Card Total Hoje */}
         <Card 
           variant="interactive"
-          className="cursor-pointer group animate-fade-in"
+          className="cursor-pointer group animate-fade-in w-full max-w-full overflow-hidden"
           style={{ animationDelay: '0.05s' }}
           onClick={() => setCobrancaHojeDialogOpen(true)}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">Hoje</CardTitle>
-            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-              <DollarSign className="h-4 w-4 text-primary" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+            <CardTitle className="text-xs md:text-sm font-medium truncate">Hoje</CardTitle>
+            <div className="p-1.5 md:p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors shrink-0">
+              <DollarSign className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl font-display font-bold">{formatarValor(totalHoje)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">Toque para detalhes</p>
+          <CardContent className="p-3 md:p-4 pt-0">
+            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarValor(totalHoje)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">Toque para detalhes</p>
           </CardContent>
         </Card>
 
         {/* Card Total Período */}
         <Card 
           variant="interactive" 
-          className="animate-fade-in"
+          className="animate-fade-in w-full max-w-full overflow-hidden"
           style={{ animationDelay: '0.1s' }}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">Período</CardTitle>
-            <div className="p-2 rounded-lg bg-chart-2/10">
-              <TrendingUp className="h-4 w-4 text-chart-2" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+            <CardTitle className="text-xs md:text-sm font-medium truncate">Período</CardTitle>
+            <div className="p-1.5 md:p-2 rounded-lg bg-chart-2/10 shrink-0">
+              <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 text-chart-2" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl font-display font-bold">{formatarValor(totalMes)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
+          <CardContent className="p-3 md:p-4 pt-0">
+            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarValor(totalMes)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">
               Líquido: {formatarValor(totalMes - totalDespesas)}
             </p>
           </CardContent>
@@ -434,38 +435,38 @@ export default function DashboardAdmin() {
         {/* Card Kits */}
         <Card 
           variant="interactive" 
-          className="animate-fade-in"
+          className="animate-fade-in w-full max-w-full overflow-hidden"
           style={{ animationDelay: '0.15s' }}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">Kits</CardTitle>
-            <div className="p-2 rounded-lg bg-chart-3/10">
-              <Package className="h-4 w-4 text-chart-3" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+            <CardTitle className="text-xs md:text-sm font-medium truncate">Kits</CardTitle>
+            <div className="p-1.5 md:p-2 rounded-lg bg-chart-3/10 shrink-0">
+              <Package className="h-3.5 w-3.5 md:h-4 md:w-4 text-chart-3" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl font-display font-bold">{formatarNumero(totalKits)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">Entregues</p>
+          <CardContent className="p-3 md:p-4 pt-0">
+            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarNumero(totalKits)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">Entregues</p>
           </CardContent>
         </Card>
 
         {/* Card Meta Geral */}
         <Card 
           variant="glow" 
-          className="animate-fade-in"
+          className="animate-fade-in w-full max-w-full overflow-hidden"
           style={{ animationDelay: '0.2s' }}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium">Meta Geral</CardTitle>
-            <div className="p-2 rounded-lg bg-primary/10 animate-glow-pulse">
-              <Target className="h-4 w-4 text-primary" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+            <CardTitle className="text-xs md:text-sm font-medium truncate">Meta Geral</CardTitle>
+            <div className="p-1.5 md:p-2 rounded-lg bg-primary/10 animate-glow-pulse shrink-0">
+              <Target className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-lg md:text-2xl font-display font-bold text-primary">
+          <CardContent className="p-3 md:p-4 pt-0">
+            <div className="text-base md:text-2xl font-display font-bold text-primary truncate">
               {percentualMetaGeral.toFixed(0)}%
             </div>
-            <Progress value={Math.min(percentualMetaGeral, 100)} className="mt-2 h-2" />
+            <Progress value={Math.min(percentualMetaGeral, 100)} className="mt-2 h-1.5 md:h-2" />
           </CardContent>
         </Card>
       </div>
