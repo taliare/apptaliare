@@ -136,7 +136,10 @@ export function PreferencesSection() {
               return (
                 <button
                   key={t.value}
-                  onClick={() => setSelectedTheme(t.value)}
+                  onClick={() => {
+                    setSelectedTheme(t.value);
+                    setTheme(t.value); // Apply theme immediately
+                  }}
                   className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
                     selectedTheme === t.value
                       ? "border-primary bg-primary/10"
