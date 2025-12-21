@@ -4,8 +4,8 @@
   "description": "Sistema interno de gestão para TALIARE SEMIJOIAS",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#d4af37",
+  "background_color": "#ffffff",
+  "theme_color": "#8B1538",
   "orientation": "portrait-primary",
   "icons": [
     {
