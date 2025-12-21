@@ -14,11 +14,13 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { SendNotificationDialog } from "@/components/admin/SendNotificationDialog";
 import taliareLogoHorizontal from "@/assets/taliare-logo-horizontal.png";
-import { LogOut, Settings, User, Bell, Send } from "lucide-react";
+import { LogOut, Settings, User, Send } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export function AppHeader() {
   const { profile, signOut } = useAuth();
   const { state, toggleSidebar } = useSidebar();
+  const navigate = useNavigate();
   const collapsed = state === "collapsed";
   const isAdmin = profile?.role === "admin";
 
@@ -91,7 +93,7 @@ export function AppHeader() {
               className="h-9 w-9 rounded-full p-0 hover:ring-2 hover:ring-primary/50"
             >
               <Avatar className="h-9 w-9 border-2 border-sidebar-border">
-                <AvatarImage src="" alt={profile?.nome || "Usuário"} />
+                <AvatarImage src={profile?.avatar_url || ""} alt={profile?.nome || "Usuário"} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs font-medium">
                   {userInitials}
                 </AvatarFallback>
@@ -108,11 +110,11 @@ export function AppHeader() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/perfil")}>
               <User className="mr-2 h-4 w-4" />
               <span>Perfil</span>
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer">
+            <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/perfil")}>
               <Settings className="mr-2 h-4 w-4" />
               <span>Configurações</span>
             </DropdownMenuItem>

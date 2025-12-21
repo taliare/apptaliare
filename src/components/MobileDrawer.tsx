@@ -12,7 +12,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory, Bell } from 'lucide-react';
-import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
+import { useNavigate } from 'react-router-dom';
 
 interface MenuCategory {
   label: string;
@@ -32,6 +32,7 @@ interface MobileDrawerProps {
 export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { profile, signOut } = useAuth();
   const { unreadCount } = useNotifications();
+  const navigate = useNavigate();
 
   const userInitials = profile?.nome
     ? profile.nome
@@ -153,7 +154,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
           <div className="flex items-center justify-between p-3 xs:p-4">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border-2 border-primary/30">
-                <AvatarImage src="" alt={profile?.nome || "Usuário"} />
+                <AvatarImage src={profile?.avatar_url || ""} alt={profile?.nome || "Usuário"} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
                   {userInitials}
                 </AvatarFallback>
@@ -259,6 +260,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => {
+                  navigate("/perfil");
+                  onOpenChange(false);
+                }}
                 className="flex-1 h-9 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 gap-2"
               >
                 <User className="h-4 w-4" />
@@ -267,6 +272,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => {
+                  navigate("/perfil");
+                  onOpenChange(false);
+                }}
                 className="flex-1 h-9 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 gap-2"
               >
                 <Settings className="h-4 w-4" />
