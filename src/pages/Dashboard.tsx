@@ -259,7 +259,7 @@ export default function Dashboard() {
       {/* Cards Principais */}
       <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-3">
         {/* Total Cobrado */}
-        <Card variant="interactive" className="animate-fade-in w-full max-w-full overflow-hidden" style={{ animationDelay: '0.05s' }}>
+        <Card variant="interactive" className="animate-card-entrance animate-card-entrance-1 w-full max-w-full overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
             <CardTitle className="text-xs md:text-sm font-medium truncate">Total Cobrado</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-primary/10 shrink-0">
@@ -275,7 +275,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Notas */}
-        <Card variant="interactive" className="animate-fade-in w-full max-w-full overflow-hidden" style={{ animationDelay: '0.1s' }}>
+        <Card variant="interactive" className="animate-card-entrance animate-card-entrance-2 w-full max-w-full overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
             <CardTitle className="text-xs md:text-sm font-medium truncate">Notas</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-chart-2/10 shrink-0">
@@ -289,7 +289,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Ticket Médio */}
-        <Card variant="interactive" className="animate-fade-in w-full max-w-full overflow-hidden" style={{ animationDelay: '0.15s' }}>
+        <Card variant="interactive" className="animate-card-entrance animate-card-entrance-3 w-full max-w-full overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
             <CardTitle className="text-xs md:text-sm font-medium truncate">Ticket Médio</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-chart-3/10 shrink-0">
@@ -303,7 +303,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Despesas */}
-        <Card variant="interactive" className="animate-fade-in w-full max-w-full overflow-hidden" style={{ animationDelay: '0.2s' }}>
+        <Card variant="interactive" className="animate-card-entrance animate-card-entrance-4 w-full max-w-full overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
             <CardTitle className="text-xs md:text-sm font-medium truncate">Despesas</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-destructive/10 shrink-0">
@@ -319,7 +319,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Kits */}
-        <Card variant="interactive" className="animate-fade-in w-full max-w-full overflow-hidden" style={{ animationDelay: '0.25s' }}>
+        <Card variant="interactive" className="animate-card-entrance animate-card-entrance-5 w-full max-w-full overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
             <CardTitle className="text-xs md:text-sm font-medium truncate">Kits</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-chart-4/10 shrink-0">
@@ -335,7 +335,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Meta */}
-        <Card variant="glow" className="animate-fade-in w-full max-w-full overflow-hidden" style={{ animationDelay: '0.3s' }}>
+        <Card variant="glow" className="animate-card-entrance animate-card-entrance-6 w-full max-w-full overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
             <CardTitle className="text-xs md:text-sm font-medium truncate">Meta do Mês</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-primary/10 animate-glow-pulse shrink-0">
