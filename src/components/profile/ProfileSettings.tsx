@@ -11,6 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { Camera, Loader2, Save, User, Mail, Shield } from "lucide-react";
 import { z } from "zod";
+import { ChangePasswordSection } from "./ChangePasswordSection";
+import { PreferencesSection } from "./PreferencesSection";
 
 const profileSchema = z.object({
   nome: z.string().min(2, "Nome deve ter pelo menos 2 caracteres").max(100, "Nome muito longo"),
@@ -267,6 +269,12 @@ export function ProfileSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Alterar Senha */}
+      <ChangePasswordSection />
+
+      {/* Preferências */}
+      <PreferencesSection />
 
       {/* Informações da Conta */}
       <Card>
