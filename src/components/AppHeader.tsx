@@ -1,4 +1,4 @@
-import { Bell, MessageCircle, PanelLeftClose, PanelLeft } from "lucide-react";
+import { MessageCircle, PanelLeftClose, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSidebar } from "@/components/ui/sidebar";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import taliareLogoHorizontal from "@/assets/taliare-logo-horizontal.png";
 import { LogOut, Settings, User } from "lucide-react";
 
@@ -62,16 +63,8 @@ export function AppHeader() {
           <MessageCircle className="h-4 w-4" />
         </Button>
 
-        {/* Notification button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-9 w-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg relative"
-        >
-          <Bell className="h-4 w-4" />
-          {/* Notification dot */}
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full" />
-        </Button>
+        {/* Notifications dropdown */}
+        <NotificationsDropdown />
 
         {/* Profile dropdown */}
         <DropdownMenu>

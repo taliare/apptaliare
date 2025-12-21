@@ -1,4 +1,4 @@
-import { LogOut, ShoppingBag, Scale, PackageCheck, X, Bell, MessageCircle, User, Settings } from 'lucide-react';
+import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,7 +10,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory } from 'lucide-react';
+import { useNotifications } from '@/hooks/useNotifications';
+import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory, Bell } from 'lucide-react';
 import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
 
 interface MenuCategory {
@@ -30,6 +31,7 @@ interface MobileDrawerProps {
 
 export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { profile, signOut } = useAuth();
+  const { unreadCount } = useNotifications();
 
   const userInitials = profile?.nome
     ? profile.nome
@@ -192,7 +194,11 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             >
               <Bell className="h-4 w-4" />
               <span className="text-xs">Notificações</span>
-              <span className="absolute top-1 right-2 h-2 w-2 bg-primary rounded-full" />
+              {unreadCount > 0 && (
+                <span className="absolute top-0.5 right-2 h-4 w-4 flex items-center justify-center bg-primary text-primary-foreground text-[10px] font-medium rounded-full">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </Button>
           </div>
           <SheetTitle className="sr-only">Menu</SheetTitle>
