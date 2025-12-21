@@ -27,17 +27,88 @@ serve(async (req) => {
     const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
       throw new Error("VAPID keys not configured");
     }
 
+    // ===== AUTHENTICATION CHECK =====
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: No authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify the user's JWT token
+    const authClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) {
+      console.error("Authentication failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized: Invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
+    // Create service role client for database operations
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // ===== AUTHORIZATION CHECK =====
+    // Check if user has admin role for sendToAll or sending to other users
+    const { data: userRoles, error: roleError } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+
+    if (roleError) {
+      console.error("Error fetching user roles:", roleError);
+    }
+
+    const isAdmin = userRoles?.some((r) => r.role === "admin") || false;
+    console.log("User is admin:", isAdmin);
 
     const payload: PushPayload = await req.json();
     const { title, body, icon, badge, data, userId, userIds, sendToAll } = payload;
 
     console.log("Sending push notification:", { title, body, userId, userIds, sendToAll });
+
+    // ===== ROLE-BASED ACCESS CONTROL =====
+    // Non-admins can only send notifications to themselves
+    if (!isAdmin) {
+      if (sendToAll) {
+        console.error("Non-admin tried to use sendToAll");
+        return new Response(
+          JSON.stringify({ error: "Forbidden: Only admins can send to all users" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (userIds && userIds.length > 0) {
+        const hasOtherUsers = userIds.some((id) => id !== user.id);
+        if (hasOtherUsers) {
+          console.error("Non-admin tried to send to other users");
+          return new Response(
+            JSON.stringify({ error: "Forbidden: You can only send notifications to yourself" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+      if (userId && userId !== user.id) {
+        console.error("Non-admin tried to send to another user");
+        return new Response(
+          JSON.stringify({ error: "Forbidden: You can only send notifications to yourself" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // Build query for subscriptions
     let query = supabase.from("push_subscriptions").select("*");
