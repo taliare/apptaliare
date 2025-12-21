@@ -416,6 +416,7 @@ export default function Dashboard() {
                             border: '1px solid hsl(var(--border))',
                             borderRadius: '8px',
                           }}
+                          isAnimationActive={false}
                         />
                         <Legend />
                         <Line 
@@ -461,8 +462,9 @@ export default function Dashboard() {
                             border: '1px solid hsl(var(--border))',
                             borderRadius: '8px',
                           }}
+                          isAnimationActive={false}
                         />
-                        <Bar 
+                        <Bar
                           dataKey="valor" 
                           fill="hsl(var(--primary))" 
                           name="Valor"

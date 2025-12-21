@@ -502,6 +502,7 @@ export default function DashboardAdmin() {
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
+                    isAnimationActive={false}
                   />
                   <Bar 
                     dataKey="realizado" 
@@ -561,6 +562,7 @@ export default function DashboardAdmin() {
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
                       }}
+                      isAnimationActive={false}
                     />
                   </PieChart>
                 </ResponsiveContainer>
