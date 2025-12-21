@@ -10,34 +10,37 @@ import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
 import { Loader2 } from 'lucide-react';
 
 export default function Auth() {
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isExiting, setIsExiting] = useState(false);
-  const formRef = useRef<HTMLDivElement>(null);
+  const hasNavigated = useRef(false);
   
-  const { signIn, user, profile } = useAuth();
+  const { signIn, user, profile, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user && profile && !isExiting) {
+    // Only navigate once when user and profile are both loaded
+    if (user && profile && !hasNavigated.current) {
+      hasNavigated.current = true;
+      
       // Trigger exit animation
       setIsExiting(true);
       
       // Navigate after animation completes
       const timer = setTimeout(() => {
         if (profile.role === 'admin') {
-          navigate('/dashboard-admin');
+          navigate('/dashboard-admin', { replace: true });
         } else if (profile.role === 'producao') {
-          navigate('/producao');
+          navigate('/producao', { replace: true });
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       }, 320);
       
       return () => clearTimeout(timer);
     }
-  }, [user, profile, navigate, isExiting]);
+  }, [user, profile, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,16 +50,20 @@ export default function Auth() {
       return;
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
     const { error } = await signIn(loginEmail, loginPassword);
     
     if (error) {
-      setLoading(false);
+      setIsSubmitting(false);
       toast.error('Erro ao fazer login: ' + error.message);
     } else {
       toast.success('Login realizado com sucesso!');
+      // Keep isSubmitting true - navigation will happen via useEffect when profile loads
     }
   };
+
+  // Show loading state while auth is initializing
+  const showLoading = isSubmitting || (user && !profile);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4 relative overflow-hidden">
@@ -68,7 +75,6 @@ export default function Auth() {
       </div>
 
       <div 
-        ref={formRef}
         className={`w-full max-w-md relative z-10 transition-all duration-300 ease-out ${
           isExiting 
             ? 'opacity-0 -translate-y-3' 
@@ -111,7 +117,7 @@ export default function Auth() {
                   required
                   autoComplete="email"
                   className="h-12"
-                  disabled={loading || isExiting}
+                  disabled={showLoading || isExiting}
                 />
               </div>
 
@@ -128,7 +134,7 @@ export default function Auth() {
                   required
                   autoComplete="current-password"
                   className="h-12"
-                  disabled={loading || isExiting}
+                  disabled={showLoading || isExiting}
                 />
               </div>
 
@@ -136,9 +142,9 @@ export default function Auth() {
                 type="submit" 
                 className="w-full h-12 text-base font-medium mt-2 transition-all duration-200" 
                 variant="glow"
-                disabled={loading || isExiting}
+                disabled={showLoading || isExiting}
               >
-                {loading ? (
+                {showLoading ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span className="animate-pulse">Entrando...</span>
