@@ -9,11 +9,25 @@ const createNotificationSound = (): AudioContext | null => {
   }
 };
 
+// Vibrar o dispositivo (se suportado)
+const vibrate = (pattern: number | number[]) => {
+  if ("vibrate" in navigator) {
+    try {
+      navigator.vibrate(pattern);
+    } catch (error) {
+      console.warn("Vibração não suportada:", error);
+    }
+  }
+};
+
 export function useNotificationSound() {
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const playNotificationSound = useCallback(() => {
     try {
+      // Vibrar: padrão curto-longo para notificação
+      vibrate([100, 50, 200]);
+
       if (!audioContextRef.current) {
         audioContextRef.current = createNotificationSound();
       }
@@ -56,6 +70,9 @@ export function useNotificationSound() {
 
   const playMessageSound = useCallback(() => {
     try {
+      // Vibrar: dois pulsos curtos para mensagem
+      vibrate([50, 30, 50]);
+
       if (!audioContextRef.current) {
         audioContextRef.current = createNotificationSound();
       }
