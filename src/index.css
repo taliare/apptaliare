@@ -606,4 +606,59 @@
   .stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
   .stagger-children > *:nth-child(7) { animation-delay: 0.35s; }
   .stagger-children > *:nth-child(8) { animation-delay: 0.4s; }
+
+  /* Pulse subtle for login background effects */
+  @keyframes pulse-subtle {
+    0%, 100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 4s ease-in-out infinite;
+  }
+
+  /* Dashboard card entrance animation with Taliare highlight */
+  @keyframes card-entrance {
+    0% {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes card-highlight {
+    0% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px 2px hsl(var(--primary) / 0.15);
+    }
+    100% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    }
+  }
+
+  .animate-card-entrance {
+    opacity: 0;
+    animation: card-entrance 0.35s ease-out forwards, card-highlight 0.8s ease-out 0.2s forwards;
+  }
+
+  /* Staggered delays for cards */
+  .animate-card-entrance-1 { animation-delay: 0.05s, 0.25s; }
+  .animate-card-entrance-2 { animation-delay: 0.1s, 0.3s; }
+  .animate-card-entrance-3 { animation-delay: 0.15s, 0.35s; }
+  .animate-card-entrance-4 { animation-delay: 0.2s, 0.4s; }
+  .animate-card-entrance-5 { animation-delay: 0.25s, 0.45s; }
+  .animate-card-entrance-6 { animation-delay: 0.3s, 0.5s; }
 }

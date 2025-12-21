@@ -396,8 +396,7 @@ export default function DashboardAdmin() {
         {/* Card Total Hoje */}
         <Card 
           variant="interactive"
-          className="cursor-pointer group animate-fade-in w-full max-w-full overflow-hidden"
-          style={{ animationDelay: '0.05s' }}
+          className="cursor-pointer group animate-card-entrance animate-card-entrance-1 w-full max-w-full overflow-hidden"
           onClick={() => setCobrancaHojeDialogOpen(true)}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
@@ -415,8 +414,7 @@ export default function DashboardAdmin() {
         {/* Card Total Período */}
         <Card 
           variant="interactive" 
-          className="animate-fade-in w-full max-w-full overflow-hidden"
-          style={{ animationDelay: '0.1s' }}
+          className="animate-card-entrance animate-card-entrance-2 w-full max-w-full overflow-hidden"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
             <CardTitle className="text-xs md:text-sm font-medium truncate">Período</CardTitle>
@@ -435,8 +433,7 @@ export default function DashboardAdmin() {
         {/* Card Kits */}
         <Card 
           variant="interactive" 
-          className="animate-fade-in w-full max-w-full overflow-hidden"
-          style={{ animationDelay: '0.15s' }}
+          className="animate-card-entrance animate-card-entrance-3 w-full max-w-full overflow-hidden"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
             <CardTitle className="text-xs md:text-sm font-medium truncate">Kits</CardTitle>
@@ -453,8 +450,7 @@ export default function DashboardAdmin() {
         {/* Card Meta Geral */}
         <Card 
           variant="glow" 
-          className="animate-fade-in w-full max-w-full overflow-hidden"
-          style={{ animationDelay: '0.2s' }}
+          className="animate-card-entrance animate-card-entrance-4 w-full max-w-full overflow-hidden"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
             <CardTitle className="text-xs md:text-sm font-medium truncate">Meta Geral</CardTitle>
