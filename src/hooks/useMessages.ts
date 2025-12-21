@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotificationSound } from "./useNotificationSound";
 
 export interface Message {
   id: string;
@@ -34,6 +35,9 @@ export interface Conversation {
 export function useMessages() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { playMessageSound } = useNotificationSound();
+  const previousUnreadRef = useRef<number>(0);
+  const isInitialLoadRef = useRef(true);
 
   // Fetch all messages
   const { data: messages = [], isLoading, refetch } = useQuery({
@@ -162,6 +166,20 @@ export function useMessages() {
 
   // Unread count
   const unreadCount = messages.filter((m) => m.receiver_id === user?.id && !m.read).length;
+
+  // Play sound when new messages arrive
+  useEffect(() => {
+    if (isInitialLoadRef.current) {
+      previousUnreadRef.current = unreadCount;
+      isInitialLoadRef.current = false;
+      return;
+    }
+
+    if (unreadCount > previousUnreadRef.current) {
+      playMessageSound();
+    }
+    previousUnreadRef.current = unreadCount;
+  }, [unreadCount, playMessageSound]);
 
   // Setup realtime subscription
   useEffect(() => {
