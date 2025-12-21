@@ -20,6 +20,7 @@ import Juridico from '@/pages/Juridico';
 import VendaExterna from '@/pages/VendaExterna';
 import Vendedoras from '@/pages/Vendedoras';
 import RevendedorasInativas from '@/pages/RevendedorasInativas';
+import Perfil from '@/pages/Perfil';
 import NotFound from '@/pages/NotFound';
 
 export function AnimatedRoutes() {
@@ -103,6 +104,9 @@ export function AnimatedRoutes() {
             <Vendedoras />
           </ProtectedRoute>
         } />
+        
+        {/* Perfil - acessível para todos */}
+        <Route path="/perfil" element={<Perfil />} />
         
         {/* Default redirect */}
         <Route path="/" element={<Dashboard />} />

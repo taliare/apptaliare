@@ -10,6 +10,7 @@ interface Profile {
   habilitar_cobranca_diaria: boolean;
   habilitar_kanban: boolean;
   habilitar_dashboard: boolean;
+  avatar_url?: string | null;
   role: 'admin' | 'representante' | 'producao'; // Combined from user_roles
 }
 
