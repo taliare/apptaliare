@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
+import { useNotificationSound } from "./useNotificationSound";
 
 export interface Notification {
   id: string;
@@ -17,6 +18,9 @@ export interface Notification {
 export function useNotifications() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { playNotificationSound } = useNotificationSound();
+  const previousCountRef = useRef<number>(0);
+  const isInitialLoadRef = useRef(true);
 
   // Buscar notificações
   const { data: notifications = [], isLoading, refetch } = useQuery({
@@ -87,6 +91,20 @@ export function useNotifications() {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
   });
+
+  // Play sound when new notifications arrive
+  useEffect(() => {
+    if (isInitialLoadRef.current) {
+      previousCountRef.current = unreadCount;
+      isInitialLoadRef.current = false;
+      return;
+    }
+
+    if (unreadCount > previousCountRef.current) {
+      playNotificationSound();
+    }
+    previousCountRef.current = unreadCount;
+  }, [unreadCount, playNotificationSound]);
 
   // Realtime subscription
   useEffect(() => {
