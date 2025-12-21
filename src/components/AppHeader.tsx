@@ -12,13 +12,15 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useSidebar } from "@/components/ui/sidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
+import { SendNotificationDialog } from "@/components/admin/SendNotificationDialog";
 import taliareLogoHorizontal from "@/assets/taliare-logo-horizontal.png";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings, User, Bell, Send } from "lucide-react";
 
 export function AppHeader() {
   const { profile, signOut } = useAuth();
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
+  const isAdmin = profile?.role === "admin";
 
   const userInitials = profile?.nome
     ? profile.nome
@@ -54,6 +56,21 @@ export function AppHeader() {
 
       {/* Right side - Actions */}
       <div className="flex items-center gap-2">
+        {/* Admin: Send notification button */}
+        {isAdmin && (
+          <SendNotificationDialog
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            }
+          />
+        )}
+
         {/* Message button */}
         <Button
           variant="ghost"
