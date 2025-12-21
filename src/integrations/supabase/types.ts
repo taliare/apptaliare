@@ -287,6 +287,33 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          read: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          receiver_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       metas_cobranca: {
         Row: {
           ano_mes: string
@@ -523,7 +550,9 @@ export type Database = {
           habilitar_dashboard: boolean | null
           habilitar_kanban: boolean | null
           id: string
+          idioma: string | null
           nome: string
+          tema: string | null
         }
         Insert: {
           ativo?: boolean | null
@@ -534,7 +563,9 @@ export type Database = {
           habilitar_dashboard?: boolean | null
           habilitar_kanban?: boolean | null
           id: string
+          idioma?: string | null
           nome: string
+          tema?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -545,7 +576,9 @@ export type Database = {
           habilitar_dashboard?: boolean | null
           habilitar_kanban?: boolean | null
           id?: string
+          idioma?: string | null
           nome?: string
+          tema?: string | null
         }
         Relationships: []
       }
