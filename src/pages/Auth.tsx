@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { toast } from 'sonner';
-import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
+import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal-claro.png';
 import taliareIcone from '@/assets/taliare-icone-claro.png';
 import { Loader2, Sparkles } from 'lucide-react';
 
@@ -71,17 +71,16 @@ export default function Auth() {
   const showLoading = isSubmitting || (user && !profile);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4 relative overflow-hidden">
+    <div className="flex min-h-screen items-center justify-center bg-white p-4 relative overflow-hidden">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-primary/10 via-transparent to-transparent rounded-full blur-3xl" />
-        <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-primary/5 via-transparent to-transparent rounded-full blur-3xl" />
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-pulse-subtle" />
+        <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-primary/5 via-transparent to-transparent rounded-full blur-3xl" />
+        <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-primary/3 via-transparent to-transparent rounded-full blur-3xl" />
       </div>
 
       {/* Transition Overlay */}
       <div 
-        className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-background transition-all duration-500 ${
+        className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-white transition-all duration-500 ${
           showTransition 
             ? 'opacity-100 pointer-events-auto' 
             : 'opacity-0 pointer-events-none'
@@ -129,14 +128,11 @@ export default function Auth() {
         <Card variant="glass">
           <CardHeader className="space-y-6 pb-4">
             <div className="flex justify-center">
-              <div className="relative">
-                <div className="absolute inset-0 bg-primary/30 blur-2xl rounded-full scale-150" />
-                <img 
-                  src={taliareLogoHorizontal} 
-                  alt="Taliare Semijoias" 
-                  className="h-12 relative z-10 drop-shadow-lg"
-                />
-              </div>
+              <img 
+                src={taliareLogoHorizontal} 
+                alt="Taliare Semijoias" 
+                className="h-10 w-auto"
+              />
             </div>
             
             <div className="text-center">
