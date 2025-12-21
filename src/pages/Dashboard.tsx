@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, TrendingUp, DollarSign, Target, TrendingDown, FileText } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { 
+  Package, TrendingUp, DollarSign, Target, TrendingDown, FileText,
+  Sun, Moon, CloudSun, Sparkles, Calendar, ChevronDown, ChevronUp, BarChart3
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
@@ -28,13 +32,54 @@ interface MetaCobranca {
   ativo: boolean | null;
 }
 
+// Frases motivacionais
+const frasesMotivacionais = [
+  "O sucesso é a soma de pequenos esforços repetidos dia após dia.",
+  "Cada conquista começa com a decisão de tentar.",
+  "A persistência é o caminho do êxito.",
+  "Sonhe grande, comece pequeno, aja agora.",
+  "O único lugar onde o sucesso vem antes do trabalho é no dicionário.",
+  "Acredite em você e todo o resto virá naturalmente.",
+  "Sua única limitação é você mesmo.",
+  "Grandes realizações exigem grandes esforços.",
+  "Foco no progresso, não na perfeição.",
+  "O segredo do sucesso é a constância do propósito.",
+  "Você é mais forte do que imagina.",
+  "Todo expert já foi um iniciante.",
+  "A disciplina é a ponte entre metas e realizações.",
+  "Transforme obstáculos em oportunidades.",
+  "Seu potencial é ilimitado.",
+];
+
+// Função para obter saudação baseada no horário
+const getSaudacao = () => {
+  const hora = new Date().getHours();
+  if (hora >= 5 && hora < 12) {
+    return { texto: 'Bom dia', icon: Sun, emoji: '☀️' };
+  } else if (hora >= 12 && hora < 18) {
+    return { texto: 'Boa tarde', icon: CloudSun, emoji: '🌤️' };
+  } else {
+    return { texto: 'Boa noite', icon: Moon, emoji: '🌙' };
+  }
+};
+
+// Função para obter frase aleatória do dia
+const getFraseMotivacional = () => {
+  const hoje = new Date();
+  const seed = hoje.getDate() + hoje.getMonth() * 31 + hoje.getFullYear();
+  return frasesMotivacionais[seed % frasesMotivacionais.length];
+};
+
 export default function Dashboard() {
   const { profile, user } = useAuth();
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [showGraficos, setShowGraficos] = useState(false);
   
-  // Meta sempre do mês atual, não do período filtrado
   const mesAtual = format(new Date(), 'yyyy-MM');
+  const saudacao = getSaudacao();
+  const fraseMotivacional = useMemo(() => getFraseMotivacional(), []);
+  const SaudacaoIcon = saudacao.icon;
 
   // Query para cobranças diárias do período
   const { data: cobrancas = [] } = useQuery({
@@ -54,10 +99,10 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Ciclo padrão de kits: vencimento é 2 meses à frente (mesmo critério da tela KitsEntregues)
+  // Ciclo padrão de kits
   const mesVencimentoKits = format(addMonths(new Date(), 2), 'yyyy-MM');
 
-  // Query para kits entregues filtrado pelo mês de vencimento (mesmo critério da tela KitsEntregues)
+  // Query para kits entregues
   const { data: kitsDoMes = [] } = useQuery({
     queryKey: ['kits-mes-dashboard', user?.id, mesVencimentoKits],
     queryFn: async () => {
@@ -68,9 +113,8 @@ export default function Dashboard() {
       
       if (error) throw error;
       
-      // Filtrar pelo mês de vencimento (mesmo critério da tela KitsEntregues)
       return (data as KitEntregue[]).filter(kit => {
-        const vencimentoMes = kit.data_vencimento.substring(0, 7); // yyyy-MM
+        const vencimentoMes = kit.data_vencimento.substring(0, 7);
         return vencimentoMes === mesVencimentoKits;
       });
     },
@@ -95,7 +139,7 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Query para notas promissórias do período
+  // Query para notas promissórias
   const { data: notasDoMes = [] } = useQuery({
     queryKey: ['notas-mes', user?.id, startDate, endDate],
     queryFn: async () => {
@@ -123,14 +167,14 @@ export default function Dashboard() {
     ? (totalCobrado / metaDoMes.meta_valor) * 100 
     : 0;
 
-  // Ativa notificações de progresso da meta
+  // Notificações de meta
   useMetaNotifications({
     percentualMeta,
     metaValor: metaDoMes?.meta_valor || 0,
     totalCobrado,
   });
 
-  // Dados para o gráfico - evolução diária
+  // Dados para gráficos
   const diasDoMes = eachDayOfInterval({ 
     start: new Date(startDate), 
     end: new Date(endDate) 
@@ -139,8 +183,6 @@ export default function Dashboard() {
   const dadosGrafico = diasDoMes.map(dia => {
     const dataStr = format(dia, 'yyyy-MM-dd');
     const cobrancaDia = cobrancas.find(c => c.data === dataStr);
-    
-    // Calcula acumulado até este dia
     const cobranasAteEsseDia = cobrancas.filter(c => c.data <= dataStr);
     const acumulado = cobranasAteEsseDia.reduce((sum, c) => sum + c.total_cobrado, 0);
     
@@ -152,29 +194,60 @@ export default function Dashboard() {
     };
   });
 
-  // Dados para gráfico comparativo meta vs realizado
   const dadosMetaVsRealizado = [
-    {
-      name: 'Meta',
-      valor: metaDoMes?.meta_valor || 0,
-    },
-    {
-      name: 'Realizado',
-      valor: totalCobrado,
-    },
+    { name: 'Meta', valor: metaDoMes?.meta_valor || 0 },
+    { name: 'Realizado', valor: totalCobrado },
   ];
 
   return (
-    <div className="space-y-4 md:space-y-6 px-0 animate-fade-in">
-      <div className="animate-slide-up">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Bem-vindo, {profile?.nome}
-        </h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Acompanhe seu desempenho e metas
-        </p>
+    <div className="space-y-6 animate-fade-in">
+      {/* Hero Section - Saudação */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background border border-primary/20 p-6 md:p-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-chart-2/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-primary/20 animate-glow-pulse">
+                <SaudacaoIcon className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+                  {saudacao.texto}, {profile?.nome?.split(' ')[0]} {saudacao.emoji}
+                </h1>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-2 bg-background/50 backdrop-blur-sm rounded-lg p-3 border border-primary/10">
+              <Sparkles className="h-5 w-5 text-primary mt-0.5 animate-pulse" />
+              <p className="text-sm text-muted-foreground italic">
+                "{fraseMotivacional}"
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="flex items-center gap-4">
+            <div className="text-center p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">Período</p>
+              <p className="text-xl font-bold text-primary">{formatarValor(totalCobrado)}</p>
+            </div>
+            {metaDoMes && (
+              <div className="text-center p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/50">
+                <p className="text-xs text-muted-foreground mb-1">Meta</p>
+                <p className="text-xl font-bold text-chart-2">{percentualMeta.toFixed(0)}%</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
+      {/* Filtro de Data */}
       <DateRangeFilter 
         onFilterChange={(start, end) => {
           setStartDate(start);
@@ -182,85 +255,88 @@ export default function Dashboard() {
         }} 
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 md:gap-4">
+      {/* Cards Principais */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+        {/* Total Cobrado */}
         <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.05s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cobrado (Mês)</CardTitle>
-            <div className="p-2 rounded-lg bg-primary/10 icon-hover-rotate">
+            <CardTitle className="text-xs md:text-sm font-medium">Total Cobrado</CardTitle>
+            <div className="p-2 rounded-lg bg-primary/10">
               <DollarSign className="h-4 w-4 text-primary" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-display font-bold">{formatarValor(totalCobrado)}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-lg md:text-2xl font-display font-bold">{formatarValor(totalCobrado)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">
               {formatarNumero(cobrancas.length)} dia{cobrancas.length !== 1 ? 's' : ''} de cobrança
             </p>
           </CardContent>
         </Card>
 
+        {/* Notas */}
         <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Notas Cobradas (Mês)</CardTitle>
-            <div className="p-2 rounded-lg bg-chart-2/10 icon-hover-rotate">
+            <CardTitle className="text-xs md:text-sm font-medium">Notas</CardTitle>
+            <div className="p-2 rounded-lg bg-chart-2/10">
               <FileText className="h-4 w-4 text-chart-2" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-display font-bold">{formatarNumero(totalNotas)}</div>
-            <p className="text-xs text-muted-foreground">
-              Notas promissórias
-            </p>
+            <div className="text-lg md:text-2xl font-display font-bold">{formatarNumero(totalNotas)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Promissórias</p>
           </CardContent>
         </Card>
 
+        {/* Ticket Médio */}
         <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.15s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-            <div className="p-2 rounded-lg bg-chart-3/10 icon-hover-rotate">
+            <CardTitle className="text-xs md:text-sm font-medium">Ticket Médio</CardTitle>
+            <div className="p-2 rounded-lg bg-chart-3/10">
               <TrendingUp className="h-4 w-4 text-chart-3" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-display font-bold">{formatarValor(ticketMedio)}</div>
-            <p className="text-xs text-muted-foreground">
-              Valor médio por nota
-            </p>
+            <div className="text-lg md:text-2xl font-display font-bold">{formatarValor(ticketMedio)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">Por nota</p>
           </CardContent>
         </Card>
 
+        {/* Despesas */}
         <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Despesas (Mês)</CardTitle>
-            <div className="p-2 rounded-lg bg-destructive/10 icon-hover-rotate">
+            <CardTitle className="text-xs md:text-sm font-medium">Despesas</CardTitle>
+            <div className="p-2 rounded-lg bg-destructive/10">
               <TrendingDown className="h-4 w-4 text-destructive" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-display font-bold">{formatarValor(totalDespesas)}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-lg md:text-2xl font-display font-bold">{formatarValor(totalDespesas)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">
               Líquido: {formatarValor(totalCobrado - totalDespesas)}
             </p>
           </CardContent>
         </Card>
 
+        {/* Kits */}
         <Card variant="interactive" className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kits Entregues (Ciclo)</CardTitle>
-            <div className="p-2 rounded-lg bg-chart-4/10 icon-hover-rotate">
+            <CardTitle className="text-xs md:text-sm font-medium">Kits</CardTitle>
+            <div className="p-2 rounded-lg bg-chart-4/10">
               <Package className="h-4 w-4 text-chart-4" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-display font-bold">{formatarNumero(totalKits)}</div>
-            <p className="text-xs text-muted-foreground">
-              Vencimento: {format(addMonths(new Date(), 2), "MMM/yyyy", { locale: ptBR })}
+            <div className="text-lg md:text-2xl font-display font-bold">{formatarNumero(totalKits)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground">
+              Venc: {format(addMonths(new Date(), 2), "MMM/yy", { locale: ptBR })}
             </p>
           </CardContent>
         </Card>
 
+        {/* Meta */}
         <Card variant="glow" className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Meta do Mês</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium">Meta do Mês</CardTitle>
             <div className="p-2 rounded-lg bg-primary/10 animate-glow-pulse">
               <Target className="h-4 w-4 text-primary" />
             </div>
@@ -268,128 +344,144 @@ export default function Dashboard() {
           <CardContent>
             {metaDoMes ? (
               <>
-                <div className="text-2xl font-display font-bold text-primary">
-                  {percentualMeta.toFixed(1)}%
+                <div className={`text-lg md:text-2xl font-display font-bold ${percentualMeta >= 100 ? 'text-chart-3' : 'text-primary'}`}>
+                  {percentualMeta.toFixed(0)}%
                 </div>
-                <Progress value={Math.min(percentualMeta, 100)} className="mt-2" />
-                <p className="text-xs text-muted-foreground mt-2">
+                <Progress value={Math.min(percentualMeta, 100)} className="mt-2 h-2" />
+                <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
                   {formatarValor(metaDoMes.meta_valor)}
                 </p>
               </>
             ) : (
               <>
-                <div className="text-2xl font-display font-bold">-</div>
-                <p className="text-xs text-muted-foreground">Meta não definida</p>
+                <div className="text-lg md:text-2xl font-display font-bold">-</div>
+                <p className="text-[10px] md:text-xs text-muted-foreground">Sem meta definida</p>
               </>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
+      {/* Gráficos - Collapsible */}
+      <Collapsible open={showGraficos} onOpenChange={setShowGraficos}>
         <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.35s' }}>
-          <CardHeader>
-            <CardTitle className="font-display">Evolução Diária das Cobranças</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={dadosGrafico}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="dia" 
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  stroke="hsl(var(--border))"
-                />
-                <YAxis 
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
-                  stroke="hsl(var(--border))"
-                />
-                <Tooltip 
-                  formatter={(value: number) => formatarValor(value)}
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    boxShadow: '0 10px 25px -5px hsl(var(--primary) / 0.1)'
-                  }}
-                />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="cobrado" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2}
-                  name="Cobrado no Dia"
-                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2 }}
-                  activeDot={{ r: 6, fill: 'hsl(var(--primary))', stroke: 'hsl(var(--background))' }}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="acumulado" 
-                  stroke="hsl(var(--chart-2))" 
-                  strokeWidth={2}
-                  name="Acumulado"
-                  dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2 }}
-                  activeDot={{ r: 6, fill: 'hsl(var(--chart-2))', stroke: 'hsl(var(--background))' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm md:text-base font-display">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  Gráficos de Desempenho
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {cobrancas.length > 0 ? 'Dados disponíveis' : 'Sem dados'}
+                  </span>
+                  {showGraficos ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </div>
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              {cobrancas.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Gráfico de Evolução */}
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-4">Evolução Diária</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={dadosGrafico}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis 
+                          dataKey="dia" 
+                          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={50}
+                          stroke="hsl(var(--border))"
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                          stroke="hsl(var(--border))"
+                          tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                        />
+                        <Tooltip 
+                          formatter={(value: number) => formatarValor(value)}
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                        />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="cobrado" 
+                          stroke="hsl(var(--primary))" 
+                          strokeWidth={2}
+                          name="Dia"
+                          dot={{ fill: 'hsl(var(--primary))', r: 3 }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="acumulado" 
+                          stroke="hsl(var(--chart-2))" 
+                          strokeWidth={2}
+                          name="Acumulado"
+                          dot={{ fill: 'hsl(var(--chart-2))', r: 3 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
 
-        <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
-          <CardHeader>
-            <CardTitle className="font-display">Meta vs Realizado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dadosMetaVsRealizado}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                  stroke="hsl(var(--border))"
-                />
-                <YAxis 
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
-                  stroke="hsl(var(--border))"
-                />
-                <Tooltip 
-                  formatter={(value: number) => formatarValor(value)}
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    boxShadow: '0 10px 25px -5px hsl(var(--primary) / 0.1)'
-                  }}
-                />
-                <Legend />
-                <Bar 
-                  dataKey="valor" 
-                  fill="hsl(var(--primary))" 
-                  name="Valor (R$)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
+                  {/* Gráfico Meta vs Realizado */}
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-4">Meta vs Realizado</h4>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={dadosMetaVsRealizado}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis 
+                          dataKey="name" 
+                          tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                          stroke="hsl(var(--border))"
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                          stroke="hsl(var(--border))"
+                          tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                        />
+                        <Tooltip 
+                          formatter={(value: number) => formatarValor(value)}
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                          }}
+                        />
+                        <Bar 
+                          dataKey="valor" 
+                          fill="hsl(var(--primary))" 
+                          name="Valor"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <TrendingUp className="h-16 w-16 mb-4 animate-float" />
+                  <p className="text-lg font-display">Nenhuma cobrança no período</p>
+                  <p className="text-sm">Registre cobranças para ver seus gráficos</p>
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
         </Card>
-      </div>
-
-      {cobrancas.length === 0 && (
-        <Card variant="glass" className="animate-fade-in">
-          <CardContent className="py-12">
-            <div className="text-center text-muted-foreground">
-              <TrendingUp className="h-16 w-16 mx-auto mb-4 animate-float" />
-              <p className="text-lg font-display">Nenhuma cobrança registrada este mês</p>
-              <p className="text-sm">Registre suas cobranças diárias para ver seus dados aqui</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      </Collapsible>
     </div>
   );
 }
