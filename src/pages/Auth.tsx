@@ -4,19 +4,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { toast } from 'sonner';
 import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
-import { Loader2 } from 'lucide-react';
+import taliareIcone from '@/assets/taliare-icone-claro.png';
+import { Loader2, Sparkles } from 'lucide-react';
 
 export default function Auth() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [isExiting, setIsExiting] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
   const hasNavigated = useRef(false);
   
-  const { signIn, user, profile, loading } = useAuth();
+  const { signIn, user, profile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,10 +26,15 @@ export default function Auth() {
     if (user && profile && !hasNavigated.current) {
       hasNavigated.current = true;
       
-      // Trigger exit animation
+      // Step 1: Start form exit animation
       setIsExiting(true);
       
-      // Navigate after animation completes
+      // Step 2: Show transition overlay after form fades
+      setTimeout(() => {
+        setShowTransition(true);
+      }, 300);
+      
+      // Step 3: Navigate after transition animation
       const timer = setTimeout(() => {
         if (profile.role === 'admin') {
           navigate('/dashboard-admin', { replace: true });
@@ -36,7 +43,7 @@ export default function Auth() {
         } else {
           navigate('/dashboard', { replace: true });
         }
-      }, 320);
+      }, 1200);
       
       return () => clearTimeout(timer);
     }
@@ -58,11 +65,9 @@ export default function Auth() {
       toast.error('Erro ao fazer login: ' + error.message);
     } else {
       toast.success('Login realizado com sucesso!');
-      // Keep isSubmitting true - navigation will happen via useEffect when profile loads
     }
   };
 
-  // Show loading state while auth is initializing
   const showLoading = isSubmitting || (user && !profile);
 
   return (
@@ -74,16 +79,55 @@ export default function Auth() {
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-pulse-subtle" />
       </div>
 
+      {/* Transition Overlay */}
       <div 
-        className={`w-full max-w-md relative z-10 transition-all duration-300 ease-out ${
+        className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-background transition-all duration-500 ${
+          showTransition 
+            ? 'opacity-100 pointer-events-auto' 
+            : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        {/* Animated background circles */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full transition-all duration-700 ${showTransition ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} style={{ transitionDelay: '0ms' }} />
+          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/10 rounded-full transition-all duration-700 ${showTransition ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} style={{ transitionDelay: '100ms' }} />
+          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-primary/20 rounded-full transition-all duration-700 ${showTransition ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} style={{ transitionDelay: '200ms' }} />
+        </div>
+
+        {/* Logo animation */}
+        <div className={`relative z-10 flex flex-col items-center gap-6 transition-all duration-500 ${showTransition ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`} style={{ transitionDelay: '300ms' }}>
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/40 blur-3xl rounded-full scale-150 animate-pulse" />
+            <img 
+              src={taliareIcone} 
+              alt="Taliare" 
+              className="h-24 w-24 relative z-10 drop-shadow-2xl animate-bounce-slow"
+            />
+          </div>
+          
+          <div className="flex items-center gap-2 text-primary">
+            <Sparkles className="h-5 w-5 animate-pulse" />
+            <span className="text-lg font-display font-medium animate-pulse">Bem-vindo!</span>
+            <Sparkles className="h-5 w-5 animate-pulse" />
+          </div>
+          
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Preparando seu ambiente...</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Login Form */}
+      <div 
+        className={`w-full max-w-md relative z-10 transition-all duration-400 ease-out ${
           isExiting 
-            ? 'opacity-0 -translate-y-3' 
-            : 'opacity-100 translate-y-0 animate-scale-in'
+            ? 'opacity-0 scale-95 -translate-y-4' 
+            : 'opacity-100 scale-100 translate-y-0 animate-scale-in'
         }`}
       >
         <Card variant="glass">
           <CardHeader className="space-y-6 pb-4">
-            {/* Logo with glow effect */}
             <div className="flex justify-center">
               <div className="relative">
                 <div className="absolute inset-0 bg-primary/30 blur-2xl rounded-full scale-150" />
@@ -155,7 +199,6 @@ export default function Auth() {
               </Button>
             </form>
 
-            {/* Subtle footer */}
             <div className="mt-8 pt-6 border-t border-border/50">
               <p className="text-xs text-center text-muted-foreground">
                 © {new Date().getFullYear()} Taliare Semijoias
