@@ -1,16 +1,26 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { DollarSign, TrendingUp, Package, FileText, Users, TrendingDown, Factory, Warehouse } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { 
+  DollarSign, TrendingUp, Package, FileText, Users, TrendingDown, 
+  Factory, Warehouse, ChevronDown, ChevronUp, Sparkles, Sun, Moon, 
+  CloudSun, Flame, Target, Calendar
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatarValor, formatarNumero, getLocalDateString, getLocalMonthString } from '@/lib/utils';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell 
+} from 'recharts';
 
 interface Profile {
   id: string;
@@ -37,21 +47,72 @@ interface CobrancaHojeRepresentante {
   despesa: number;
 }
 
+// Frases motivacionais
+const frasesMotivacionais = [
+  "O sucesso é a soma de pequenos esforços repetidos dia após dia.",
+  "Cada conquista começa com a decisão de tentar.",
+  "A persistência é o caminho do êxito.",
+  "Sonhe grande, comece pequeno, aja agora.",
+  "O único lugar onde o sucesso vem antes do trabalho é no dicionário.",
+  "Acredite em você e todo o resto virá naturalmente.",
+  "Sua única limitação é você mesmo.",
+  "Grandes realizações exigem grandes esforços.",
+  "Foco no progresso, não na perfeição.",
+  "O segredo do sucesso é a constância do propósito.",
+  "Você é mais forte do que imagina.",
+  "Todo expert já foi um iniciante.",
+  "A disciplina é a ponte entre metas e realizações.",
+  "Transforme obstáculos em oportunidades.",
+  "Seu potencial é ilimitado.",
+];
+
+// Função para obter saudação baseada no horário
+const getSaudacao = () => {
+  const hora = new Date().getHours();
+  if (hora >= 5 && hora < 12) {
+    return { texto: 'Bom dia', icon: Sun, emoji: '☀️' };
+  } else if (hora >= 12 && hora < 18) {
+    return { texto: 'Boa tarde', icon: CloudSun, emoji: '🌤️' };
+  } else {
+    return { texto: 'Boa noite', icon: Moon, emoji: '🌙' };
+  }
+};
+
+// Função para obter frase aleatória do dia (baseada na data para consistência)
+const getFraseMotivacional = () => {
+  const hoje = new Date();
+  const seed = hoje.getDate() + hoje.getMonth() * 31 + hoje.getFullYear();
+  return frasesMotivacionais[seed % frasesMotivacionais.length];
+};
+
+// Cores para gráficos
+const CHART_COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+];
+
 export default function DashboardAdmin() {
+  const { profile } = useAuth();
   const [startDate, setStartDate] = useState(getLocalDateString(startOfMonth(new Date())));
   const [endDate, setEndDate] = useState(getLocalDateString(endOfMonth(new Date())));
   const [estoqueDialogOpen, setEstoqueDialogOpen] = useState(false);
   const [cobrancaHojeDialogOpen, setCobrancaHojeDialogOpen] = useState(false);
+  const [showRepresentantes, setShowRepresentantes] = useState(false);
+  const [showProducao, setShowProducao] = useState(false);
   
-  // Meta sempre do mês atual, não do período filtrado
   const mesAtual = getLocalMonthString();
   const hoje = getLocalDateString();
+  const saudacao = getSaudacao();
+  const fraseMotivacional = useMemo(() => getFraseMotivacional(), []);
+  const SaudacaoIcon = saudacao.icon;
 
   // Query para representantes ativos (excluindo admins)
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes-ativos'],
     queryFn: async () => {
-      // Primeiro, busca os IDs dos usuários que são representantes
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -61,7 +122,6 @@ export default function DashboardAdmin() {
       
       const representanteIds = rolesData.map(r => r.user_id);
       
-      // Depois busca os perfis desses representantes
       const { data, error } = await supabase
         .from('profiles')
         .select('id, nome, email, ativo')
@@ -86,7 +146,6 @@ export default function DashboardAdmin() {
       
       if (error) throw error;
       
-      // Agrupa por representante
       const agrupado = data.reduce((acc: Record<string, CobrancaData>, curr) => {
         const id = curr.representante_id;
         if (!acc[id]) {
@@ -105,7 +164,7 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para cobranças de hoje (com detalhamento por representante)
+  // Query para cobranças de hoje
   const { data: cobrancasHoje = [] } = useQuery({
     queryKey: ['cobrancas-hoje-admin', hoje],
     queryFn: async () => {
@@ -134,7 +193,7 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para notas promissórias do período (agrupadas por representante)
+  // Query para notas promissórias
   const { data: notasPorRepresentante = [] } = useQuery({
     queryKey: ['notas-mes-admin', startDate, endDate],
     queryFn: async () => {
@@ -146,7 +205,6 @@ export default function DashboardAdmin() {
       
       if (error) throw error;
       
-      // Agrupa por representante e conta as notas
       const agrupado = data.reduce((acc: Record<string, number>, curr) => {
         const id = curr.representante_id;
         acc[id] = (acc[id] || 0) + 1;
@@ -157,7 +215,6 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para notas promissórias do período (total geral)
   const { data: notasData } = useQuery({
     queryKey: ['notas-total-mes-admin', startDate, endDate],
     queryFn: async () => {
@@ -172,7 +229,7 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para metas do mês
+  // Query para metas
   const { data: metas = [] } = useQuery({
     queryKey: ['metas-mes-admin', mesAtual],
     queryFn: async () => {
@@ -187,7 +244,7 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para produção de HOJE (corrigido - usando a tabela producao_diaria)
+  // Query para produção de hoje
   const { data: producaoHoje = [] } = useQuery({
     queryKey: ['producao-hoje-admin', hoje],
     queryFn: async () => {
@@ -201,7 +258,7 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para kits em estoque (status = 'estoque')
+  // Query para kits em estoque
   const { data: kitsEstoque = [] } = useQuery({
     queryKey: ['kits-estoque-admin'],
     queryFn: async () => {
@@ -215,36 +272,32 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Cálculos dos totais
+  // Cálculos
   const totalHoje = cobrancasHoje.reduce((sum, c) => sum + (c.total_cobrado || 0), 0);
   const totalMes = cobrancasMes.reduce((sum, c) => sum + c.total_cobrado, 0);
   const totalDespesas = cobrancasMes.reduce((sum, c) => sum + c.total_despesas, 0);
   const totalKits = kitsData?.length || 0;
   const totalNotas = notasData?.length || 0;
-
-  // Cálculos da produção de hoje
   const totalProducaoHoje = producaoHoje.length;
-
-  // Cálculos do estoque
   const totalEstoque = kitsEstoque.length;
+  
   const estoquePorTipo = kitsEstoque.reduce((acc: Record<string, number>, curr) => {
     const tipo = curr.tipo?.toLowerCase() || 'outro';
     acc[tipo] = (acc[tipo] || 0) + 1;
     return acc;
   }, {});
 
-  // Detalhamento de cobranças de hoje por representante
-  const cobrancasHojeDetalhadas: CobrancaHojeRepresentante[] = cobrancasHoje.map(c => {
-    const rep = representantes.find(r => r.id === c.representante_id);
-    return {
-      representante_id: c.representante_id,
-      nome: rep?.nome || 'Desconhecido',
-      total_cobrado: c.total_cobrado || 0,
-      despesa: c.despesa_cobranca || 0,
-    };
-  }).sort((a, b) => b.total_cobrado - a.total_cobrado);
+  // Dados para gráfico de pizza do estoque
+  const dadosEstoquePie = Object.entries(estoquePorTipo).map(([tipo, quantidade]) => ({
+    name: tipo.charAt(0).toUpperCase() + tipo.slice(1),
+    value: quantidade,
+  }));
 
-  // Combina dados dos representantes com suas cobranças e metas
+  // Meta total e realizado
+  const totalMeta = metas.reduce((sum, m) => sum + m.meta_valor, 0);
+  const percentualMetaGeral = totalMeta > 0 ? (totalMes / totalMeta) * 100 : 0;
+
+  // Dados para gráfico de barras por representante
   const representantesComDados = representantes.map(rep => {
     const cobranca = cobrancasMes.find(c => c.representante_id === rep.id);
     const meta = metas.find(m => m.representante_id === rep.id);
@@ -263,15 +316,73 @@ export default function DashboardAdmin() {
       qtdNotas,
       ticketMedio,
     };
-  });
+  }).sort((a, b) => b.realizado - a.realizado);
+
+  // Dados para gráfico de desempenho
+  const dadosDesempenhoChart = representantesComDados.slice(0, 5).map(rep => ({
+    nome: rep.nome.split(' ')[0],
+    realizado: rep.realizado,
+    meta: rep.meta,
+  }));
+
+  // Detalhamento de cobranças de hoje
+  const cobrancasHojeDetalhadas: CobrancaHojeRepresentante[] = cobrancasHoje.map(c => {
+    const rep = representantes.find(r => r.id === c.representante_id);
+    return {
+      representante_id: c.representante_id,
+      nome: rep?.nome || 'Desconhecido',
+      total_cobrado: c.total_cobrado || 0,
+      despesa: c.despesa_cobranca || 0,
+    };
+  }).sort((a, b) => b.total_cobrado - a.total_cobrado);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard Administrativo</h1>
-        <p className="text-muted-foreground">Visão geral de todos os representantes</p>
+    <div className="space-y-6 animate-fade-in">
+      {/* Hero Section - Saudação */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background border border-primary/20 p-6 md:p-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-chart-2/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-primary/20 animate-glow-pulse">
+                <SaudacaoIcon className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
+                  {saudacao.texto}, {profile?.nome?.split(' ')[0]} {saudacao.emoji}
+                </h1>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start gap-2 bg-background/50 backdrop-blur-sm rounded-lg p-3 border border-primary/10">
+              <Sparkles className="h-5 w-5 text-primary mt-0.5 animate-pulse" />
+              <p className="text-sm text-muted-foreground italic">
+                "{fraseMotivacional}"
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="flex items-center gap-4">
+            <div className="text-center p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">Hoje</p>
+              <p className="text-xl font-bold text-primary">{formatarValor(totalHoje)}</p>
+            </div>
+            <div className="text-center p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">Mês</p>
+              <p className="text-xl font-bold text-chart-2">{formatarValor(totalMes)}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
+      {/* Filtro de Data */}
       <DateRangeFilter 
         onFilterChange={(start, end) => {
           setStartDate(start);
@@ -279,200 +390,367 @@ export default function DashboardAdmin() {
         }} 
       />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {/* Card Total Hoje - Clicável */}
+      {/* Cards Principais - Grid Responsivo */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {/* Card Total Hoje */}
         <Card 
-          className="cursor-pointer hover:shadow-md transition-shadow"
+          variant="interactive"
+          className="cursor-pointer group animate-fade-in"
+          style={{ animationDelay: '0.05s' }}
           onClick={() => setCobrancaHojeDialogOpen(true)}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Hoje</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs md:text-sm font-medium">Hoje</CardTitle>
+            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+              <DollarSign className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarValor(totalHoje)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Clique para ver detalhes</p>
+            <div className="text-lg md:text-2xl font-display font-bold">{formatarValor(totalHoje)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">Toque para detalhes</p>
           </CardContent>
         </Card>
 
-        <Card>
+        {/* Card Total Período */}
+        <Card 
+          variant="interactive" 
+          className="animate-fade-in"
+          style={{ animationDelay: '0.1s' }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Período</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs md:text-sm font-medium">Período</CardTitle>
+            <div className="p-2 rounded-lg bg-chart-2/10">
+              <TrendingUp className="h-4 w-4 text-chart-2" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarValor(totalMes)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Despesas</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatarValor(totalDespesas)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <div className="text-lg md:text-2xl font-display font-bold">{formatarValor(totalMes)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
               Líquido: {formatarValor(totalMes - totalDespesas)}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        {/* Card Kits */}
+        <Card 
+          variant="interactive" 
+          className="animate-fade-in"
+          style={{ animationDelay: '0.15s' }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kits</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs md:text-sm font-medium">Kits</CardTitle>
+            <div className="p-2 rounded-lg bg-chart-3/10">
+              <Package className="h-4 w-4 text-chart-3" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarNumero(totalKits)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Entregues no período</p>
+            <div className="text-lg md:text-2xl font-display font-bold">{formatarNumero(totalKits)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1">Entregues</p>
           </CardContent>
         </Card>
 
-        <Card>
+        {/* Card Meta Geral */}
+        <Card 
+          variant="glow" 
+          className="animate-fade-in"
+          style={{ animationDelay: '0.2s' }}
+        >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Promissórias</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs md:text-sm font-medium">Meta Geral</CardTitle>
+            <div className="p-2 rounded-lg bg-primary/10 animate-glow-pulse">
+              <Target className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarNumero(totalNotas)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Registradas no período</p>
+            <div className="text-lg md:text-2xl font-display font-bold text-primary">
+              {percentualMetaGeral.toFixed(0)}%
+            </div>
+            <Progress value={Math.min(percentualMetaGeral, 100)} className="mt-2 h-2" />
           </CardContent>
         </Card>
       </div>
 
-      {/* Seção Produção Taliare - Simplificada */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Factory className="h-5 w-5" />
-            Produção Taliare
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="bg-muted/50">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Produzidos Hoje</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatarNumero(totalProducaoHoje)}</div>
-              </CardContent>
-            </Card>
-
-            {/* Card Kits em Estoque - Clicável */}
-            <Card 
-              className="bg-muted/50 cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => setEstoqueDialogOpen(true)}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Kits em Estoque</CardTitle>
-                <Warehouse className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatarNumero(totalEstoque)}</div>
-                <p className="text-xs text-muted-foreground mt-1">Clique para ver detalhes</p>
-              </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Desempenho por Representante</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {representantesComDados.length === 0 ? (
-            <div className="flex items-center justify-center h-[200px] text-muted-foreground">
-              <Users className="h-12 w-12 mr-4" />
-              <div>
-                <p>Nenhum representante cadastrado</p>
-                <p className="text-sm">Cadastre representantes na seção de Usuários</p>
+      {/* Gráficos */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Gráfico de Desempenho por Representante */}
+        <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
+          <CardHeader>
+            <CardTitle className="text-sm md:text-base font-display flex items-center gap-2">
+              <Flame className="h-4 w-4 text-primary" />
+              Top 5 Representantes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dadosDesempenhoChart.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={dadosDesempenhoChart} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                  <XAxis 
+                    type="number" 
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    stroke="hsl(var(--border))"
+                  />
+                  <YAxis 
+                    type="category" 
+                    dataKey="nome" 
+                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    width={60}
+                    stroke="hsl(var(--border))"
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => formatarValor(value)}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar 
+                    dataKey="realizado" 
+                    fill="hsl(var(--primary))" 
+                    name="Realizado"
+                    radius={[0, 4, 4, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                <Users className="h-8 w-8 mr-2" />
+                <span>Sem dados no período</span>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Gráfico de Pizza - Estoque */}
+        <Card 
+          variant="glass" 
+          className="cursor-pointer animate-fade-in" 
+          style={{ animationDelay: '0.3s' }}
+          onClick={() => setEstoqueDialogOpen(true)}
+        >
+          <CardHeader>
+            <CardTitle className="text-sm md:text-base font-display flex items-center gap-2">
+              <Warehouse className="h-4 w-4 text-chart-2" />
+              Estoque por Tipo
+              <span className="text-xs text-muted-foreground ml-auto">Toque para detalhes</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dadosEstoquePie.length > 0 ? (
+              <div className="flex items-center justify-center">
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={dadosEstoquePie}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      labelLine={false}
+                    >
+                      {dadosEstoquePie.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => `${value} kits`}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[250px] text-muted-foreground">
+                <Package className="h-12 w-12 mb-2 animate-float" />
+                <span>Estoque vazio</span>
+              </div>
+            )}
+            <div className="text-center mt-2">
+              <span className="text-2xl font-bold">{formatarNumero(totalEstoque)}</span>
+              <span className="text-muted-foreground text-sm ml-2">kits em estoque</span>
             </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Representante</TableHead>
-                  <TableHead>Meta</TableHead>
-                  <TableHead>Realizado</TableHead>
-                  <TableHead>Despesas</TableHead>
-                  <TableHead>Líquido</TableHead>
-                  <TableHead>Qtd Notas</TableHead>
-                  <TableHead>Ticket Médio</TableHead>
-                  <TableHead>Progresso</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {representantesComDados.map((rep) => (
-                  <TableRow key={rep.id}>
-                    <TableCell className="font-medium">
-                      <div>
-                        <p>{rep.nome}</p>
-                        <p className="text-xs text-muted-foreground">{rep.email}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{rep.meta > 0 ? formatarValor(rep.meta) : '-'}</TableCell>
-                    <TableCell>{formatarValor(rep.realizado)}</TableCell>
-                    <TableCell>{formatarValor(rep.despesas)}</TableCell>
-                    <TableCell className="font-medium">
-                      {formatarValor(rep.realizado - rep.despesas)}
-                    </TableCell>
-                    <TableCell>{formatarNumero(rep.qtdNotas)}</TableCell>
-                    <TableCell>{rep.qtdNotas > 0 ? formatarValor(rep.ticketMedio) : '-'}</TableCell>
-                    <TableCell>
-                      {rep.meta > 0 ? (
-                        <div className="space-y-2 min-w-[120px]">
-                          <div className="flex justify-between text-sm">
-                            <span className="font-medium">{rep.percentual.toFixed(1)}%</span>
-                          </div>
-                          <Progress value={Math.min(rep.percentual, 100)} />
-                        </div>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Sem meta</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Produção Taliare - Collapsible */}
+      <Collapsible open={showProducao} onOpenChange={setShowProducao}>
+        <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.35s' }}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm md:text-base font-display">
+                  <Factory className="h-5 w-5 text-chart-3" />
+                  Produção Taliare
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    Hoje: <span className="font-bold text-foreground">{formatarNumero(totalProducaoHoje)}</span> kits
+                  </span>
+                  {showProducao ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </div>
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="grid gap-4 grid-cols-2">
+                <div className="bg-chart-3/10 p-4 rounded-xl text-center">
+                  <Package className="h-8 w-8 mx-auto text-chart-3 mb-2" />
+                  <p className="text-sm text-muted-foreground">Produzidos Hoje</p>
+                  <p className="text-3xl font-bold">{formatarNumero(totalProducaoHoje)}</p>
+                </div>
+                <div className="bg-chart-2/10 p-4 rounded-xl text-center">
+                  <Warehouse className="h-8 w-8 mx-auto text-chart-2 mb-2" />
+                  <p className="text-sm text-muted-foreground">Em Estoque</p>
+                  <p className="text-3xl font-bold">{formatarNumero(totalEstoque)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Tabela de Representantes - Collapsible */}
+      <Collapsible open={showRepresentantes} onOpenChange={setShowRepresentantes}>
+        <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg">
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm md:text-base font-display">
+                  <Users className="h-5 w-5 text-chart-4" />
+                  Desempenho por Representante
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {representantes.length} representantes
+                  </span>
+                  {showRepresentantes ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </div>
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              {representantesComDados.length === 0 ? (
+                <div className="flex items-center justify-center h-[150px] text-muted-foreground">
+                  <Users className="h-12 w-12 mr-4 animate-float" />
+                  <div>
+                    <p>Nenhum representante cadastrado</p>
+                    <p className="text-sm">Cadastre representantes na seção de Usuários</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Representante</TableHead>
+                        <TableHead className="text-right">Meta</TableHead>
+                        <TableHead className="text-right">Realizado</TableHead>
+                        <TableHead className="text-right">Líquido</TableHead>
+                        <TableHead className="text-right hidden md:table-cell">Notas</TableHead>
+                        <TableHead className="text-right hidden md:table-cell">Ticket</TableHead>
+                        <TableHead className="w-32">Progresso</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {representantesComDados.map((rep, index) => (
+                        <TableRow 
+                          key={rep.id} 
+                          className="animate-fade-in"
+                          style={{ animationDelay: `${index * 0.05}s` }}
+                        >
+                          <TableCell className="font-medium">
+                            <div>
+                              <p className="text-sm">{rep.nome}</p>
+                              <p className="text-xs text-muted-foreground hidden md:block">{rep.email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right text-sm">
+                            {rep.meta > 0 ? formatarValor(rep.meta) : '-'}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-sm">
+                            {formatarValor(rep.realizado)}
+                          </TableCell>
+                          <TableCell className="text-right text-sm">
+                            {formatarValor(rep.realizado - rep.despesas)}
+                          </TableCell>
+                          <TableCell className="text-right text-sm hidden md:table-cell">
+                            {formatarNumero(rep.qtdNotas)}
+                          </TableCell>
+                          <TableCell className="text-right text-sm hidden md:table-cell">
+                            {rep.qtdNotas > 0 ? formatarValor(rep.ticketMedio) : '-'}
+                          </TableCell>
+                          <TableCell>
+                            {rep.meta > 0 ? (
+                              <div className="space-y-1 min-w-[100px]">
+                                <div className="flex justify-between text-xs">
+                                  <span className={`font-medium ${rep.percentual >= 100 ? 'text-chart-3' : ''}`}>
+                                    {rep.percentual.toFixed(0)}%
+                                  </span>
+                                </div>
+                                <Progress value={Math.min(rep.percentual, 100)} className="h-2" />
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Sem meta</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Dialog de Estoque */}
       <Dialog open={estoqueDialogOpen} onOpenChange={setEstoqueDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Warehouse className="h-5 w-5" />
+              <Warehouse className="h-5 w-5 text-chart-2" />
               Detalhes do Estoque
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg text-center">
+              <div className="bg-primary/10 p-4 rounded-xl text-center">
                 <p className="text-sm text-muted-foreground">Kits Iniciais</p>
-                <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                <p className="text-3xl font-bold text-primary">
                   {formatarNumero(estoquePorTipo['inicial'] || 0)}
                 </p>
               </div>
-              <div className="bg-purple-50 dark:bg-purple-950 p-4 rounded-lg text-center">
+              <div className="bg-chart-2/10 p-4 rounded-xl text-center">
                 <p className="text-sm text-muted-foreground">Kits Especiais</p>
-                <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                <p className="text-3xl font-bold text-chart-2">
                   {formatarNumero(estoquePorTipo['especial'] || 0)}
                 </p>
               </div>
             </div>
-            <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg text-center">
+            <div className="bg-chart-3/10 p-4 rounded-xl text-center">
               <p className="text-sm text-muted-foreground">Maletas</p>
-              <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+              <p className="text-3xl font-bold text-chart-3">
                 {formatarNumero(estoquePorTipo['maleta'] || 0)}
               </p>
             </div>
@@ -496,21 +774,23 @@ export default function DashboardAdmin() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Cobranças de Hoje por Representante
+              <DollarSign className="h-5 w-5 text-primary" />
+              Cobranças de Hoje
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {cobrancasHojeDetalhadas.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
+                <DollarSign className="h-12 w-12 mx-auto mb-2 animate-float" />
                 Nenhuma cobrança registrada hoje
               </div>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {cobrancasHojeDetalhadas.map((item) => (
+                {cobrancasHojeDetalhadas.map((item, index) => (
                   <div 
                     key={item.representante_id} 
-                    className="flex justify-between items-center p-3 bg-muted/50 rounded-lg"
+                    className="flex justify-between items-center p-3 bg-muted/50 rounded-lg animate-fade-in"
+                    style={{ animationDelay: `${index * 0.05}s` }}
                   >
                     <div>
                       <p className="font-medium">{item.nome}</p>
