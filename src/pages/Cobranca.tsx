@@ -298,22 +298,22 @@ export default function Cobranca() {
       if (prestacaoError) throw prestacaoError;
 
       // 2. Criar nota promissória para alimentar a Cobrança Diária
-      if (dados.tipo === 'completo' && dados.pagamentos.length > 0) {
-        const { error: notaError } = await supabase
-          .from('notas_promissorias')
-          .insert({
-            representante_id: userId!,
-            codigo_nota: `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`,
-            data: dataNota,
-            valor_total: dados.valor_devido_empresa,
-            forma_pagamento_1: dados.pagamentos[0].forma,
-            valor_pagamento_1: dados.pagamentos[0].valor,
-            forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-            valor_pagamento_2: dados.pagamentos[1]?.valor || null
-          });
+      // Sempre criar a nota, inclusive para devoluções (para contabilizar no dia)
+      const codigoNotaGerado = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert({
+          representante_id: userId!,
+          codigo_nota: codigoNotaGerado,
+          data: dataNota,
+          valor_total: dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
+          forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
+          valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : dados.pagamentos[0]?.valor || 0,
+          forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+          valor_pagamento_2: dados.pagamentos[1]?.valor || null
+        });
 
-        if (notaError) throw notaError;
-      }
+      if (notaError) throw notaError;
 
       // 3. Atualizar status da cobrança para 'pago'
       const { error: updateError } = await supabase
