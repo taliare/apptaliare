@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock, Package, Wallet, DollarSign, Receipt } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock, Package, Wallet, DollarSign, Receipt, Search } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState } from 'react';
@@ -18,7 +18,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn, formatarValor, formatarNumero, getLocalDateString } from '@/lib/utils';
-import { notaPromissoriaInsertSchema, notaPromissoriaUpdateSchema, cobrancaInsertSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
+import { sanitizeString } from '@/lib/validations';
+import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
+import type { Database } from '@/integrations/supabase/types';
 
 interface NotaPromissoria {
   id: string;
@@ -33,7 +35,7 @@ interface NotaPromissoria {
   criado_em?: string | null;
 }
 
-interface CobrancaDiaria {
+interface CobrancaDiariaType {
   id: string;
   data: string;
   total_cobrado: number;
@@ -44,6 +46,8 @@ interface CobrancaDiaria {
   finalizado: boolean | null;
   representante_id: string;
 }
+
+type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'];
 
 const formaPagamentoLabels = {
   pix: 'PIX',
@@ -56,10 +60,18 @@ export default function CobrancaDiaria() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [isNotaDialogOpen, setIsNotaDialogOpen] = useState(false);
-  const [editingNota, setEditingNota] = useState<NotaPromissoria | null>(null);
   const [historicoDialogOpen, setHistoricoDialogOpen] = useState(false);
   const [selectedHistoricoDate, setSelectedHistoricoDate] = useState<string | null>(null);
+
+  // State para busca de nota
+  const [isBuscarNotaDialogOpen, setIsBuscarNotaDialogOpen] = useState(false);
+  const [codigoBusca, setCodigoBusca] = useState('');
+  const [buscandoNota, setBuscandoNota] = useState(false);
+  const [notaEncontrada, setNotaEncontrada] = useState<Cobranca | null>(null);
+  const [erroNota, setErroNota] = useState<string | null>(null);
+  
+  // State para modal de cobrança
+  const [cobrancaParaPagar, setCobrancaParaPagar] = useState<Cobranca | null>(null);
 
   // State para entrega de kit
   const [isKitEntregaDialogOpen, setIsKitEntregaDialogOpen] = useState(false);
@@ -69,14 +81,6 @@ export default function CobrancaDiaria() {
   const [vendedoraId, setVendedoraId] = useState('');
   const [revendedoraKit, setRevendedoraKit] = useState('');
   const [dataVencimentoKit, setDataVencimentoKit] = useState<string>(getLocalDateString(addDays(new Date(), 60)));
-
-  // Form states for Nota Promissória
-  const [codigoNota, setCodigoNota] = useState('');
-  const [valorTotal, setValorTotal] = useState('');
-  const [formaPagamento1, setFormaPagamento1] = useState<'pix' | 'dinheiro' | 'cartao' | 'transferencia'>('pix');
-  const [valorPagamento1, setValorPagamento1] = useState('');
-  const [formaPagamento2, setFormaPagamento2] = useState<'pix' | 'dinheiro' | 'cartao' | 'transferencia' | ''>('');
-  const [valorPagamento2, setValorPagamento2] = useState('');
 
   // Form states for Cobrança Diária
   const [despesaCobranca, setDespesaCobranca] = useState('');
@@ -135,7 +139,7 @@ export default function CobrancaDiaria() {
         .maybeSingle();
       
       if (error) throw error;
-      return data as CobrancaDiaria | null;
+      return data as CobrancaDiariaType | null;
     },
     enabled: !!user?.id,
   });
@@ -153,7 +157,7 @@ export default function CobrancaDiaria() {
         .limit(30);
       
       if (error) throw error;
-      return data as CobrancaDiaria[];
+      return data as CobrancaDiariaType[];
     },
     enabled: !!user?.id,
   });
@@ -291,6 +295,36 @@ export default function CobrancaDiaria() {
     enabled: codigosKitsDoDia.length > 0 && !!user?.id,
   });
 
+  // Query para buscar dias não finalizados (últimos 30 dias)
+  const { data: diasNaoFinalizados = [] } = useQuery({
+    queryKey: ['dias-nao-finalizados', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      
+      const hoje = new Date();
+      const diasAnteriores: string[] = [];
+      
+      for (let i = 1; i <= 30; i++) {
+        const data = new Date(hoje);
+        data.setDate(data.getDate() - i);
+        diasAnteriores.push(format(data, 'yyyy-MM-dd'));
+      }
+      
+      const { data: finalizados, error } = await supabase
+        .from('cobrancas_diarias')
+        .select('data')
+        .eq('representante_id', user?.id)
+        .eq('finalizado', true)
+        .in('data', diasAnteriores);
+      
+      if (error) throw error;
+      
+      const datasFinalizadas = new Set(finalizados?.map(f => f.data) || []);
+      return diasAnteriores.filter(d => !datasFinalizadas.has(d));
+    },
+    enabled: !!user?.id,
+  });
+
   // Mapear detalhes por código do kit
   const detalhesKitMap = detalhesKitsCobrancas.reduce((acc: Record<string, any>, item: any) => {
     if (item.codigo_nota) {
@@ -320,7 +354,6 @@ export default function CobrancaDiaria() {
   // Mutation para registrar entrega de kit usando função RPC atômica
   const entregaKitMutation = useMutation({
     mutationFn: async (data: { kitId: string; revendedora: string; vendedoraId?: string; vendedoraNome?: string; dataVencimento: string }) => {
-      // Validate revendedora input
       if (!data.revendedora || data.revendedora.trim().length === 0) {
         throw new Error('Nome da revendedora é obrigatório');
       }
@@ -331,7 +364,6 @@ export default function CobrancaDiaria() {
       const sanitizedRevendedora = sanitizeString(data.revendedora);
       const sanitizedVendedora = data.vendedoraNome ? sanitizeString(data.vendedoraNome) : null;
       
-      // Usar função RPC atômica que faz tudo em uma única transação
       const { data: result, error } = await supabase
         .rpc('entregar_kit_para_revendedora', {
           p_kit_id: data.kitId,
@@ -344,7 +376,6 @@ export default function CobrancaDiaria() {
 
       if (error) throw error;
       
-      // A função retorna JSON com success: true/false
       const response = result as { success: boolean; error?: string };
       if (!response.success) {
         throw new Error(response.error || 'Erro ao registrar entrega');
@@ -370,7 +401,6 @@ export default function CobrancaDiaria() {
   // Mutation para excluir entrega de kit usando função RPC atômica
   const excluirEntregaMutation = useMutation({
     mutationFn: async (entrega: { id: string; codigo_nota: string }) => {
-      // Usar função RPC atômica para reverter tudo de uma vez
       const { data: result, error } = await supabase
         .rpc('reverter_entrega_kit_atomico', {
           p_kit_entregue_id: entrega.id,
@@ -435,69 +465,9 @@ export default function CobrancaDiaria() {
     });
   };
 
-  // Mutation para adicionar nota
-  const addNotaMutation = useMutation({
-    mutationFn: async (nota: Omit<NotaPromissoria, 'id' | 'criado_em'>) => {
-      // Validate and sanitize nota data
-      const sanitizedNota = {
-        ...nota,
-        codigo_nota: sanitizeString(nota.codigo_nota),
-      };
-      
-      const validation = validateData(notaPromissoriaInsertSchema, sanitizedNota);
-      if (!validation.success) {
-        throw new Error((validation as { success: false; errors: string[] }).errors.join(', '));
-      }
-      
-      const { data, error } = await supabase
-        .from('notas_promissorias')
-        .insert(sanitizedNota)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
-      toast.success('Nota promissória adicionada com sucesso!');
-      resetNotaForm();
-      setIsNotaDialogOpen(false);
-    },
-    onError: (error: any) => {
-      toast.error(`Erro ao adicionar nota: ${error.message}`);
-    },
-  });
-
-  // Mutation para atualizar nota
-  const updateNotaMutation = useMutation({
-    mutationFn: async ({ id, ...nota }: Partial<NotaPromissoria> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('notas_promissorias')
-        .update(nota)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
-      toast.success('Nota promissória atualizada com sucesso!');
-      resetNotaForm();
-      setIsNotaDialogOpen(false);
-      setEditingNota(null);
-    },
-    onError: (error) => {
-      toast.error(`Erro ao atualizar nota: ${error.message}`);
-    },
-  });
-
   // Mutation para excluir nota da cobrança de hoje e devolver para agenda
   const excluirNotaDaCobrancaMutation = useMutation({
     mutationFn: async (nota: NotaPromissoria) => {
-      // Buscar dados da cobrança agendada original para preservar
       const { data: cobrancaOriginal } = await supabase
         .from('cobrancas_agendadas')
         .select('*')
@@ -505,7 +475,6 @@ export default function CobrancaDiaria() {
         .eq('codigo_nota', nota.codigo_nota)
         .maybeSingle();
 
-      // Deletar a nota promissória (registro da cobrança de hoje)
       const { error: deleteError } = await supabase
         .from('notas_promissorias')
         .delete()
@@ -513,7 +482,6 @@ export default function CobrancaDiaria() {
 
       if (deleteError) throw deleteError;
 
-      // Se existia cobrança agendada, apenas garantir que está pendente
       if (cobrancaOriginal) {
         const { error: updateError } = await supabase
           .from('cobrancas_agendadas')
@@ -522,7 +490,6 @@ export default function CobrancaDiaria() {
 
         if (updateError) throw updateError;
       } else {
-        // Se não existia, criar uma nova cobrança agendada para não perder a nota
         const revendedora = revendedoraMap[nota.codigo_nota] || 'Revendedora não identificada';
         const { error: insertError } = await supabase
           .from('cobrancas_agendadas')
@@ -547,67 +514,6 @@ export default function CobrancaDiaria() {
     },
     onError: (error: any) => {
       toast.error(`Erro ao remover nota: ${error.message}`);
-    },
-  });
-
-  // Mutation para deletar nota e reverter cobrança se necessário
-  const deleteNotaMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data: nota, error: notaError } = await supabase
-        .from('notas_promissorias')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (notaError) throw notaError;
-      
-      const { data: prestacao, error: prestacaoError } = await supabase
-        .from('prestacoes_contas')
-        .select('*')
-        .eq('codigo_nota_referencia', nota.codigo_nota)
-        .maybeSingle();
-      
-      if (prestacaoError) throw prestacaoError;
-      
-      if (prestacao && prestacao.cobranca_id) {
-        const { error: repasseError } = await supabase
-          .from('repasses')
-          .delete()
-          .eq('cobranca_id', prestacao.cobranca_id);
-        
-        if (repasseError) throw repasseError;
-        
-        const { error: deletePrestacaoError } = await supabase
-          .from('prestacoes_contas')
-          .delete()
-          .eq('id', prestacao.id);
-        
-        if (deletePrestacaoError) throw deletePrestacaoError;
-        
-        const { error: updateCobrancaError } = await supabase
-          .from('cobrancas_agendadas')
-          .update({ status: 'pendente' })
-          .eq('id', prestacao.cobranca_id);
-        
-        if (updateCobrancaError) throw updateCobrancaError;
-      }
-      
-      const { error: deleteNotaError } = await supabase
-        .from('notas_promissorias')
-        .delete()
-        .eq('id', id);
-      
-      if (deleteNotaError) throw deleteNotaError;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
-      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
-      queryClient.invalidateQueries({ queryKey: ['prestacoes-contas'] });
-      queryClient.invalidateQueries({ queryKey: ['repasses'] });
-      toast.success('Nota promissória excluída e cobrança restaurada com sucesso!');
-    },
-    onError: (error) => {
-      toast.error(`Erro ao excluir nota: ${error.message}`);
     },
   });
 
@@ -652,87 +558,245 @@ export default function CobrancaDiaria() {
     },
   });
 
-  const resetNotaForm = () => {
-    setCodigoNota('');
-    setValorTotal('');
-    setFormaPagamento1('pix');
-    setValorPagamento1('');
-    setFormaPagamento2('');
-    setValorPagamento2('');
+  // Função para buscar nota por código na agenda
+  const handleBuscarNota = async () => {
+    if (!codigoBusca.trim()) {
+      setErroNota('Informe o código da nota');
+      return;
+    }
+
+    setBuscandoNota(true);
+    setErroNota(null);
+    setNotaEncontrada(null);
+
+    try {
+      // Verificar se já foi lançada hoje
+      const notaJaLancada = notas.find(n => 
+        n.codigo_nota.toLowerCase() === codigoBusca.trim().toLowerCase()
+      );
+
+      if (notaJaLancada) {
+        setErroNota('Essa nota já foi lançada hoje');
+        setBuscandoNota(false);
+        return;
+      }
+
+      // Buscar na agenda do representante (tipos pendente, parcial, reagendado)
+      const { data, error } = await supabase
+        .from('cobrancas_agendadas')
+        .select('*')
+        .eq('representante_id', user?.id)
+        .ilike('codigo_nota', codigoBusca.trim())
+        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        setErroNota('Nota não encontrada na sua agenda');
+      } else {
+        setNotaEncontrada(data);
+      }
+    } catch (error: any) {
+      setErroNota(`Erro ao buscar: ${error.message}`);
+    } finally {
+      setBuscandoNota(false);
+    }
   };
 
-  const handleOpenNotaDialog = (nota?: NotaPromissoria) => {
-    if (nota) {
-      setEditingNota(nota);
-      setCodigoNota(nota.codigo_nota);
-      setValorTotal(nota.valor_total.toFixed(2));
-      setFormaPagamento1(nota.forma_pagamento_1);
-      setValorPagamento1(nota.valor_pagamento_1.toFixed(2));
-      setFormaPagamento2(nota.forma_pagamento_2 || '');
-      setValorPagamento2(nota.valor_pagamento_2?.toFixed(2) || '');
+  const resetBuscarNotaForm = () => {
+    setCodigoBusca('');
+    setNotaEncontrada(null);
+    setErroNota(null);
+  };
+
+  const handleAbrirModalCobrar = () => {
+    if (notaEncontrada) {
+      setCobrancaParaPagar(notaEncontrada);
+      setIsBuscarNotaDialogOpen(false);
+    }
+  };
+
+  // Função para processar pagamento completo (igual à da Agenda)
+  const handlePagamentoCompleto = async (dados: {
+    valor_venda: number;
+    comissao_percentual: number;
+    comissao_valor: number;
+    valor_devido_empresa: number;
+    pagamentos: Array<{ forma: any; valor: number }>;
+    tipo: 'completo' | 'devolucao';
+    dataNota: string;
+  }) => {
+    if (!cobrancaParaPagar || !user?.id) return;
+
+    const cobranca = cobrancaParaPagar;
+    const codigoNota = cobranca.codigo_nota || `${cobranca.revendedora}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
+    
+    // 1. Criar prestação de contas
+    const { error: prestacaoError } = await supabase
+      .from('prestacoes_contas')
+      .insert({
+        cobranca_id: cobranca.id,
+        representante_id: user.id,
+        revendedora: cobranca.revendedora || '',
+        total_venda: dados.valor_venda,
+        comissao_percentual: dados.comissao_percentual,
+        comissao_valor: dados.comissao_valor,
+        valor_devido_empresa: dados.valor_devido_empresa,
+        valor_pago: dados.valor_devido_empresa,
+        saldo_devedor: 0,
+        forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0].forma,
+        data_execucao: dados.dataNota,
+        codigo_nota_referencia: codigoNota
+      });
+
+    if (prestacaoError) throw prestacaoError;
+
+    // 2. Criar nota promissória para alimentar a Cobrança Diária
+    if (dados.tipo === 'completo' && dados.pagamentos.length > 0) {
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert({
+          representante_id: user.id,
+          codigo_nota: codigoNota,
+          data: dados.dataNota,
+          valor_total: dados.valor_devido_empresa,
+          forma_pagamento_1: dados.pagamentos[0].forma,
+          valor_pagamento_1: dados.pagamentos[0].valor,
+          forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+          valor_pagamento_2: dados.pagamentos[1]?.valor || null
+        });
+
+      if (notaError) throw notaError;
+    }
+
+    // 3. Atualizar status da cobrança para 'pago'
+    const { error: updateError } = await supabase
+      .from('cobrancas_agendadas')
+      .update({ status: 'pago' })
+      .eq('id', cobranca.id);
+
+    if (updateError) throw updateError;
+
+    await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+    await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+    await queryClient.invalidateQueries({ queryKey: ['notas-por-dia'] });
+    
+    setCobrancaParaPagar(null);
+    resetBuscarNotaForm();
+  };
+
+  // Função para processar pagamento parcial (igual à da Agenda)
+  const handlePagamentoParcial = async (dados: {
+    valor_venda: number;
+    comissao_percentual: number;
+    comissao_valor: number;
+    valor_devido_empresa: number;
+    valor_recebido: number;
+    pagamentos: Array<{ forma: any; valor: number }>;
+    valor_repasse: number;
+    data_repasse: Date;
+    dataNota: string;
+  }) => {
+    if (!cobrancaParaPagar || !user?.id) return;
+
+    const cobranca = cobrancaParaPagar;
+    const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
+    const codigoNota = cobranca.codigo_nota || `${cobranca.revendedora}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
+    
+    // 1. Criar nota promissória para alimentar a Cobrança Diária (valor parcial recebido)
+    if (dados.pagamentos.length > 0 && dados.valor_recebido > 0) {
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert({
+          representante_id: user.id,
+          codigo_nota: codigoNota,
+          data: dados.dataNota,
+          valor_total: dados.valor_recebido,
+          forma_pagamento_1: dados.pagamentos[0].forma,
+          valor_pagamento_1: dados.pagamentos[0].valor,
+          forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+          valor_pagamento_2: dados.pagamentos[1]?.valor || null
+        });
+
+      if (notaError) throw notaError;
+    }
+
+    if (isRepasse) {
+      // Para REPASSE: criar nova cobrança com valor restante
+      const { error: novaCobrancaError } = await supabase
+        .from('cobrancas_agendadas')
+        .insert({
+          representante_id: user.id,
+          revendedora: cobranca.revendedora || '',
+          codigo_nota: cobranca.codigo_nota || null,
+          tipo: 'repasse',
+          valor_previsto: dados.valor_repasse,
+          data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
+          status: 'pendente',
+          observacoes: `Saldo restante de cobrança anterior`,
+          vendedora: cobranca.vendedora || null
+        });
+
+      if (novaCobrancaError) throw novaCobrancaError;
+
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update({ status: 'pago' })
+        .eq('id', cobranca.id);
+
+      if (updateError) throw updateError;
     } else {
-      resetNotaForm();
-      setEditingNota(null);
-    }
-    setIsNotaDialogOpen(true);
-  };
+      // Para KIT: criar prestação de contas e nova cobrança do tipo repasse
+      const { error: prestacaoError } = await supabase
+        .from('prestacoes_contas')
+        .insert({
+          cobranca_id: cobranca.id,
+          representante_id: user.id,
+          revendedora: cobranca.revendedora || '',
+          total_venda: dados.valor_venda,
+          comissao_percentual: dados.comissao_percentual,
+          comissao_valor: dados.comissao_valor,
+          valor_devido_empresa: dados.valor_devido_empresa,
+          valor_pago: dados.valor_recebido,
+          saldo_devedor: dados.valor_repasse,
+          forma_pagamento: dados.pagamentos[0].forma,
+          data_execucao: dados.dataNota,
+          codigo_nota_referencia: codigoNota
+        });
 
-  const handleDevolveuTudo = () => {
-    if (!codigoNota) {
-      toast.error('Informe o código da nota');
-      return;
-    }
+      if (prestacaoError) throw prestacaoError;
 
-    const notaData = {
-      representante_id: user!.id,
-      codigo_nota: codigoNota,
-      data: dateStr,
-      valor_total: 0,
-      forma_pagamento_1: formaPagamento1,
-      valor_pagamento_1: 0,
-      forma_pagamento_2: null,
-      valor_pagamento_2: null,
-    };
+      const { error: novaCobrancaError } = await supabase
+        .from('cobrancas_agendadas')
+        .insert({
+          representante_id: user.id,
+          revendedora: cobranca.revendedora || '',
+          codigo_nota: cobranca.codigo_nota || null,
+          tipo: 'repasse',
+          valor_previsto: dados.valor_repasse,
+          data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
+          status: 'pendente',
+          observacoes: `Saldo restante de cobrança anterior`,
+          vendedora: cobranca.vendedora || null
+        });
 
-    addNotaMutation.mutate(notaData);
-  };
+      if (novaCobrancaError) throw novaCobrancaError;
 
-  const handleSubmitNota = () => {
-    if (!codigoNota) {
-      toast.error('Preencha o código da nota');
-      return;
-    }
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update({ status: 'pago' })
+        .eq('id', cobranca.id);
 
-    const valor1 = parseValorFormatado(valorPagamento1);
-    const valor2 = formaPagamento2 ? parseValorFormatado(valorPagamento2) : 0;
-    const valorTotalNum = parseValorFormatado(valorTotal);
-
-    if (valorTotalNum === 0 && !editingNota) {
-      toast.error('O valor total não pode ser zero. Use "Devolveu tudo" para registrar devoluções.');
-      return;
-    }
-
-    if (Math.abs((valor1 + valor2) - valorTotalNum) > 0.01) {
-      toast.error('A soma dos pagamentos deve ser igual ao valor total');
-      return;
+      if (updateError) throw updateError;
     }
 
-    const notaData = {
-      representante_id: user!.id,
-      codigo_nota: codigoNota,
-      data: dateStr,
-      valor_total: valorTotalNum,
-      forma_pagamento_1: formaPagamento1,
-      valor_pagamento_1: valor1,
-      forma_pagamento_2: formaPagamento2 || null,
-      valor_pagamento_2: valor2 || null,
-    };
-
-    if (editingNota) {
-      updateNotaMutation.mutate({ id: editingNota.id, ...notaData });
-    } else {
-      addNotaMutation.mutate(notaData);
-    }
+    await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+    await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+    await queryClient.invalidateQueries({ queryKey: ['notas-por-dia'] });
+    
+    setCobrancaParaPagar(null);
+    resetBuscarNotaForm();
   };
 
   const handleFinalizarDia = () => {
@@ -741,7 +805,6 @@ export default function CobrancaDiaria() {
 
   // Calcular totais
   const totalCobradoCalculado = notas.reduce((acc, nota) => acc + nota.valor_total, 0);
-  const totalNotasDoDia = notas.length;
 
   const totaisPorFormaPagamento = notas.reduce(
     (acc, nota) => {
@@ -874,15 +937,96 @@ export default function CobrancaDiaria() {
               <span className="font-bold text-primary">{formatarValor(totalCobradoCalculado)}</span>
             </div>
             {!isDiaFinalizado && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full mt-3"
-                onClick={() => handleOpenNotaDialog()}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Adicionar Nota
-              </Button>
+              <Dialog open={isBuscarNotaDialogOpen} onOpenChange={(open) => {
+                setIsBuscarNotaDialogOpen(open);
+                if (!open) resetBuscarNotaForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-3"
+                  >
+                    <Search className="h-4 w-4 mr-1" />
+                    Buscar Nota
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Buscar Nota na Agenda</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="codigo_busca">Código da Nota *</Label>
+                      <div className="flex gap-2 mt-1">
+                        <Input
+                          id="codigo_busca"
+                          value={codigoBusca}
+                          onChange={(e) => setCodigoBusca(e.target.value)}
+                          placeholder="Ex: KIT-001"
+                          onKeyDown={(e) => e.key === 'Enter' && handleBuscarNota()}
+                        />
+                        <Button 
+                          onClick={handleBuscarNota} 
+                          disabled={buscandoNota || !codigoBusca.trim()}
+                        >
+                          {buscandoNota ? 'Buscando...' : 'Buscar'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {erroNota && (
+                      <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
+                        {erroNota}
+                      </div>
+                    )}
+
+                    {notaEncontrada && (
+                      <div className="p-4 bg-muted rounded-lg space-y-3">
+                        <h4 className="font-semibold text-foreground">Nota Encontrada</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Revendedora:</span>
+                            <span className="font-medium">{notaEncontrada.revendedora}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Tipo:</span>
+                            <Badge variant="secondary">
+                              {notaEncontrada.tipo?.toLowerCase() === 'repasse' ? 'Repasse' : 'Kit'}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Valor:</span>
+                            <span className="font-semibold text-primary">
+                              {formatarValor(notaEncontrada.valor_previsto)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Vencimento:</span>
+                            <span>{format(new Date(notaEncontrada.data_agendada + 'T12:00:00'), 'dd/MM/yyyy')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Status:</span>
+                            <Badge variant="outline">{notaEncontrada.status}</Badge>
+                          </div>
+                        </div>
+                        <Button 
+                          className="w-full mt-2" 
+                          onClick={handleAbrirModalCobrar}
+                        >
+                          <DollarSign className="h-4 w-4 mr-1" />
+                          Cobrar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsBuscarNotaDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
           </CardContent>
         </Card>
@@ -1027,27 +1171,25 @@ export default function CobrancaDiaria() {
                     </div>
 
                     {vincularVendedora && (
-  <div className="space-y-2">
-    <Label>Vendedora / Recrutadora</Label>
-
-    <Select
-      value={vendedoraId}
-      onValueChange={setVendedoraId}
-    >
-      <SelectTrigger>
-        <SelectValue placeholder="Selecione a vendedora" />
-      </SelectTrigger>
-
-      <SelectContent>
-        {vendedoras.map((vendedora) => (
-          <SelectItem key={vendedora.id} value={vendedora.id}>
-            {vendedora.nome}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
-)}
+                      <div className="space-y-2">
+                        <Label>Vendedora / Recrutadora</Label>
+                        <Select
+                          value={vendedoraId}
+                          onValueChange={setVendedoraId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a vendedora" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vendedoras.map((vendedora) => (
+                              <SelectItem key={vendedora.id} value={vendedora.id}>
+                                {vendedora.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     <div>
                       <Label>Data de Vencimento</Label>
@@ -1155,130 +1297,26 @@ export default function CobrancaDiaria() {
         </AlertDialog>
       )}
 
-      {/* Dialog para adicionar/editar nota */}
-      <Dialog open={isNotaDialogOpen} onOpenChange={setIsNotaDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingNota ? 'Editar Nota Promissória' : 'Nova Nota Promissória'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="codigo_nota">Código da Nota *</Label>
-              <Input
-                id="codigo_nota"
-                value={codigoNota}
-                onChange={(e) => setCodigoNota(e.target.value)}
-                placeholder="Ex: NP-001"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="valor_total">Valor Total *</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  R$
-                </span>
-                <Input
-                  id="valor_total"
-                  type="text"
-                  value={valorTotal}
-                  onChange={(e) => handleValorChange(e.target.value, setValorTotal)}
-                  placeholder="0,00"
-                  className="pl-10"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="forma_pagamento_1">Forma de Pagamento 1 *</Label>
-                <Select value={formaPagamento1} onValueChange={(v: any) => setFormaPagamento1(v)}>
-                  <SelectTrigger id="forma_pagamento_1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pix">PIX</SelectItem>
-                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                    <SelectItem value="cartao">Cartão</SelectItem>
-                    <SelectItem value="transferencia">Transferência</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="valor_pagamento_1">Valor Pagamento 1 *</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    R$
-                  </span>
-                  <Input
-                    id="valor_pagamento_1"
-                    type="text"
-                    value={valorPagamento1}
-                    onChange={(e) => handleValorChange(e.target.value, setValorPagamento1)}
-                    placeholder="0,00"
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="forma_pagamento_2">Forma de Pagamento 2 (Opcional)</Label>
-                <Select value={formaPagamento2} onValueChange={(v: any) => setFormaPagamento2(v)}>
-                  <SelectTrigger id="forma_pagamento_2">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pix">PIX</SelectItem>
-                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                    <SelectItem value="cartao">Cartão</SelectItem>
-                    <SelectItem value="transferencia">Transferência</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="valor_pagamento_2">Valor Pagamento 2</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    R$
-                  </span>
-                  <Input
-                    id="valor_pagamento_2"
-                    type="text"
-                    value={valorPagamento2}
-                    onChange={(e) => handleValorChange(e.target.value, setValorPagamento2)}
-                    placeholder="0,00"
-                    className="pl-10"
-                    disabled={!formaPagamento2}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsNotaDialogOpen(false)}>
-              Cancelar
-            </Button>
-            {!editingNota && (
-              <Button 
-                variant="secondary" 
-                onClick={handleDevolveuTudo}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-              >
-                Devolveu tudo
-              </Button>
-            )}
-            <Button onClick={handleSubmitNota}>
-              {editingNota ? 'Atualizar' : 'Adicionar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Modal de Receber Cobrança */}
+      {cobrancaParaPagar && (
+        <ModalReceberCobranca
+          open={!!cobrancaParaPagar}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCobrancaParaPagar(null);
+            }
+          }}
+          cobranca={{
+            id: cobrancaParaPagar.id,
+            revendedora: cobrancaParaPagar.revendedora,
+            valor_previsto: cobrancaParaPagar.valor_previsto,
+            tipo: cobrancaParaPagar.tipo
+          }}
+          diasNaoFinalizados={diasNaoFinalizados}
+          onPagamentoCompleto={handlePagamentoCompleto}
+          onPagamentoParcial={handlePagamentoParcial}
+        />
+      )}
 
       {/* Histórico de Fechamentos - Colapsável */}
       {historico.length > 0 && (
