@@ -683,22 +683,21 @@ export default function CobrancaDiaria() {
     if (prestacaoError) throw prestacaoError;
 
     // 2. Criar nota promissória para alimentar a Cobrança Diária
-    if (dados.tipo === 'completo' && dados.pagamentos.length > 0) {
-      const { error: notaError } = await supabase
-        .from('notas_promissorias')
-        .insert({
-          representante_id: user.id,
-          codigo_nota: codigoNota,
-          data: dados.dataNota,
-          valor_total: dados.valor_devido_empresa,
-          forma_pagamento_1: dados.pagamentos[0].forma,
-          valor_pagamento_1: dados.pagamentos[0].valor,
-          forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-          valor_pagamento_2: dados.pagamentos[1]?.valor || null
-        });
+    // Sempre criar a nota, inclusive para devoluções (para contabilizar no dia)
+    const { error: notaError } = await supabase
+      .from('notas_promissorias')
+      .insert({
+        representante_id: user.id,
+        codigo_nota: codigoNota,
+        data: dados.dataNota,
+        valor_total: dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
+        forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
+        valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : dados.pagamentos[0]?.valor || 0,
+        forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+        valor_pagamento_2: dados.pagamentos[1]?.valor || null
+      });
 
-      if (notaError) throw notaError;
-    }
+    if (notaError) throw notaError;
 
     // 3. Atualizar status da cobrança para 'pago'
     const { error: updateError } = await supabase
@@ -917,17 +916,29 @@ export default function CobrancaDiaria() {
               <div className="space-y-2 max-h-[240px] sm:max-h-[280px] overflow-y-auto">
                 {notas.map((nota) => {
                   const revendedora = revendedoraMap[nota.codigo_nota];
+                  const isDevolveuTudo = nota.valor_total === 0;
                   return (
-                    <div key={nota.id} className="p-2 bg-muted/50 rounded-lg text-xs sm:text-sm space-y-1">
+                    <div key={nota.id} className={cn(
+                      "p-2 rounded-lg text-xs sm:text-sm space-y-1",
+                      isDevolveuTudo ? "bg-orange-100 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800" : "bg-muted/50"
+                    )}>
                       <div className="flex justify-between items-start gap-2">
                         <div className="min-w-0 flex-1 overflow-hidden">
                           {revendedora && (
                             <p className="font-medium text-foreground truncate max-w-[140px] sm:max-w-none">{revendedora}</p>
                           )}
                           <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">{nota.codigo_nota}</p>
+                          {isDevolveuTudo && (
+                            <p className="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400 font-medium mt-0.5">Devolveu tudo</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                          <span className="font-semibold text-primary text-xs sm:text-sm whitespace-nowrap">{formatarValor(nota.valor_total)}</span>
+                          <span className={cn(
+                            "font-semibold text-xs sm:text-sm whitespace-nowrap",
+                            isDevolveuTudo ? "text-orange-600 dark:text-orange-400" : "text-primary"
+                          )}>
+                            {formatarValor(nota.valor_total)}
+                          </span>
                           {!isDiaFinalizado && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
