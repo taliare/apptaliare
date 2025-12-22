@@ -38,13 +38,13 @@ const App = () => {
                 <Route path="/*" element={
                   <ProtectedRoute>
                     <SidebarProvider>
-                      <div className="flex flex-col min-h-screen w-full">
+                      <div className="flex flex-col min-h-screen w-full max-w-full overflow-x-hidden">
                         {/* Desktop Header - fixed on top */}
                         <AppHeader />
 
-                        <div className="flex flex-1 w-full">
+                        <div className="flex flex-1 w-full max-w-full overflow-x-hidden">
                           {/* Desktop Sidebar - hidden on mobile */}
-                          <div className="hidden md:block">
+                          <div className="hidden md:block shrink-0">
                             <AppSidebar />
                           </div>
 
@@ -55,7 +55,7 @@ const App = () => {
                           <MobileDrawer open={showMobileMenu} onOpenChange={setShowMobileMenu} />
 
                           {/* Main Content with Page Transitions */}
-                          <main className="flex-1 px-2.5 xs:px-4 py-3 xs:py-4 md:p-6 bg-background w-full pt-16 xs:pt-20 md:pt-6 overflow-x-hidden">
+                          <main className="flex-1 min-w-0 px-2.5 xs:px-4 py-3 xs:py-4 md:p-6 bg-background w-full max-w-full pt-16 xs:pt-20 md:pt-6 overflow-x-hidden">
                             <AnimatedRoutes />
                           </main>
                         </div>

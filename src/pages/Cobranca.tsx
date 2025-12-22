@@ -348,23 +348,24 @@ export default function Cobranca() {
       const dataNota = dados.dataNota; // Usar a data selecionada pelo usuário
       const codigoNota = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
       
-      // 1. Criar nota promissória para alimentar a Cobrança Diária (valor parcial recebido)
-      if (dados.pagamentos.length > 0 && dados.valor_recebido > 0) {
-        const { error: notaError } = await supabase
-          .from('notas_promissorias')
-          .insert({
-            representante_id: userId!,
-            codigo_nota: codigoNota,
-            data: dataNota,
-            valor_total: dados.valor_recebido,
-            forma_pagamento_1: dados.pagamentos[0].forma,
-            valor_pagamento_1: dados.pagamentos[0].valor,
-            forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-            valor_pagamento_2: dados.pagamentos[1]?.valor || null
-          });
+      // 1. Criar nota promissória para alimentar a Cobrança Diária (sempre criar, mesmo com valor 0)
+      // Isso garante que a cobrança apareça no fechamento do dia
+      const notaData: any = {
+        representante_id: userId!,
+        codigo_nota: codigoNota,
+        data: dataNota,
+        valor_total: dados.valor_recebido,
+        forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
+        valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
+        forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+        valor_pagamento_2: dados.pagamentos[1]?.valor || null
+      };
 
-        if (notaError) throw notaError;
-      }
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert(notaData);
+
+      if (notaError) throw notaError;
 
       if (isRepasse) {
         // Para REPASSE: criar nova cobrança com valor restante
@@ -788,12 +789,12 @@ export default function Cobranca() {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6 animate-fade-in">
+    <div className="w-full max-w-full overflow-x-hidden space-y-4 md:space-y-6 animate-fade-in px-0 sm:px-0">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-slide-up">
-        <div>
-          <h1 className="text-3xl font-display font-bold">Agenda de Cobranças</h1>
-          <p className="text-muted-foreground">Organize suas cobranças por data de vencimento</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center animate-slide-up">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold truncate">Agenda de Cobranças</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Organize suas cobranças por data de vencimento</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -907,27 +908,27 @@ export default function Cobranca() {
       </div>
 
       {/* Filtros Rápidos e Pesquisa */}
-      <Card variant="glass" className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-        <CardContent className="pt-6 space-y-4">
+      <Card variant="glass" className="animate-fade-in w-full max-w-full overflow-hidden" style={{ animationDelay: '0.1s' }}>
+        <CardContent className="pt-4 sm:pt-6 px-3 sm:px-6 space-y-3 sm:space-y-4">
           {/* Campo de Pesquisa */}
           <div className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-muted-foreground" />
+            <Search className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
             <Input
-              placeholder="Pesquisar por revendedora ou código da nota..."
+              placeholder="Pesquisar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md"
+              className="flex-1 min-w-0 text-sm"
             />
           </div>
 
           {/* Filtros - Ordem: Hoje, Vencidas, Semana X, Todas */}
-          <div className="flex flex-wrap items-center gap-3">
-            <Filter className="h-5 w-5 text-muted-foreground icon-hover-rotate" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground icon-hover-rotate shrink-0 hidden sm:block" />
             <Button
               variant={filtroAtivo === 'hoje' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFiltroAtivo('hoje')}
-              className="transition-all duration-200"
+              className="transition-all duration-200 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
             >
               Hoje ({cobrancasHoje.length})
             </Button>
@@ -935,7 +936,7 @@ export default function Cobranca() {
               variant={filtroAtivo === 'vencidas' ? 'destructive' : 'outline'}
               size="sm"
               onClick={() => setFiltroAtivo('vencidas')}
-              className="transition-all duration-200"
+              className="transition-all duration-200 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
             >
               Vencidas ({cobrancasVencidas.length})
             </Button>
@@ -943,15 +944,15 @@ export default function Cobranca() {
               variant={filtroAtivo === 'semana' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFiltroAtivo('semana')}
-              className="transition-all duration-200"
+              className="transition-all duration-200 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
             >
-              Semana {semanaAtual} ({cobrancasSemana.length})
+              Sem. {semanaAtual} ({cobrancasSemana.length})
             </Button>
             <Button
               variant={filtroAtivo === 'todas' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFiltroAtivo('todas')}
-              className="transition-all duration-200"
+              className="transition-all duration-200 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3"
             >
               Todas ({aplicarFiltroPesquisa(cobrancas).length})
             </Button>
@@ -1308,36 +1309,36 @@ function CobrancaItem({
     <Card 
       variant="interactive"
       className={cn(
-        "animate-fade-in",
+        "animate-fade-in w-full max-w-full overflow-hidden",
         destacarVencida && "border-destructive/60 bg-destructive/5 hover:border-destructive"
       )}
       style={{ animationDelay: `${animationDelay}s` }}
     >
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="font-semibold text-lg flex items-center gap-2 font-display">
-                <User className="h-4 w-4 text-muted-foreground" />
-                {cobranca.revendedora}
+      <CardContent className="p-3 sm:p-4 md:p-5">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex-1 space-y-2 min-w-0">
+            <div className="flex items-start sm:items-center gap-2 flex-wrap">
+              <div className="font-semibold text-sm sm:text-base md:text-lg flex items-center gap-1.5 font-display min-w-0 max-w-full">
+                <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
+                <span className="truncate max-w-[180px] sm:max-w-none">{cobranca.revendedora}</span>
               </div>
               {destacarVencida && (
-                <AlertCircle className="h-4 w-4 text-destructive animate-glow-pulse" />
+                <AlertCircle className="h-3.5 w-3.5 text-destructive animate-glow-pulse shrink-0" />
               )}
-              <Badge className={cn(statusConfig[cobranca.status].color, "transition-all duration-200 hover:scale-105")}>
+              <Badge className={cn(statusConfig[cobranca.status].color, "transition-all duration-200 text-[10px] sm:text-xs shrink-0")}>
                 {statusConfig[cobranca.status].label}
               </Badge>
               {cobranca.tipo && (
                 <Badge 
                   variant="outline"
                   className={cn(
-                    "transition-all duration-200 hover:scale-105",
+                    "transition-all duration-200 text-[10px] sm:text-xs shrink-0",
                     cobranca.tipo === 'kit' 
                       ? 'border-primary/50 bg-primary/10 text-primary' 
                       : 'border-muted-foreground/50 bg-muted text-muted-foreground'
                   )}
                 >
-                  <Package className="h-3 w-3 mr-1" />
+                  <Package className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5" />
                   {cobranca.tipo.toUpperCase()}
                 </Badge>
               )}
