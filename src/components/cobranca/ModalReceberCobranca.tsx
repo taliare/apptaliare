@@ -167,9 +167,17 @@ export function ModalReceberCobranca({
     const cleanValue = value.replace(/[^\d,]/g, '');
     setDesconto(cleanValue);
     
-    const valorBase = isRepasse ? cobranca.valor_previsto : (parseFloat(valorVenda.replace(',', '.')) || 0);
     const descontoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
-    setValorAReceber(valorBase - descontoNum);
+    
+    if (isRepasse) {
+      // Para repasse: desconto sobre o valor previsto
+      setValorAReceber(cobranca.valor_previsto - descontoNum);
+    } else {
+      // Para KIT: desconto sobre o valor a receber (já descontado comissão)
+      const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
+      const valorAposComissao = valorVendaNum - comissaoValor;
+      setValorAReceber(valorAposComissao - descontoNum);
+    }
   };
 
   const handleComissaoManualChange = (value: string) => {
@@ -467,8 +475,8 @@ export function ModalReceberCobranca({
               
               {/* Opções discretas */}
               <div className="flex flex-wrap gap-2 pt-1">
-                {/* Desconto (só REPASSE) */}
-                {isRepasse && !mostrarDesconto && !desconto && (
+                {/* Desconto (disponível para todos os tipos) */}
+                {!mostrarDesconto && !desconto && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -496,7 +504,7 @@ export function ModalReceberCobranca({
               </div>
 
               {/* Campo de Desconto expandido */}
-              {isRepasse && (mostrarDesconto || desconto) && (
+              {(mostrarDesconto || desconto) && (
                 <div className="flex items-center gap-2 pt-2">
                   <Input
                     type="text"
@@ -515,7 +523,17 @@ export function ModalReceberCobranca({
                     onClick={() => {
                       setDesconto('');
                       setMostrarDesconto(false);
-                      setValorAReceber(cobranca.valor_previsto);
+                      // Recalcula valor a receber sem desconto
+                      const valorBase = isRepasse 
+                        ? cobranca.valor_previsto 
+                        : (parseFloat(valorVenda.replace(',', '.')) || 0);
+                      if (isRepasse) {
+                        setValorAReceber(valorBase);
+                      } else if (comissaoManual && comissaoPercentualManual) {
+                        calcularComissao(valorBase, parseFloat(comissaoPercentualManual));
+                      } else {
+                        calcularComissao(valorBase);
+                      }
                     }}
                   >
                     <X className="h-3 w-3" />
