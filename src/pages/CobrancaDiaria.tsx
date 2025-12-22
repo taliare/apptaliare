@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock, Package, Wallet, DollarSign, Receipt, Search } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { cn, formatarValor, formatarNumero, getLocalDateString } from '@/lib/utils';
 import { sanitizeString } from '@/lib/validations';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
+import { RevendedoraAutocomplete } from '@/components/RevendedoraAutocomplete';
 import type { Database } from '@/integrations/supabase/types';
 
 interface NotaPromissoria {
@@ -225,6 +226,17 @@ export default function CobrancaDiaria() {
     }
     return acc;
   }, {} as Record<string, string>);
+
+  // Lista única de nomes de revendedoras do representante para autocomplete
+  const revendedorasUnicas = useMemo(() => {
+    const nomes = new Set<string>();
+    cobrancasAgendadas.forEach(item => {
+      if (item.revendedora && item.revendedora.trim()) {
+        nomes.add(item.revendedora.trim().toUpperCase());
+      }
+    });
+    return Array.from(nomes).sort();
+  }, [cobrancasAgendadas]);
 
   // Query para kits em estoque do representante
   const { data: kitsEstoque = [] } = useQuery({
@@ -1196,11 +1208,15 @@ export default function CobrancaDiaria() {
 
                     <div>
                       <Label>Nome da Revendedora *</Label>
-                      <Input
+                      <RevendedoraAutocomplete
                         value={revendedoraKit}
-                        onChange={(e) => setRevendedoraKit(e.target.value)}
-                        placeholder="Ex: Maria Silva"
+                        onChange={setRevendedoraKit}
+                        revendedoras={revendedorasUnicas}
+                        placeholder="Digite o nome da revendedora"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Sugestões aparecem ao digitar. Caso seja nova, apenas digite o nome completo.
+                      </p>
                     </div>
 
                     <div className="flex items-center gap-2">
