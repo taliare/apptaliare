@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/
 import { toast } from 'sonner';
 import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
 import taliareIcone from '@/assets/taliare-icone-claro.png';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function Auth() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,21 +95,20 @@ export default function Auth() {
         </div>
 
         {/* Logo animation */}
-        <div className={`relative z-10 flex flex-col items-center gap-6 transition-all duration-500 ${showTransition ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`} style={{ transitionDelay: '300ms' }}>
+        <div className={`relative z-10 flex flex-col items-center gap-8 transition-all duration-500 ${showTransition ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`} style={{ transitionDelay: '300ms' }}>
           <div className="relative">
-            <div className="absolute inset-0 bg-primary/40 blur-3xl rounded-full scale-150 animate-pulse" />
+            {/* Sombra suave atrás da logo */}
+            <div className="absolute inset-0 bg-primary/30 blur-[60px] rounded-full scale-[2] -z-10" />
             <img 
               src={taliareIcone} 
               alt="Taliare" 
-              className="h-24 w-24 relative z-10 drop-shadow-2xl animate-bounce-slow"
+              className="h-28 w-28 relative z-10 drop-shadow-[0_0_40px_rgba(var(--primary),0.4)]"
             />
           </div>
           
-          <div className="flex items-center gap-2 text-primary">
-            <Sparkles className="h-5 w-5 animate-pulse" />
-            <span className="text-lg font-display font-medium animate-pulse">Bem-vindo!</span>
-            <Sparkles className="h-5 w-5 animate-pulse" />
-          </div>
+          <h1 className="text-2xl font-serif italic tracking-wide text-primary/90">
+            Bem-vindo!
+          </h1>
           
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
