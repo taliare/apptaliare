@@ -572,35 +572,57 @@ export function ModalReceberCobranca({
                       
                       <div className="space-y-1">
                         <Label className="text-sm">Data da próxima cobrança</Label>
-                        <Popover modal={false}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className={cn(
-                                "w-full justify-start text-left font-normal h-8",
-                                !dataProximaCobranca && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-3 w-3" />
-                              {dataProximaCobranca ? format(dataProximaCobranca, "dd/MM/yyyy") : "Selecione"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0 z-[100]" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={dataProximaCobranca}
-                              onSelect={setDataProximaCobranca}
-                              disabled={(date) => {
-                                const hoje = new Date();
-                                hoje.setHours(0, 0, 0, 0);
-                                return new Date(date) < hoje;
-                              }}
-                              initialFocus
-                              className="pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        
+                        {/* Mobile: input type="date" nativo */}
+                        <div className="block md:hidden">
+                          <Input
+                            type="date"
+                            value={dataProximaCobranca ? format(dataProximaCobranca, "yyyy-MM-dd") : ""}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                const [year, month, day] = e.target.value.split('-').map(Number);
+                                setDataProximaCobranca(new Date(year, month - 1, day));
+                              } else {
+                                setDataProximaCobranca(undefined);
+                              }
+                            }}
+                            min={format(new Date(), "yyyy-MM-dd")}
+                            className="h-8"
+                          />
+                        </div>
+                        
+                        {/* Desktop: DatePicker com Popover */}
+                        <div className="hidden md:block">
+                          <Popover modal={true}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal h-8",
+                                  !dataProximaCobranca && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-3 w-3" />
+                                {dataProximaCobranca ? format(dataProximaCobranca, "dd/MM/yyyy") : "Selecione"}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 z-[9999]" align="start" sideOffset={4}>
+                              <Calendar
+                                mode="single"
+                                selected={dataProximaCobranca}
+                                onSelect={setDataProximaCobranca}
+                                disabled={(date) => {
+                                  const hoje = new Date();
+                                  hoje.setHours(0, 0, 0, 0);
+                                  return new Date(date) < hoje;
+                                }}
+                                initialFocus
+                                className="pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </div>
                     </>
                   )}
