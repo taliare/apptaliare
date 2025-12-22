@@ -95,22 +95,29 @@ export default function Auth() {
         </div>
 
         {/* Logo animation */}
-        <div className={`relative z-10 flex flex-col items-center gap-8 transition-all duration-500 ${showTransition ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`} style={{ transitionDelay: '300ms' }}>
+        <div className={`relative z-10 flex flex-col items-center gap-8 transition-all duration-700 ease-out ${showTransition ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`} style={{ transitionDelay: '300ms' }}>
           <div className="relative">
-            {/* Sombra suave atrás da logo */}
-            <div className="absolute inset-0 bg-primary/30 blur-[60px] rounded-full scale-[2] -z-10" />
+            {/* Sombra suave atrás da logo com animação de pulso */}
+            <div className={`absolute inset-0 bg-primary/25 blur-[80px] rounded-full scale-[2.5] -z-10 transition-all duration-1000 ${showTransition ? 'opacity-100' : 'opacity-0'}`} style={{ transitionDelay: '500ms' }} />
             <img 
               src={taliareIcone} 
               alt="Taliare" 
-              className="h-28 w-28 relative z-10 drop-shadow-[0_0_40px_rgba(var(--primary),0.4)]"
+              className={`h-28 w-28 relative z-10 drop-shadow-[0_0_50px_rgba(139,21,56,0.3)] transition-all duration-700 ease-out ${showTransition ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-75 translate-y-4'}`}
+              style={{ transitionDelay: '400ms' }}
             />
           </div>
           
-          <h1 className="text-2xl font-serif italic tracking-wide text-primary/90">
+          <h1 
+            className={`text-2xl font-serif italic tracking-wide text-primary/90 transition-all duration-600 ease-out ${showTransition ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+            style={{ transitionDelay: '600ms' }}
+          >
             Bem-vindo!
           </h1>
           
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <div 
+            className={`flex items-center gap-2 text-muted-foreground text-sm transition-all duration-500 ${showTransition ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+            style={{ transitionDelay: '750ms' }}
+          >
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>Preparando seu ambiente...</span>
           </div>
