@@ -558,10 +558,10 @@ export default function CobrancaDiaria() {
     },
   });
 
-  // Função para buscar nota por código na agenda
+  // Função para buscar nota por código ou nome de revendedora na agenda
   const handleBuscarNota = async () => {
     if (!codigoBusca.trim()) {
-      setErroNota('Informe o código da nota');
+      setErroNota('Informe o código da nota ou nome da revendedora');
       return;
     }
 
@@ -570,9 +570,11 @@ export default function CobrancaDiaria() {
     setNotaEncontrada(null);
 
     try {
-      // Verificar se já foi lançada hoje
+      const termoBusca = codigoBusca.trim().toLowerCase();
+      
+      // Verificar se já foi lançada hoje (por código)
       const notaJaLancada = notas.find(n => 
-        n.codigo_nota.toLowerCase() === codigoBusca.trim().toLowerCase()
+        n.codigo_nota.toLowerCase() === termoBusca
       );
 
       if (notaJaLancada) {
@@ -581,8 +583,8 @@ export default function CobrancaDiaria() {
         return;
       }
 
-      // Buscar na agenda do representante (tipos pendente, parcial, reagendado)
-      const { data, error } = await supabase
+      // Buscar por código primeiro
+      const { data: porCodigo, error: erroCodigo } = await supabase
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', user?.id)
@@ -590,12 +592,40 @@ export default function CobrancaDiaria() {
         .in('status', ['pendente', 'parcial', 'reagendado'])
         .maybeSingle();
 
-      if (error) throw error;
+      if (erroCodigo) throw erroCodigo;
 
-      if (!data) {
-        setErroNota('Nota não encontrada na sua agenda');
+      if (porCodigo) {
+        setNotaEncontrada(porCodigo);
+        return;
+      }
+
+      // Se não encontrou por código, buscar por nome da revendedora
+      const { data: porRevendedora, error: erroRevendedora } = await supabase
+        .from('cobrancas_agendadas')
+        .select('*')
+        .eq('representante_id', user?.id)
+        .ilike('revendedora', `%${codigoBusca.trim()}%`)
+        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .order('data_agendada', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (erroRevendedora) throw erroRevendedora;
+
+      if (porRevendedora) {
+        // Verificar se essa nota já foi lançada hoje
+        const jaLancadaRevendedora = notas.find(n => 
+          n.codigo_nota.toLowerCase() === (porRevendedora.codigo_nota?.toLowerCase() || '')
+        );
+        
+        if (jaLancadaRevendedora) {
+          setErroNota('Essa nota já foi lançada hoje');
+          return;
+        }
+        
+        setNotaEncontrada(porRevendedora);
       } else {
-        setNotaEncontrada(data);
+        setErroNota('Nota não encontrada na sua agenda');
       }
     } catch (error: any) {
       setErroNota(`Erro ao buscar: ${error.message}`);
@@ -957,13 +987,13 @@ export default function CobrancaDiaria() {
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="codigo_busca">Código da Nota *</Label>
+                      <Label htmlFor="codigo_busca">Código ou Nome da Revendedora</Label>
                       <div className="flex gap-2 mt-1">
                         <Input
                           id="codigo_busca"
                           value={codigoBusca}
                           onChange={(e) => setCodigoBusca(e.target.value)}
-                          placeholder="Ex: KIT-001"
+                          placeholder="Ex: KIT-001 ou Maria"
                           onKeyDown={(e) => e.key === 'Enter' && handleBuscarNota()}
                         />
                         <Button 
