@@ -33,6 +33,7 @@ interface NotaPromissoria {
   valor_pagamento_2?: number | null;
   representante_id: string;
   criado_em?: string | null;
+  devolveu_tudo?: boolean;
 }
 
 interface CobrancaDiariaType {
@@ -694,7 +695,8 @@ export default function CobrancaDiaria() {
         forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
         valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : dados.pagamentos[0]?.valor || 0,
         forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-        valor_pagamento_2: dados.pagamentos[1]?.valor || null
+        valor_pagamento_2: dados.pagamentos[1]?.valor || null,
+        devolveu_tudo: dados.tipo === 'devolucao'
       });
 
     if (notaError) throw notaError;
@@ -916,7 +918,8 @@ export default function CobrancaDiaria() {
               <div className="space-y-2 max-h-[240px] sm:max-h-[280px] overflow-y-auto">
                 {notas.map((nota) => {
                   const revendedora = revendedoraMap[nota.codigo_nota];
-                  const isDevolveuTudo = nota.valor_total === 0;
+                  // Usar a coluna devolveu_tudo para identificar devoluções, não apenas valor zero
+                  const isDevolveuTudo = nota.devolveu_tudo === true;
                   return (
                     <div key={nota.id} className={cn(
                       "p-2 rounded-lg text-xs sm:text-sm space-y-1",
@@ -935,7 +938,7 @@ export default function CobrancaDiaria() {
                         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                           <span className={cn(
                             "font-semibold text-xs sm:text-sm whitespace-nowrap",
-                            isDevolveuTudo ? "text-orange-600 dark:text-orange-400" : "text-primary"
+                            isDevolveuTudo ? "text-orange-600 dark:text-orange-400" : nota.valor_total === 0 ? "text-muted-foreground" : "text-primary"
                           )}>
                             {formatarValor(nota.valor_total)}
                           </span>
@@ -1459,13 +1462,13 @@ export default function CobrancaDiaria() {
                       <TableRow key={nota.id}>
                         <TableCell className="font-medium">
                           {nota.codigo_nota}
-                          {nota.valor_total === 0 && (
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              Devolução Total
+                          {nota.devolveu_tudo && (
+                            <Badge variant="outline" className="ml-2 text-xs bg-orange-100 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700">
+                              Devolveu Tudo
                             </Badge>
                           )}
                         </TableCell>
-                        <TableCell className={nota.valor_total === 0 ? 'text-muted-foreground' : 'font-semibold'}>
+                        <TableCell className={nota.devolveu_tudo ? 'text-orange-600 dark:text-orange-400' : nota.valor_total === 0 ? 'text-muted-foreground' : 'font-semibold'}>
                           {formatarValor(nota.valor_total)}
                         </TableCell>
                         <TableCell>

@@ -354,6 +354,7 @@ export type Database = {
           codigo_nota: string
           criado_em: string | null
           data: string
+          devolveu_tudo: boolean
           forma_pagamento_1: Database["public"]["Enums"]["forma_pagamento"]
           forma_pagamento_2:
             | Database["public"]["Enums"]["forma_pagamento"]
@@ -368,6 +369,7 @@ export type Database = {
           codigo_nota: string
           criado_em?: string | null
           data: string
+          devolveu_tudo?: boolean
           forma_pagamento_1: Database["public"]["Enums"]["forma_pagamento"]
           forma_pagamento_2?:
             | Database["public"]["Enums"]["forma_pagamento"]
@@ -382,6 +384,7 @@ export type Database = {
           codigo_nota?: string
           criado_em?: string | null
           data?: string
+          devolveu_tudo?: boolean
           forma_pagamento_1?: Database["public"]["Enums"]["forma_pagamento"]
           forma_pagamento_2?:
             | Database["public"]["Enums"]["forma_pagamento"]

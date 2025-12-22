@@ -310,7 +310,8 @@ export default function Cobranca() {
           forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
           valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : dados.pagamentos[0]?.valor || 0,
           forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-          valor_pagamento_2: dados.pagamentos[1]?.valor || null
+          valor_pagamento_2: dados.pagamentos[1]?.valor || null,
+          devolveu_tudo: dados.tipo === 'devolucao'
         });
 
       if (notaError) throw notaError;
