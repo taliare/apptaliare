@@ -734,23 +734,24 @@ export default function CobrancaDiaria() {
     const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
     const codigoNota = cobranca.codigo_nota || `${cobranca.revendedora}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
     
-    // 1. Criar nota promissória para alimentar a Cobrança Diária (valor parcial recebido)
-    if (dados.pagamentos.length > 0 && dados.valor_recebido > 0) {
-      const { error: notaError } = await supabase
-        .from('notas_promissorias')
-        .insert({
-          representante_id: user.id,
-          codigo_nota: codigoNota,
-          data: dados.dataNota,
-          valor_total: dados.valor_recebido,
-          forma_pagamento_1: dados.pagamentos[0].forma,
-          valor_pagamento_1: dados.pagamentos[0].valor,
-          forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-          valor_pagamento_2: dados.pagamentos[1]?.valor || null
-        });
+    // 1. Criar nota promissória para alimentar a Cobrança Diária (sempre criar, mesmo com valor 0)
+    // Isso garante que a cobrança apareça no fechamento do dia
+    const notaData: any = {
+      representante_id: user.id,
+      codigo_nota: codigoNota,
+      data: dados.dataNota,
+      valor_total: dados.valor_recebido,
+      forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
+      valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
+      forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+      valor_pagamento_2: dados.pagamentos[1]?.valor || null
+    };
 
-      if (notaError) throw notaError;
-    }
+    const { error: notaError } = await supabase
+      .from('notas_promissorias')
+      .insert(notaData);
+
+    if (notaError) throw notaError;
 
     if (isRepasse) {
       // Para REPASSE: criar nova cobrança com valor restante
@@ -859,26 +860,26 @@ export default function CobrancaDiaria() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 max-w-full overflow-x-hidden">
       {/* Título com data */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            Fechamento do Dia
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2">
+            <span className="truncate">Fechamento do Dia</span>
             {isDiaFinalizado && (
-              <Badge variant="default" className="text-sm">
+              <Badge variant="default" className="text-xs sm:text-sm shrink-0">
                 <Lock className="h-3 w-3 mr-1" />
                 Finalizado
               </Badge>
             )}
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
             {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         </div>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline">
+            <Button variant="outline" size="sm" className="w-full sm:w-auto">
               <CalendarIcon className="mr-2 h-4 w-4" />
               Alterar Data
             </Button>
@@ -896,16 +897,16 @@ export default function CobrancaDiaria() {
       </div>
 
       {/* Três blocos visuais */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-3">
         {/* Bloco Cobranças de Hoje */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Receipt className="h-5 w-5 text-primary" />
-              Cobranças de Hoje
+        <Card className="w-full max-w-full overflow-hidden">
+          <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+              <span className="truncate">Cobranças de Hoje</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 sm:px-6">
             {loadingNotas ? (
               <div className="text-center py-4 text-muted-foreground text-sm">Carregando...</div>
             ) : notas.length === 0 ? (
@@ -913,41 +914,42 @@ export default function CobrancaDiaria() {
                 Nenhuma cobrança registrada
               </div>
             ) : (
-              <div className="space-y-2 max-h-[280px] overflow-y-auto">
+              <div className="space-y-2 max-h-[240px] sm:max-h-[280px] overflow-y-auto">
                 {notas.map((nota) => {
                   const revendedora = revendedoraMap[nota.codigo_nota];
                   return (
-                    <div key={nota.id} className="p-2 bg-muted/50 rounded-lg text-sm space-y-1">
+                    <div key={nota.id} className="p-2 bg-muted/50 rounded-lg text-xs sm:text-sm space-y-1">
                       <div className="flex justify-between items-start gap-2">
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 overflow-hidden">
                           {revendedora && (
-                            <p className="font-medium text-foreground truncate">{revendedora}</p>
+                            <p className="font-medium text-foreground truncate max-w-[140px] sm:max-w-none">{revendedora}</p>
                           )}
-                          <p className="text-xs text-muted-foreground font-mono">{nota.codigo_nota}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">{nota.codigo_nota}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-primary whitespace-nowrap">{formatarValor(nota.valor_total)}</span>
+                        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                          <span className="font-semibold text-primary text-xs sm:text-sm whitespace-nowrap">{formatarValor(nota.valor_total)}</span>
                           {!isDiaFinalizado && (
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 shrink-0">
-                                  <XCircle className="h-3.5 w-3.5 text-destructive" />
+                                <Button variant="ghost" size="sm" className="h-5 w-5 sm:h-6 sm:w-6 p-0 shrink-0">
+                                  <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-destructive" />
                                 </Button>
                               </AlertDialogTrigger>
-                              <AlertDialogContent>
+                              <AlertDialogContent className="max-w-[90vw] sm:max-w-lg">
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Excluir da Cobrança de Hoje</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    A nota <strong>{nota.codigo_nota}</strong> será removida da cobrança de hoje e voltará para a <strong>Agenda de Cobrança</strong> como pendente.
+                                    A nota <strong className="break-all">{nota.codigo_nota}</strong> será removida da cobrança de hoje e voltará para a <strong>Agenda de Cobrança</strong> como pendente.
                                     <br /><br />
                                     A nota NÃO será apagada do sistema.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                  <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
                                   <AlertDialogAction 
                                     onClick={() => excluirNotaDaCobrancaMutation.mutate(nota)}
                                     disabled={excluirNotaDaCobrancaMutation.isPending}
+                                    className="w-full sm:w-auto"
                                   >
                                     {excluirNotaDaCobrancaMutation.isPending ? 'Removendo...' : 'Confirmar'}
                                   </AlertDialogAction>
@@ -962,9 +964,9 @@ export default function CobrancaDiaria() {
                 })}
               </div>
             )}
-            <div className="mt-3 pt-3 border-t flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{notas.length} notas</span>
-              <span className="font-bold text-primary">{formatarValor(totalCobradoCalculado)}</span>
+            <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t flex justify-between items-center">
+              <span className="text-xs sm:text-sm text-muted-foreground">{notas.length} notas</span>
+              <span className="font-bold text-primary text-sm sm:text-base">{formatarValor(totalCobradoCalculado)}</span>
             </div>
             {!isDiaFinalizado && (
               <Dialog open={isBuscarNotaDialogOpen} onOpenChange={(open) => {
