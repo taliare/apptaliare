@@ -20,6 +20,7 @@ import Juridico from '@/pages/Juridico';
 import VendaExterna from '@/pages/VendaExterna';
 import Vendedoras from '@/pages/Vendedoras';
 import RevendedorasInativas from '@/pages/RevendedorasInativas';
+import LeadsRevendedoras from '@/pages/LeadsRevendedoras';
 import Perfil from '@/pages/Perfil';
 import NotFound from '@/pages/NotFound';
 
@@ -102,6 +103,11 @@ export function AnimatedRoutes() {
         <Route path="/vendedoras" element={
           <ProtectedRoute requiredRole="admin">
             <Vendedoras />
+          </ProtectedRoute>
+        } />
+        <Route path="/leads-revendedoras" element={
+          <ProtectedRoute requiredRole="admin">
+            <LeadsRevendedoras />
           </ProtectedRoute>
         } />
         

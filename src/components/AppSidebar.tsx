@@ -12,6 +12,7 @@ import {
   Scale,
   PackageCheck,
   Settings,
+  UserPlus,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -161,6 +162,12 @@ export function AppSidebar() {
       label: "KITS",
       items: [
         { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
+      ],
+    },
+    {
+      label: "CAPTAÇÃO",
+      items: [
+        { title: "Leads Revendedoras", url: "/leads-revendedoras", icon: UserPlus },
       ],
     },
     {
