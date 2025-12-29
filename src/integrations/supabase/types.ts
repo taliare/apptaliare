@@ -287,6 +287,63 @@ export type Database = {
           },
         ]
       }
+      leads_revendedoras: {
+        Row: {
+          capital_inicial: string | null
+          cidade: string | null
+          created_at: string
+          experiencia_vendas: string | null
+          id: string
+          instagram: string | null
+          motivacao: string | null
+          nome: string
+          observacao: string | null
+          origem: string | null
+          status: string
+          tempo_disponivel: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          whatsapp: string
+        }
+        Insert: {
+          capital_inicial?: string | null
+          cidade?: string | null
+          created_at?: string
+          experiencia_vendas?: string | null
+          id?: string
+          instagram?: string | null
+          motivacao?: string | null
+          nome: string
+          observacao?: string | null
+          origem?: string | null
+          status?: string
+          tempo_disponivel?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          whatsapp: string
+        }
+        Update: {
+          capital_inicial?: string | null
+          cidade?: string | null
+          created_at?: string
+          experiencia_vendas?: string | null
+          id?: string
+          instagram?: string | null
+          motivacao?: string | null
+          nome?: string
+          observacao?: string | null
+          origem?: string | null
+          status?: string
+          tempo_disponivel?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
