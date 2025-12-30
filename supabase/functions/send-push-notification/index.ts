@@ -275,14 +275,126 @@ async function createVapidHeaders(
 
 async function encryptPayload(
   payload: string,
-  _p256dh: string,
-  _auth: string
+  p256dh: string,
+  auth: string
 ): Promise<ArrayBuffer> {
-  // For simplicity, we'll send unencrypted payload
-  // In production, you'd want proper AES-GCM encryption
-  // Most push services accept plain text for testing
-  const encoded = new TextEncoder().encode(payload);
-  return encoded.buffer as ArrayBuffer;
+  // RFC8291 Web Push Message Encryption with AES-128-GCM
+  const payloadBytes = new TextEncoder().encode(payload);
+  
+  // Decode subscriber's public key (p256dh) and auth secret
+  const subscriberPublicKeyBytes = base64UrlToArrayBuffer(p256dh);
+  const authSecretBytes = base64UrlToArrayBuffer(auth);
+  
+  // Generate ephemeral ECDH key pair for this message
+  const senderKeyPair = await crypto.subtle.generateKey(
+    { name: "ECDH", namedCurve: "P-256" },
+    true,
+    ["deriveBits"]
+  );
+  
+  // Import subscriber's public key
+  const subscriberPublicKey = await crypto.subtle.importKey(
+    "raw",
+    subscriberPublicKeyBytes,
+    { name: "ECDH", namedCurve: "P-256" },
+    false,
+    []
+  );
+  
+  // Derive shared secret using ECDH
+  const sharedSecret = await crypto.subtle.deriveBits(
+    { name: "ECDH", public: subscriberPublicKey },
+    senderKeyPair.privateKey,
+    256
+  );
+  
+  // Export sender's public key for the header
+  const senderPublicKeyBytes = await crypto.subtle.exportKey("raw", senderKeyPair.publicKey);
+  
+  // Generate 16-byte random salt
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  
+  // Derive PRK using HKDF with auth secret
+  const authInfo = new TextEncoder().encode("WebPush: info\0");
+  const authInfoBuffer = new Uint8Array(authInfo.length + subscriberPublicKeyBytes.byteLength + senderPublicKeyBytes.byteLength);
+  authInfoBuffer.set(authInfo, 0);
+  authInfoBuffer.set(new Uint8Array(subscriberPublicKeyBytes), authInfo.length);
+  authInfoBuffer.set(new Uint8Array(senderPublicKeyBytes), authInfo.length + subscriberPublicKeyBytes.byteLength);
+  
+  const ikm = await hkdfExpand(sharedSecret, authSecretBytes, authInfoBuffer.buffer as ArrayBuffer, 32);
+  
+  // Derive CEK (Content Encryption Key) and nonce using HKDF
+  const cekInfo = new TextEncoder().encode("Content-Encoding: aes128gcm\0");
+  const nonceInfo = new TextEncoder().encode("Content-Encoding: nonce\0");
+  
+  const cek = await hkdfExpand(ikm, salt.buffer as ArrayBuffer, cekInfo.buffer as ArrayBuffer, 16);
+  const nonce = await hkdfExpand(ikm, salt.buffer as ArrayBuffer, nonceInfo.buffer as ArrayBuffer, 12);
+  
+  // Import CEK for AES-GCM encryption
+  const cekKey = await crypto.subtle.importKey(
+    "raw",
+    cek,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt"]
+  );
+  
+  // Add padding delimiter (0x02 for final record)
+  const paddedPayload = new Uint8Array(payloadBytes.length + 1);
+  paddedPayload.set(payloadBytes, 0);
+  paddedPayload[payloadBytes.length] = 0x02;
+  
+  // Encrypt with AES-128-GCM
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: nonce, tagLength: 128 },
+    cekKey,
+    paddedPayload
+  );
+  
+  // Build the encrypted content header (RFC8188 aes128gcm)
+  // Header: salt (16) + rs (4) + idlen (1) + keyid (65 for P-256 public key)
+  const recordSize = 4096;
+  const header = new Uint8Array(16 + 4 + 1 + 65);
+  header.set(salt, 0);
+  new DataView(header.buffer).setUint32(16, recordSize, false);
+  header[20] = 65; // Key ID length (P-256 public key)
+  header.set(new Uint8Array(senderPublicKeyBytes), 21);
+  
+  // Combine header and ciphertext
+  const result = new Uint8Array(header.length + ciphertext.byteLength);
+  result.set(header, 0);
+  result.set(new Uint8Array(ciphertext), header.length);
+  
+  return result.buffer as ArrayBuffer;
+}
+
+// HKDF-Expand function for key derivation
+async function hkdfExpand(
+  ikm: ArrayBuffer,
+  salt: ArrayBuffer,
+  info: ArrayBuffer,
+  length: number
+): Promise<ArrayBuffer> {
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    ikm,
+    { name: "HKDF" },
+    false,
+    ["deriveBits"]
+  );
+  
+  const derived = await crypto.subtle.deriveBits(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: salt,
+      info: info,
+    },
+    keyMaterial,
+    length * 8
+  );
+  
+  return derived;
 }
 
 function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
