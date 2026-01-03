@@ -6,6 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Use external Supabase credentials
+const EXTERNAL_SUPABASE_URL = Deno.env.get('EXTERNAL_SUPABASE_URL') ?? '';
+const EXTERNAL_SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
 interface PushPayload {
   title: string;
   body: string;
@@ -25,9 +29,6 @@ serve(async (req) => {
   try {
     const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY");
     const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY");
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
       throw new Error("VAPID keys not configured");
@@ -43,12 +44,15 @@ serve(async (req) => {
       );
     }
 
-    // Verify the user's JWT token
-    const authClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
-      global: { headers: { Authorization: authHeader } },
+    // Create service role client for all operations
+    const supabaseAdmin = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    // Verify the user's JWT token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    
     if (authError || !user) {
       console.error("Authentication failed:", authError?.message);
       return new Response(
@@ -59,12 +63,9 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
-    // Create service role client for database operations
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
-
     // ===== AUTHORIZATION CHECK =====
     // Check if user has admin role for sendToAll or sending to other users
-    const { data: userRoles, error: roleError } = await supabase
+    const { data: userRoles, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id);
@@ -111,7 +112,7 @@ serve(async (req) => {
     }
 
     // Build query for subscriptions
-    let query = supabase.from("push_subscriptions").select("*");
+    let query = supabaseAdmin.from("push_subscriptions").select("*");
 
     if (userId) {
       query = query.eq("user_id", userId);
@@ -186,7 +187,7 @@ serve(async (req) => {
             
             // Remove invalid subscriptions (410 Gone or 404 Not Found)
             if (response.status === 410 || response.status === 404) {
-              await supabase.from("push_subscriptions").delete().eq("id", sub.id);
+              await supabaseAdmin.from("push_subscriptions").delete().eq("id", sub.id);
               console.log(`Removed invalid subscription: ${sub.id}`);
             }
             

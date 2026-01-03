@@ -17,6 +17,10 @@ function getCorsHeaders(req: Request) {
   };
 }
 
+// Use external Supabase credentials
+const EXTERNAL_SUPABASE_URL = Deno.env.get('EXTERNAL_SUPABASE_URL') ?? '';
+const EXTERNAL_SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
 // Simple in-memory rate limiter
 const rateLimitMap = new Map<string, { attempts: number; lastAttempt: number }>();
 const MAX_ATTEMPTS = 5;
@@ -94,8 +98,8 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      EXTERNAL_SUPABASE_URL,
+      EXTERNAL_SUPABASE_SERVICE_ROLE_KEY,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 

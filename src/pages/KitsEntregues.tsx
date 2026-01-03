@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, User, Calendar, DollarSign } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase-external';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, startOfMonth, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
