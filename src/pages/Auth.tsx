@@ -74,66 +74,110 @@ export default function Auth() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4 relative overflow-hidden">
       {/* Background com luzes animadas */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Orb principal - canto superior direito */}
+        {/* Orb principal vermelho - canto superior direito */}
         <div 
           className="absolute -top-[20%] -right-[15%] w-[500px] h-[500px] md:w-[600px] md:h-[600px] animate-orb-float-slow"
           style={{ animationDelay: '0s' }}
         >
-          <div className="w-full h-full bg-primary/25 rounded-full animate-glow-pulse" />
+          <div className="w-full h-full bg-primary/40 rounded-full animate-glow-pulse" />
         </div>
         
-        {/* Orb secundário - canto inferior esquerdo */}
+        {/* Orb secundário vermelho - canto inferior esquerdo */}
         <div 
           className="absolute -bottom-[25%] -left-[20%] w-[400px] h-[400px] md:w-[500px] md:h-[500px] animate-orb-float-medium"
           style={{ animationDelay: '-5s' }}
         >
           <div 
-            className="w-full h-full bg-primary/20 rounded-full animate-glow-breathe" 
+            className="w-full h-full bg-primary/35 rounded-full animate-glow-breathe" 
             style={{ animationDelay: '-2s' }} 
           />
         </div>
         
-        {/* Orb terciário - centro-esquerda */}
+        {/* Orb terciário vermelho - centro-esquerda */}
         <div 
           className="absolute top-[30%] -left-[10%] w-[300px] h-[300px] md:w-[400px] md:h-[400px] animate-orb-float-fast"
           style={{ animationDelay: '-3s' }}
         >
           <div 
-            className="w-full h-full bg-primary/15 rounded-full animate-glow-pulse"
+            className="w-full h-full bg-primary/30 rounded-full animate-glow-pulse"
             style={{ animationDelay: '-1s' }} 
           />
         </div>
         
-        {/* Orb quaternário - topo centro */}
+        {/* Orb quaternário vermelho - topo centro */}
         <div 
           className="absolute -top-[10%] left-[25%] w-[280px] h-[280px] md:w-[350px] md:h-[350px] animate-orb-float-medium"
           style={{ animationDelay: '-8s' }}
         >
           <div 
-            className="w-full h-full bg-primary/18 rounded-full animate-glow-breathe"
+            className="w-full h-full bg-primary/32 rounded-full animate-glow-breathe"
             style={{ animationDelay: '-4s' }} 
           />
         </div>
         
-        {/* Orb pequeno - inferior direito */}
+        {/* Orb pequeno vermelho - inferior direito */}
         <div 
           className="absolute bottom-[20%] right-[10%] w-[200px] h-[200px] md:w-[250px] md:h-[250px] animate-orb-float-slow"
           style={{ animationDelay: '-10s' }}
         >
           <div 
-            className="w-full h-full bg-primary/22 rounded-full animate-glow-fade"
+            className="w-full h-full bg-primary/38 rounded-full animate-glow-fade"
             style={{ animationDelay: '-3s' }} 
           />
         </div>
         
-        {/* Orb extra - centro direito */}
+        {/* Orb extra vermelho - centro direito */}
         <div 
           className="absolute top-[50%] -right-[5%] w-[180px] h-[180px] md:w-[220px] md:h-[220px] animate-orb-float-fast"
           style={{ animationDelay: '-7s' }}
         >
           <div 
-            className="w-full h-full bg-primary/12 rounded-full animate-glow-pulse"
+            className="w-full h-full bg-primary/28 rounded-full animate-glow-pulse"
             style={{ animationDelay: '-5s' }} 
+          />
+        </div>
+
+        {/* Orb bege - superior esquerdo */}
+        <div 
+          className="absolute -top-[15%] -left-[10%] w-[350px] h-[350px] md:w-[450px] md:h-[450px] animate-orb-float-medium"
+          style={{ animationDelay: '-4s' }}
+        >
+          <div 
+            className="w-full h-full bg-[#F5F0E8]/40 rounded-full animate-glow-breathe" 
+            style={{ animationDelay: '-1s' }} 
+          />
+        </div>
+
+        {/* Orb bege - centro */}
+        <div 
+          className="absolute top-[45%] left-[40%] w-[250px] h-[250px] md:w-[320px] md:h-[320px] animate-orb-float-slow"
+          style={{ animationDelay: '-6s' }}
+        >
+          <div 
+            className="w-full h-full bg-[#EDE5D8]/35 rounded-full animate-glow-pulse"
+            style={{ animationDelay: '-2s' }} 
+          />
+        </div>
+
+        {/* Orb bege - inferior centro */}
+        <div 
+          className="absolute -bottom-[10%] left-[35%] w-[280px] h-[280px] md:w-[350px] md:h-[350px] animate-orb-float-fast"
+          style={{ animationDelay: '-9s' }}
+        >
+          <div 
+            className="w-full h-full bg-[#F8F4ED]/38 rounded-full animate-glow-fade"
+            style={{ animationDelay: '-4s' }} 
+          />
+        </div>
+
+        {/* Orb bege pequeno - direita */}
+        <div 
+          className="absolute top-[15%] right-[25%] w-[180px] h-[180px] md:w-[220px] md:h-[220px] animate-orb-float-medium"
+          style={{ animationDelay: '-11s' }}
+        >
+          <div 
+            className="w-full h-full bg-[#F2EBE0]/32 rounded-full animate-glow-breathe"
+            style={{ animationDelay: '-6s' }} 
           />
         </div>
       </div>
@@ -192,14 +236,11 @@ export default function Auth() {
         <Card variant="glass">
           <CardHeader className="space-y-6 pb-4">
             <div className="flex justify-center">
-              <div className="relative">
-                <div className="absolute inset-0 bg-primary/30 blur-2xl rounded-full scale-150" />
-                <img 
-                  src={taliareLogoHorizontal} 
-                  alt="Taliare Semijoias" 
-                  className="h-12 relative z-10 drop-shadow-lg"
-                />
-              </div>
+              <img 
+                src={taliareLogoHorizontal} 
+                alt="Taliare Semijoias" 
+                className="h-12 drop-shadow-lg"
+              />
             </div>
             
             <div className="text-center">
