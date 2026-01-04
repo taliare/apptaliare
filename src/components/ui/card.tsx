@@ -13,9 +13,11 @@ const Card = React.forwardRef<
       "transition-all duration-300 ease-out",
     ].join(" "),
     glass: [
-      "bg-card/50 backdrop-blur-xl border border-border/50",
+      "bg-card/30 backdrop-blur-2xl border border-white/20",
+      "shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)]",
       "transition-all duration-300 ease-out",
-      "hover:bg-card/60 hover:border-border/70",
+      "hover:bg-card/40 hover:border-white/30",
+      "hover:shadow-[0_12px_40px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.15)]",
     ].join(" "),
     gradient: [
       "bg-gradient-to-br from-card via-card to-background border border-border",
