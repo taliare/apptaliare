@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase-external';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ModalSenhaAdminProps {
   open: boolean;
