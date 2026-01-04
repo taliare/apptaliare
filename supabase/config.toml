@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.get-vapid-key]
 verify_jwt = false
+
+[functions.daily-closing-reminder]
+verify_jwt = false
