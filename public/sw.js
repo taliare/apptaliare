@@ -106,11 +106,23 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Fetch event - Network first, fallback to cache
+// Fetch event - Network first, fallback to cache (skip API requests)
 self.addEventListener('fetch', (event) => {
+  // Skip caching for API requests (supabase, external APIs)
+  if (event.request.url.includes('supabase.co') || 
+      event.request.url.includes('/rest/v1/') ||
+      event.request.url.includes('/functions/v1/') ||
+      event.request.method !== 'GET') {
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
+        // Only cache valid responses
+        if (!response || response.status !== 200 || response.type !== 'basic') {
+          return response;
+        }
         const responseClone = response.clone();
         caches.open(CACHE_NAME)
           .then((cache) => {
@@ -120,6 +132,10 @@ self.addEventListener('fetch', (event) => {
           });
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          return cachedResponse || new Response('Offline', { status: 503 });
+        });
+      })
   );
 });
