@@ -21,7 +21,28 @@ export function MobileTopbar({ onMenuClick }: MobileTopbarProps) {
         safe-top
       "
     >
-      {/* Logo */}
+      {/* Menu Button - Lado Esquerdo */}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={onMenuClick}
+        aria-label="Abrir menu"
+        className="
+          relative
+          h-9 w-9 xs:h-10 xs:w-10
+          rounded-lg
+          bg-secondary
+          text-foreground
+          hover:bg-primary
+          hover:text-primary-foreground
+          transition-all duration-200
+        "
+      >
+        <Menu className="h-4 w-4 xs:h-5 xs:w-5" />
+      </Button>
+
+      {/* Logo - Centro */}
       <div className="flex items-center">
         <img 
           src={taliareLogoHorizontal} 
@@ -30,30 +51,8 @@ export function MobileTopbar({ onMenuClick }: MobileTopbarProps) {
         />
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1.5 xs:gap-2">
-        <PushNotificationToggle />
-        
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onMenuClick}
-          aria-label="Abrir menu"
-          className="
-            relative
-            h-9 w-9 xs:h-10 xs:w-10
-            rounded-lg
-            bg-secondary
-            text-foreground
-            hover:bg-primary
-            hover:text-primary-foreground
-            transition-all duration-200
-          "
-        >
-          <Menu className="h-4 w-4 xs:h-5 xs:w-5" />
-        </Button>
-      </div>
+      {/* Push Notification - Lado Direito */}
+      <PushNotificationToggle />
     </header>
   );
 }
