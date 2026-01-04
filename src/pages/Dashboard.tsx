@@ -134,21 +134,30 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Query para notas cobradas (prestações de contas)
+  // Extrair dias com fechamento registrado
+  const diasComFechamento = useMemo(() => {
+    return cobrancas.map(c => c.data);
+  }, [cobrancas]);
+
+  // Query para notas cobradas (prestações de contas) - apenas em dias com fechamento
   const { data: notasCobradas = [] } = useQuery({
-    queryKey: ['notas-cobradas-periodo', user?.id, startDate, endDate],
+    queryKey: ['notas-cobradas-periodo', user?.id, diasComFechamento],
     queryFn: async () => {
+      // Se não houver dias com fechamento, retorna vazio
+      if (diasComFechamento.length === 0) {
+        return [];
+      }
+      
       const { data, error } = await supabase
         .from('prestacoes_contas')
         .select('id')
         .eq('representante_id', user!.id)
-        .gte('data_execucao', startDate)
-        .lte('data_execucao', endDate);
+        .in('data_execucao', diasComFechamento);
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && diasComFechamento.length > 0,
   });
 
   // Cálculos
