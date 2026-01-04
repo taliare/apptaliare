@@ -269,7 +269,7 @@ export default function Auth() {
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  className="h-12 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:border-white/40 focus-visible:ring-white/20"
+                  className="h-12 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/10 focus-visible:bg-white/10 focus-visible:border-white/40 focus-visible:ring-white/20"
                   disabled={showLoading || isExiting}
                 />
               </div>
@@ -286,7 +286,7 @@ export default function Auth() {
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="h-12 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:border-white/40 focus-visible:ring-white/20"
+                  className="h-12 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/10 focus-visible:bg-white/10 focus-visible:border-white/40 focus-visible:ring-white/20"
                   disabled={showLoading || isExiting}
                 />
               </div>
