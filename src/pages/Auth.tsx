@@ -114,10 +114,10 @@ export default function Auth() {
           
           {/* Barra de progresso elegante */}
           <div 
-            className={`w-32 h-1 bg-border/30 rounded-full overflow-hidden transition-opacity duration-500 ${showTransition ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-40 h-1.5 bg-border/30 rounded-full overflow-hidden transition-opacity duration-500 ${showTransition ? 'opacity-100' : 'opacity-0'}`}
             style={{ transitionDelay: '600ms' }}
           >
-            <div className="h-full bg-primary rounded-full animate-progress" />
+            <div className="h-full rounded-full animate-progress" />
           </div>
         </div>
       </div>
