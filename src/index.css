@@ -533,12 +533,40 @@
     50% {
       opacity: 0.8;
       filter: blur(2px);
+  }
+
+  /* Staggered fade in animation */
+  .animate-stagger-in {
+    opacity: 0;
+    animation: staggerFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-stagger-in-1 {
+    animation-delay: 0.3s;
+  }
+
+  .animate-stagger-in-2 {
+    animation-delay: 0.45s;
+  }
+
+  .animate-stagger-in-3 {
+    animation-delay: 0.6s;
+  }
+
+  .animate-stagger-in-4 {
+    animation-delay: 0.75s;
+  }
+
+  @keyframes staggerFadeIn {
+    0% {
+      opacity: 0;
+      transform: translateY(16px);
     }
     100% {
       opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
+      transform: translateY(0);
     }
+  }
   }
 
   /* Shimmer loading effect */

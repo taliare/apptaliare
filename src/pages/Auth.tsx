@@ -252,7 +252,7 @@ export default function Auth() {
 
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-5">
-              <div className="space-y-2">
+              <div className="space-y-2 animate-stagger-in animate-stagger-in-1">
                 <Label htmlFor="login-email" className="text-sm font-medium text-foreground/80">
                   Email
                 </Label>
@@ -269,7 +269,7 @@ export default function Auth() {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 animate-stagger-in animate-stagger-in-2">
                 <Label htmlFor="login-password" className="text-sm font-medium text-foreground/80">
                   Senha
                 </Label>
@@ -286,21 +286,23 @@ export default function Auth() {
                 />
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full h-12 text-base font-medium mt-2 transition-all duration-200" 
-                variant="glow"
-                disabled={showLoading || isExiting}
-              >
-                {showLoading ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="animate-pulse">Entrando...</span>
-                  </span>
-                ) : (
-                  'Entrar'
-                )}
-              </Button>
+              <div className="animate-stagger-in animate-stagger-in-3">
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 text-base font-medium mt-2 transition-all duration-200" 
+                  variant="glow"
+                  disabled={showLoading || isExiting}
+                >
+                  {showLoading ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="animate-pulse">Entrando...</span>
+                    </span>
+                  ) : (
+                    'Entrar'
+                  )}
+                </Button>
+              </div>
             </form>
 
             <div className="mt-8 pt-6 border-t border-border/50">
