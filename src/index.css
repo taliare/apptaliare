@@ -519,6 +519,28 @@
     }
   }
 
+  /* Login card entrance animation */
+  .animate-login-entrance {
+    animation: loginEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes loginEntrance {
+    0% {
+      opacity: 0;
+      transform: translateY(40px) scale(0.92);
+      filter: blur(8px);
+    }
+    50% {
+      opacity: 0.8;
+      filter: blur(2px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+  }
+
   /* Shimmer loading effect */
   .shimmer {
     background: linear-gradient(

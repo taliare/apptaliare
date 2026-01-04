@@ -230,7 +230,7 @@ export default function Auth() {
         className={`w-full max-w-md relative z-10 transition-all duration-400 ease-out ${
           isExiting 
             ? 'opacity-0 scale-95 -translate-y-4' 
-            : 'opacity-100 scale-100 translate-y-0 animate-scale-in'
+            : 'animate-login-entrance'
         }`}
       >
         <Card variant="glass">
