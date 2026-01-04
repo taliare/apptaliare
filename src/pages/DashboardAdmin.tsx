@@ -193,42 +193,82 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para notas cobradas por representante (prestações de contas)
-  const { data: notasPorRepresentante = {} } = useQuery({
-    queryKey: ['notas-cobradas-admin', startDate, endDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('prestacoes_contas')
-        .select('representante_id, id')
-        .gte('data_execucao', startDate)
-        .lte('data_execucao', endDate);
-      
-      if (error) throw error;
-      
-      const agrupado = data.reduce((acc: Record<string, number>, curr) => {
-        const id = curr.representante_id;
-        acc[id] = (acc[id] || 0) + 1;
-        return acc;
-      }, {});
-      
-      return agrupado;
-    },
-  });
+  // Extrair dias com fechamento por representante
+  const diasComFechamentoPorRep = useMemo(() => {
+    const result: Record<string, string[]> = {};
+    cobrancasMes.forEach(c => {
+      // Precisamos buscar as datas originais, não os agregados
+    });
+    return result;
+  }, [cobrancasMes]);
 
-  // Query para total de notas cobradas
-  const { data: notasCobradasData } = useQuery({
-    queryKey: ['notas-cobradas-total-admin', startDate, endDate],
+  // Query para todas as datas de fechamento no período
+  const { data: fechamentosData = [] } = useQuery({
+    queryKey: ['fechamentos-admin', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('prestacoes_contas')
-        .select('id', { count: 'exact' })
-        .gte('data_execucao', startDate)
-        .lte('data_execucao', endDate);
+        .from('cobrancas_diarias')
+        .select('representante_id, data')
+        .gte('data', startDate)
+        .lte('data', endDate);
       
       if (error) throw error;
       return data;
     },
   });
+
+  // Agrupar datas de fechamento por representante
+  const diasFechamentoPorRep = useMemo(() => {
+    const result: Record<string, string[]> = {};
+    fechamentosData.forEach(f => {
+      if (!result[f.representante_id]) {
+        result[f.representante_id] = [];
+      }
+      result[f.representante_id].push(f.data);
+    });
+    return result;
+  }, [fechamentosData]);
+
+  // Todas as datas de fechamento (para query geral)
+  const todasDatasFechamento = useMemo(() => {
+    return [...new Set(fechamentosData.map(f => f.data))];
+  }, [fechamentosData]);
+
+  // Query para notas cobradas por representante (prestações de contas) - apenas em dias com fechamento
+  const { data: notasPorRepresentante = {} } = useQuery({
+    queryKey: ['notas-cobradas-admin', todasDatasFechamento],
+    queryFn: async () => {
+      if (todasDatasFechamento.length === 0) {
+        return {};
+      }
+      
+      const { data, error } = await supabase
+        .from('prestacoes_contas')
+        .select('representante_id, id, data_execucao')
+        .in('data_execucao', todasDatasFechamento);
+      
+      if (error) throw error;
+      
+      // Contar apenas notas cujo representante teve fechamento naquele dia específico
+      const agrupado = data.reduce((acc: Record<string, number>, curr) => {
+        const id = curr.representante_id;
+        const diasDoRep = diasFechamentoPorRep[id] || [];
+        // Só conta se o representante fez fechamento nesse dia
+        if (diasDoRep.includes(curr.data_execucao)) {
+          acc[id] = (acc[id] || 0) + 1;
+        }
+        return acc;
+      }, {});
+      
+      return agrupado;
+    },
+    enabled: todasDatasFechamento.length > 0,
+  });
+
+  // Total de notas cobradas (soma de todos representantes)
+  const totalNotasCobradas = useMemo(() => {
+    return Object.values(notasPorRepresentante).reduce((sum, count) => sum + count, 0);
+  }, [notasPorRepresentante]);
 
   // Query para metas
   const { data: metas = [] } = useQuery({
@@ -278,7 +318,6 @@ export default function DashboardAdmin() {
   const totalMes = cobrancasMes.reduce((sum, c) => sum + c.total_cobrado, 0);
   const totalDespesas = cobrancasMes.reduce((sum, c) => sum + c.total_despesas, 0);
   const totalKits = kitsData?.length || 0;
-  const totalNotasCobradas = notasCobradasData?.length || 0;
   const totalProducaoHoje = producaoHoje.length;
   const totalEstoque = kitsEstoque.length;
   
