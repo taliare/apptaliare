@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, parseISO } from "date-fns";
@@ -108,6 +108,29 @@ export default function LeadsRevendedoras() {
       return data as LeadRevendedora[];
     },
   });
+
+  // Realtime listener para novos leads
+  useEffect(() => {
+    const channel = supabase
+      .channel('leads-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'leads_revendedoras'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["leads-revendedoras"] });
+          toast({ title: "Novo lead recebido!", description: "A lista foi atualizada automaticamente." });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Mutation para atualizar lead
   const updateLead = useMutation({
