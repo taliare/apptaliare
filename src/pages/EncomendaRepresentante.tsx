@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Plus, Package } from 'lucide-react';
+import { Plus, Package, X } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type Encomenda = {
@@ -98,6 +98,25 @@ export default function EncomendaRepresentante() {
     },
     onError: () => {
       toast.error('Erro ao criar encomenda');
+    },
+  });
+
+  const cancelarEncomenda = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('encomendas_kits')
+        .update({ status: 'cancelado' })
+        .eq('id', id)
+        .eq('representante_id', user?.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['encomendas-representante'] });
+      toast.success('Encomenda cancelada');
+    },
+    onError: () => {
+      toast.error('Erro ao cancelar encomenda');
     },
   });
 
@@ -202,6 +221,7 @@ export default function EncomendaRepresentante() {
                 <TableHead>Descrição</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Código</TableHead>
+                <TableHead className="w-[80px]">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -218,6 +238,19 @@ export default function EncomendaRepresentante() {
                       <span className="font-mono font-semibold">{encomenda.codigo_kit}</span>
                     ) : (
                       <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {encomenda.status === 'solicitado' && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => cancelarEncomenda.mutate(encomenda.id)}
+                        disabled={cancelarEncomenda.isPending}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
