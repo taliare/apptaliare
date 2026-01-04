@@ -244,7 +244,7 @@ export default function Auth() {
               <img 
                 src={isDark ? taliareLogoHorizontalClaro : taliareLogoHorizontalEscuro} 
                 alt="Taliare Semijoias" 
-                className="h-12 drop-shadow-lg"
+                className={`h-12 drop-shadow-lg ${isDark ? 'brightness-[1.15] sepia-[0.2] saturate-[0.8] hue-rotate-[5deg]' : ''}`}
               />
             </div>
             
