@@ -706,3 +706,13 @@
   .animate-card-entrance-5 { animation-delay: 0.25s, 0.45s; }
   .animate-card-entrance-6 { animation-delay: 0.3s, 0.5s; }
 }
+
+/* Login progress bar animation */
+@keyframes progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.animate-progress {
+  animation: progress 1s ease-out forwards;
+}
