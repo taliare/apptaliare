@@ -364,8 +364,11 @@ export default function DistribuicaoKits() {
         ? "Kit atualizado e distribuído com sucesso!" 
         : "Kit atualizado com sucesso!";
       toast.success(mensagem);
-      // Close dialog first, then clear kit data and invalidate after animation completes
       setIsEditDialogOpen(false);
+      setKitToEdit(null);
+      // Invalidar queries para atualizar a lista automaticamente
+      queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
+      queryClient.invalidateQueries({ queryKey: ["kits-estoque-rep"] });
     },
     onError: (error: any) => {
       toast.error("Erro ao atualizar kit: " + error.message);
