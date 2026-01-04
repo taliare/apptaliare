@@ -19,6 +19,7 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  isLoggingOut: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, nome: string, role?: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<(Profile & { role: 'admin' | 'representante' | 'producao' }) | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -122,10 +124,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    setIsLoggingOut(true);
+    
+    // Wait for animation to play
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
     setSession(null);
+    setIsLoggingOut(false);
     navigate('/auth');
   };
 
@@ -136,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         session,
         loading,
+        isLoggingOut,
         signIn,
         signUp,
         signOut,
