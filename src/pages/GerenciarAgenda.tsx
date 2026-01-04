@@ -50,6 +50,7 @@ export default function GerenciarAgenda() {
   // Filtros
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  const [filtroStatus, setFiltroStatus] = useState<string>('pendente'); // Padrão: pendente
   
   // Filtro de mês/ano - padrão: mês atual
   const [filtroMesAno, setFiltroMesAno] = useState<string>(() => {
@@ -378,6 +379,11 @@ export default function GerenciarAgenda() {
       if (filtroTipo === 'repasse' && tipoCobranca !== 'repasse') return false;
     }
     
+    // Filtro de status
+    if (filtroStatus !== 'todos' && c.status !== filtroStatus) {
+      return false;
+    }
+    
     return true;
   });
 
@@ -488,6 +494,19 @@ export default function GerenciarAgenda() {
                     <SelectItem value="repasse">Repasse</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos Status</SelectItem>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="parcial">Parcial</SelectItem>
+                    <SelectItem value="reagendado">Reagendado</SelectItem>
+                    <SelectItem value="juridico">Jurídico</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             
@@ -544,19 +563,40 @@ export default function GerenciarAgenda() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+                        <div className="text-right hidden sm:block">
                           <span className="text-sm font-medium text-foreground">
                             {formatarValor(totalSemana)}
                           </span>
                           <span className="text-xs text-muted-foreground block">previsto</span>
                         </div>
-                        <Badge 
-                          variant="secondary" 
-                          className="bg-primary/10 text-primary border-0"
-                        >
-                          {notasSemana.filter(c => c.status === 'pendente').length} pendente{notasSemana.filter(c => c.status === 'pendente').length !== 1 ? 's' : ''}
-                        </Badge>
+                        {/* Resumo de status por semana */}
+                        <div className="flex items-center gap-1">
+                          {(() => {
+                            const pendentes = notasSemana.filter(c => c.status === 'pendente').length;
+                            const pagas = notasSemana.filter(c => c.status === 'pago').length;
+                            const juridico = notasSemana.filter(c => c.status === 'juridico').length;
+                            return (
+                              <>
+                                {pendentes > 0 && (
+                                  <Badge className="bg-yellow-500/10 text-yellow-700 border-0 text-xs">
+                                    {pendentes} pend.
+                                  </Badge>
+                                )}
+                                {pagas > 0 && (
+                                  <Badge className="bg-green-500/10 text-green-700 border-0 text-xs">
+                                    {pagas} paga{pagas !== 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                                {juridico > 0 && (
+                                  <Badge className="bg-purple-500/10 text-purple-700 border-0 text-xs">
+                                    {juridico} juríd.
+                                  </Badge>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
