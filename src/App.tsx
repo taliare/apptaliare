@@ -12,6 +12,7 @@ import { MobileDrawer } from "@/components/MobileDrawer";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AnimatedRoutes } from "@/components/AnimatedRoutes";
+import { LogoutOverlay } from "@/components/LogoutOverlay";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import Auth from "./pages/Auth";
@@ -31,6 +32,7 @@ const App = () => {
           <PWAUpdateNotification />
           <BrowserRouter>
             <AuthProvider>
+              <LogoutOverlay />
               <Routes>
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/setup" element={<Setup />} />
