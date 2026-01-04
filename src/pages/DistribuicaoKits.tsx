@@ -359,7 +359,26 @@ export default function DistribuicaoKits() {
       console.log("Kit atualizado:", data);
       return data;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
+      // Notificar representante se foi distribuído
+      if (variables.representante_id && kitToEdit) {
+        await supabase.from("notifications").insert({
+          user_id: variables.representante_id,
+          title: "Kit Recebido",
+          message: `Você recebeu o kit ${variables.tipo} - Código: ${variables.codigo}`,
+          type: "success",
+          link: "/kits",
+        });
+
+        await supabase.functions.invoke("send-push-notification", {
+          body: {
+            userId: variables.representante_id,
+            title: "Kit Recebido",
+            body: `Você recebeu o kit ${variables.tipo} - Código: ${variables.codigo}`,
+          },
+        });
+      }
+
       const mensagem = variables.representante_id 
         ? "Kit atualizado e distribuído com sucesso!" 
         : "Kit atualizado com sucesso!";
@@ -396,6 +415,7 @@ export default function DistribuicaoKits() {
 
     try {
       const updates: Partial<Kit> = {};
+      const kit = kits.find(k => k.id === kitId);
 
       if (targetColumnId === "estoque") {
         updates.status = "estoque";
@@ -408,6 +428,26 @@ export default function DistribuicaoKits() {
       const { error } = await supabase.from("kits_estoque").update(updates).eq("id", kitId);
 
       if (error) throw error;
+
+      // Notificar representante quando kit for distribuído
+      if (targetColumnId !== "estoque" && kit) {
+        const rep = representantes.find(r => r.id === targetColumnId);
+        await supabase.from("notifications").insert({
+          user_id: targetColumnId,
+          title: "Kit Recebido",
+          message: `Você recebeu o kit ${kit.tipo} - Código: ${kit.codigo}`,
+          type: "success",
+          link: "/kits",
+        });
+
+        await supabase.functions.invoke("send-push-notification", {
+          body: {
+            userId: targetColumnId,
+            title: "Kit Recebido",
+            body: `Você recebeu o kit ${kit.tipo} - Código: ${kit.codigo}`,
+          },
+        });
+      }
 
       toast.success("Kit movido com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
@@ -531,6 +571,27 @@ export default function DistribuicaoKits() {
       if (error) throw error;
 
       const repNome = representantes.find(r => r.id === batchRepresentante)?.nome || "";
+      
+      // Notificar representante
+      const kitsDistribuidos = kits.filter(k => kitIds.includes(k.id));
+      const codigosKits = kitsDistribuidos.map(k => k.codigo).join(", ");
+      
+      await supabase.from("notifications").insert({
+        user_id: batchRepresentante,
+        title: "Kits Recebidos",
+        message: `Você recebeu ${kitIds.length} kit(s): ${codigosKits}`,
+        type: "success",
+        link: "/kits",
+      });
+
+      await supabase.functions.invoke("send-push-notification", {
+        body: {
+          userId: batchRepresentante,
+          title: "Kits Recebidos",
+          body: `Você recebeu ${kitIds.length} kit(s)`,
+        },
+      });
+
       toast.success(`${kitIds.length} kit(s) distribuído(s) para ${repNome}!`);
       
       queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
