@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
-    variant?: "default" | "glass" | "gradient" | "glow" | "interactive";
+    variant?: "default" | "glass" | "gradient" | "glow" | "interactive" | "login";
   }
 >(({ className, variant = "default", ...props }, ref) => {
   const variants = {
@@ -37,6 +37,13 @@ const Card = React.forwardRef<
       "hover:border-primary/30",
       "cursor-pointer",
       "group",
+    ].join(" "),
+    login: [
+      "bg-[hsl(350,47%,20%)] backdrop-blur-2xl border border-white/20",
+      "shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)]",
+      "transition-all duration-300 ease-out",
+      "hover:bg-[hsl(350,47%,22%)] hover:border-white/30",
+      "hover:shadow-[0_12px_40px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.15)]",
     ].join(" "),
   };
 
