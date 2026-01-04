@@ -713,6 +713,18 @@
   100% { width: 100%; }
 }
 
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .animate-progress {
-  animation: progress 1s ease-out forwards;
+  animation: progress 2s ease-in-out forwards;
+  background: linear-gradient(
+    90deg, 
+    hsl(var(--primary)) 0%, 
+    hsl(var(--primary) / 0.5) 50%, 
+    hsl(var(--primary)) 100%
+  );
+  background-size: 200% 100%;
 }
