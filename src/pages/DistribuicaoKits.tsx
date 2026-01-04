@@ -241,7 +241,7 @@ export default function DistribuicaoKits() {
   const [editCodigo, setEditCodigo] = useState("");
   const [editValor, setEditValor] = useState("");
   const [editTipo, setEditTipo] = useState("");
-  const [editRepresentante, setEditRepresentante] = useState<string>("");
+  const [editRepresentante, setEditRepresentante] = useState<string>("__estoque__");
 
   // Estado para seleção em lote
   const [selectionMode, setSelectionMode] = useState(false);
@@ -266,7 +266,7 @@ export default function DistribuicaoKits() {
       // Converte valor numérico para formato BR (ex: 1000.5 -> "1000,5")
       setEditValor(kitToEdit.valor != null ? String(kitToEdit.valor).replace('.', ',') : "");
       setEditTipo(kitToEdit.tipo);
-      setEditRepresentante(""); // Sempre começa com "Manter no estoque"
+      setEditRepresentante("__estoque__"); // Padrão: manter no estoque
       setIsEditDialogOpen(true);
     }
   }, [kitToEdit]);
@@ -447,7 +447,7 @@ export default function DistribuicaoKits() {
     ) || 0;
 
     // Determinar se vai distribuir ou manter no estoque
-    const novoRepresentante = editRepresentante || null;
+    const novoRepresentante = editRepresentante === "__estoque__" ? null : editRepresentante;
     const novoStatus = novoRepresentante ? "com_representante" : "estoque";
 
     editMutation.mutate({
@@ -730,14 +730,26 @@ export default function DistribuicaoKits() {
                   <SelectValue placeholder="Manter no estoque" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Manter no estoque</SelectItem>
+                  <SelectItem value="__estoque__">Manter no estoque</SelectItem>
                   {representantes.map((rep) => (
-                    <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
+                    <SelectItem key={rep.id} value={rep.id}>
+                      {rep.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-        </div>
-      </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={editMutation.isPending}>
+              {editMutation.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de distribuição em lote */}
       <Dialog open={isBatchDialogOpen} onOpenChange={setIsBatchDialogOpen}>
@@ -757,7 +769,9 @@ export default function DistribuicaoKits() {
                 </SelectTrigger>
                 <SelectContent>
                   {representantes.map((rep) => (
-                    <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
+                    <SelectItem key={rep.id} value={rep.id}>
+                      {rep.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -767,21 +781,8 @@ export default function DistribuicaoKits() {
             <Button variant="outline" onClick={() => setIsBatchDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button 
-              onClick={handleBatchDistribution} 
-              disabled={!batchRepresentante || isBatchLoading}
-            >
+            <Button onClick={handleBatchDistribution} disabled={!batchRepresentante || isBatchLoading}>
               {isBatchLoading ? "Distribuindo..." : "Confirmar Distribuição"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={editMutation.isPending}>
-              {editMutation.isPending ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>
         </DialogContent>
