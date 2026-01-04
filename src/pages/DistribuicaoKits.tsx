@@ -203,6 +203,7 @@ export default function DistribuicaoKits() {
   const [editCodigo, setEditCodigo] = useState("");
   const [editValor, setEditValor] = useState("");
   const [editTipo, setEditTipo] = useState("");
+  const [editRepresentante, setEditRepresentante] = useState<string>("");
 
   // Verificar se o usuário tem permissão (admin ou producao)
   useEffect(() => {
@@ -220,6 +221,7 @@ export default function DistribuicaoKits() {
       // Converte valor numérico para formato BR (ex: 1000.5 -> "1000,5")
       setEditValor(kitToEdit.valor != null ? String(kitToEdit.valor).replace('.', ',') : "");
       setEditTipo(kitToEdit.tipo);
+      setEditRepresentante(""); // Sempre começa com "Manter no estoque"
       setIsEditDialogOpen(true);
     }
   }, [kitToEdit]);
@@ -277,14 +279,27 @@ export default function DistribuicaoKits() {
 
   // Mutation para editar kit
   const editMutation = useMutation({
-    mutationFn: async ({ id, codigo, valor, tipo }: { id: string; codigo: string; valor: number; tipo: string }) => {
-      console.log("Atualizando kit:", { id, codigo, valor, tipo });
+    mutationFn: async ({ 
+      id, 
+      codigo, 
+      valor, 
+      tipo,
+      representante_id,
+      status 
+    }: { 
+      id: string; 
+      codigo: string; 
+      valor: number; 
+      tipo: string;
+      representante_id: string | null;
+      status: string;
+    }) => {
+      console.log("Atualizando kit:", { id, codigo, valor, tipo, representante_id, status });
 
       const { data, error } = await supabase
         .from("kits_estoque")
-        .update({ codigo, valor, tipo })
+        .update({ codigo, valor, tipo, representante_id, status })
         .eq("id", id)
-        .eq("status", "estoque")
         .select();
 
       if (error) {
@@ -293,14 +308,17 @@ export default function DistribuicaoKits() {
       }
 
       if (!data || data.length === 0) {
-        throw new Error("Kit não encontrado ou não está no estoque");
+        throw new Error("Kit não encontrado");
       }
 
       console.log("Kit atualizado:", data);
       return data;
     },
-    onSuccess: () => {
-      toast.success("Kit atualizado com sucesso!");
+    onSuccess: (_, variables) => {
+      const mensagem = variables.representante_id 
+        ? "Kit atualizado e distribuído com sucesso!" 
+        : "Kit atualizado com sucesso!";
+      toast.success(mensagem);
       // Close dialog first, then clear kit data and invalidate after animation completes
       setIsEditDialogOpen(false);
     },
@@ -383,11 +401,17 @@ export default function DistribuicaoKits() {
       editValor.replace(/\./g, "").replace(",", ".")
     ) || 0;
 
+    // Determinar se vai distribuir ou manter no estoque
+    const novoRepresentante = editRepresentante || null;
+    const novoStatus = novoRepresentante ? "com_representante" : "estoque";
+
     editMutation.mutate({
       id: kitToEdit.id,
       codigo,
       valor: valorNum,
       tipo: editTipo,
+      representante_id: novoRepresentante,
+      status: novoStatus,
     });
   };
 
@@ -530,6 +554,21 @@ export default function DistribuicaoKits() {
                   <SelectItem value="inicial">Inicial</SelectItem>
                   <SelectItem value="especial">Especial</SelectItem>
                   <SelectItem value="maleta">Maleta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-representante">Distribuir para Representante (opcional)</Label>
+              <Select value={editRepresentante} onValueChange={setEditRepresentante}>
+                <SelectTrigger id="edit-representante">
+                  <SelectValue placeholder="Manter no estoque" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Manter no estoque</SelectItem>
+                  {representantes.map((rep) => (
+                    <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
