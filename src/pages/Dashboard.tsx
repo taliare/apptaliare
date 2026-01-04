@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Progress } from '@/components/ui/progress';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -23,7 +23,7 @@ interface CobrancaDiaria {
 }
 
 interface KitEntregue {
-  data_vencimento: string;
+  id: string;
   tipo: string | null;
 }
 
@@ -99,24 +99,19 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Ciclo padrão de kits
-  const mesVencimentoKits = format(addMonths(new Date(), 2), 'yyyy-MM');
-
-  // Query para kits entregues
+  // Query para kits entregues no período
   const { data: kitsDoMes = [] } = useQuery({
-    queryKey: ['kits-mes-dashboard', user?.id, mesVencimentoKits],
+    queryKey: ['kits-entregues-periodo', user?.id, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kits_entregues')
-        .select('data_vencimento, tipo')
-        .eq('representante_id', user!.id);
+        .select('id, tipo')
+        .eq('representante_id', user!.id)
+        .gte('data_entrega', startDate)
+        .lte('data_entrega', endDate);
       
       if (error) throw error;
-      
-      return (data as KitEntregue[]).filter(kit => {
-        const vencimentoMes = kit.data_vencimento.substring(0, 7);
-        return vencimentoMes === mesVencimentoKits;
-      });
+      return data;
     },
     enabled: !!user?.id,
   });
@@ -139,16 +134,16 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Query para notas promissórias
-  const { data: notasDoMes = [] } = useQuery({
-    queryKey: ['notas-mes', user?.id, startDate, endDate],
+  // Query para notas cobradas (prestações de contas)
+  const { data: notasCobradas = [] } = useQuery({
+    queryKey: ['notas-cobradas-periodo', user?.id, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('notas_promissorias')
-        .select('id, valor_total')
+        .from('prestacoes_contas')
+        .select('id')
         .eq('representante_id', user!.id)
-        .gte('data', startDate)
-        .lte('data', endDate);
+        .gte('data_execucao', startDate)
+        .lte('data_execucao', endDate);
       
       if (error) throw error;
       return data;
@@ -160,8 +155,8 @@ export default function Dashboard() {
   const totalCobrado = cobrancas.reduce((sum, c) => sum + c.total_cobrado, 0);
   const totalDespesas = cobrancas.reduce((sum, c) => sum + (c.despesa_cobranca || 0), 0);
   const totalKits = kitsDoMes.length;
-  const totalNotas = notasDoMes.length;
-  const ticketMedio = totalNotas > 0 ? totalCobrado / totalNotas : 0;
+  const totalNotasCobradas = notasCobradas.length;
+  const ticketMedio = totalNotasCobradas > 0 ? totalCobrado / totalNotasCobradas : 0;
   
   const percentualMeta = metaDoMes?.meta_valor 
     ? (totalCobrado / metaDoMes.meta_valor) * 100 
@@ -274,17 +269,17 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Notas */}
+        {/* Notas Cobradas */}
         <Card variant="interactive" className="animate-card-entrance animate-card-entrance-2 w-full max-w-full overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
-            <CardTitle className="text-xs md:text-sm font-medium truncate">Notas</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium truncate">Notas Cobradas</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-chart-2/10 shrink-0">
               <FileText className="h-3.5 w-3.5 md:h-4 md:w-4 text-chart-2" />
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarNumero(totalNotas)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground truncate">Promissórias</p>
+            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarNumero(totalNotasCobradas)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground truncate">No período</p>
           </CardContent>
         </Card>
 
@@ -318,19 +313,17 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Kits */}
+        {/* Kits Entregues */}
         <Card variant="interactive" className="animate-card-entrance animate-card-entrance-5 w-full max-w-full overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
-            <CardTitle className="text-xs md:text-sm font-medium truncate">Kits</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium truncate">Kits Entregues</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-chart-4/10 shrink-0">
               <Package className="h-3.5 w-3.5 md:h-4 md:w-4 text-chart-4" />
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
             <div className="text-base md:text-2xl font-display font-bold truncate">{formatarNumero(totalKits)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground truncate">
-              Venc: {format(addMonths(new Date(), 2), "MMM/yy", { locale: ptBR })}
-            </p>
+            <p className="text-[10px] md:text-xs text-muted-foreground truncate">No período</p>
           </CardContent>
         </Card>
 
