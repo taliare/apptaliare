@@ -245,7 +245,6 @@ export default function Auth() {
                 src={isDark ? taliareLogoHorizontalClaro : taliareLogoHorizontalEscuro} 
                 alt="Taliare Semijoias" 
                 className="h-12 drop-shadow-lg"
-                style={isDark ? { filter: 'sepia(30%) saturate(70%) brightness(1.1) hue-rotate(-10deg)' } : undefined}
               />
             </div>
             
