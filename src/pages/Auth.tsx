@@ -242,7 +242,7 @@ export default function Auth() {
           <CardHeader className="space-y-6 pb-4">
             <div className="flex justify-center">
               <img 
-                src={taliareLogoHorizontalClaro} 
+                src={taliareLogoHorizontalEscuro} 
                 alt="Taliare Semijoias" 
                 className="h-12 drop-shadow-lg"
               />
