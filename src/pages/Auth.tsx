@@ -72,11 +72,70 @@ export default function Auth() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Background effects */}
+      {/* Background com luzes animadas */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-to-bl from-primary/10 via-transparent to-transparent rounded-full blur-3xl" />
-        <div className="absolute -bottom-1/2 -left-1/2 w-full h-full bg-gradient-to-tr from-primary/5 via-transparent to-transparent rounded-full blur-3xl" />
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-pulse-subtle" />
+        {/* Orb principal - canto superior direito */}
+        <div 
+          className="absolute -top-[20%] -right-[15%] w-[500px] h-[500px] md:w-[600px] md:h-[600px] animate-orb-float-slow"
+          style={{ animationDelay: '0s' }}
+        >
+          <div className="w-full h-full bg-primary/25 rounded-full animate-glow-pulse" />
+        </div>
+        
+        {/* Orb secundário - canto inferior esquerdo */}
+        <div 
+          className="absolute -bottom-[25%] -left-[20%] w-[400px] h-[400px] md:w-[500px] md:h-[500px] animate-orb-float-medium"
+          style={{ animationDelay: '-5s' }}
+        >
+          <div 
+            className="w-full h-full bg-primary/20 rounded-full animate-glow-breathe" 
+            style={{ animationDelay: '-2s' }} 
+          />
+        </div>
+        
+        {/* Orb terciário - centro-esquerda */}
+        <div 
+          className="absolute top-[30%] -left-[10%] w-[300px] h-[300px] md:w-[400px] md:h-[400px] animate-orb-float-fast"
+          style={{ animationDelay: '-3s' }}
+        >
+          <div 
+            className="w-full h-full bg-primary/15 rounded-full animate-glow-pulse"
+            style={{ animationDelay: '-1s' }} 
+          />
+        </div>
+        
+        {/* Orb quaternário - topo centro */}
+        <div 
+          className="absolute -top-[10%] left-[25%] w-[280px] h-[280px] md:w-[350px] md:h-[350px] animate-orb-float-medium"
+          style={{ animationDelay: '-8s' }}
+        >
+          <div 
+            className="w-full h-full bg-primary/18 rounded-full animate-glow-breathe"
+            style={{ animationDelay: '-4s' }} 
+          />
+        </div>
+        
+        {/* Orb pequeno - inferior direito */}
+        <div 
+          className="absolute bottom-[20%] right-[10%] w-[200px] h-[200px] md:w-[250px] md:h-[250px] animate-orb-float-slow"
+          style={{ animationDelay: '-10s' }}
+        >
+          <div 
+            className="w-full h-full bg-primary/22 rounded-full animate-glow-fade"
+            style={{ animationDelay: '-3s' }} 
+          />
+        </div>
+        
+        {/* Orb extra - centro direito */}
+        <div 
+          className="absolute top-[50%] -right-[5%] w-[180px] h-[180px] md:w-[220px] md:h-[220px] animate-orb-float-fast"
+          style={{ animationDelay: '-7s' }}
+        >
+          <div 
+            className="w-full h-full bg-primary/12 rounded-full animate-glow-pulse"
+            style={{ animationDelay: '-5s' }} 
+          />
+        </div>
       </div>
 
       {/* Transition Overlay */}

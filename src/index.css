@@ -744,3 +744,68 @@
 .animate-pulse-soft {
   animation: pulse-soft 2s ease-in-out infinite;
 }
+
+/* ========================================
+   Login Background Animated Orbs
+   ======================================== */
+
+/* Floating animations - movement patterns */
+@keyframes float-orb-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(10%, -15%) scale(1.1); }
+  50% { transform: translate(-5%, 10%) scale(0.9); }
+  75% { transform: translate(-15%, -5%) scale(1.05); }
+}
+
+@keyframes float-orb-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-20%, 15%) scale(1.15); }
+  66% { transform: translate(15%, -10%) scale(0.85); }
+}
+
+@keyframes float-orb-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(25%, 20%) scale(1.2); }
+}
+
+/* Glow animations - pulsating light effect */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.15; filter: blur(60px); }
+  50% { opacity: 0.35; filter: blur(80px); }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.1; transform: scale(1); filter: blur(70px); }
+  50% { opacity: 0.3; transform: scale(1.2); filter: blur(90px); }
+}
+
+@keyframes glow-fade {
+  0%, 100% { opacity: 0.2; }
+  30% { opacity: 0.4; }
+  60% { opacity: 0.1; }
+}
+
+/* Combined animation classes */
+.animate-orb-float-slow {
+  animation: float-orb-1 20s ease-in-out infinite;
+}
+
+.animate-orb-float-medium {
+  animation: float-orb-2 15s ease-in-out infinite;
+}
+
+.animate-orb-float-fast {
+  animation: float-orb-3 10s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+.animate-glow-breathe {
+  animation: glow-breathe 6s ease-in-out infinite;
+}
+
+.animate-glow-fade {
+  animation: glow-fade 5s ease-in-out infinite;
+}
