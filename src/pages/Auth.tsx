@@ -98,7 +98,7 @@ export default function Auth() {
             <img 
               src={taliareIcone} 
               alt="Taliare" 
-              className={`h-24 w-24 drop-shadow-lg transition-all duration-500 ease-out ${showTransition ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              className={`h-24 w-24 drop-shadow-lg transition-all duration-500 ease-out ${showTransition ? 'opacity-100 translate-y-0 animate-pulse-soft' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: '200ms' }}
             />
           </div>
