@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-external';
+import { supabase as supabaseCloud } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +51,8 @@ export default function EncomendaProducao() {
   const marcarEmProducao = useMutation({
     mutationFn: async (id: string) => {
       const { data: userData } = await supabase.auth.getUser();
+      const encomenda = encomendas.find((e) => e.id === id);
+      
       const { error } = await supabase
         .from('encomendas_kits')
         .update({
@@ -59,6 +62,27 @@ export default function EncomendaProducao() {
         .eq('id', id);
 
       if (error) throw error;
+
+      // Notificar representante
+      if (encomenda) {
+        const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[encomenda.tipo_kit] || encomenda.tipo_kit;
+
+        await supabaseCloud.from('notifications').insert({
+          user_id: encomenda.representante_id,
+          title: 'Encomenda em Produção',
+          message: `Sua encomenda de kit ${tipoLabel} está sendo produzida`,
+          type: 'info',
+          link: '/encomendas',
+        });
+
+        await supabaseCloud.functions.invoke('send-push-notification', {
+          body: {
+            userId: encomenda.representante_id,
+            title: 'Encomenda em Produção',
+            body: `Sua encomenda de kit ${tipoLabel} está sendo produzida`,
+          },
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['encomendas-producao'] });
@@ -72,6 +96,8 @@ export default function EncomendaProducao() {
 
   const finalizarEncomenda = useMutation({
     mutationFn: async ({ id, codigo }: { id: string; codigo: string }) => {
+      const encomenda = encomendas.find((e) => e.id === id);
+      
       // Atualizar encomenda
       const { error: encomendaError } = await supabase
         .from('encomendas_kits')
@@ -84,7 +110,6 @@ export default function EncomendaProducao() {
       if (encomendaError) throw encomendaError;
 
       // Criar kit no estoque
-      const encomenda = encomendas.find((e) => e.id === id);
       if (encomenda) {
         const { error: kitError } = await supabase.from('kits_estoque').insert({
           tipo: encomenda.tipo_kit,
@@ -94,6 +119,25 @@ export default function EncomendaProducao() {
         });
 
         if (kitError) throw kitError;
+
+        // Notificar representante
+        const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[encomenda.tipo_kit] || encomenda.tipo_kit;
+
+        await supabaseCloud.from('notifications').insert({
+          user_id: encomenda.representante_id,
+          title: 'Encomenda Pronta!',
+          message: `Sua encomenda de kit ${tipoLabel} está pronta. Código: ${codigo}`,
+          type: 'success',
+          link: '/encomendas',
+        });
+
+        await supabaseCloud.functions.invoke('send-push-notification', {
+          body: {
+            userId: encomenda.representante_id,
+            title: 'Encomenda Pronta!',
+            body: `Sua encomenda de kit ${tipoLabel} está pronta. Código: ${codigo}`,
+          },
+        });
       }
     },
     onSuccess: () => {

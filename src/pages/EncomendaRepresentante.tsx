@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase-external';
+import { supabase as supabaseCloud } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +57,37 @@ export default function EncomendaRepresentante() {
       });
 
       if (error) throw error;
+
+      // Buscar usuários de produção para notificar
+      const { data: producaoUsers } = await supabaseCloud
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'producao');
+
+      if (producaoUsers && producaoUsers.length > 0) {
+        const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[tipoKit] || tipoKit;
+        const userIds = producaoUsers.map((u) => u.user_id);
+
+        // Criar notificações no banco para cada usuário de produção
+        const notifications = userIds.map((userId) => ({
+          user_id: userId,
+          title: 'Nova Encomenda de Kit',
+          message: `Novo pedido de kit ${tipoLabel} solicitado`,
+          type: 'info',
+          link: '/encomendas-producao',
+        }));
+
+        await supabaseCloud.from('notifications').insert(notifications);
+
+        // Enviar push notifications
+        await supabaseCloud.functions.invoke('send-push-notification', {
+          body: {
+            userIds,
+            title: 'Nova Encomenda de Kit',
+            body: `Novo pedido de kit ${tipoLabel} solicitado`,
+          },
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['encomendas-representante'] });
