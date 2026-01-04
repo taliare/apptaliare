@@ -238,18 +238,18 @@ export default function Auth() {
             : 'animate-login-entrance'
         }`}
       >
-        <Card variant="glass">
+        <Card variant="login">
           <CardHeader className="space-y-6 pb-4">
             <div className="flex justify-center">
               <img 
-                src={isDark ? taliareLogoHorizontalClaro : taliareLogoHorizontalEscuro} 
+                src={taliareLogoHorizontalClaro} 
                 alt="Taliare Semijoias" 
                 className="h-12 drop-shadow-lg"
               />
             </div>
             
             <div className="text-center">
-              <CardDescription className="text-muted-foreground">
+              <CardDescription className="text-white/70">
                 Sistema Interno de Gestão
               </CardDescription>
             </div>
@@ -258,7 +258,7 @@ export default function Auth() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="space-y-2 animate-stagger-in animate-stagger-in-1">
-                <Label htmlFor="login-email" className="text-sm font-medium text-foreground/80">
+                <Label htmlFor="login-email" className="text-sm font-medium text-white/80">
                   Email
                 </Label>
                 <Input
@@ -269,13 +269,13 @@ export default function Auth() {
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  className="h-12"
+                  className="h-12 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:border-white/40 focus-visible:ring-white/20"
                   disabled={showLoading || isExiting}
                 />
               </div>
 
               <div className="space-y-2 animate-stagger-in animate-stagger-in-2">
-                <Label htmlFor="login-password" className="text-sm font-medium text-foreground/80">
+                <Label htmlFor="login-password" className="text-sm font-medium text-white/80">
                   Senha
                 </Label>
                 <Input
@@ -286,7 +286,7 @@ export default function Auth() {
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="h-12"
+                  className="h-12 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:border-white/40 focus-visible:ring-white/20"
                   disabled={showLoading || isExiting}
                 />
               </div>
@@ -294,8 +294,7 @@ export default function Auth() {
               <div className="animate-stagger-in animate-stagger-in-3">
                 <Button 
                   type="submit" 
-                  className="w-full h-12 text-base font-medium mt-2 transition-all duration-200" 
-                  variant="glow"
+                  className="w-full h-12 text-base font-medium mt-2 transition-all duration-200 bg-[hsl(38,42%,92%)] text-[hsl(350,47%,20%)] hover:bg-[hsl(38,42%,85%)]" 
                   disabled={showLoading || isExiting}
                 >
                   {showLoading ? (
@@ -310,8 +309,8 @@ export default function Auth() {
               </div>
             </form>
 
-            <div className="mt-8 pt-6 border-t border-border/50">
-              <p className="text-xs text-center text-muted-foreground">
+            <div className="mt-8 pt-6 border-t border-white/20">
+              <p className="text-xs text-center text-white/50">
                 © {new Date().getFullYear()} Taliare Semijoias
               </p>
             </div>
