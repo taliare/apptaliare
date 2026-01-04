@@ -59,7 +59,7 @@ const formaPagamentoLabels = {
 };
 
 export default function CobrancaDiaria() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [historicoDialogOpen, setHistoricoDialogOpen] = useState(false);
@@ -561,7 +561,43 @@ export default function CobrancaDiaria() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+  onSuccess: async () => {
+      // Notificar admins sobre o fechamento
+      try {
+        const { data: admins } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'admin');
+
+        if (admins && admins.length > 0) {
+          const adminIds = admins.map(a => a.user_id);
+          const nomeRep = profile?.nome || 'Um representante';
+          const dataFormatada = format(selectedDate, 'dd/MM/yyyy');
+
+          // Inserir notificação para cada admin
+          const notificacoes = adminIds.map(adminId => ({
+            user_id: adminId,
+            title: 'Fechamento Realizado',
+            message: `${nomeRep} finalizou o dia ${dataFormatada}`,
+            type: 'success',
+            link: '/dashboard-admin'
+          }));
+
+          await supabase.from('notifications').insert(notificacoes);
+
+          // Enviar push para admins
+          await supabase.functions.invoke('send-push-notification', {
+            body: {
+              userIds: adminIds,
+              title: 'Fechamento Realizado',
+              body: `${nomeRep} finalizou o dia ${dataFormatada}`
+            }
+          });
+        }
+      } catch (notifError) {
+        console.error('Erro ao notificar admins:', notifError);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['cobranca-diaria'] });
       queryClient.invalidateQueries({ queryKey: ['historico-cobrancas'] });
       toast.success('Dia finalizado com sucesso!');
