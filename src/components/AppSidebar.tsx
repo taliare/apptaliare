@@ -51,36 +51,7 @@ export function AppSidebar() {
   const isProducao = profile?.role === "producao";
   const isRepresentante = !isAdmin && !isProducao;
 
-  // Badge de encomendas prontas para representante
-  const { data: encomendasProntas = 0 } = useQuery({
-    queryKey: ["encomendas-prontas-badge", profile?.id],
-    queryFn: async () => {
-      if (profile?.role !== "representante") return 0;
-      const { count, error } = await supabase
-        .from("encomendas_kits")
-        .select("*", { count: "exact", head: true })
-        .eq("representante_id", profile.id)
-        .eq("status", "pronto");
-      if (error) throw error;
-      return count || 0;
-    },
-    enabled: profile?.role === "representante",
-  });
-
-  // Badge de encomendas solicitadas para produção
-  const { data: encomendasSolicitadas = 0 } = useQuery({
-    queryKey: ["encomendas-solicitadas-badge"],
-    queryFn: async () => {
-      if (profile?.role !== "producao") return 0;
-      const { count, error } = await supabase
-        .from("encomendas_kits")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "solicitado");
-      if (error) throw error;
-      return count || 0;
-    },
-    enabled: profile?.role === "producao",
-  });
+  // Menu items por role, divididos em categorias
 
   // Menu items por role, divididos em categorias
   const representanteCategories: MenuCategory[] = [
@@ -102,7 +73,7 @@ export function AppSidebar() {
       items: [
         { title: "Kits em Mãos", url: "/kits", icon: Package },
         { title: "Kits Entregues", url: "/kits-entregues", icon: PackageCheck },
-        { title: "Pedidos de Kit", url: "/encomendas", icon: ShoppingBag, badge: encomendasProntas },
+        { title: "Pedidos de Kit", url: "/encomendas", icon: ShoppingBag },
       ],
     },
     {
@@ -130,7 +101,7 @@ export function AppSidebar() {
     {
       label: "ENCOMENDAS",
       items: [
-        { title: "Encomendas", url: "/encomendas-producao", icon: ShoppingBag, badge: encomendasSolicitadas },
+        { title: "Encomendas", url: "/encomendas-producao", icon: ShoppingBag },
       ],
     },
   ];
