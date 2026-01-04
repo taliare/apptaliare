@@ -193,15 +193,15 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para notas promissórias
-  const { data: notasPorRepresentante = [] } = useQuery({
-    queryKey: ['notas-mes-admin', startDate, endDate],
+  // Query para notas cobradas por representante (prestações de contas)
+  const { data: notasPorRepresentante = {} } = useQuery({
+    queryKey: ['notas-cobradas-admin', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('notas_promissorias')
+        .from('prestacoes_contas')
         .select('representante_id, id')
-        .gte('data', startDate)
-        .lte('data', endDate);
+        .gte('data_execucao', startDate)
+        .lte('data_execucao', endDate);
       
       if (error) throw error;
       
@@ -215,14 +215,15 @@ export default function DashboardAdmin() {
     },
   });
 
-  const { data: notasData } = useQuery({
-    queryKey: ['notas-total-mes-admin', startDate, endDate],
+  // Query para total de notas cobradas
+  const { data: notasCobradasData } = useQuery({
+    queryKey: ['notas-cobradas-total-admin', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('notas_promissorias')
+        .from('prestacoes_contas')
         .select('id', { count: 'exact' })
-        .gte('data', startDate)
-        .lte('data', endDate);
+        .gte('data_execucao', startDate)
+        .lte('data_execucao', endDate);
       
       if (error) throw error;
       return data;
@@ -277,7 +278,7 @@ export default function DashboardAdmin() {
   const totalMes = cobrancasMes.reduce((sum, c) => sum + c.total_cobrado, 0);
   const totalDespesas = cobrancasMes.reduce((sum, c) => sum + c.total_despesas, 0);
   const totalKits = kitsData?.length || 0;
-  const totalNotas = notasData?.length || 0;
+  const totalNotasCobradas = notasCobradasData?.length || 0;
   const totalProducaoHoje = producaoHoje.length;
   const totalEstoque = kitsEstoque.length;
   
@@ -430,20 +431,20 @@ export default function DashboardAdmin() {
           </CardContent>
         </Card>
 
-        {/* Card Kits */}
+        {/* Card Kits Entregues */}
         <Card 
           variant="interactive" 
           className="animate-card-entrance animate-card-entrance-3 w-full max-w-full overflow-hidden"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
-            <CardTitle className="text-xs md:text-sm font-medium truncate">Kits</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium truncate">Kits Entregues</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-chart-3/10 shrink-0">
               <Package className="h-3.5 w-3.5 md:h-4 md:w-4 text-chart-3" />
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
             <div className="text-base md:text-2xl font-display font-bold truncate">{formatarNumero(totalKits)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">Entregues</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">No período</p>
           </CardContent>
         </Card>
 
