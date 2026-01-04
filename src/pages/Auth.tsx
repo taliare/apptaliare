@@ -87,39 +87,37 @@ export default function Auth() {
             : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Animated background circles */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full transition-all duration-700 ${showTransition ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} style={{ transitionDelay: '0ms' }} />
-          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-primary/10 rounded-full transition-all duration-700 ${showTransition ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} style={{ transitionDelay: '100ms' }} />
-          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] bg-primary/20 rounded-full transition-all duration-700 ${showTransition ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} style={{ transitionDelay: '200ms' }} />
-        </div>
+        {/* Gradiente radial suave */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.08)_0%,transparent_50%)]" />
 
-        {/* Logo animation */}
-        <div className={`relative z-10 flex flex-col items-center gap-8 transition-all duration-700 ease-out ${showTransition ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`} style={{ transitionDelay: '300ms' }}>
+        {/* Logo e saudação */}
+        <div className={`relative z-10 flex flex-col items-center gap-6 transition-all duration-700 ease-out ${showTransition ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
           <div className="relative">
-            {/* Sombra suave atrás da logo com animação de pulso */}
-            <div className={`absolute inset-0 bg-primary/25 blur-[80px] rounded-full scale-[2.5] -z-10 transition-all duration-1000 ${showTransition ? 'opacity-100' : 'opacity-0'}`} style={{ transitionDelay: '500ms' }} />
+            {/* Sombra sutil */}
+            <div className={`absolute inset-0 bg-primary/15 blur-[40px] rounded-full scale-150 -z-10 transition-opacity duration-700 ${showTransition ? 'opacity-100' : 'opacity-0'}`} />
             <img 
               src={taliareIcone} 
               alt="Taliare" 
-              className={`h-28 w-28 relative z-10 drop-shadow-[0_0_50px_rgba(139,21,56,0.3)] transition-all duration-700 ease-out ${showTransition ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-75 translate-y-4'}`}
-              style={{ transitionDelay: '400ms' }}
+              className={`h-24 w-24 drop-shadow-lg transition-all duration-500 ease-out ${showTransition ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              style={{ transitionDelay: '200ms' }}
             />
           </div>
           
           <h1 
-            className={`text-2xl font-serif italic tracking-wide text-primary/90 transition-all duration-600 ease-out ${showTransition ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
-            style={{ transitionDelay: '600ms' }}
+            className={`text-2xl font-display font-semibold tracking-wide text-foreground/90 transition-all duration-500 ease-out ${showTransition ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
+            style={{ transitionDelay: '400ms' }}
           >
-            Bem-vindo!
+            {profile?.nome 
+              ? `Bem-vindo, ${profile.nome.split(' ')[0].charAt(0).toUpperCase() + profile.nome.split(' ')[0].slice(1).toLowerCase()}!`
+              : 'Bem-vindo!'}
           </h1>
           
+          {/* Barra de progresso elegante */}
           <div 
-            className={`flex items-center gap-2 text-muted-foreground text-sm transition-all duration-500 ${showTransition ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
-            style={{ transitionDelay: '750ms' }}
+            className={`w-32 h-1 bg-border/30 rounded-full overflow-hidden transition-opacity duration-500 ${showTransition ? 'opacity-100' : 'opacity-0'}`}
+            style={{ transitionDelay: '600ms' }}
           >
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Preparando seu ambiente...</span>
+            <div className="h-full bg-primary rounded-full animate-progress" />
           </div>
         </div>
       </div>
