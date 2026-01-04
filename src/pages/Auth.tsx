@@ -242,9 +242,9 @@ export default function Auth() {
           <CardHeader className="space-y-6 pb-4">
             <div className="flex justify-center">
               <img 
-                src={isDark ? taliareLogoHorizontalClaro : taliareLogoHorizontalEscuro} 
+                src={isDark ? taliareLogoHorizontalEscuro : taliareLogoHorizontalEscuro} 
                 alt="Taliare Semijoias" 
-                className="h-12 drop-shadow-lg"
+                className={`h-12 drop-shadow-lg ${isDark ? 'invert brightness-[0.85] sepia-[0.15]' : ''}`}
               />
             </div>
             
