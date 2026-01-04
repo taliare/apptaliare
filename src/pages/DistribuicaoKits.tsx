@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Package, Trash2, Search, Pencil } from "lucide-react";
+import { Package, Trash2, Search, Pencil, CheckSquare, Square, Send } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Função para ordenar kits por código numérico/alfanumérico
 function sortKitsByCodigo(kits: Kit[]): Kit[] {
@@ -68,10 +69,16 @@ function KitCard({
   kit,
   onDelete,
   onEdit,
+  selectionMode,
+  isSelected,
+  onToggleSelect,
 }: {
   kit: Kit;
   onDelete?: (kitId: string) => void;
   onEdit?: (kit: Kit) => void;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (kitId: string) => void;
 }) {
   const tipoColors: Record<string, string> = {
     inicial: "bg-blue-500",
@@ -80,15 +87,29 @@ function KitCard({
   };
 
   return (
-    <div className="p-3 bg-card border rounded-lg cursor-move hover:bg-accent/50 transition-colors group">
+    <div 
+      className={`p-3 bg-card border rounded-lg transition-colors group ${
+        selectionMode 
+          ? "cursor-pointer hover:bg-accent/50" 
+          : "cursor-move hover:bg-accent/50"
+      } ${isSelected ? "ring-2 ring-primary bg-primary/5" : ""}`}
+      onClick={selectionMode ? () => onToggleSelect?.(kit.id) : undefined}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
+          {selectionMode && (
+            <Checkbox 
+              checked={isSelected} 
+              onCheckedChange={() => onToggleSelect?.(kit.id)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
           <Package className="h-4 w-4 text-muted-foreground" />
           <span className="font-mono text-sm font-medium">{kit.codigo}</span>
         </div>
         <div className="flex items-center gap-1">
           <Badge className={tipoColors[kit.tipo] || "bg-gray-500"}>{kit.tipo}</Badge>
-          {onEdit && (
+          {!selectionMode && onEdit && (
             <Button
               variant="ghost"
               size="icon"
@@ -101,7 +122,7 @@ function KitCard({
               <Pencil className="h-3 w-3 text-muted-foreground" />
             </Button>
           )}
-          {onDelete && (
+          {!selectionMode && onDelete && (
             <Button
               variant="ghost"
               size="icon"
@@ -127,6 +148,9 @@ function DroppableColumn({
   onDragOver,
   onDeleteKit,
   onEditKit,
+  selectionMode,
+  selectedKits,
+  onToggleSelect,
 }: {
   id: string;
   title: string;
@@ -134,6 +158,9 @@ function DroppableColumn({
   onDragOver: (e: React.DragEvent) => void;
   onDeleteKit?: (kitId: string) => void;
   onEditKit?: (kit: Kit) => void;
+  selectionMode?: boolean;
+  selectedKits?: Set<string>;
+  onToggleSelect?: (kitId: string) => void;
 }) {
   return (
     <Card
@@ -154,14 +181,25 @@ function DroppableColumn({
         {kits.map((kit) => (
           <div
             key={kit.id}
-            draggable
+            draggable={!selectionMode}
             onDragStart={(e) => {
+              if (selectionMode) {
+                e.preventDefault();
+                return;
+              }
               e.dataTransfer.effectAllowed = "move";
               e.dataTransfer.setData("kitId", kit.id);
             }}
-            className="cursor-move"
+            className={selectionMode ? "" : "cursor-move"}
           >
-            <KitCard kit={kit} onDelete={onDeleteKit} onEdit={onEditKit} />
+            <KitCard 
+              kit={kit} 
+              onDelete={onDeleteKit} 
+              onEdit={onEditKit}
+              selectionMode={selectionMode}
+              isSelected={selectedKits?.has(kit.id)}
+              onToggleSelect={onToggleSelect}
+            />
           </div>
         ))}
         {kits.length === 0 && <div className="text-center text-muted-foreground text-sm py-8">Nenhum kit</div>}
@@ -204,6 +242,13 @@ export default function DistribuicaoKits() {
   const [editValor, setEditValor] = useState("");
   const [editTipo, setEditTipo] = useState("");
   const [editRepresentante, setEditRepresentante] = useState<string>("");
+
+  // Estado para seleção em lote
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedKits, setSelectedKits] = useState<Set<string>>(new Set());
+  const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
+  const [batchRepresentante, setBatchRepresentante] = useState<string>("");
+  const [isBatchLoading, setIsBatchLoading] = useState(false);
 
   // Verificar se o usuário tem permissão (admin ou producao)
   useEffect(() => {
@@ -434,6 +479,71 @@ export default function DistribuicaoKits() {
     return sortKitsByCodigo(filtered);
   };
 
+  // Toggle seleção de kit
+  const toggleKitSelection = (kitId: string) => {
+    setSelectedKits(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(kitId)) {
+        newSet.delete(kitId);
+      } else {
+        newSet.add(kitId);
+      }
+      return newSet;
+    });
+  };
+
+  // Selecionar/desselecionar todos os kits do estoque
+  const toggleSelectAll = () => {
+    if (selectedKits.size === estoqueKits.length) {
+      setSelectedKits(new Set());
+    } else {
+      setSelectedKits(new Set(estoqueKits.map(k => k.id)));
+    }
+  };
+
+  // Cancelar modo de seleção
+  const cancelSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedKits(new Set());
+  };
+
+  // Distribuir kits em lote
+  const handleBatchDistribution = async () => {
+    if (!batchRepresentante || selectedKits.size === 0) {
+      toast.error("Selecione um representante");
+      return;
+    }
+
+    setIsBatchLoading(true);
+    try {
+      const kitIds = Array.from(selectedKits);
+      const { error } = await supabase
+        .from("kits_estoque")
+        .update({ 
+          status: "com_representante", 
+          representante_id: batchRepresentante 
+        })
+        .in("id", kitIds);
+
+      if (error) throw error;
+
+      const repNome = representantes.find(r => r.id === batchRepresentante)?.nome || "";
+      toast.success(`${kitIds.length} kit(s) distribuído(s) para ${repNome}!`);
+      
+      queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
+      queryClient.invalidateQueries({ queryKey: ["kits-estoque-rep"] });
+      
+      setIsBatchDialogOpen(false);
+      setBatchRepresentante("");
+      setSelectedKits(new Set());
+      setSelectionMode(false);
+    } catch (error: any) {
+      toast.error("Erro ao distribuir kits: " + error.message);
+    } finally {
+      setIsBatchLoading(false);
+    }
+  };
+
   if (isLoadingKits || isLoadingReps) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -448,16 +558,68 @@ export default function DistribuicaoKits() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Distribuição de Kits</h1>
-            <p className="text-muted-foreground">Arraste os kits entre estoque e representantes</p>
+            <p className="text-muted-foreground">
+              {selectionMode 
+                ? `${selectedKits.size} kit(s) selecionado(s)` 
+                : "Arraste os kits entre estoque e representantes"}
+            </p>
           </div>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por código..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
+          <div className="flex items-center gap-2">
+            {selectionMode ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={toggleSelectAll}
+                >
+                  {selectedKits.size === estoqueKits.length ? (
+                    <>
+                      <Square className="h-4 w-4 mr-2" />
+                      Desmarcar todos
+                    </>
+                  ) : (
+                    <>
+                      <CheckSquare className="h-4 w-4 mr-2" />
+                      Selecionar todos
+                    </>
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={cancelSelectionMode}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  size="sm"
+                  disabled={selectedKits.size === 0}
+                  onClick={() => setIsBatchDialogOpen(true)}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Distribuir ({selectedKits.size})
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setSelectionMode(true)}
+                disabled={estoqueKits.length === 0}
+              >
+                <CheckSquare className="h-4 w-4 mr-2" />
+                Selecionar em lote
+              </Button>
+            )}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por código..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
           </div>
         </div>
 
@@ -471,6 +633,9 @@ export default function DistribuicaoKits() {
               onDragOver={handleDragOver}
               onDeleteKit={setKitToDelete}
               onEditKit={setKitToEdit}
+              selectionMode={selectionMode}
+              selectedKits={selectedKits}
+              onToggleSelect={toggleKitSelection}
             />
           </div>
 
@@ -571,8 +736,46 @@ export default function DistribuicaoKits() {
                   ))}
                 </SelectContent>
               </Select>
+        </div>
+      </div>
+
+      {/* Dialog de distribuição em lote */}
+      <Dialog open={isBatchDialogOpen} onOpenChange={setIsBatchDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Distribuir Kits em Lote</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Você selecionou <strong>{selectedKits.size}</strong> kit(s) para distribuir.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="batch-representante">Selecione o Representante</Label>
+              <Select value={batchRepresentante} onValueChange={setBatchRepresentante}>
+                <SelectTrigger id="batch-representante">
+                  <SelectValue placeholder="Escolha um representante" />
+                </SelectTrigger>
+                <SelectContent>
+                  {representantes.map((rep) => (
+                    <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBatchDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleBatchDistribution} 
+              disabled={!batchRepresentante || isBatchLoading}
+            >
+              {isBatchLoading ? "Distribuindo..." : "Confirmar Distribuição"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancelar
