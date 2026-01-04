@@ -43,7 +43,7 @@ export default function Auth() {
         } else {
           navigate('/dashboard', { replace: true });
         }
-      }, 1200);
+      }, 2500);
       
       return () => clearTimeout(timer);
     }
@@ -99,13 +99,13 @@ export default function Auth() {
               src={taliareIcone} 
               alt="Taliare" 
               className={`h-24 w-24 drop-shadow-lg transition-all duration-500 ease-out ${showTransition ? 'opacity-100 translate-y-0 animate-pulse-soft' : 'opacity-0 translate-y-4'}`}
-              style={{ transitionDelay: '200ms' }}
+              style={{ transitionDelay: '100ms' }}
             />
           </div>
           
           <h1 
             className={`text-2xl font-display font-semibold tracking-wide text-foreground/90 transition-all duration-500 ease-out ${showTransition ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
-            style={{ transitionDelay: '400ms' }}
+            style={{ transitionDelay: '150ms' }}
           >
             {profile?.nome 
               ? `Bem-vindo, ${profile.nome.split(' ')[0].charAt(0).toUpperCase() + profile.nome.split(' ')[0].slice(1).toLowerCase()}!`
@@ -115,7 +115,7 @@ export default function Auth() {
           {/* Barra de progresso elegante */}
           <div 
             className={`w-40 h-1.5 bg-border/30 rounded-full overflow-hidden transition-opacity duration-500 ${showTransition ? 'opacity-100' : 'opacity-0'}`}
-            style={{ transitionDelay: '600ms' }}
+            style={{ transitionDelay: '200ms' }}
           >
             <div className="h-full rounded-full animate-progress" />
           </div>
