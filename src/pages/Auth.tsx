@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/
 import { toast } from 'sonner';
 import taliareLogoHorizontalClaro from '@/assets/taliare-logo-horizontal-claro.png';
 import taliareLogoHorizontalEscuro from '@/assets/taliare-logo-horizontal.png';
+import taliareHorizontalEscuro from '@/assets/taliare-horizontal-escuro.png';
 import taliareIconeClaro from '@/assets/taliare-icone-claro.png';
 import taliareIconeEscuro from '@/assets/taliare-icone-escuro.png';
 import { Loader2 } from 'lucide-react';
@@ -242,9 +243,9 @@ export default function Auth() {
           <CardHeader className="space-y-6 pb-4">
             <div className="flex justify-center">
               <img 
-                src={isDark ? taliareLogoHorizontalEscuro : taliareLogoHorizontalEscuro} 
+                src={isDark ? taliareHorizontalEscuro : taliareLogoHorizontalEscuro} 
                 alt="Taliare Semijoias" 
-                className={`h-12 drop-shadow-lg ${isDark ? 'invert brightness-[0.85] sepia-[0.15]' : ''}`}
+                className="h-12 drop-shadow-lg"
               />
             </div>
             
