@@ -1,7 +1,7 @@
 import { Bell, BellOff, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { supabase } from '@/lib/supabase-external';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase-external';
-import { supabase as supabaseCloud } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -67,7 +66,7 @@ export default function EncomendaProducao() {
       if (encomenda) {
         const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[encomenda.tipo_kit] || encomenda.tipo_kit;
 
-        await supabaseCloud.from('notifications').insert({
+        await supabase.from('notifications').insert({
           user_id: encomenda.representante_id,
           title: 'Encomenda em Produção',
           message: `Sua encomenda de kit ${tipoLabel} está sendo produzida`,
@@ -75,7 +74,7 @@ export default function EncomendaProducao() {
           link: '/encomendas',
         });
 
-        await supabaseCloud.functions.invoke('send-push-notification', {
+        await supabase.functions.invoke('send-push-notification', {
           body: {
             userId: encomenda.representante_id,
             title: 'Encomenda em Produção',
@@ -123,7 +122,7 @@ export default function EncomendaProducao() {
         // Notificar representante
         const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[encomenda.tipo_kit] || encomenda.tipo_kit;
 
-        await supabaseCloud.from('notifications').insert({
+        await supabase.from('notifications').insert({
           user_id: encomenda.representante_id,
           title: 'Encomenda Pronta!',
           message: `Sua encomenda de kit ${tipoLabel} está pronta. Código: ${codigo}`,
@@ -131,7 +130,7 @@ export default function EncomendaProducao() {
           link: '/encomendas',
         });
 
-        await supabaseCloud.functions.invoke('send-push-notification', {
+        await supabase.functions.invoke('send-push-notification', {
           body: {
             userId: encomenda.representante_id,
             title: 'Encomenda Pronta!',

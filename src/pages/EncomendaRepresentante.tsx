@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase-external';
-import { supabase as supabaseCloud } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -59,7 +58,7 @@ export default function EncomendaRepresentante() {
       if (error) throw error;
 
       // Buscar usuários de produção para notificar
-      const { data: producaoUsers } = await supabaseCloud
+      const { data: producaoUsers } = await supabase
         .from('user_roles')
         .select('user_id')
         .eq('role', 'producao');
@@ -77,10 +76,10 @@ export default function EncomendaRepresentante() {
           link: '/encomendas-producao',
         }));
 
-        await supabaseCloud.from('notifications').insert(notifications);
+        await supabase.from('notifications').insert(notifications);
 
         // Enviar push notifications
-        await supabaseCloud.functions.invoke('send-push-notification', {
+        await supabase.functions.invoke('send-push-notification', {
           body: {
             userIds,
             title: 'Nova Encomenda de Kit',
