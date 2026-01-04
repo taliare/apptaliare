@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { toast } from 'sonner';
-import taliareLogoHorizontal from '@/assets/taliare-logo-horizontal.png';
-import taliareIcone from '@/assets/taliare-icone-claro.png';
+import taliareLogoHorizontalClaro from '@/assets/taliare-logo-horizontal-claro.png';
+import taliareLogoHorizontalEscuro from '@/assets/taliare-logo-horizontal.png';
+import taliareIconeClaro from '@/assets/taliare-icone-claro.png';
+import taliareIconeEscuro from '@/assets/taliare-icone-escuro.png';
 import { Loader2 } from 'lucide-react';
 
 export default function Auth() {
@@ -20,6 +23,8 @@ export default function Auth() {
   
   const { signIn, user, profile } = useAuth();
   const navigate = useNavigate();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   useEffect(() => {
     // Only navigate once when user and profile are both loaded
@@ -79,7 +84,7 @@ export default function Auth() {
           className="absolute -top-[20%] -right-[15%] w-[500px] h-[500px] md:w-[600px] md:h-[600px] animate-orb-float-slow"
           style={{ animationDelay: '0s' }}
         >
-          <div className="w-full h-full bg-primary/40 rounded-full animate-glow-pulse" />
+          <div className={`w-full h-full rounded-full animate-glow-pulse ${isDark ? 'bg-primary/40' : 'bg-primary/55'}`} />
         </div>
         
         {/* Orb secundário vermelho - canto inferior esquerdo */}
@@ -88,7 +93,7 @@ export default function Auth() {
           style={{ animationDelay: '-5s' }}
         >
           <div 
-            className="w-full h-full bg-primary/35 rounded-full animate-glow-breathe" 
+            className={`w-full h-full rounded-full animate-glow-breathe ${isDark ? 'bg-primary/35' : 'bg-primary/50'}`}
             style={{ animationDelay: '-2s' }} 
           />
         </div>
@@ -99,7 +104,7 @@ export default function Auth() {
           style={{ animationDelay: '-3s' }}
         >
           <div 
-            className="w-full h-full bg-primary/30 rounded-full animate-glow-pulse"
+            className={`w-full h-full rounded-full animate-glow-pulse ${isDark ? 'bg-primary/30' : 'bg-primary/45'}`}
             style={{ animationDelay: '-1s' }} 
           />
         </div>
@@ -110,7 +115,7 @@ export default function Auth() {
           style={{ animationDelay: '-8s' }}
         >
           <div 
-            className="w-full h-full bg-primary/32 rounded-full animate-glow-breathe"
+            className={`w-full h-full rounded-full animate-glow-breathe ${isDark ? 'bg-primary/32' : 'bg-primary/48'}`}
             style={{ animationDelay: '-4s' }} 
           />
         </div>
@@ -121,7 +126,7 @@ export default function Auth() {
           style={{ animationDelay: '-10s' }}
         >
           <div 
-            className="w-full h-full bg-primary/38 rounded-full animate-glow-fade"
+            className={`w-full h-full rounded-full animate-glow-fade ${isDark ? 'bg-primary/38' : 'bg-primary/52'}`}
             style={{ animationDelay: '-3s' }} 
           />
         </div>
@@ -132,7 +137,7 @@ export default function Auth() {
           style={{ animationDelay: '-7s' }}
         >
           <div 
-            className="w-full h-full bg-primary/28 rounded-full animate-glow-pulse"
+            className={`w-full h-full rounded-full animate-glow-pulse ${isDark ? 'bg-primary/28' : 'bg-primary/42'}`}
             style={{ animationDelay: '-5s' }} 
           />
         </div>
@@ -143,7 +148,7 @@ export default function Auth() {
           style={{ animationDelay: '-4s' }}
         >
           <div 
-            className="w-full h-full bg-[#F5F0E8]/40 rounded-full animate-glow-breathe" 
+            className={`w-full h-full rounded-full animate-glow-breathe ${isDark ? 'bg-[#F5F0E8]/40' : 'bg-[#8B4D6B]/30'}`}
             style={{ animationDelay: '-1s' }} 
           />
         </div>
@@ -154,7 +159,7 @@ export default function Auth() {
           style={{ animationDelay: '-6s' }}
         >
           <div 
-            className="w-full h-full bg-[#EDE5D8]/35 rounded-full animate-glow-pulse"
+            className={`w-full h-full rounded-full animate-glow-pulse ${isDark ? 'bg-[#EDE5D8]/35' : 'bg-[#8B4D6B]/25'}`}
             style={{ animationDelay: '-2s' }} 
           />
         </div>
@@ -165,7 +170,7 @@ export default function Auth() {
           style={{ animationDelay: '-9s' }}
         >
           <div 
-            className="w-full h-full bg-[#F8F4ED]/38 rounded-full animate-glow-fade"
+            className={`w-full h-full rounded-full animate-glow-fade ${isDark ? 'bg-[#F8F4ED]/38' : 'bg-[#8B4D6B]/28'}`}
             style={{ animationDelay: '-4s' }} 
           />
         </div>
@@ -176,7 +181,7 @@ export default function Auth() {
           style={{ animationDelay: '-11s' }}
         >
           <div 
-            className="w-full h-full bg-[#F2EBE0]/32 rounded-full animate-glow-breathe"
+            className={`w-full h-full rounded-full animate-glow-breathe ${isDark ? 'bg-[#F2EBE0]/32' : 'bg-[#8B4D6B]/22'}`}
             style={{ animationDelay: '-6s' }} 
           />
         </div>
@@ -197,9 +202,9 @@ export default function Auth() {
         <div className={`relative z-10 flex flex-col items-center gap-6 transition-all duration-700 ease-out ${showTransition ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
           <div className="relative">
             {/* Sombra sutil */}
-            <div className={`absolute inset-0 bg-primary/15 blur-[40px] rounded-full scale-150 -z-10 transition-opacity duration-700 ${showTransition ? 'opacity-100' : 'opacity-0'}`} />
+            <div className={`absolute inset-0 blur-[40px] rounded-full scale-150 -z-10 transition-opacity duration-700 ${showTransition ? 'opacity-100' : 'opacity-0'} ${isDark ? 'bg-primary/15' : 'bg-primary/25'}`} />
             <img 
-              src={taliareIcone} 
+              src={isDark ? taliareIconeClaro : taliareIconeEscuro} 
               alt="Taliare" 
               className={`h-24 w-24 drop-shadow-lg transition-all duration-500 ease-out ${showTransition ? 'opacity-100 translate-y-0 animate-pulse-soft' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: '100ms' }}
@@ -237,7 +242,7 @@ export default function Auth() {
           <CardHeader className="space-y-6 pb-4">
             <div className="flex justify-center">
               <img 
-                src={taliareLogoHorizontal} 
+                src={isDark ? taliareLogoHorizontalClaro : taliareLogoHorizontalEscuro} 
                 alt="Taliare Semijoias" 
                 className="h-12 drop-shadow-lg"
               />

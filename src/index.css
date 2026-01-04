@@ -824,15 +824,31 @@
   50% { opacity: 0.35; filter: blur(80px); }
 }
 
+@keyframes glow-pulse-light {
+  0%, 100% { opacity: 0.35; filter: blur(50px); }
+  50% { opacity: 0.65; filter: blur(70px); }
+}
+
 @keyframes glow-breathe {
   0%, 100% { opacity: 0.1; transform: scale(1); filter: blur(70px); }
   50% { opacity: 0.3; transform: scale(1.2); filter: blur(90px); }
+}
+
+@keyframes glow-breathe-light {
+  0%, 100% { opacity: 0.3; transform: scale(1); filter: blur(55px); }
+  50% { opacity: 0.55; transform: scale(1.2); filter: blur(75px); }
 }
 
 @keyframes glow-fade {
   0%, 100% { opacity: 0.2; }
   30% { opacity: 0.4; }
   60% { opacity: 0.1; }
+}
+
+@keyframes glow-fade-light {
+  0%, 100% { opacity: 0.4; }
+  30% { opacity: 0.65; }
+  60% { opacity: 0.25; }
 }
 
 /* Combined animation classes */
@@ -848,6 +864,7 @@
   animation: float-orb-3 10s ease-in-out infinite;
 }
 
+/* Dark theme glow animations (default) */
 .animate-glow-pulse {
   animation: glow-pulse 4s ease-in-out infinite;
 }
@@ -858,4 +875,17 @@
 
 .animate-glow-fade {
   animation: glow-fade 5s ease-in-out infinite;
+}
+
+/* Light theme glow animations - more visible */
+.light .animate-glow-pulse {
+  animation: glow-pulse-light 4s ease-in-out infinite;
+}
+
+.light .animate-glow-breathe {
+  animation: glow-breathe-light 6s ease-in-out infinite;
+}
+
+.light .animate-glow-fade {
+  animation: glow-fade-light 5s ease-in-out infinite;
 }
