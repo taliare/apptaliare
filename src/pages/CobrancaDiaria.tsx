@@ -621,9 +621,10 @@ export default function CobrancaDiaria() {
     try {
       const termoBusca = codigoBusca.trim().toLowerCase();
       
-      // Verificar se já foi lançada hoje (por código)
+      // Verificar se já foi lançada hoje (por código - busca parcial)
       const notaJaLancada = notas.find(n => 
-        n.codigo_nota.toLowerCase() === termoBusca
+        n.codigo_nota.toLowerCase().includes(termoBusca) || 
+        termoBusca.includes(n.codigo_nota.toLowerCase())
       );
 
       if (notaJaLancada) {
@@ -632,13 +633,15 @@ export default function CobrancaDiaria() {
         return;
       }
 
-      // Buscar por código primeiro
+      // Buscar por código primeiro (com busca parcial)
       const { data: porCodigo, error: erroCodigo } = await supabase
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', user?.id)
-        .ilike('codigo_nota', codigoBusca.trim())
+        .ilike('codigo_nota', `%${codigoBusca.trim()}%`)
         .in('status', ['pendente', 'parcial', 'reagendado'])
+        .order('data_agendada', { ascending: true })
+        .limit(1)
         .maybeSingle();
 
       if (erroCodigo) throw erroCodigo;
