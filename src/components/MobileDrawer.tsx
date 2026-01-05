@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMessages } from '@/hooks/useMessages';
 import { MessagesDialog } from '@/components/messages/MessagesDialog';
+import { NotificationsSheet } from '@/components/notifications/NotificationsSheet';
 import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -38,6 +39,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { unreadCount: unreadMessages } = useMessages();
   const navigate = useNavigate();
   const [messagesOpen, setMessagesOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const userInitials = profile?.nome
     ? profile.nome
@@ -206,6 +208,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => {
+                  setNotificationsOpen(true);
+                  onOpenChange(false);
+                }}
                 className="flex-1 h-9 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 gap-2 relative"
               >
                 <Bell className="h-4 w-4" />
@@ -331,6 +337,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       </Sheet>
 
       <MessagesDialog open={messagesOpen} onOpenChange={setMessagesOpen} />
+      <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
     </>
   );
 }
