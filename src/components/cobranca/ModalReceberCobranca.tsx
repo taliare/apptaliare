@@ -688,8 +688,8 @@ export function ModalReceberCobranca({
             </div>
           )}
 
-          {/* Segunda Forma de Pagamento */}
-          {valorAReceber > 0 && !mostrarPagamentoParcial && (
+          {/* Segunda Forma de Pagamento - disponível para integral e parcial */}
+          {valorAReceber > 0 && (
             <>
               {!pagamento2 ? (
                 <Button

@@ -134,30 +134,21 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Extrair dias com fechamento registrado
-  const diasComFechamento = useMemo(() => {
-    return cobrancas.map(c => c.data);
-  }, [cobrancas]);
-
-  // Query para notas cobradas (prestações de contas) - apenas em dias com fechamento
+  // Query para notas cobradas (notas promissórias do período) - reflete exatamente o que foi registrado
   const { data: notasCobradas = [] } = useQuery({
-    queryKey: ['notas-cobradas-periodo', user?.id, diasComFechamento],
+    queryKey: ['notas-cobradas-periodo', user?.id, startDate, endDate],
     queryFn: async () => {
-      // Se não houver dias com fechamento, retorna vazio
-      if (diasComFechamento.length === 0) {
-        return [];
-      }
-      
       const { data, error } = await supabase
-        .from('prestacoes_contas')
+        .from('notas_promissorias')
         .select('id')
         .eq('representante_id', user!.id)
-        .in('data_execucao', diasComFechamento);
+        .gte('data', startDate)
+        .lte('data', endDate);
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id && diasComFechamento.length > 0,
+    enabled: !!user?.id,
   });
 
   // Cálculos
