@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings } from 'lucide-react';
+import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -120,6 +120,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     {
       label: "FINANCEIRO",
       items: [
+        { title: 'Fechamento Diário', url: '/fechamento-diario', icon: CalendarCheck },
         { title: 'Metas', url: '/metas', icon: Target },
         { title: 'Gerenciar Agenda', url: '/gerenciar-agenda', icon: Calendar },
         { title: 'Jurídico', url: '/juridico', icon: Scale },
@@ -129,6 +130,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       label: "KITS",
       items: [
         { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package },
+      ],
+    },
+    {
+      label: "CAPTAÇÃO",
+      items: [
+        { title: 'Leads Revendedoras', url: '/leads-revendedoras', icon: UserPlus },
       ],
     },
     {

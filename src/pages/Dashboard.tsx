@@ -81,7 +81,7 @@ export default function Dashboard() {
   const fraseMotivacional = useMemo(() => getFraseMotivacional(), []);
   const SaudacaoIcon = saudacao.icon;
 
-  // Query para cobranças diárias do período
+  // Query para cobranças diárias do período - APENAS DIAS FINALIZADOS
   const { data: cobrancas = [] } = useQuery({
     queryKey: ['cobrancas-mes', user?.id, startDate, endDate],
     queryFn: async () => {
@@ -89,6 +89,7 @@ export default function Dashboard() {
         .from('cobrancas_diarias')
         .select('data, total_cobrado, despesa_cobranca')
         .eq('representante_id', user!.id)
+        .eq('finalizado', true)
         .gte('data', startDate)
         .lte('data', endDate)
         .order('data');
@@ -134,21 +135,25 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Query para notas cobradas (notas promissórias do período) - reflete exatamente o que foi registrado
+  // Buscar datas finalizadas para filtrar notas
+  const diasFinalizados = useMemo(() => cobrancas.map(c => c.data), [cobrancas]);
+
+  // Query para notas cobradas - APENAS de dias finalizados
   const { data: notasCobradas = [] } = useQuery({
-    queryKey: ['notas-cobradas-periodo', user?.id, startDate, endDate],
+    queryKey: ['notas-cobradas-periodo', user?.id, diasFinalizados],
     queryFn: async () => {
+      if (diasFinalizados.length === 0) return [];
+      
       const { data, error } = await supabase
         .from('notas_promissorias')
         .select('id')
         .eq('representante_id', user!.id)
-        .gte('data', startDate)
-        .lte('data', endDate);
+        .in('data', diasFinalizados);
       
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && diasFinalizados.length > 0,
   });
 
   // Cálculos

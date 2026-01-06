@@ -4,6 +4,7 @@ import Dashboard from '@/pages/Dashboard';
 import DashboardAdmin from '@/pages/DashboardAdmin';
 import Cobranca from '@/pages/Cobranca';
 import CobrancaDiaria from '@/pages/CobrancaDiaria';
+import FechamentoDiario from '@/pages/FechamentoDiario';
 import Kits from '@/pages/Kits';
 import KitsEntregues from '@/pages/KitsEntregues';
 import Usuarios from '@/pages/Usuarios';
@@ -88,6 +89,11 @@ export function AnimatedRoutes() {
         <Route path="/relatorios" element={
           <ProtectedRoute requiredRole="admin">
             <Relatorios />
+          </ProtectedRoute>
+        } />
+        <Route path="/fechamento-diario" element={
+          <ProtectedRoute requiredRole="admin">
+            <FechamentoDiario />
           </ProtectedRoute>
         } />
         <Route path="/juridico" element={
