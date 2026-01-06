@@ -124,6 +124,7 @@ export function AppSidebar() {
     {
       label: "FINANCEIRO",
       items: [
+        { title: "Fechamento Diário", url: "/fechamento-diario", icon: CalendarCheck },
         { title: "Metas", url: "/metas", icon: Target },
         { title: "Gerenciar Agenda", url: "/gerenciar-agenda", icon: Calendar },
         { title: "Jurídico", url: "/juridico", icon: Scale },
