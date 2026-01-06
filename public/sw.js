@@ -1,8 +1,11 @@
-const CACHE_NAME = 'taliare-v3';
+const CACHE_NAME = 'taliare-v4';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/favicon.png?v=2',
+  '/icons/icon-192x192.png?v=2',
+  '/icons/icon-512x512.png'
 ];
 
 // Install event
@@ -106,12 +109,14 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// Fetch event - Network first, fallback to cache (skip API requests)
+// Fetch event - Network first, fallback to cache (skip API requests and favicons)
 self.addEventListener('fetch', (event) => {
   // Skip caching for API requests (supabase, external APIs)
+  // Also skip favicon.ico to prevent serving old cached version
   if (event.request.url.includes('supabase.co') || 
       event.request.url.includes('/rest/v1/') ||
       event.request.url.includes('/functions/v1/') ||
+      event.request.url.includes('favicon.ico') ||
       event.request.method !== 'GET') {
     return;
   }
