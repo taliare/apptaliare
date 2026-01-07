@@ -260,17 +260,6 @@ export default function FechamentoDiario() {
     }, 0);
   }, [kitsEntreguesDoDia, kitsDetalhesMap]);
 
-  // Valor da despesa (do registro ou do input)
-  const despesaValor = useMemo(() => {
-    if (cobrancaDiaria?.finalizado) {
-      return cobrancaDiaria.despesa_cobranca || 0;
-    }
-    return parseValor(despesaCobranca);
-  }, [cobrancaDiaria, despesaCobranca]);
-
-  // Saldo do dia
-  const saldoDoDia = totais.total - despesaValor;
-
   const parseValor = (valor: string): number => {
     const numeros = valor.replace(/\D/g, '');
     if (!numeros) return 0;
@@ -283,6 +272,17 @@ export default function FechamentoDiario() {
     const numero = parseFloat(apenasNumeros) / 100;
     return numero.toFixed(2);
   };
+
+  // Valor da despesa (do registro ou do input)
+  const despesaValor = useMemo(() => {
+    if (cobrancaDiaria?.finalizado) {
+      return cobrancaDiaria.despesa_cobranca || 0;
+    }
+    return parseValor(despesaCobranca);
+  }, [cobrancaDiaria, despesaCobranca]);
+
+  // Saldo do dia
+  const saldoDoDia = totais.total - despesaValor;
 
   // Mutation para finalizar dia pelo representante
   const finalizarDiaMutation = useMutation({
