@@ -58,34 +58,55 @@ export default function EncomendaRepresentante() {
       if (error) throw error;
 
       // Buscar usuários de produção para notificar
-      const { data: producaoUsers } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'producao');
+      try {
+        const { data: producaoUsers, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'producao');
 
-      if (producaoUsers && producaoUsers.length > 0) {
-        const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[tipoKit] || tipoKit;
-        const userIds = producaoUsers.map((u) => u.user_id);
+        if (rolesError) {
+          console.error('Erro ao buscar usuários de produção:', rolesError);
+          return;
+        }
 
-        // Criar notificações no banco para cada usuário de produção
-        const notifications = userIds.map((userId) => ({
-          user_id: userId,
-          title: 'Nova Encomenda de Kit',
-          message: `Novo pedido de kit ${tipoLabel} solicitado`,
-          type: 'info',
-          link: '/encomendas-producao',
-        }));
+        if (producaoUsers && producaoUsers.length > 0) {
+          const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[tipoKit] || tipoKit;
+          const userIds = producaoUsers.map((u) => u.user_id);
 
-        await supabase.from('notifications').insert(notifications);
-
-        // Enviar push notifications
-        await supabase.functions.invoke('send-push-notification', {
-          body: {
-            userIds,
+          // Criar notificações no banco para cada usuário de produção
+          const notifications = userIds.map((userId) => ({
+            user_id: userId,
             title: 'Nova Encomenda de Kit',
-            body: `Novo pedido de kit ${tipoLabel} solicitado`,
-          },
-        });
+            message: `Novo pedido de kit ${tipoLabel} solicitado`,
+            type: 'info',
+            link: '/encomendas-producao',
+          }));
+
+          const { error: notifError } = await supabase.from('notifications').insert(notifications);
+          
+          if (notifError) {
+            console.error('Erro ao criar notificações:', notifError);
+          } else {
+            console.log('Notificações criadas com sucesso para:', userIds);
+          }
+
+          // Enviar push notifications
+          try {
+            await supabase.functions.invoke('send-push-notification', {
+              body: {
+                userIds,
+                title: 'Nova Encomenda de Kit',
+                body: `Novo pedido de kit ${tipoLabel} solicitado`,
+              },
+            });
+          } catch (pushError) {
+            console.error('Erro ao enviar push notification:', pushError);
+          }
+        } else {
+          console.warn('Nenhum usuário de produção encontrado para notificar');
+        }
+      } catch (notifyError) {
+        console.error('Erro no processo de notificação:', notifyError);
       }
     },
     onSuccess: () => {
@@ -95,7 +116,8 @@ export default function EncomendaRepresentante() {
       setTipoKit('');
       setDescricao('');
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Erro ao criar encomenda:', error);
       toast.error('Erro ao criar encomenda');
     },
   });

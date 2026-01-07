@@ -406,6 +406,30 @@ export type Database = {
           },
         ]
       }
+      metas_producao: {
+        Row: {
+          ano_mes: string
+          criado_em: string | null
+          id: string
+          meta_kits: number
+          observacao: string | null
+        }
+        Insert: {
+          ano_mes: string
+          criado_em?: string | null
+          id?: string
+          meta_kits?: number
+          observacao?: string | null
+        }
+        Update: {
+          ano_mes?: string
+          criado_em?: string | null
+          id?: string
+          meta_kits?: number
+          observacao?: string | null
+        }
+        Relationships: []
+      }
       notas_promissorias: {
         Row: {
           codigo_nota: string
