@@ -132,20 +132,6 @@ export default function Producao() {
               "{fraseMotivacional}"
             </p>
           </div>
-
-          {/* Quick Stats */}
-          {metaProducao && (
-            <div className="flex items-center gap-2 md:gap-4">
-              <div className="flex-1 text-center p-2 md:p-3 bg-background/60 backdrop-blur-sm rounded-lg md:rounded-xl border border-border/50">
-                <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Produzidos</p>
-                <p className="text-sm md:text-xl font-bold text-primary truncate">{stats?.total || 0}</p>
-              </div>
-              <div className="flex-1 text-center p-2 md:p-3 bg-background/60 backdrop-blur-sm rounded-lg md:rounded-xl border border-border/50">
-                <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Meta</p>
-                <p className="text-sm md:text-xl font-bold text-chart-2 truncate">{metaProducao.meta_kits}</p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
