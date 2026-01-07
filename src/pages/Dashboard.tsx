@@ -77,6 +77,7 @@ export default function Dashboard() {
   const [showGraficos, setShowGraficos] = useState(false);
   
   const mesAtual = format(new Date(), 'yyyy-MM');
+  const hoje = format(new Date(), 'yyyy-MM-dd');
   const saudacao = getSaudacao();
   const fraseMotivacional = useMemo(() => getFraseMotivacional(), []);
   const SaudacaoIcon = saudacao.icon;
@@ -96,6 +97,24 @@ export default function Dashboard() {
       
       if (error) throw error;
       return data as CobrancaDiaria[];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Query para cobrança de HOJE
+  const { data: cobrancaHoje } = useQuery({
+    queryKey: ['cobranca-hoje', user?.id, hoje],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cobrancas_diarias')
+        .select('total_cobrado')
+        .eq('representante_id', user!.id)
+        .eq('data', hoje)
+        .eq('finalizado', true)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data?.total_cobrado || 0;
     },
     enabled: !!user?.id,
   });
@@ -158,6 +177,7 @@ export default function Dashboard() {
   });
 
   // Cálculos
+  const totalHoje = cobrancaHoje || 0;
   const totalCobrado = cobrancas.reduce((sum, c) => sum + c.total_cobrado, 0);
   const totalDespesas = cobrancas.reduce((sum, c) => sum + (c.despesa_cobranca || 0), 0);
   const totalKits = kitsDoMes.length;
@@ -244,15 +264,13 @@ export default function Dashboard() {
           {/* Quick Stats */}
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex-1 text-center p-2 md:p-3 bg-background/60 backdrop-blur-sm rounded-lg md:rounded-xl border border-border/50">
+              <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Hoje</p>
+              <p className="text-sm md:text-xl font-bold text-destructive truncate">{formatarValor(totalHoje)}</p>
+            </div>
+            <div className="flex-1 text-center p-2 md:p-3 bg-background/60 backdrop-blur-sm rounded-lg md:rounded-xl border border-border/50">
               <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Período</p>
               <p className="text-sm md:text-xl font-bold text-primary truncate">{formatarValor(totalCobrado)}</p>
             </div>
-            {metaDoMes && (
-              <div className="flex-1 text-center p-2 md:p-3 bg-background/60 backdrop-blur-sm rounded-lg md:rounded-xl border border-border/50">
-                <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Meta</p>
-                <p className="text-sm md:text-xl font-bold text-chart-2 truncate">{percentualMeta.toFixed(0)}%</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
