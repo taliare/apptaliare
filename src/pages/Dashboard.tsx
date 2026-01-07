@@ -100,23 +100,6 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Query para kits entregues no período
-  const { data: kitsDoMes = [] } = useQuery({
-    queryKey: ['kits-entregues-periodo', user?.id, startDate, endDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('kits_entregues')
-        .select('id, tipo')
-        .eq('representante_id', user!.id)
-        .gte('data_entrega', startDate)
-        .lte('data_entrega', endDate);
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-
   // Query para meta do mês
   const { data: metaDoMes } = useQuery({
     queryKey: ['meta-mes', user?.id, mesAtual],
@@ -135,8 +118,26 @@ export default function Dashboard() {
     enabled: !!user?.id,
   });
 
-  // Buscar datas finalizadas para filtrar notas
+  // Buscar datas finalizadas para filtrar notas e kits
   const diasFinalizados = useMemo(() => cobrancas.map(c => c.data), [cobrancas]);
+
+  // Query para kits entregues no período - APENAS DIAS FINALIZADOS
+  const { data: kitsDoMes = [] } = useQuery({
+    queryKey: ['kits-entregues-periodo', user?.id, diasFinalizados],
+    queryFn: async () => {
+      if (diasFinalizados.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('kits_entregues')
+        .select('id, tipo')
+        .eq('representante_id', user!.id)
+        .in('data_entrega', diasFinalizados);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id && diasFinalizados.length > 0,
+  });
 
   // Query para notas cobradas - APENAS de dias finalizados
   const { data: notasCobradas = [] } = useQuery({
