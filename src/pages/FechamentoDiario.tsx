@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -45,6 +45,21 @@ interface CobrancaDiaria {
   despesa_cobranca: number | null;
   finalizado: boolean | null;
   representante_id: string;
+}
+
+interface KitEntregue {
+  id: string;
+  codigo_mostruario: string;
+  data_entrega: string;
+  data_vencimento: string;
+  tipo: string | null;
+}
+
+interface CobrancaAgendadaKit {
+  codigo_nota: string | null;
+  revendedora: string;
+  valor_previsto: number;
+  tipo: string | null;
 }
 
 const formaPagamentoLabels = {
@@ -136,6 +151,60 @@ export default function FechamentoDiario() {
     enabled: !!selectedRepresentante,
   });
 
+  // Query para kits entregues do representante na data
+  const { data: kitsEntreguesDoDia = [] } = useQuery({
+    queryKey: ['kits-entregues-admin', selectedRepresentante, dateStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kits_entregues')
+        .select('*')
+        .eq('representante_id', selectedRepresentante)
+        .eq('data_entrega', dateStr)
+        .order('criado_em', { ascending: false });
+      
+      if (error) throw error;
+      return data as KitEntregue[];
+    },
+    enabled: !!selectedRepresentante,
+  });
+
+  // Query para buscar detalhes dos kits (revendedora + valor)
+  const codigosKitsDoDia = useMemo(() => 
+    kitsEntreguesDoDia.map(k => k.codigo_mostruario), 
+    [kitsEntreguesDoDia]
+  );
+
+  const { data: detalhesKitsCobrancas = [] } = useQuery({
+    queryKey: ['detalhes-kits-cobrancas-admin', codigosKitsDoDia, selectedRepresentante],
+    queryFn: async () => {
+      if (codigosKitsDoDia.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('cobrancas_agendadas')
+        .select('codigo_nota, revendedora, valor_previsto, tipo')
+        .eq('representante_id', selectedRepresentante)
+        .eq('tipo', 'kit')
+        .in('codigo_nota', codigosKitsDoDia);
+      
+      if (error) throw error;
+      return data as CobrancaAgendadaKit[];
+    },
+    enabled: codigosKitsDoDia.length > 0 && !!selectedRepresentante,
+  });
+
+  // Mapa para detalhes dos kits
+  const kitsDetalhesMap = useMemo(() => {
+    return detalhesKitsCobrancas.reduce((acc, item) => {
+      if (item.codigo_nota) {
+        acc[item.codigo_nota] = {
+          revendedora: item.revendedora,
+          valor: item.valor_previsto
+        };
+      }
+      return acc;
+    }, {} as Record<string, { revendedora: string; valor: number }>);
+  }, [detalhesKitsCobrancas]);
+
   // Criar mapa de codigo_nota -> revendedora
   const revendedoraMap = cobrancasAgendadas.reduce((acc, item) => {
     if (item.codigo_nota) {
@@ -182,6 +251,25 @@ export default function FechamentoDiario() {
       total: pix + dinheiro + cartao + transferencia,
     };
   }, [notas]);
+
+  // Total de kits entregues
+  const totalKits = useMemo(() => {
+    return kitsEntreguesDoDia.reduce((sum, kit) => {
+      const detalhe = kitsDetalhesMap[kit.codigo_mostruario];
+      return sum + (detalhe?.valor || 0);
+    }, 0);
+  }, [kitsEntreguesDoDia, kitsDetalhesMap]);
+
+  // Valor da despesa (do registro ou do input)
+  const despesaValor = useMemo(() => {
+    if (cobrancaDiaria?.finalizado) {
+      return cobrancaDiaria.despesa_cobranca || 0;
+    }
+    return parseValor(despesaCobranca);
+  }, [cobrancaDiaria, despesaCobranca]);
+
+  // Saldo do dia
+  const saldoDoDia = totais.total - despesaValor;
 
   const parseValor = (valor: string): number => {
     const numeros = valor.replace(/\D/g, '');
@@ -364,56 +452,181 @@ export default function FechamentoDiario() {
             </CardContent>
           </Card>
 
-          {/* Cards de Totais */}
-          <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
+          {/* Cards de Totais de Cobrança */}
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground mb-3">Totais de Cobrança</h2>
+            <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+                  <CardTitle className="text-xs md:text-sm font-medium">PIX</CardTitle>
+                  <div className="p-1.5 rounded-lg bg-blue-500/10">
+                    <Wallet className="h-4 w-4 text-blue-500" />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-3 md:p-4 pt-0">
+                  <div className="text-lg md:text-xl font-bold">{formatarValor(totais.pix)}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+                  <CardTitle className="text-xs md:text-sm font-medium">Dinheiro</CardTitle>
+                  <div className="p-1.5 rounded-lg bg-green-500/10">
+                    <Banknote className="h-4 w-4 text-green-500" />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-3 md:p-4 pt-0">
+                  <div className="text-lg md:text-xl font-bold">{formatarValor(totais.dinheiro)}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+                  <CardTitle className="text-xs md:text-sm font-medium">Cartão/Transf.</CardTitle>
+                  <div className="p-1.5 rounded-lg bg-purple-500/10">
+                    <CreditCard className="h-4 w-4 text-purple-500" />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-3 md:p-4 pt-0">
+                  <div className="text-lg md:text-xl font-bold">{formatarValor(totais.cartao + totais.transferencia)}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+                  <CardTitle className="text-xs md:text-sm font-medium">Total Cobrado</CardTitle>
+                  <div className="p-1.5 rounded-lg bg-primary/10">
+                    <DollarSign className="h-4 w-4 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-3 md:p-4 pt-0">
+                  <div className="text-lg md:text-xl font-bold text-primary">{formatarValor(totais.total)}</div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Resumo do Dia: Despesas, Kits e Saldo */}
+          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
+            {/* Despesas */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
-                <CardTitle className="text-xs md:text-sm font-medium">PIX</CardTitle>
-                <div className="p-1.5 rounded-lg bg-blue-500/10">
-                  <Wallet className="h-4 w-4 text-blue-500" />
+                <CardTitle className="text-xs md:text-sm font-medium">Despesas do Dia</CardTitle>
+                <div className="p-1.5 rounded-lg bg-red-500/10">
+                  <TrendingDown className="h-4 w-4 text-red-500" />
                 </div>
               </CardHeader>
               <CardContent className="p-3 md:p-4 pt-0">
-                <div className="text-lg md:text-xl font-bold">{formatarValor(totais.pix)}</div>
+                {isDiaFinalizado ? (
+                  <div className="text-lg md:text-xl font-bold text-red-500">
+                    - {formatarValor(cobrancaDiaria?.despesa_cobranca || 0)}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="0.00"
+                      value={despesaCobranca}
+                      onChange={(e) => setDespesaCobranca(formatarValorInput(e.target.value))}
+                      className="h-9"
+                    />
+                    <p className="text-xs text-muted-foreground">Informe as despesas do dia</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
+            {/* Entregas de Kits */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
-                <CardTitle className="text-xs md:text-sm font-medium">Dinheiro</CardTitle>
-                <div className="p-1.5 rounded-lg bg-green-500/10">
-                  <Banknote className="h-4 w-4 text-green-500" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 md:p-4 pt-0">
-                <div className="text-lg md:text-xl font-bold">{formatarValor(totais.dinheiro)}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
-                <CardTitle className="text-xs md:text-sm font-medium">Cartão/Transf.</CardTitle>
-                <div className="p-1.5 rounded-lg bg-purple-500/10">
-                  <CreditCard className="h-4 w-4 text-purple-500" />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 md:p-4 pt-0">
-                <div className="text-lg md:text-xl font-bold">{formatarValor(totais.cartao + totais.transferencia)}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
-                <CardTitle className="text-xs md:text-sm font-medium">Total</CardTitle>
+                <CardTitle className="text-xs md:text-sm font-medium">Entregas de Kits</CardTitle>
                 <div className="p-1.5 rounded-lg bg-primary/10">
-                  <DollarSign className="h-4 w-4 text-primary" />
+                  <Package className="h-4 w-4 text-primary" />
                 </div>
               </CardHeader>
               <CardContent className="p-3 md:p-4 pt-0">
-                <div className="text-lg md:text-xl font-bold text-primary">{formatarValor(totais.total)}</div>
+                <div className="text-lg md:text-xl font-bold">{kitsEntreguesDoDia.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  Total: {formatarValor(totalKits)}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Saldo do Dia */}
+            <Card className="border-2 border-primary/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+                <CardTitle className="text-xs md:text-sm font-medium">Saldo Líquido</CardTitle>
+                <div className="p-1.5 rounded-lg bg-primary/10">
+                  {saldoDoDia >= 0 ? (
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Minus className="h-4 w-4 text-red-500" />
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-3 md:p-4 pt-0">
+                <div className={cn(
+                  "text-lg md:text-xl font-bold",
+                  saldoDoDia >= 0 ? "text-green-500" : "text-red-500"
+                )}>
+                  {formatarValor(saldoDoDia)}
+                </div>
+                <p className="text-xs text-muted-foreground">Cobrado - Despesas</p>
               </CardContent>
             </Card>
           </div>
+
+          {/* Tabela de Entregas de Kits */}
+          {kitsEntreguesDoDia.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                  <Package className="h-5 w-5 text-primary" />
+                  Entregas de Kits do Dia ({kitsEntreguesDoDia.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Código</TableHead>
+                        <TableHead>Revendedora</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {kitsEntreguesDoDia.map((kit) => {
+                        const detalhe = kitsDetalhesMap[kit.codigo_mostruario];
+                        return (
+                          <TableRow key={kit.id}>
+                            <TableCell className="font-mono">{kit.codigo_mostruario}</TableCell>
+                            <TableCell>{detalhe?.revendedora || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="capitalize">
+                                {kit.tipo || 'renovação'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatarValor(detalhe?.valor || 0)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="mt-3 pt-3 border-t flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">
+                    {kitsEntreguesDoDia.length} entrega(s)
+                  </span>
+                  <span className="font-bold text-primary">
+                    {formatarValor(totalKits)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Tabela de Notas */}
           <Card>
@@ -481,49 +694,38 @@ export default function FechamentoDiario() {
             </CardHeader>
             <CardContent className="space-y-4">
               {!isDiaFinalizado ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="despesa">Despesa de Cobrança (opcional)</Label>
-                    <Input
-                      id="despesa"
-                      placeholder="0.00"
-                      value={despesaCobranca}
-                      onChange={(e) => setDespesaCobranca(formatarValorInput(e.target.value))}
-                      className="max-w-xs"
-                    />
-                  </div>
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button disabled={notas.length === 0 || finalizarDiaMutation.isPending}>
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Finalizar Dia pelo Representante
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
-                          <br /><br />
-                          <strong>Total: {formatarValor(totais.total)}</strong>
-                          {despesaCobranca && (
-                            <>
-                              <br />
-                              Despesa: {formatarValor(parseValor(despesaCobranca))}
-                            </>
-                          )}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => finalizarDiaMutation.mutate()}>
-                          Confirmar Fechamento
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={notas.length === 0 || finalizarDiaMutation.isPending}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Finalizar Dia pelo Representante
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
+                        <br /><br />
+                        <strong>Total Cobrado: {formatarValor(totais.total)}</strong>
+                        {despesaCobranca && (
+                          <>
+                            <br />
+                            Despesa: {formatarValor(parseValor(despesaCobranca))}
+                          </>
+                        )}
+                        <br />
+                        <strong>Entregas de Kits: {kitsEntreguesDoDia.length} ({formatarValor(totalKits)})</strong>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => finalizarDiaMutation.mutate()}>
+                        Confirmar Fechamento
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               ) : (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
