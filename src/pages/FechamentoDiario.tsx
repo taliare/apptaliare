@@ -656,10 +656,19 @@ export default function FechamentoDiario() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {notas.map((nota) => (
+                      {notas.map((nota) => {
+                        // Tentar encontrar no mapa ou extrair do código
+                        let revendedora = revendedoraMap[nota.codigo_nota];
+                        if (!revendedora && nota.codigo_nota) {
+                          const match = nota.codigo_nota.match(/^(.+?)-\d{14}$/);
+                          if (match) {
+                            revendedora = match[1];
+                          }
+                        }
+                        return (
                         <TableRow key={nota.id}>
                           <TableCell className="font-mono">{nota.codigo_nota}</TableCell>
-                          <TableCell>{revendedoraMap[nota.codigo_nota] || '-'}</TableCell>
+                          <TableCell>{revendedora || '-'}</TableCell>
                           <TableCell className="text-right font-medium">
                             {formatarValor(nota.valor_total)}
                           </TableCell>
@@ -679,7 +688,8 @@ export default function FechamentoDiario() {
                             )}
                           </TableCell>
                         </TableRow>
-                      ))}
+                      );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

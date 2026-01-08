@@ -503,7 +503,22 @@ export default function CobrancaDiaria() {
 
         if (updateError) throw updateError;
       } else {
-        const revendedora = revendedoraMap[nota.codigo_nota] || 'Revendedora não identificada';
+        // Tentar encontrar a revendedora no mapa
+        let revendedora = revendedoraMap[nota.codigo_nota];
+        
+        // Se não encontrou, tentar extrair do código da nota (formato: "NOME-timestamp14digitos")
+        if (!revendedora && nota.codigo_nota) {
+          const match = nota.codigo_nota.match(/^(.+?)-\d{14}$/);
+          if (match) {
+            revendedora = match[1];
+          }
+        }
+        
+        // Fallback final
+        if (!revendedora) {
+          revendedora = 'Revendedora não identificada';
+        }
+        
         const { error: insertError } = await supabase
           .from('cobrancas_agendadas')
           .insert({
@@ -513,6 +528,7 @@ export default function CobrancaDiaria() {
             valor_previsto: nota.valor_total,
             data_agendada: dateStr,
             status: 'pendente',
+            tipo: 'repasse',
             observacoes: 'Nota devolvida da cobrança diária'
           });
 
@@ -967,8 +983,15 @@ export default function CobrancaDiaria() {
               </div>
             ) : (
               <div className="space-y-2 max-h-[240px] sm:max-h-[280px] overflow-y-auto">
-                {notas.map((nota) => {
-                  const revendedora = revendedoraMap[nota.codigo_nota];
+              {notas.map((nota) => {
+                  // Tentar encontrar no mapa ou extrair do código
+                  let revendedora = revendedoraMap[nota.codigo_nota];
+                  if (!revendedora && nota.codigo_nota) {
+                    const match = nota.codigo_nota.match(/^(.+?)-\d{14}$/);
+                    if (match) {
+                      revendedora = match[1];
+                    }
+                  }
                   // Usar a coluna devolveu_tudo para identificar devoluções, não apenas valor zero
                   const isDevolveuTudo = nota.devolveu_tudo === true;
                   return (
