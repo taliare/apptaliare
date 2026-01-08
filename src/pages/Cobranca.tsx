@@ -954,7 +954,7 @@ export default function Cobranca() {
               onClick={() => setFiltroAtivo('vencidas')}
               className={cn(
                 "transition-all duration-200 text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3",
-                cobrancasVencidas.length > 0 && filtroAtivo !== 'vencidas' && "animate-pulse border-destructive text-destructive"
+                cobrancasVencidas.length > 0 && filtroAtivo !== 'vencidas' && "border-destructive text-destructive bg-destructive/10"
               )}
             >
               Vencidas ({cobrancasVencidas.length})
