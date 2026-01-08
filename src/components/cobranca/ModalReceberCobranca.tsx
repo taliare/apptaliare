@@ -376,14 +376,20 @@ export function ModalReceberCobranca({
           {/* Valor da Venda (só para KIT) */}
           {!isRepasse && (
             <div className="space-y-2">
-              <Label>Valor da Venda</Label>
+              <Label>Valor da Venda <span className="text-destructive">*</span></Label>
               <Input
                 type="text"
-                placeholder="0,00"
+                placeholder="Digite o valor total da venda"
                 value={valorVenda}
                 onChange={(e) => handleValorVendaChange(e.target.value)}
                 disabled={loading}
+                className={cn(!valorVenda && "border-orange-400 focus-visible:ring-orange-400")}
               />
+              {!valorVenda && (
+                <p className="text-xs text-orange-600">
+                  Informe o valor total que a revendedora vendeu
+                </p>
+              )}
             </div>
           )}
 
@@ -761,10 +767,18 @@ export function ModalReceberCobranca({
               className="flex-1"
               onClick={handleReceberPagamento}
               disabled={!podeReceber || loading}
+              title={!podeReceber ? 'Preencha o valor da venda e selecione a forma de pagamento' : ''}
             >
               {mostrarPagamentoParcial && valorRestante > 0 ? 'Receber Parcial' : 'Receber'}
             </Button>
           </div>
+          
+          {/* Mensagem de ajuda quando botão está desabilitado */}
+          {!podeReceber && !isRepasse && !valorVenda && (
+            <p className="text-xs text-center text-muted-foreground">
+              Preencha o valor da venda para habilitar o botão
+            </p>
+          )}
         </div>
       </DialogContent>
     </Dialog>
