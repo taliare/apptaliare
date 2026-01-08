@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, HelpCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, HelpCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -159,45 +159,7 @@ export default function Cobranca() {
     enabled: !!userId,
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data: CobrancaFormData) => {
-      const valorNumerico = parseMonetaryValue(data.valor_previsto);
-      if (valorNumerico === null) {
-        throw new Error('Valor inválido');
-      }
-      
-      // Prepare and validate data
-      const insertData = {
-        revendedora: sanitizeString(data.revendedora),
-        codigo_nota: data.codigo_nota ? sanitizeString(data.codigo_nota) : null,
-        tipo: data.tipo ? sanitizeString(data.tipo) : null,
-        valor_previsto: valorNumerico,
-        data_agendada: data.data_agendada,
-        observacoes: data.observacoes ? sanitizeString(data.observacoes) : null,
-        representante_id: userId!,
-        status: 'pendente' as const
-      };
-      
-      // Validate with Zod schema
-      const validation = validateData(cobrancaInsertSchema, insertData);
-      if (!validation.success) {
-        throw new Error((validation as { success: false; errors: string[] }).errors.join(', '));
-      }
-      
-      const { error } = await supabase.from('cobrancas_agendadas').insert(insertData);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
-      toast({ title: 'Cobrança criada com sucesso!' });
-      setIsDialogOpen(false);
-      resetForm();
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Erro ao criar cobrança', description: error.message, variant: 'destructive' });
-    },
-  });
+  // createMutation removido - apenas admin pode criar cobranças via /gerenciar-agenda
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: CobrancaFormData }) => {
@@ -455,8 +417,6 @@ export default function Cobranca() {
     e.preventDefault();
     if (editingCobranca) {
       updateMutation.mutate({ id: editingCobranca.id, data: formData });
-    } else {
-      createMutation.mutate(formData);
     }
   };
 
@@ -812,20 +772,9 @@ export default function Cobranca() {
             <span className="hidden sm:inline">Guia Rápido</span>
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => {
-                resetForm();
-                setEditingCobranca(null);
-              }}>
-                <Plus className="mr-2 h-4 w-4" />
-                Nova Cobrança
-              </Button>
-            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                {editingCobranca ? 'Editar Cobrança' : 'Nova Cobrança'}
-              </DialogTitle>
+              <DialogTitle>Editar Cobrança</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -914,7 +863,7 @@ export default function Cobranca() {
                   </Button>
                 )}
                 <Button type="submit" className="w-full sm:w-auto">
-                  {editingCobranca ? 'Salvar Alterações' : 'Criar Cobrança'}
+                  Salvar Alterações
                 </Button>
               </DialogFooter>
             </form>
