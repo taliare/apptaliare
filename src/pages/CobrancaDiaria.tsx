@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock, Package, Wallet, DollarSign, Receipt, Search } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -146,6 +146,47 @@ export default function CobrancaDiaria() {
     },
     enabled: !!user?.id,
   });
+
+  // Realtime subscription para detectar quando admin reabre o dia
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const channel = supabase
+      .channel('cobranca-diaria-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'cobrancas_diarias',
+          filter: `representante_id=eq.${user.id}`
+        },
+        (payload) => {
+          const newData = payload.new as CobrancaDiariaType;
+          const oldData = payload.old as CobrancaDiariaType;
+          
+          // Invalidar a query local para buscar dados atualizados
+          queryClient.invalidateQueries({ 
+            queryKey: ['cobranca-diaria', dateStr, user.id] 
+          });
+          
+          // Se o dia foi reaberto pelo admin, notificar o usuário
+          if (newData.finalizado === false && oldData.finalizado === true) {
+            toast.info('O administrador reabriu este dia para ajustes');
+          }
+          
+          // Se o dia foi finalizado, notificar também
+          if (newData.finalizado === true && oldData.finalizado === false) {
+            toast.info('O dia foi finalizado');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, dateStr, queryClient]);
 
   // Query for histórico de fechamentos
   const { data: historico = [] } = useQuery({
