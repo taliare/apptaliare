@@ -35,6 +35,7 @@ interface NotaPromissoria {
   representante_id: string;
   criado_em?: string | null;
   devolveu_tudo?: boolean;
+  cobranca_id?: string | null; // ID da cobrança original para restauração
 }
 
 interface CobrancaDiariaType {
