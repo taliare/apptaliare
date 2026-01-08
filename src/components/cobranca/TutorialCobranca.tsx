@@ -9,6 +9,7 @@ import {
   CarouselPrevious,
   type CarouselApi
 } from '@/components/ui/carousel';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { 
   Package, 
   RefreshCw, 
@@ -112,6 +113,7 @@ export function TutorialCobranca({ open, onOpenChange }: TutorialCobrancaProps) 
           ))}
         </div>
 
+        <TooltipProvider>
         <Carousel
           setApi={setApi}
           opts={{ watchDrag: false }}
@@ -387,6 +389,7 @@ export function TutorialCobranca({ open, onOpenChange }: TutorialCobrancaProps) 
             />
           </div>
         </Carousel>
+        </TooltipProvider>
       </DialogContent>
     </Dialog>
   );
