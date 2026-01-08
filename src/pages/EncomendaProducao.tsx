@@ -64,7 +64,7 @@ export default function EncomendaProducao() {
 
       // Notificar representante
       if (encomenda) {
-        const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[encomenda.tipo_kit] || encomenda.tipo_kit;
+        const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta' }[encomenda.tipo_kit] || encomenda.tipo_kit;
 
         await supabase.from('notifications').insert({
           user_id: encomenda.representante_id,
@@ -120,7 +120,7 @@ export default function EncomendaProducao() {
         if (kitError) throw kitError;
 
         // Notificar representante
-        const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[encomenda.tipo_kit] || encomenda.tipo_kit;
+        const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta' }[encomenda.tipo_kit] || encomenda.tipo_kit;
 
         await supabase.from('notifications').insert({
           user_id: encomenda.representante_id,
@@ -167,7 +167,6 @@ export default function EncomendaProducao() {
       inicial: 'Inicial',
       especial: 'Especial',
       maleta: 'Maleta',
-      misto: 'Misto',
     };
     return tipos[tipo] || tipo;
   };
