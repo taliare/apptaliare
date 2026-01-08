@@ -313,15 +313,21 @@ export function ModalReceberCobranca({
     // Pagamento completo
     setLoading(true);
     try {
-      const pagamentos: Array<{ forma: FormaPagamento; valor: number }> = [
-        { forma: pagamento1.forma as FormaPagamento, valor: parseFloat(pagamento1.valor.replace(',', '.')) }
-      ];
+      // Se valor a receber é zero, não precisa de pagamentos
+      const pagamentos: Array<{ forma: FormaPagamento; valor: number }> = [];
       
-      if (pagamento2) {
-        pagamentos.push({
-          forma: pagamento2.forma as FormaPagamento,
-          valor: parseFloat(pagamento2.valor.replace(',', '.'))
+      if (valorAReceber > 0 && pagamento1.forma) {
+        pagamentos.push({ 
+          forma: pagamento1.forma as FormaPagamento, 
+          valor: parseFloat(pagamento1.valor.replace(',', '.')) 
         });
+        
+        if (pagamento2) {
+          pagamentos.push({
+            forma: pagamento2.forma as FormaPagamento,
+            valor: parseFloat(pagamento2.valor.replace(',', '.'))
+          });
+        }
       }
 
       await onPagamentoCompleto({
@@ -351,9 +357,12 @@ export function ModalReceberCobranca({
     }
   };
 
-  // Permite receber se: tem valor e forma de pagamento OU é repasse total (valor efetivo = 0 e resta algo para repasse)
+  // Permite receber se: 
+  // - valor a receber = 0 (só registra sem pagamento)
+  // - tem valor e forma de pagamento
+  // - é repasse total (valor efetivo = 0 e resta algo para repasse)
   const valorTotalRepasse = mostrarPagamentoParcial && valorEfetivoReceber === 0 && valorRestante > 0;
-  const podeReceber = valorTotalRepasse || (valorAReceber > 0 && (valorEfetivoReceber === 0 || pagamento1.forma));
+  const podeReceber = valorAReceber === 0 || valorTotalRepasse || (valorAReceber > 0 && (valorEfetivoReceber === 0 || pagamento1.forma));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
