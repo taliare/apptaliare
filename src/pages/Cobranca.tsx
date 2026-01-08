@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, HelpCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -17,6 +17,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, parseLocalDate, formatDateBR, getLocalDateString } from '@/lib/utils';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
 import { ModalSenhaAdmin } from '@/components/cobranca/ModalSenhaAdmin';
+import { TutorialCobranca } from '@/components/cobranca/TutorialCobranca';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -67,6 +68,9 @@ export default function Cobranca() {
   const [valorAdiantamento, setValorAdiantamento] = useState('');
   const [formaPagamentoAdiantamento, setFormaPagamentoAdiantamento] = useState<'pix' | 'dinheiro' | 'cartao'>('pix');
   const [dataAdiantamento, setDataAdiantamento] = useState<Date>(new Date());
+  const [showTutorial, setShowTutorial] = useState(() => {
+    return !localStorage.getItem('tutorial_cobranca_visto');
+  });
   
   const [formData, setFormData] = useState<CobrancaFormData>({
     revendedora: '',
@@ -797,16 +801,26 @@ export default function Cobranca() {
           <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold truncate">Agenda de Cobranças</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">Organize suas cobranças por data de vencimento</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => {
-              resetForm();
-              setEditingCobranca(null);
-            }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Cobrança
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowTutorial(true)}
+            className="gap-1"
+          >
+            <HelpCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Guia Rápido</span>
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => {
+                resetForm();
+                setEditingCobranca(null);
+              }}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Cobrança
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
@@ -906,6 +920,7 @@ export default function Cobranca() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Filtros Rápidos e Pesquisa */}
@@ -1283,6 +1298,17 @@ export default function Cobranca() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Tutorial */}
+      <TutorialCobranca 
+        open={showTutorial} 
+        onOpenChange={(open) => {
+          setShowTutorial(open);
+          if (!open) {
+            localStorage.setItem('tutorial_cobranca_visto', 'true');
+          }
+        }} 
+      />
     </div>
   );
 }
