@@ -250,6 +250,7 @@ export type Database = {
         Row: {
           codigo: string
           criado_em: string
+          encomenda_id: string | null
           id: string
           origem_producao_id: string | null
           representante_id: string | null
@@ -260,6 +261,7 @@ export type Database = {
         Insert: {
           codigo: string
           criado_em?: string
+          encomenda_id?: string | null
           id?: string
           origem_producao_id?: string | null
           representante_id?: string | null
@@ -270,6 +272,7 @@ export type Database = {
         Update: {
           codigo?: string
           criado_em?: string
+          encomenda_id?: string | null
           id?: string
           origem_producao_id?: string | null
           representante_id?: string | null
@@ -278,6 +281,13 @@ export type Database = {
           valor?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "kits_estoque_encomenda_id_fkey"
+            columns: ["encomenda_id"]
+            isOneToOne: false
+            referencedRelation: "encomendas_kits"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "kits_estoque_origem_producao_id_fkey"
             columns: ["origem_producao_id"]

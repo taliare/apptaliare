@@ -70,7 +70,7 @@ export default function EncomendaRepresentante() {
         }
 
         if (producaoUsers && producaoUsers.length > 0) {
-          const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta', misto: 'Misto' }[tipoKit] || tipoKit;
+          const tipoLabel = { inicial: 'Inicial', especial: 'Especial', maleta: 'Maleta' }[tipoKit] || tipoKit;
           const userIds = producaoUsers.map((u) => u.user_id);
 
           // Criar notificações no banco para cada usuário de produção
@@ -158,7 +158,6 @@ export default function EncomendaRepresentante() {
       inicial: 'Inicial',
       especial: 'Especial',
       maleta: 'Maleta',
-      misto: 'Misto',
     };
     return tipos[tipo] || tipo;
   };
@@ -201,7 +200,6 @@ export default function EncomendaRepresentante() {
                     <SelectItem value="inicial">Inicial</SelectItem>
                     <SelectItem value="especial">Especial</SelectItem>
                     <SelectItem value="maleta">Maleta</SelectItem>
-                    <SelectItem value="misto">Misto</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
