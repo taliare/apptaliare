@@ -480,14 +480,32 @@ export default function CobrancaDiaria() {
 
   // Mutation para excluir nota da cobrança de hoje e devolver para agenda
   const excluirNotaDaCobrancaMutation = useMutation({
-    mutationFn: async (nota: NotaPromissoria) => {
-      const { data: cobrancaOriginal } = await supabase
-        .from('cobrancas_agendadas')
-        .select('*')
-        .eq('representante_id', user?.id)
-        .eq('codigo_nota', nota.codigo_nota)
-        .maybeSingle();
+    mutationFn: async (nota: NotaPromissoria & { cobranca_id?: string }) => {
+      // Buscar a cobrança original primeiro - priorizando cobranca_id se existir
+      let cobrancaOriginal = null;
+      
+      if (nota.cobranca_id) {
+        // Se tem cobranca_id vinculado, buscar por ele (mais preciso)
+        const { data } = await supabase
+          .from('cobrancas_agendadas')
+          .select('*')
+          .eq('id', nota.cobranca_id)
+          .maybeSingle();
+        cobrancaOriginal = data;
+      }
+      
+      // Fallback: buscar por codigo_nota (compatibilidade com notas antigas)
+      if (!cobrancaOriginal) {
+        const { data } = await supabase
+          .from('cobrancas_agendadas')
+          .select('*')
+          .eq('representante_id', user?.id)
+          .eq('codigo_nota', nota.codigo_nota)
+          .maybeSingle();
+        cobrancaOriginal = data;
+      }
 
+      // Deletar a nota promissória
       const { error: deleteError } = await supabase
         .from('notas_promissorias')
         .delete()
@@ -496,6 +514,7 @@ export default function CobrancaDiaria() {
       if (deleteError) throw deleteError;
 
       if (cobrancaOriginal) {
+        // Restaurar cobrança original para pendente (exatamente como estava)
         const { error: updateError } = await supabase
           .from('cobrancas_agendadas')
           .update({ status: 'pendente' })
@@ -503,10 +522,9 @@ export default function CobrancaDiaria() {
 
         if (updateError) throw updateError;
       } else {
-        // Tentar encontrar a revendedora no mapa
+        // Sem cobrança original - criar uma nova (raro, só para notas órfãs)
         let revendedora = revendedoraMap[nota.codigo_nota];
         
-        // Se não encontrou, tentar extrair do código da nota (formato: "NOME-timestamp14digitos")
         if (!revendedora && nota.codigo_nota) {
           const match = nota.codigo_nota.match(/^(.+?)-\d{14}$/);
           if (match) {
@@ -514,7 +532,6 @@ export default function CobrancaDiaria() {
           }
         }
         
-        // Fallback final
         if (!revendedora) {
           revendedora = 'Revendedora não identificada';
         }
@@ -528,8 +545,8 @@ export default function CobrancaDiaria() {
             valor_previsto: nota.valor_total,
             data_agendada: dateStr,
             status: 'pendente',
-            tipo: 'repasse',
-            observacoes: 'Nota devolvida da cobrança diária'
+            tipo: 'repasse'
+            // Sem observacoes - mantém limpo
           });
 
         if (insertError) throw insertError;

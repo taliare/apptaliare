@@ -271,6 +271,7 @@ export default function Cobranca() {
         .insert({
           representante_id: userId!,
           codigo_nota: codigoNotaGerado,
+          cobranca_id: cobrancaId, // Vincula à cobrança original para restaurar depois
           data: dataNota,
           valor_total: dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
           forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
@@ -320,6 +321,7 @@ export default function Cobranca() {
       const notaData: any = {
         representante_id: userId!,
         codigo_nota: codigoNota,
+        cobranca_id: cobrancaId, // Vincula à cobrança original para restaurar depois
         data: dataNota,
         valor_total: dados.valor_recebido,
         forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
@@ -361,6 +363,9 @@ export default function Cobranca() {
         if (updateError) throw updateError;
       } else {
         // Para KIT: criar prestação de contas e nova cobrança do tipo repasse
+        // Usar fallback seguro para forma_pagamento quando não houver pagamentos
+        const formaPagamentoKIT = dados.pagamentos[0]?.forma || 'dinheiro';
+        
         const { error: prestacaoError } = await supabase
           .from('prestacoes_contas')
           .insert({
@@ -373,7 +378,7 @@ export default function Cobranca() {
             valor_devido_empresa: dados.valor_devido_empresa,
             valor_pago: dados.valor_recebido,
             saldo_devedor: dados.valor_repasse,
-            forma_pagamento: dados.pagamentos[0].forma,
+            forma_pagamento: formaPagamentoKIT,
             data_execucao: dataNota,
             codigo_nota_referencia: codigoNota
           });

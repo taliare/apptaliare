@@ -442,6 +442,7 @@ export type Database = {
       }
       notas_promissorias: {
         Row: {
+          cobranca_id: string | null
           codigo_nota: string
           criado_em: string | null
           data: string
@@ -457,6 +458,7 @@ export type Database = {
           valor_total: number
         }
         Insert: {
+          cobranca_id?: string | null
           codigo_nota: string
           criado_em?: string | null
           data: string
@@ -472,6 +474,7 @@ export type Database = {
           valor_total: number
         }
         Update: {
+          cobranca_id?: string | null
           codigo_nota?: string
           criado_em?: string | null
           data?: string
