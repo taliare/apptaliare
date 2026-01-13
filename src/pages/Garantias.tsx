@@ -24,7 +24,7 @@ interface Garantia {
   codigo_mostruario: string | null;
   descricao_produto: string;
   data_compra: string;
-  data_garantia_fim: string;
+  data_expiracao: string;
   criado_em?: string;
 }
 
@@ -50,7 +50,7 @@ export default function Garantias() {
           codigo_mostruario,
           descricao_produto,
           data_compra,
-          data_garantia_fim,
+          data_expiracao,
           revendedora_id,
           cliente_id
         `)
@@ -93,7 +93,7 @@ export default function Garantias() {
         codigo_mostruario: g.codigo_mostruario,
         descricao_produto: g.descricao_produto,
         data_compra: g.data_compra,
-        data_garantia_fim: g.data_garantia_fim,
+        data_expiracao: g.data_expiracao,
       })) as Garantia[];
     },
     retry: 1,
@@ -122,7 +122,7 @@ export default function Garantias() {
 
       // Filtro por status
       if (filtroStatus !== 'todas') {
-        const ativa = isGarantiaAtiva(g.data_garantia_fim);
+        const ativa = isGarantiaAtiva(g.data_expiracao);
         if (filtroStatus === 'ativa' && !ativa) return false;
         if (filtroStatus === 'expirada' && ativa) return false;
       }
@@ -151,7 +151,7 @@ export default function Garantias() {
   }, [garantias, filtroRevendedora, filtroStatus, dateRange, searchTerm]);
 
   // Contadores
-  const totalAtivas = garantias.filter(g => isGarantiaAtiva(g.data_garantia_fim)).length;
+  const totalAtivas = garantias.filter(g => isGarantiaAtiva(g.data_expiracao)).length;
   const totalExpiradas = garantias.length - totalAtivas;
 
   const limparFiltros = () => {
@@ -391,7 +391,7 @@ export default function Garantias() {
                   </TableHeader>
                   <TableBody>
                     {garantiasFiltradas.map((garantia) => {
-                      const ativa = isGarantiaAtiva(garantia.data_garantia_fim);
+                      const ativa = isGarantiaAtiva(garantia.data_expiracao);
                       return (
                         <TableRow key={garantia.id}>
                           <TableCell className="font-medium">{garantia.nome_revendedora}</TableCell>
@@ -400,7 +400,7 @@ export default function Garantias() {
                           <TableCell>{garantia.codigo_mostruario || '-'}</TableCell>
                           <TableCell className="max-w-[200px] truncate">{garantia.descricao_produto}</TableCell>
                           <TableCell>{formatDateBR(garantia.data_compra)}</TableCell>
-                          <TableCell>{formatDateBR(garantia.data_garantia_fim)}</TableCell>
+                          <TableCell>{formatDateBR(garantia.data_expiracao)}</TableCell>
                           <TableCell>
                             <Badge 
                               variant="outline" 
@@ -425,7 +425,7 @@ export default function Garantias() {
           {/* Mobile - Cards */}
           <div className="md:hidden grid gap-4">
             {garantiasFiltradas.map((garantia) => {
-              const ativa = isGarantiaAtiva(garantia.data_garantia_fim);
+              const ativa = isGarantiaAtiva(garantia.data_expiracao);
               return (
                 <Card key={garantia.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
@@ -442,7 +442,7 @@ export default function Garantias() {
                           {ativa ? 'Ativa' : 'Expirada'}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
-                          até {formatDateBR(garantia.data_garantia_fim)}
+                          até {formatDateBR(garantia.data_expiracao)}
                         </span>
                       </div>
 
