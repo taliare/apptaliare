@@ -2,9 +2,9 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Calendar as CalendarIcon, Shield, Filter, User, Package, FileText, Clock, Search } from 'lucide-react';
+import { Calendar as CalendarIcon, Shield, Filter, User, Package, FileText, Clock, Search, Phone, Users } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { format, isBefore, startOfDay } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
@@ -13,161 +13,214 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { DateRange } from 'react-day-picker';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { getSupabaseExternalClient } from '@/lib/supabase-external';
 
+// Interfaces baseadas na estrutura real do banco externo
 interface Garantia {
   id: string;
-  nome_revendedora: string;
-  nome_cliente: string;
   codigo_pedido: string | null;
   codigo_mostruario: string | null;
-  descricao_produto: string;
-  data_compra: string;
-  data_expiracao: string;
-  criado_em?: string;
+  descricao_produto: string | null;
+  data_compra: string | null;
+  data_expiracao: string | null;
+  status: string | null;
+  cliente_id: string;
+  revendedora_id: string | null;
 }
 
+interface ClienteGarantia {
+  id: string;
+  nome: string | null;
+  telefone: string | null;
+}
+
+interface ClienteComGarantias {
+  cliente: ClienteGarantia;
+  garantias: Garantia[];
+}
+
+// Helpers
+const exibirCampo = (valor: string | null | undefined): string => {
+  return valor?.trim() || '—';
+};
+
+const calcularDiasRestantes = (dataExpiracao: string | null): number | null => {
+  if (!dataExpiracao) return null;
+  const hoje = startOfDay(new Date());
+  const dataFim = startOfDay(new Date(dataExpiracao));
+  const diffMs = dataFim.getTime() - hoje.getTime();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+};
+
+const isGarantiaAtiva = (dataExpiracao: string | null): boolean => {
+  const dias = calcularDiasRestantes(dataExpiracao);
+  return dias !== null && dias >= 0;
+};
+
+const formatDateBR = (dateStr: string | null): string => {
+  if (!dateStr) return '—';
+  try {
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+  } catch {
+    return '—';
+  }
+};
+
 export default function Garantias() {
-  const [filtroRevendedora, setFiltroRevendedora] = useState<string>('todas');
   const [filtroStatus, setFiltroStatus] = useState<string>('todas');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Buscar garantias do Supabase externo com JOINs manuais (evita erro PGRST200)
-  const { data: garantias = [], isLoading, error } = useQuery({
-    queryKey: ['garantias-externo'],
+  // Buscar garantias do Supabase externo agrupadas por cliente
+  const { data: clientesComGarantias = [], isLoading, error } = useQuery({
+    queryKey: ['garantias-externo-agrupado'],
     queryFn: async () => {
-      // Inicialização lazy do cliente externo (com fallback runtime)
       const supabaseExternal = await getSupabaseExternalClient();
       
-      // DEBUG: Buscar TODOS os campos para descobrir a estrutura real
+      // Buscar garantias com campos específicos
       const { data: garantiasData, error: garantiasError } = await supabaseExternal
         .from('garantias' as any)
-        .select('*')
+        .select(`
+          id,
+          codigo_pedido,
+          codigo_mostruario,
+          descricao_produto,
+          data_compra,
+          data_expiracao,
+          status,
+          cliente_id,
+          revendedora_id
+        `)
         .order('data_compra', { ascending: false });
 
-      // Logs de debug
-      console.log('[Garantias] Resposta bruta do banco externo:');
-      console.log('[Garantias] Data:', garantiasData);
-      console.log('[Garantias] Error:', garantiasError);
-      console.log('[Garantias] Quantidade:', garantiasData?.length || 0);
-      if (garantiasData && garantiasData.length > 0) {
-        console.log('[Garantias] Primeiro registro (estrutura):', garantiasData[0]);
-        console.log('[Garantias] Colunas disponíveis:', Object.keys(garantiasData[0]));
-      }
-
       if (garantiasError) throw garantiasError;
-      if (!garantiasData || garantiasData.length === 0) return [] as Garantia[];
+      if (!garantiasData || garantiasData.length === 0) return [] as ClienteComGarantias[];
 
-      // Passo 2: Coletar IDs únicos
-      const revendedoraIds = [...new Set(garantiasData.map((g: any) => g.revendedora_id).filter(Boolean))];
+      // Coletar IDs únicos de clientes
       const clienteIds = [...new Set(garantiasData.map((g: any) => g.cliente_id).filter(Boolean))];
 
-      // Passo 3: Buscar profiles (revendedoras) e clientes em paralelo
-      const [profilesResult, clientesResult] = await Promise.all([
-        revendedoraIds.length > 0
-          ? supabaseExternal.from('profiles' as any).select('id, nome').in('id', revendedoraIds)
-          : { data: [], error: null },
-        clienteIds.length > 0
-          ? supabaseExternal.from('clientes_garantia' as any).select('id, nome').in('id', clienteIds)
-          : { data: [], error: null },
-      ]);
+      // Buscar clientes_garantia
+      const { data: clientesData } = clienteIds.length > 0
+        ? await supabaseExternal
+            .from('clientes_garantia' as any)
+            .select('id, nome, telefone')
+            .in('id', clienteIds)
+        : { data: [] };
 
-      // Criar mapas id -> nome
-      const profilesMap: Record<string, string> = {};
-      (profilesResult.data || []).forEach((p: any) => {
-        profilesMap[p.id] = p.nome;
+      // Criar mapa de clientes
+      const clientesMap: Record<string, ClienteGarantia> = {};
+      (clientesData || []).forEach((c: any) => {
+        clientesMap[c.id] = { id: c.id, nome: c.nome, telefone: c.telefone };
       });
 
-      const clientesMap: Record<string, string> = {};
-      (clientesResult.data || []).forEach((c: any) => {
-        clientesMap[c.id] = c.nome;
-      });
+      // Agrupar garantias por cliente
+      const agrupamento = new Map<string, ClienteComGarantias>();
+      
+      for (const g of garantiasData as any[]) {
+        const clienteId = g.cliente_id;
+        if (!clienteId) continue;
+        
+        if (!agrupamento.has(clienteId)) {
+          agrupamento.set(clienteId, {
+            cliente: clientesMap[clienteId] || { id: clienteId, nome: null, telefone: null },
+            garantias: []
+          });
+        }
+        
+        agrupamento.get(clienteId)!.garantias.push({
+          id: g.id,
+          codigo_pedido: g.codigo_pedido,
+          codigo_mostruario: g.codigo_mostruario,
+          descricao_produto: g.descricao_produto,
+          data_compra: g.data_compra,
+          data_expiracao: g.data_expiracao,
+          status: g.status,
+          cliente_id: g.cliente_id,
+          revendedora_id: g.revendedora_id,
+        });
+      }
 
-      // Passo 4: Mapear dados para o formato esperado
-      return garantiasData.map((g: any) => ({
-        id: g.id,
-        nome_revendedora: profilesMap[g.revendedora_id] || 'Sem revendedora',
-        nome_cliente: clientesMap[g.cliente_id] || 'Sem cliente',
-        codigo_pedido: g.codigo_pedido,
-        codigo_mostruario: g.codigo_mostruario,
-        descricao_produto: g.descricao_produto,
-        data_compra: g.data_compra,
-        data_expiracao: g.data_expiracao,
-      })) as Garantia[];
+      // Ordenar garantias dentro de cada cliente (mais recente primeiro)
+      for (const [, item] of agrupamento) {
+        item.garantias.sort((a, b) => {
+          const dateA = a.data_compra ? new Date(a.data_compra).getTime() : 0;
+          const dateB = b.data_compra ? new Date(b.data_compra).getTime() : 0;
+          return dateB - dateA;
+        });
+      }
+
+      return Array.from(agrupamento.values());
     },
     retry: 1,
   });
 
-  // Revendedoras únicas para o filtro
-  const revendedorasUnicas = useMemo(() => {
-    const unique = [...new Set(garantias.map(g => g.nome_revendedora))];
-    return unique.sort();
-  }, [garantias]);
+  // Aplicar filtros nos clientes e suas garantias
+  const clientesFiltrados = useMemo(() => {
+    if (!clientesComGarantias.length) return [];
 
-  // Determinar se garantia está ativa ou expirada
-  const isGarantiaAtiva = (dataFim: string) => {
-    const hoje = startOfDay(new Date());
-    const dataGarantiaFim = startOfDay(new Date(dataFim));
-    return !isBefore(dataGarantiaFim, hoje);
-  };
+    return clientesComGarantias
+      .map(({ cliente, garantias }) => {
+        // Filtrar garantias dentro do cliente
+        const garantiasFiltradas = garantias.filter(g => {
+          // Filtro por status
+          if (filtroStatus !== 'todas') {
+            const ativa = isGarantiaAtiva(g.data_expiracao);
+            if (filtroStatus === 'ativa' && !ativa) return false;
+            if (filtroStatus === 'expirada' && ativa) return false;
+          }
 
-  // Aplicar filtros
-  const garantiasFiltradas = useMemo(() => {
-    return garantias.filter(g => {
-      // Filtro por revendedora
-      if (filtroRevendedora !== 'todas' && g.nome_revendedora !== filtroRevendedora) {
-        return false;
-      }
+          // Filtro por data de compra
+          if (dateRange?.from && g.data_compra) {
+            const dataCompra = new Date(g.data_compra);
+            if (dataCompra < dateRange.from) return false;
+            if (dateRange.to && dataCompra > dateRange.to) return false;
+          }
 
-      // Filtro por status
-      if (filtroStatus !== 'todas') {
-        const ativa = isGarantiaAtiva(g.data_expiracao);
-        if (filtroStatus === 'ativa' && !ativa) return false;
-        if (filtroStatus === 'expirada' && ativa) return false;
-      }
+          // Filtro por busca
+          if (searchTerm) {
+            const termo = searchTerm.toLowerCase();
+            const matchCliente = cliente.nome?.toLowerCase().includes(termo) || 
+                                 cliente.telefone?.toLowerCase().includes(termo);
+            const matchGarantia = 
+              g.codigo_pedido?.toLowerCase().includes(termo) ||
+              g.codigo_mostruario?.toLowerCase().includes(termo) ||
+              g.descricao_produto?.toLowerCase().includes(termo) ||
+              g.status?.toLowerCase().includes(termo);
+            
+            if (!matchCliente && !matchGarantia) return false;
+          }
 
-      // Filtro por data de compra
-      if (dateRange?.from) {
-        const dataCompra = new Date(g.data_compra);
-        if (dataCompra < dateRange.from) return false;
-        if (dateRange.to && dataCompra > dateRange.to) return false;
-      }
+          return true;
+        });
 
-      // Filtro por busca (nome cliente, código pedido, código mostruário, produto)
-      if (searchTerm) {
-        const termo = searchTerm.toLowerCase();
-        const match = 
-          g.nome_cliente.toLowerCase().includes(termo) ||
-          g.nome_revendedora.toLowerCase().includes(termo) ||
-          (g.codigo_pedido && g.codigo_pedido.toLowerCase().includes(termo)) ||
-          (g.codigo_mostruario && g.codigo_mostruario.toLowerCase().includes(termo)) ||
-          g.descricao_produto.toLowerCase().includes(termo);
-        if (!match) return false;
-      }
-
-      return true;
-    });
-  }, [garantias, filtroRevendedora, filtroStatus, dateRange, searchTerm]);
+        return { cliente, garantias: garantiasFiltradas };
+      })
+      .filter(({ garantias }) => garantias.length > 0); // Remover clientes sem garantias após filtro
+  }, [clientesComGarantias, filtroStatus, dateRange, searchTerm]);
 
   // Contadores
-  const totalAtivas = garantias.filter(g => isGarantiaAtiva(g.data_expiracao)).length;
-  const totalExpiradas = garantias.length - totalAtivas;
+  const totalGarantias = clientesComGarantias.reduce((acc, c) => acc + c.garantias.length, 0);
+  const totalAtivas = clientesComGarantias.reduce((acc, c) => 
+    acc + c.garantias.filter(g => isGarantiaAtiva(g.data_expiracao)).length, 0
+  );
+  const totalExpiradas = totalGarantias - totalAtivas;
+  const totalClientes = clientesComGarantias.length;
+  const totalGarantiasFiltradas = clientesFiltrados.reduce((acc, c) => acc + c.garantias.length, 0);
 
   const limparFiltros = () => {
-    setFiltroRevendedora('todas');
     setFiltroStatus('todas');
     setDateRange(undefined);
     setSearchTerm('');
   };
 
-  const formatDateBR = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr), 'dd/MM/yyyy');
-    } catch {
-      return dateStr;
-    }
+  // Renderizar contador de dias restantes
+  const renderDiasRestantes = (dias: number | null) => {
+    if (dias === null) return <span className="text-muted-foreground">—</span>;
+    if (dias < 0) return <span className="text-destructive font-medium">Expirada há {Math.abs(dias)} dias</span>;
+    if (dias === 0) return <span className="text-warning font-medium">Expira hoje</span>;
+    if (dias <= 30) return <span className="text-warning font-medium">{dias} dias restantes</span>;
+    return <span className="text-success font-medium">{dias} dias restantes</span>;
   };
 
   if (isLoading) {
@@ -182,21 +235,15 @@ export default function Garantias() {
   }
 
   if (error) {
-    // Extrair mensagem de erro de forma robusta
     let errorMessage = 'Erro desconhecido';
     if (error instanceof Error) {
       errorMessage = error.message;
     } else if (typeof error === 'object' && error !== null) {
-      // Erro do Supabase/PostgREST pode ter .message, .code, .details
       const errObj = error as any;
       if (errObj.message) {
         errorMessage = errObj.code ? `[${errObj.code}] ${errObj.message}` : errObj.message;
       } else {
-        try {
-          errorMessage = JSON.stringify(error);
-        } catch {
-          errorMessage = String(error);
-        }
+        try { errorMessage = JSON.stringify(error); } catch { errorMessage = String(error); }
       }
     } else {
       errorMessage = String(error);
@@ -216,9 +263,7 @@ export default function Garantias() {
                 : 'Não foi possível conectar ao banco de dados de garantias.'}
             </p>
             <div className="bg-muted rounded p-3 text-left">
-              <p className="text-xs font-mono text-muted-foreground break-all">
-                {errorMessage}
-              </p>
+              <p className="text-xs font-mono text-muted-foreground break-all">{errorMessage}</p>
             </div>
           </CardContent>
         </Card>
@@ -236,10 +281,14 @@ export default function Garantias() {
             Garantias
           </h1>
           <p className="text-muted-foreground">
-            Consulta de garantias registradas ({garantiasFiltradas.length} de {garantias.length})
+            {totalGarantiasFiltradas} garantias de {totalClientes} clientes
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+            <Users className="h-3 w-3 mr-1" />
+            {totalClientes} Clientes
+          </Badge>
           <Badge variant="outline" className="bg-success/10 text-success border-success/30">
             {totalAtivas} Ativas
           </Badge>
@@ -258,7 +307,7 @@ export default function Garantias() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
             {/* Busca geral */}
             <div className="lg:col-span-2">
               <Label className="text-sm mb-2 block">Buscar</Label>
@@ -271,24 +320,6 @@ export default function Garantias() {
                   className="pl-9"
                 />
               </div>
-            </div>
-
-            {/* Filtro por revendedora */}
-            <div>
-              <Label className="text-sm mb-2 block">Revendedora</Label>
-              <Select value={filtroRevendedora} onValueChange={setFiltroRevendedora}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  {revendedorasUnicas.map((rev) => (
-                    <SelectItem key={rev} value={rev}>
-                      {rev}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             {/* Filtro por status */}
@@ -348,7 +379,7 @@ export default function Garantias() {
           </div>
 
           {/* Botão limpar filtros */}
-          {(filtroRevendedora !== 'todas' || filtroStatus !== 'todas' || dateRange || searchTerm) && (
+          {(filtroStatus !== 'todas' || dateRange || searchTerm) && (
             <div className="mt-4">
               <Button variant="outline" size="sm" onClick={limparFiltros}>
                 Limpar Filtros
@@ -358,129 +389,124 @@ export default function Garantias() {
         </CardContent>
       </Card>
 
-      {/* Lista de Garantias - Desktop: Tabela, Mobile: Cards */}
-      {garantiasFiltradas.length === 0 ? (
+      {/* Lista de Garantias Agrupadas por Cliente */}
+      {clientesFiltrados.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Shield className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium">Nenhuma garantia encontrada</h3>
             <p className="text-muted-foreground">
-              {filtroRevendedora !== 'todas' || filtroStatus !== 'todas' || dateRange || searchTerm
+              {filtroStatus !== 'todas' || dateRange || searchTerm
                 ? 'Nenhuma garantia encontrada com os filtros aplicados.'
                 : 'Não há garantias registradas no sistema.'}
             </p>
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* Desktop - Tabela */}
-          <div className="hidden md:block">
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Revendedora</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Pedido</TableHead>
-                      <TableHead>Mostruário</TableHead>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>Data Compra</TableHead>
-                      <TableHead>Válido até</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {garantiasFiltradas.map((garantia) => {
-                      const ativa = isGarantiaAtiva(garantia.data_expiracao);
-                      return (
-                        <TableRow key={garantia.id}>
-                          <TableCell className="font-medium">{garantia.nome_revendedora}</TableCell>
-                          <TableCell>{garantia.nome_cliente}</TableCell>
-                          <TableCell>{garantia.codigo_pedido || '-'}</TableCell>
-                          <TableCell>{garantia.codigo_mostruario || '-'}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">{garantia.descricao_produto}</TableCell>
-                          <TableCell>{formatDateBR(garantia.data_compra)}</TableCell>
-                          <TableCell>{formatDateBR(garantia.data_expiracao)}</TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant="outline" 
-                              className={cn(
-                                ativa 
-                                  ? "bg-success/10 text-success border-success/30"
-                                  : "bg-destructive/10 text-destructive border-destructive/30"
-                              )}
-                            >
-                              {ativa ? 'Ativa' : 'Expirada'}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+        <div className="space-y-6">
+          {clientesFiltrados.map(({ cliente, garantias }) => (
+            <Card key={cliente.id}>
+              {/* Header do cliente */}
+              <CardHeader className="pb-3 border-b">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{exibirCampo(cliente.nome)}</CardTitle>
+                      {cliente.telefone && (
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {cliente.telefone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="w-fit">
+                    {garantias.length} garantia{garantias.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+              </CardHeader>
+
+              {/* Lista de garantias do cliente */}
+              <CardContent className="pt-4">
+                <div className="space-y-4">
+                  {garantias.map((garantia) => {
+                    const diasRestantes = calcularDiasRestantes(garantia.data_expiracao);
+                    const ativa = diasRestantes !== null && diasRestantes >= 0;
+                    
+                    return (
+                      <div 
+                        key={garantia.id} 
+                        className={cn(
+                          "border rounded-lg p-4",
+                          ativa ? "bg-card" : "bg-muted/30"
+                        )}
+                      >
+                        {/* Linha superior: Produto + Status */}
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3">
+                          <h4 className="font-medium text-base">
+                            {exibirCampo(garantia.descricao_produto)}
+                          </h4>
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "w-fit",
+                              ativa 
+                                ? "bg-success/10 text-success border-success/30"
+                                : "bg-destructive/10 text-destructive border-destructive/30"
+                            )}
+                          >
+                            {exibirCampo(garantia.status)}
+                          </Badge>
+                        </div>
+                        
+                        {/* Grid de informações */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <span className="text-muted-foreground block text-xs">Pedido</span>
+                            <p className="font-medium flex items-center gap-1">
+                              <FileText className="h-3 w-3 text-muted-foreground" />
+                              {exibirCampo(garantia.codigo_pedido)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block text-xs">Mostruário</span>
+                            <p className="font-medium flex items-center gap-1">
+                              <Package className="h-3 w-3 text-muted-foreground" />
+                              {exibirCampo(garantia.codigo_mostruario)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block text-xs">Data Compra</span>
+                            <p className="font-medium flex items-center gap-1">
+                              <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                              {formatDateBR(garantia.data_compra)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block text-xs">Validade</span>
+                            <p className="font-medium flex items-center gap-1">
+                              <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                              {formatDateBR(garantia.data_expiracao)}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Contador de dias restantes */}
+                        <div className="mt-3 pt-3 border-t flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          {renderDiasRestantes(diasRestantes)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Mobile - Cards */}
-          <div className="md:hidden grid gap-4">
-            {garantiasFiltradas.map((garantia) => {
-              const ativa = isGarantiaAtiva(garantia.data_expiracao);
-              return (
-                <Card key={garantia.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Badge 
-                          variant="outline" 
-                          className={cn(
-                            ativa 
-                              ? "bg-success/10 text-success border-success/30"
-                              : "bg-destructive/10 text-destructive border-destructive/30"
-                          )}
-                        >
-                          {ativa ? 'Ativa' : 'Expirada'}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          até {formatDateBR(garantia.data_expiracao)}
-                        </span>
-                      </div>
-
-                      <div>
-                        <p className="font-semibold text-lg">{garantia.nome_cliente}</p>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{garantia.descricao_produto}</p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <User className="h-3.5 w-3.5" />
-                          <span className="truncate">{garantia.nome_revendedora}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <CalendarIcon className="h-3.5 w-3.5" />
-                          <span>Compra: {formatDateBR(garantia.data_compra)}</span>
-                        </div>
-                        {garantia.codigo_pedido && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <FileText className="h-3.5 w-3.5" />
-                            <span>{garantia.codigo_pedido}</span>
-                          </div>
-                        )}
-                        {garantia.codigo_mostruario && (
-                          <div className="flex items-center gap-1.5 text-muted-foreground">
-                            <Package className="h-3.5 w-3.5" />
-                            <span>{garantia.codigo_mostruario}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </>
+          ))}
+        </div>
       )}
     </div>
   );
