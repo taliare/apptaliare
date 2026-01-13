@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus } from 'lucide-react';
+import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus, Shield } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -136,6 +136,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       label: "CAPTAÇÃO",
       items: [
         { title: 'Leads Revendedoras', url: '/leads-revendedoras', icon: UserPlus },
+      ],
+    },
+    {
+      label: "GARANTIAS",
+      items: [
+        { title: 'Garantias', url: '/garantias', icon: Shield },
       ],
     },
     {

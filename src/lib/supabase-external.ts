@@ -14,14 +14,14 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
 // ====================================================================
-// CONFIGURE AQUI AS CREDENCIAIS DO SEU SUPABASE EXTERNO
+// CREDENCIAIS DO SUPABASE EXTERNO (via variáveis de ambiente)
 // ====================================================================
 
-// URL do projeto Supabase externo (ex: https://abc123.supabase.co)
-const EXTERNAL_SUPABASE_URL = 'https://SEU_PROJETO_EXTERNO.supabase.co';
+// URL do projeto Supabase externo
+const EXTERNAL_SUPABASE_URL = import.meta.env.VITE_EXTERNAL_SUPABASE_URL || '';
 
 // Chave anon (pública) do projeto Supabase externo
-const EXTERNAL_SUPABASE_ANON_KEY = 'SUA_ANON_KEY_AQUI';
+const EXTERNAL_SUPABASE_ANON_KEY = import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY || '';
 
 // ====================================================================
 

@@ -22,6 +22,7 @@ import VendaExterna from '@/pages/VendaExterna';
 import Vendedoras from '@/pages/Vendedoras';
 import RevendedorasInativas from '@/pages/RevendedorasInativas';
 import LeadsRevendedoras from '@/pages/LeadsRevendedoras';
+import Garantias from '@/pages/Garantias';
 import Perfil from '@/pages/Perfil';
 import NotFound from '@/pages/NotFound';
 
@@ -114,6 +115,11 @@ export function AnimatedRoutes() {
         <Route path="/leads-revendedoras" element={
           <ProtectedRoute requiredRole="admin">
             <LeadsRevendedoras />
+          </ProtectedRoute>
+        } />
+        <Route path="/garantias" element={
+          <ProtectedRoute requiredRole="admin">
+            <Garantias />
           </ProtectedRoute>
         } />
         
