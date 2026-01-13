@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { DateRange } from 'react-day-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { supabaseExternal } from '@/lib/supabase-external';
+import { getSupabaseExternalClient } from '@/lib/supabase-external';
 
 interface Garantia {
   id: string;
@@ -38,6 +38,9 @@ export default function Garantias() {
   const { data: garantias = [], isLoading, error } = useQuery({
     queryKey: ['garantias-externo'],
     queryFn: async () => {
+      // Inicialização lazy do cliente externo (com fallback runtime)
+      const supabaseExternal = await getSupabaseExternalClient();
+      
       const { data, error } = await supabaseExternal
         .from('garantias' as any)
         .select(`
@@ -70,6 +73,7 @@ export default function Garantias() {
         data_garantia_fim: g.data_garantia_fim,
       })) as Garantia[];
     },
+    retry: 1,
   });
 
   // Revendedoras únicas para o filtro
@@ -154,16 +158,25 @@ export default function Garantias() {
   }
 
   if (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isConfigError = errorMessage.includes('não configurado') || errorMessage.includes('Missing secrets');
+    
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Card className="max-w-md">
+        <Card className="max-w-lg">
           <CardContent className="pt-6 text-center">
             <Shield className="h-12 w-12 mx-auto text-destructive mb-4" />
             <h3 className="text-lg font-medium mb-2">Erro ao carregar garantias</h3>
-            <p className="text-muted-foreground text-sm">
-              Não foi possível conectar ao banco de dados de garantias. 
-              Verifique a configuração do Supabase externo.
+            <p className="text-muted-foreground text-sm mb-4">
+              {isConfigError 
+                ? 'O banco de dados externo não está configurado. Verifique se os secrets EXTERNAL_SUPABASE_URL e EXTERNAL_SUPABASE_ANON_KEY estão definidos.'
+                : 'Não foi possível conectar ao banco de dados de garantias.'}
             </p>
+            <div className="bg-muted rounded p-3 text-left">
+              <p className="text-xs font-mono text-muted-foreground break-all">
+                {errorMessage}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
