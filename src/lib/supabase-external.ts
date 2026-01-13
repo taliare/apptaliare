@@ -25,18 +25,32 @@ const EXTERNAL_SUPABASE_ANON_KEY = import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_K
 
 // ====================================================================
 
-// Cliente tipado para uso em toda a aplicação
-export const supabaseExternal = createClient<Database>(
-  EXTERNAL_SUPABASE_URL,
-  EXTERNAL_SUPABASE_ANON_KEY,
-  {
-    auth: {
-      storage: localStorage,
-      persistSession: true,
-      autoRefreshToken: true,
+function createMissingExternalClient() {
+  const message =
+    'Supabase externo não configurado: defina VITE_EXTERNAL_SUPABASE_URL e VITE_EXTERNAL_SUPABASE_ANON_KEY.';
+
+  // Proxy para evitar crash no import (createClient exige URL) e falhar apenas quando usado.
+  return new Proxy(
+    {},
+    {
+      get() {
+        throw new Error(message);
+      },
     }
-  }
-);
+  ) as any;
+}
+
+// Cliente tipado para uso em toda a aplicação
+export const supabaseExternal =
+  EXTERNAL_SUPABASE_URL && EXTERNAL_SUPABASE_ANON_KEY
+    ? createClient<Database>(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
+        auth: {
+          storage: localStorage,
+          persistSession: true,
+          autoRefreshToken: true,
+        },
+      })
+    : (createMissingExternalClient() as ReturnType<typeof createClient<Database>>);
 
 // Alias para facilitar a migração - use este export para substituir
 // import { supabase } from "@/integrations/supabase/client"
