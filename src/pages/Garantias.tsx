@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Calendar as CalendarIcon, Shield, Filter, User, Package, FileText, Clock, Search, Phone, Users } from 'lucide-react';
+import { Calendar as CalendarIcon, Shield, Filter, User, Package, FileText, Clock, Search, Phone, Users, ChevronDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { DateRange } from 'react-day-picker';
 import { supabase } from '@/integrations/supabase/client';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 // Interfaces baseadas na estrutura real do banco externo
 interface Garantia {
@@ -71,6 +72,19 @@ export default function Garantias() {
   const [filtroStatus, setFiltroStatus] = useState<string>('todas');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
+  const [openClientes, setOpenClientes] = useState<Set<string>>(new Set());
+
+  const toggleCliente = (clienteId: string) => {
+    setOpenClientes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(clienteId)) {
+        newSet.delete(clienteId);
+      } else {
+        newSet.add(clienteId);
+      }
+      return newSet;
+    });
+  };
 
   // Buscar garantias via edge function administrativa (bypass RLS)
   const { data: clientesComGarantias = [], isLoading, error } = useQuery({
@@ -392,109 +406,133 @@ export default function Garantias() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {clientesFiltrados.map(({ cliente, garantias }) => (
-            <Card key={cliente.id}>
-              {/* Header do cliente */}
-              <CardHeader className="pb-3 border-b">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{exibirCampo(cliente.nome)}</CardTitle>
-                      {cliente.telefone && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          {cliente.telefone}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="w-fit">
-                    {garantias.length} garantia{garantias.length !== 1 ? 's' : ''}
-                  </Badge>
-                </div>
-              </CardHeader>
-
-              {/* Lista de garantias do cliente */}
-              <CardContent className="pt-4">
-                <div className="space-y-4">
-                  {garantias.map((garantia) => {
-                    const diasRestantes = calcularDiasRestantes(garantia.data_expiracao);
-                    const ativa = diasRestantes !== null && diasRestantes >= 0;
-                    
-                    return (
-                      <div 
-                        key={garantia.id} 
-                        className={cn(
-                          "border rounded-lg p-4",
-                          ativa ? "bg-card" : "bg-muted/30"
-                        )}
-                      >
-                        {/* Linha superior: Produto + Status */}
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3">
-                          <h4 className="font-medium text-base">
-                            {exibirCampo(garantia.descricao_produto)}
-                          </h4>
-                          <Badge 
-                            variant="outline" 
-                            className={cn(
-                              "w-fit",
-                              ativa 
-                                ? "bg-success/10 text-success border-success/30"
-                                : "bg-destructive/10 text-destructive border-destructive/30"
+        <div className="space-y-3">
+          {clientesFiltrados.map(({ cliente, garantias }) => {
+            const garantiasAtivas = garantias.filter(g => isGarantiaAtiva(g.data_expiracao)).length;
+            const isOpen = openClientes.has(cliente.id);
+            
+            return (
+              <Collapsible
+                key={cliente.id}
+                open={isOpen}
+                onOpenChange={() => toggleCliente(cliente.id)}
+              >
+                <Card>
+                  {/* Header do cliente - clicável */}
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg">{exibirCampo(cliente.nome)}</CardTitle>
+                            {cliente.telefone && (
+                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {cliente.telefone}
+                              </p>
                             )}
-                          >
-                            {exibirCampo(garantia.status)}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">
+                            {garantias.length} garantia{garantias.length !== 1 ? 's' : ''}
                           </Badge>
-                        </div>
-                        
-                        {/* Grid de informações */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                          <div>
-                            <span className="text-muted-foreground block text-xs">Pedido</span>
-                            <p className="font-medium flex items-center gap-1">
-                              <FileText className="h-3 w-3 text-muted-foreground" />
-                              {exibirCampo(garantia.codigo_pedido)}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block text-xs">Mostruário</span>
-                            <p className="font-medium flex items-center gap-1">
-                              <Package className="h-3 w-3 text-muted-foreground" />
-                              {exibirCampo(garantia.codigo_mostruario)}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block text-xs">Data Compra</span>
-                            <p className="font-medium flex items-center gap-1">
-                              <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                              {formatDateBR(garantia.data_compra)}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground block text-xs">Validade</span>
-                            <p className="font-medium flex items-center gap-1">
-                              <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                              {formatDateBR(garantia.data_expiracao)}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Contador de dias restantes */}
-                        <div className="mt-3 pt-3 border-t flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          {renderDiasRestantes(diasRestantes)}
+                          <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                            {garantiasAtivas} ativa{garantiasAtivas !== 1 ? 's' : ''}
+                          </Badge>
+                          <ChevronDown className={cn(
+                            "h-5 w-5 text-muted-foreground transition-transform duration-200",
+                            isOpen && "rotate-180"
+                          )} />
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    </CardHeader>
+                  </CollapsibleTrigger>
+
+                  {/* Lista de garantias do cliente - colapsável */}
+                  <CollapsibleContent>
+                    <CardContent className="pt-4 border-t">
+                      <div className="space-y-4">
+                        {garantias.map((garantia) => {
+                          const diasRestantes = calcularDiasRestantes(garantia.data_expiracao);
+                          const ativa = diasRestantes !== null && diasRestantes >= 0;
+                          
+                          return (
+                            <div 
+                              key={garantia.id} 
+                              className={cn(
+                                "border rounded-lg p-4",
+                                ativa ? "bg-card" : "bg-muted/30"
+                              )}
+                            >
+                              {/* Linha superior: Produto + Status */}
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3">
+                                <h4 className="font-medium text-base">
+                                  {exibirCampo(garantia.descricao_produto)}
+                                </h4>
+                                <Badge 
+                                  variant="outline" 
+                                  className={cn(
+                                    "w-fit",
+                                    ativa 
+                                      ? "bg-success/10 text-success border-success/30"
+                                      : "bg-destructive/10 text-destructive border-destructive/30"
+                                  )}
+                                >
+                                  {exibirCampo(garantia.status)}
+                                </Badge>
+                              </div>
+                              
+                              {/* Grid de informações */}
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground block text-xs">Pedido</span>
+                                  <p className="font-medium flex items-center gap-1">
+                                    <FileText className="h-3 w-3 text-muted-foreground" />
+                                    {exibirCampo(garantia.codigo_pedido)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-xs">Mostruário</span>
+                                  <p className="font-medium flex items-center gap-1">
+                                    <Package className="h-3 w-3 text-muted-foreground" />
+                                    {exibirCampo(garantia.codigo_mostruario)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-xs">Data Compra</span>
+                                  <p className="font-medium flex items-center gap-1">
+                                    <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                                    {formatDateBR(garantia.data_compra)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-xs">Validade</span>
+                                  <p className="font-medium flex items-center gap-1">
+                                    <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                                    {formatDateBR(garantia.data_expiracao)}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {/* Contador de dias restantes */}
+                              <div className="mt-3 pt-3 border-t flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                {renderDiasRestantes(diasRestantes)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            );
+          })}
         </div>
       )}
     </div>
