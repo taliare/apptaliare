@@ -34,14 +34,15 @@ export default function Garantias() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Buscar garantias do Supabase externo com JOINs
+  // Buscar garantias do Supabase externo com JOINs manuais (evita erro PGRST200)
   const { data: garantias = [], isLoading, error } = useQuery({
     queryKey: ['garantias-externo'],
     queryFn: async () => {
       // Inicialização lazy do cliente externo (com fallback runtime)
       const supabaseExternal = await getSupabaseExternalClient();
       
-      const { data, error } = await supabaseExternal
+      // Passo 1: Buscar garantias sem embeds (evita erro de relacionamento FK)
+      const { data: garantiasData, error: garantiasError } = await supabaseExternal
         .from('garantias' as any)
         .select(`
           id,
@@ -50,22 +51,44 @@ export default function Garantias() {
           descricao_produto,
           data_compra,
           data_garantia_fim,
-          clientes_garantia!cliente_id (
-            nome
-          ),
-          profiles!revendedora_id (
-            nome
-          )
+          revendedora_id,
+          cliente_id
         `)
         .order('data_compra', { ascending: false });
 
-      if (error) throw error;
-      
-      // Mapear dados para o formato esperado
-      return (data || []).map((g: any) => ({
+      if (garantiasError) throw garantiasError;
+      if (!garantiasData || garantiasData.length === 0) return [] as Garantia[];
+
+      // Passo 2: Coletar IDs únicos
+      const revendedoraIds = [...new Set(garantiasData.map((g: any) => g.revendedora_id).filter(Boolean))];
+      const clienteIds = [...new Set(garantiasData.map((g: any) => g.cliente_id).filter(Boolean))];
+
+      // Passo 3: Buscar profiles (revendedoras) e clientes em paralelo
+      const [profilesResult, clientesResult] = await Promise.all([
+        revendedoraIds.length > 0
+          ? supabaseExternal.from('profiles' as any).select('id, nome').in('id', revendedoraIds)
+          : { data: [], error: null },
+        clienteIds.length > 0
+          ? supabaseExternal.from('clientes_garantia' as any).select('id, nome').in('id', clienteIds)
+          : { data: [], error: null },
+      ]);
+
+      // Criar mapas id -> nome
+      const profilesMap: Record<string, string> = {};
+      (profilesResult.data || []).forEach((p: any) => {
+        profilesMap[p.id] = p.nome;
+      });
+
+      const clientesMap: Record<string, string> = {};
+      (clientesResult.data || []).forEach((c: any) => {
+        clientesMap[c.id] = c.nome;
+      });
+
+      // Passo 4: Mapear dados para o formato esperado
+      return garantiasData.map((g: any) => ({
         id: g.id,
-        nome_revendedora: g.profiles?.nome || 'Sem revendedora',
-        nome_cliente: g.clientes_garantia?.nome || 'Sem cliente',
+        nome_revendedora: profilesMap[g.revendedora_id] || 'Sem revendedora',
+        nome_cliente: clientesMap[g.cliente_id] || 'Sem cliente',
         codigo_pedido: g.codigo_pedido,
         codigo_mostruario: g.codigo_mostruario,
         descricao_produto: g.descricao_produto,
@@ -158,7 +181,26 @@ export default function Garantias() {
   }
 
   if (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    // Extrair mensagem de erro de forma robusta
+    let errorMessage = 'Erro desconhecido';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'object' && error !== null) {
+      // Erro do Supabase/PostgREST pode ter .message, .code, .details
+      const errObj = error as any;
+      if (errObj.message) {
+        errorMessage = errObj.code ? `[${errObj.code}] ${errObj.message}` : errObj.message;
+      } else {
+        try {
+          errorMessage = JSON.stringify(error);
+        } catch {
+          errorMessage = String(error);
+        }
+      }
+    } else {
+      errorMessage = String(error);
+    }
+
     const isConfigError = errorMessage.includes('não configurado') || errorMessage.includes('Missing secrets');
     
     return (
