@@ -35,9 +35,15 @@ interface ClienteGarantia {
   telefone: string | null;
 }
 
+interface Revendedora {
+  id: string;
+  nome: string | null;
+}
+
 interface ClienteComGarantias {
   cliente: ClienteGarantia;
   garantias: Garantia[];
+  nomeRevendedora: string | null;
 }
 
 // Helpers
@@ -105,9 +111,11 @@ export default function Garantias() {
 
       const garantiasData = data?.garantias || [];
       const clientesData = data?.clientes || [];
+      const revendedorasData = data?.revendedoras || [];
 
       console.log(`[Garantias] ${garantiasData.length} garantias retornadas`);
       console.log(`[Garantias] ${clientesData.length} clientes retornados`);
+      console.log(`[Garantias] ${revendedorasData.length} revendedoras retornadas`);
 
       if (garantiasData.length === 0) return [] as ClienteComGarantias[];
 
@@ -115,6 +123,12 @@ export default function Garantias() {
       const clientesMap: Record<string, ClienteGarantia> = {};
       clientesData.forEach((c: any) => {
         clientesMap[c.id] = { id: c.id, nome: c.nome, telefone: c.telefone };
+      });
+
+      // Criar mapa de revendedoras
+      const revendedorasMap: Record<string, string> = {};
+      revendedorasData.forEach((r: Revendedora) => {
+        if (r.nome) revendedorasMap[r.id] = r.nome;
       });
 
       // Agrupar garantias por cliente
@@ -127,7 +141,8 @@ export default function Garantias() {
         if (!agrupamento.has(clienteId)) {
           agrupamento.set(clienteId, {
             cliente: clientesMap[clienteId] || { id: clienteId, nome: null, telefone: null },
-            garantias: []
+            garantias: [],
+            nomeRevendedora: g.revendedora_id ? revendedorasMap[g.revendedora_id] || null : null
           });
         }
         
@@ -163,7 +178,7 @@ export default function Garantias() {
     if (!clientesComGarantias.length) return [];
 
     return clientesComGarantias
-      .map(({ cliente, garantias }) => {
+      .map(({ cliente, garantias, nomeRevendedora }) => {
         // Filtrar garantias dentro do cliente
         const garantiasFiltradas = garantias.filter(g => {
           // Filtro por status
@@ -185,19 +200,20 @@ export default function Garantias() {
             const termo = searchTerm.toLowerCase();
             const matchCliente = cliente.nome?.toLowerCase().includes(termo) || 
                                  cliente.telefone?.toLowerCase().includes(termo);
+            const matchRevendedora = nomeRevendedora?.toLowerCase().includes(termo);
             const matchGarantia = 
               g.codigo_pedido?.toLowerCase().includes(termo) ||
               g.codigo_mostruario?.toLowerCase().includes(termo) ||
               g.descricao_produto?.toLowerCase().includes(termo) ||
               g.status?.toLowerCase().includes(termo);
             
-            if (!matchCliente && !matchGarantia) return false;
+            if (!matchCliente && !matchRevendedora && !matchGarantia) return false;
           }
 
           return true;
         });
 
-        return { cliente, garantias: garantiasFiltradas };
+        return { cliente, garantias: garantiasFiltradas, nomeRevendedora };
       })
       .filter(({ garantias }) => garantias.length > 0); // Remover clientes sem garantias após filtro
   }, [clientesComGarantias, filtroStatus, dateRange, searchTerm]);
@@ -407,7 +423,7 @@ export default function Garantias() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {clientesFiltrados.map(({ cliente, garantias }) => {
+          {clientesFiltrados.map(({ cliente, garantias, nomeRevendedora }) => {
             const garantiasAtivas = garantias.filter(g => isGarantiaAtiva(g.data_expiracao)).length;
             const isOpen = openClientes.has(cliente.id);
             
@@ -432,6 +448,11 @@ export default function Garantias() {
                               <p className="text-sm text-muted-foreground flex items-center gap-1">
                                 <Phone className="h-3 w-3" />
                                 {cliente.telefone}
+                              </p>
+                            )}
+                            {nomeRevendedora && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Revendedora: <span className="font-medium text-primary">{nomeRevendedora}</span>
                               </p>
                             )}
                           </div>

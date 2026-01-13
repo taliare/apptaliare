@@ -63,13 +63,34 @@ Deno.serve(async (req) => {
 
     console.log(`[get-garantias-admin] ${clientes.length} clientes encontrados`);
 
+    // Buscar revendedoras relacionadas
+    const revendedoraIds = [...new Set((garantias || []).map(g => g.revendedora_id).filter(Boolean))];
+    
+    let revendedoras: any[] = [];
+    if (revendedoraIds.length > 0) {
+      const { data: revendedorasData, error: revendedorasError } = await supabaseAdmin
+        .from('profiles')
+        .select('id, nome')
+        .in('id', revendedoraIds);
+
+      if (revendedorasError) {
+        console.error('[get-garantias-admin] Erro ao buscar revendedoras:', revendedorasError);
+      } else {
+        revendedoras = revendedorasData || [];
+      }
+    }
+
+    console.log(`[get-garantias-admin] ${revendedoras.length} revendedoras encontradas`);
+
     return new Response(
       JSON.stringify({ 
         garantias: garantias || [], 
         clientes,
+        revendedoras,
         debug: {
           totalGarantias: garantias?.length || 0,
-          totalClientes: clientes.length
+          totalClientes: clientes.length,
+          totalRevendedoras: revendedoras.length
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
