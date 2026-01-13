@@ -13,6 +13,7 @@ import {
   PackageCheck,
   Settings,
   UserPlus,
+  Shield,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -140,6 +141,12 @@ export function AppSidebar() {
       label: "CAPTAÇÃO",
       items: [
         { title: "Leads Revendedoras", url: "/leads-revendedoras", icon: UserPlus },
+      ],
+    },
+    {
+      label: "GARANTIAS",
+      items: [
+        { title: "Garantias", url: "/garantias", icon: Shield },
       ],
     },
     {
