@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { DateRange } from 'react-day-picker';
-import { getSupabaseExternalClient } from '@/lib/supabase-external';
+import { supabase } from '@/integrations/supabase/client';
 
 // Interfaces baseadas na estrutura real do banco externo
 interface Garantia {
