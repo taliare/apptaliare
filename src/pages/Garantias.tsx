@@ -72,52 +72,41 @@ export default function Garantias() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Buscar garantias do Supabase externo agrupadas por cliente
+  // Buscar garantias via edge function administrativa (bypass RLS)
   const { data: clientesComGarantias = [], isLoading, error } = useQuery({
-    queryKey: ['garantias-externo-agrupado'],
+    queryKey: ['garantias-admin'],
     queryFn: async () => {
-      const supabaseExternal = await getSupabaseExternalClient();
+      // Chamar edge function que usa service_role_key
+      const { data, error } = await supabase.functions.invoke('get-garantias-admin');
       
-      // Buscar garantias com campos específicos
-      const { data: garantiasData, error: garantiasError } = await supabaseExternal
-        .from('garantias' as any)
-        .select(`
-          id,
-          codigo_pedido,
-          codigo_mostruario,
-          descricao_produto,
-          data_compra,
-          data_expiracao,
-          status,
-          cliente_id,
-          revendedora_id
-        `)
-        .order('data_compra', { ascending: false });
+      if (error) {
+        console.error('[Garantias] Erro na edge function:', error);
+        throw error;
+      }
 
-      if (garantiasError) throw garantiasError;
-      if (!garantiasData || garantiasData.length === 0) return [] as ClienteComGarantias[];
+      if (data?.error) {
+        console.error('[Garantias] Erro retornado:', data.error);
+        throw new Error(data.error);
+      }
 
-      // Coletar IDs únicos de clientes
-      const clienteIds = [...new Set(garantiasData.map((g: any) => g.cliente_id).filter(Boolean))];
+      const garantiasData = data?.garantias || [];
+      const clientesData = data?.clientes || [];
 
-      // Buscar clientes_garantia
-      const { data: clientesData } = clienteIds.length > 0
-        ? await supabaseExternal
-            .from('clientes_garantia' as any)
-            .select('id, nome, telefone')
-            .in('id', clienteIds)
-        : { data: [] };
+      console.log(`[Garantias] ${garantiasData.length} garantias retornadas`);
+      console.log(`[Garantias] ${clientesData.length} clientes retornados`);
+
+      if (garantiasData.length === 0) return [] as ClienteComGarantias[];
 
       // Criar mapa de clientes
       const clientesMap: Record<string, ClienteGarantia> = {};
-      (clientesData || []).forEach((c: any) => {
+      clientesData.forEach((c: any) => {
         clientesMap[c.id] = { id: c.id, nome: c.nome, telefone: c.telefone };
       });
 
       // Agrupar garantias por cliente
       const agrupamento = new Map<string, ClienteComGarantias>();
       
-      for (const g of garantiasData as any[]) {
+      for (const g of garantiasData) {
         const clienteId = g.cliente_id;
         if (!clienteId) continue;
         
