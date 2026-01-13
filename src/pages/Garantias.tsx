@@ -41,20 +41,21 @@ export default function Garantias() {
       // Inicialização lazy do cliente externo (com fallback runtime)
       const supabaseExternal = await getSupabaseExternalClient();
       
-      // Passo 1: Buscar garantias sem embeds (evita erro de relacionamento FK)
+      // DEBUG: Buscar TODOS os campos para descobrir a estrutura real
       const { data: garantiasData, error: garantiasError } = await supabaseExternal
         .from('garantias' as any)
-        .select(`
-          id,
-          codigo_pedido,
-          codigo_mostruario,
-          descricao_produto,
-          data_compra,
-          data_expiracao,
-          revendedora_id,
-          cliente_id
-        `)
+        .select('*')
         .order('data_compra', { ascending: false });
+
+      // Logs de debug
+      console.log('[Garantias] Resposta bruta do banco externo:');
+      console.log('[Garantias] Data:', garantiasData);
+      console.log('[Garantias] Error:', garantiasError);
+      console.log('[Garantias] Quantidade:', garantiasData?.length || 0);
+      if (garantiasData && garantiasData.length > 0) {
+        console.log('[Garantias] Primeiro registro (estrutura):', garantiasData[0]);
+        console.log('[Garantias] Colunas disponíveis:', Object.keys(garantiasData[0]));
+      }
 
       if (garantiasError) throw garantiasError;
       if (!garantiasData || garantiasData.length === 0) return [] as Garantia[];
