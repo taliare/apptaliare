@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taliare-v4';
+const CACHE_NAME = 'taliare-v5';
 const urlsToCache = [
   '/',
   '/index.html',
