@@ -32,6 +32,20 @@ serve(async (req) => {
       );
     }
 
+    // Validação: URL deve começar com http:// ou https://
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      return new Response(
+        JSON.stringify({ 
+          error: `EXTERNAL_SUPABASE_URL inválida: deve começar com http:// ou https://. Valor atual parece ser um JWT ou outro token.`,
+          configured: false 
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
     return new Response(
       JSON.stringify({ url, anonKey, configured: true }),
       { 
