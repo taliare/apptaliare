@@ -34,17 +34,41 @@ export default function Garantias() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Buscar garantias do Supabase externo
+  // Buscar garantias do Supabase externo com JOINs
   const { data: garantias = [], isLoading, error } = useQuery({
     queryKey: ['garantias-externo'],
     queryFn: async () => {
       const { data, error } = await supabaseExternal
         .from('garantias' as any)
-        .select('*')
+        .select(`
+          id,
+          codigo_pedido,
+          codigo_mostruario,
+          descricao_produto,
+          data_compra,
+          data_garantia_fim,
+          clientes_garantia!cliente_id (
+            nome
+          ),
+          profiles!revendedora_id (
+            nome
+          )
+        `)
         .order('data_compra', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as unknown as Garantia[];
+      
+      // Mapear dados para o formato esperado
+      return (data || []).map((g: any) => ({
+        id: g.id,
+        nome_revendedora: g.profiles?.nome || 'Sem revendedora',
+        nome_cliente: g.clientes_garantia?.nome || 'Sem cliente',
+        codigo_pedido: g.codigo_pedido,
+        codigo_mostruario: g.codigo_mostruario,
+        descricao_produto: g.descricao_produto,
+        data_compra: g.data_compra,
+        data_garantia_fim: g.data_garantia_fim,
+      })) as Garantia[];
     },
   });
 
