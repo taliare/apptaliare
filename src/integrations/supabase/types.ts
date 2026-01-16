@@ -97,6 +97,7 @@ export type Database = {
           despesa_cobranca: number | null
           finalizado: boolean | null
           id: string
+          observacoes: string | null
           representante_id: string
           total_cartao: number | null
           total_cobrado: number
@@ -109,6 +110,7 @@ export type Database = {
           despesa_cobranca?: number | null
           finalizado?: boolean | null
           id?: string
+          observacoes?: string | null
           representante_id: string
           total_cartao?: number | null
           total_cobrado: number
@@ -121,6 +123,7 @@ export type Database = {
           despesa_cobranca?: number | null
           finalizado?: boolean | null
           id?: string
+          observacoes?: string | null
           representante_id?: string
           total_cartao?: number | null
           total_cobrado?: number

@@ -4,12 +4,13 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock, Package, Wallet, DollarSign, Receipt, Search } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, CheckCircle2, XCircle, Lock, Package, Wallet, DollarSign, Receipt, Search, MessageSquare } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState, useMemo, useEffect } from 'react';
@@ -48,6 +49,7 @@ interface CobrancaDiariaType {
   despesa_cobranca: number | null;
   finalizado: boolean | null;
   representante_id: string;
+  observacoes: string | null;
 }
 
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'];
@@ -87,6 +89,7 @@ export default function CobrancaDiaria() {
 
   // Form states for Cobrança Diária
   const [despesaCobranca, setDespesaCobranca] = useState('');
+  const [observacoesDia, setObservacoesDia] = useState('');
 
   // Função para formatar valor monetário durante digitação
   const formatarValorInput = (valor: string): string => {
@@ -187,6 +190,15 @@ export default function CobrancaDiaria() {
       supabase.removeChannel(channel);
     };
   }, [user?.id, dateStr, queryClient]);
+
+  // Carregar observações existentes quando há registro do dia
+  useEffect(() => {
+    if (cobrancaDiaria?.observacoes) {
+      setObservacoesDia(cobrancaDiaria.observacoes);
+    } else {
+      setObservacoesDia('');
+    }
+  }, [cobrancaDiaria]);
 
   // Query for histórico de fechamentos
   const { data: historico = [] } = useQuery({
@@ -619,6 +631,7 @@ export default function CobrancaDiaria() {
         total_cartao: totalCartaoCalculado,
         despesa_cobranca: parseValorFormatado(despesaCobranca) || 0,
         finalizado: true,
+        observacoes: observacoesDia.trim() || null,
       };
 
       if (cobrancaDiaria?.id) {
@@ -649,11 +662,17 @@ export default function CobrancaDiaria() {
           const nomeRep = profile?.nome || 'Um representante';
           const dataFormatada = format(selectedDate, 'dd/MM/yyyy');
 
+          // Construir mensagem com observação se existir
+          const mensagemBase = `${nomeRep} finalizou o dia ${dataFormatada}`;
+          const mensagemCompleta = observacoesDia.trim() 
+            ? `${mensagemBase}\n\nObservação: ${observacoesDia.trim()}`
+            : mensagemBase;
+
           // Inserir notificação para cada admin
           const notificacoes = adminIds.map(adminId => ({
             user_id: adminId,
             title: 'Fechamento Realizado',
-            message: `${nomeRep} finalizou o dia ${dataFormatada}`,
+            message: mensagemCompleta,
             type: 'success',
             link: '/dashboard-admin'
           }));
@@ -661,11 +680,15 @@ export default function CobrancaDiaria() {
           await supabase.from('notifications').insert(notificacoes);
 
           // Enviar push para admins
+          const pushBody = observacoesDia.trim()
+            ? `${nomeRep} finalizou o dia ${dataFormatada} (com observação)`
+            : `${nomeRep} finalizou o dia ${dataFormatada}`;
+
           await supabase.functions.invoke('send-push-notification', {
             body: {
               userIds: adminIds,
               title: 'Fechamento Realizado',
-              body: `${nomeRep} finalizou o dia ${dataFormatada}`
+              body: pushBody
             }
           });
         }
@@ -1453,6 +1476,30 @@ export default function CobrancaDiaria() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Card de Observações - antes do botão de finalizar */}
+      {!isDiaFinalizado && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Observações do Dia
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              placeholder="Deixe aqui alguma observação ou recado para o administrador (opcional)..."
+              value={observacoesDia}
+              onChange={(e) => setObservacoesDia(e.target.value)}
+              className="min-h-[100px] resize-none"
+              maxLength={500}
+            />
+            <p className="text-xs text-muted-foreground mt-2 text-right">
+              {observacoesDia.length}/500 caracteres
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Botão grande de confirmar fechamento */}
       {!isDiaFinalizado && (
