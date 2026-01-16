@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -45,6 +45,7 @@ interface CobrancaDiaria {
   despesa_cobranca: number | null;
   finalizado: boolean | null;
   representante_id: string;
+  observacoes: string | null;
 }
 
 interface KitEntregue {
@@ -451,6 +452,23 @@ export default function FechamentoDiario() {
               )}
             </CardContent>
           </Card>
+
+          {/* Card de Observações do Representante */}
+          {cobrancaDiaria?.observacoes && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                  Observação do Representante
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm bg-background/80 p-3 rounded-lg whitespace-pre-wrap">
+                  {cobrancaDiaria.observacoes}
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Cards de Totais de Cobrança */}
           <div>
