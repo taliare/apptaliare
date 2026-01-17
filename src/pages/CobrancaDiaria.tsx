@@ -168,8 +168,11 @@ export default function CobrancaDiaria() {
           const newData = payload.new as CobrancaDiariaType;
           const oldData = payload.old as CobrancaDiariaType;
           
-          // Invalidar a query local para buscar dados atualizados
+          // Invalidar e forçar refetch da query local para buscar dados atualizados
           queryClient.invalidateQueries({ 
+            queryKey: ['cobranca-diaria', dateStr, user.id] 
+          });
+          queryClient.refetchQueries({ 
             queryKey: ['cobranca-diaria', dateStr, user.id] 
           });
           
