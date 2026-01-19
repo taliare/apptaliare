@@ -132,14 +132,16 @@ export default function RelatorioKpis() {
     },
   });
 
-  // BLOCO 1 - Repasses ativos
+  // BLOCO 1 - Repasses ativos (notas do tipo repasse pendentes até o final do período)
   const { data: repassesAtivos = [], isLoading: loadingRepasses } = useQuery({
-    queryKey: ["kpis-repasses-ativos"],
+    queryKey: ["kpis-repasses-ativos", endDate],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("repasses")
+        .from("cobrancas_agendadas")
         .select("*")
-        .eq("status", "agendado");
+        .eq("tipo", "repasse")
+        .in("status", ["pendente", "parcial"])
+        .lte("data_agendada", endDate);
       if (error) throw error;
       return data || [];
     },
@@ -264,7 +266,7 @@ export default function RelatorioKpis() {
   const qtdNotas = prestacoes.length;
   const ticketMedio = qtdNotas > 0 ? totalCobrado / qtdNotas : 0;
   const valorRepasseAtivo = repassesAtivos.reduce(
-    (sum, r) => sum + (r.valor_repasse || 0),
+    (sum, r) => sum + (r.valor_previsto || 0),
     0
   );
   const valorVencido = cobrancasVencidas.reduce(
