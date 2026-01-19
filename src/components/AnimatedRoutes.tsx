@@ -26,6 +26,9 @@ import LeadsRevendedoras from '@/pages/LeadsRevendedoras';
 import Garantias from '@/pages/Garantias';
 import Perfil from '@/pages/Perfil';
 import NotFound from '@/pages/NotFound';
+import DreResumo from '@/pages/DreResumo';
+import DreDespesas from '@/pages/DreDespesas';
+import DreCategorias from '@/pages/DreCategorias';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -126,6 +129,23 @@ export function AnimatedRoutes() {
         <Route path="/garantias" element={
           <ProtectedRoute requiredRole="admin">
             <Garantias />
+          </ProtectedRoute>
+        } />
+        
+        {/* DRE routes */}
+        <Route path="/dre-resumo" element={
+          <ProtectedRoute requiredRole="admin">
+            <DreResumo />
+          </ProtectedRoute>
+        } />
+        <Route path="/dre-despesas" element={
+          <ProtectedRoute requiredRole="admin">
+            <DreDespesas />
+          </ProtectedRoute>
+        } />
+        <Route path="/dre-categorias" element={
+          <ProtectedRoute requiredRole="admin">
+            <DreCategorias />
           </ProtectedRoute>
         } />
         

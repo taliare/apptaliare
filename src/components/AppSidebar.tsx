@@ -15,6 +15,9 @@ import {
   UserPlus,
   Shield,
   BarChart3,
+  TrendingUp,
+  Receipt,
+  FolderOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -148,6 +151,14 @@ export function AppSidebar() {
       label: "GARANTIAS",
       items: [
         { title: "Garantias", url: "/garantias", icon: Shield },
+      ],
+    },
+    {
+      label: "DRE",
+      items: [
+        { title: "Resumo DRE", url: "/dre-resumo", icon: TrendingUp },
+        { title: "Despesas", url: "/dre-despesas", icon: Receipt },
+        { title: "Categorias", url: "/dre-categorias", icon: FolderOpen },
       ],
     },
     {
