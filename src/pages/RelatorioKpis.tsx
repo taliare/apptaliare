@@ -8,6 +8,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
   Table,
   TableBody,
   TableCell,
@@ -29,6 +37,8 @@ import {
   Clock,
   ArrowUpDown,
   ChevronDown,
+  ChevronRight,
+  Repeat,
 } from "lucide-react";
 import { formatarValor, getLocalDateString } from "@/lib/utils";
 import { format, subDays, startOfMonth, endOfMonth, addDays } from "date-fns";
@@ -52,6 +62,12 @@ export default function RelatorioKpis() {
   const [sortField, setSortField] = useState<SortField>("totalCobrado");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
+  // Sheet states for drill-down
+  const [sheetPrevisao, setSheetPrevisao] = useState(false);
+  const [sheetKitsEntregues, setSheetKitsEntregues] = useState(false);
+  const [sheetKitsPosse, setSheetKitsPosse] = useState(false);
+  const [sheetRevendedorasAtivas, setSheetRevendedorasAtivas] = useState(false);
+  const [sheetRevendedorasInativas, setSheetRevendedorasInativas] = useState(false);
   // Calculate date range based on filter
   const { startDate, endDate } = useMemo(() => {
     switch (periodFilter) {
@@ -216,47 +232,45 @@ export default function RelatorioKpis() {
     },
   });
 
-  // BLOCO 5 - Revendedoras ativas (com cobranças pendentes)
-  const { data: revendedorasAtivas = [] } = useQuery({
-    queryKey: ["kpis-revendedoras-ativas"],
+  // BLOCO 5 - Revendedoras ativas com representante_id (para drill-down)
+  const { data: revendedorasAtivasData = [] } = useQuery({
+    queryKey: ["kpis-revendedoras-ativas-detalhado"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cobrancas_agendadas")
-        .select("revendedora")
+        .select("revendedora, representante_id")
         .in("status", ["pendente", "parcial"])
         .not("revendedora", "is", null);
       if (error) throw error;
-      const unique = new Set(data?.map((c) => c.revendedora) || []);
-      return Array.from(unique);
-    },
-  });
-
-  // Revendedoras inativas
-  const { data: revendedorasInativas = [] } = useQuery({
-    queryKey: ["kpis-revendedoras-inativas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_revendedoras_inativas_count" as never);
-      if (error) {
-        // Fallback - count from prestacoes without active cobrancas
-        const { data: prestData } = await supabase
-          .from("prestacoes_contas")
-          .select("revendedora")
-          .not("revendedora", "is", null);
-        const { data: activeData } = await supabase
-          .from("cobrancas_agendadas")
-          .select("revendedora")
-          .in("status", ["pendente", "parcial"]);
-        
-        const allRevendedoras = new Set(prestData?.map((p) => p.revendedora) || []);
-        const activeRevendedoras = new Set(activeData?.map((c) => c.revendedora) || []);
-        const inactive = Array.from(allRevendedoras).filter(
-          (r) => !activeRevendedoras.has(r)
-        );
-        return inactive;
-      }
       return data || [];
     },
   });
+
+  // Derivar revendedoras ativas únicas
+  const revendedorasAtivas = useMemo(() => {
+    const unique = new Set(revendedorasAtivasData.map((c) => c.revendedora));
+    return Array.from(unique);
+  }, [revendedorasAtivasData]);
+
+  // Todas as revendedoras do histórico com representante_id (para calcular inativas)
+  const { data: todasRevendedorasData = [] } = useQuery({
+    queryKey: ["kpis-todas-revendedoras"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prestacoes_contas")
+        .select("revendedora, representante_id")
+        .not("revendedora", "is", null);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Derivar revendedoras inativas
+  const revendedorasInativas = useMemo(() => {
+    const activeSet = new Set(revendedorasAtivas);
+    const allRevendedoras = new Set(todasRevendedorasData.map((p) => p.revendedora));
+    return Array.from(allRevendedoras).filter((r) => !activeSet.has(r));
+  }, [revendedorasAtivas, todasRevendedorasData]);
 
   // Calculate metrics
   const totalCobrado = cobrancasDiarias.reduce(
@@ -372,6 +386,127 @@ export default function RelatorioKpis() {
           (totalRevendedorasAtivas + totalRevendedorasInativas)) *
         100
       : 0;
+
+  // ======== DADOS AGRUPADOS POR REPRESENTANTE (para drill-down) ========
+
+  // Previsão de recebimento por representante
+  const previsaoPorRepresentante = useMemo(() => {
+    const grouped: Record<string, {
+      nome: string;
+      kits: { qtd: number; valor: number };
+      repasses: { qtd: number; valor: number };
+    }> = {};
+
+    cobrancasPendentes.forEach((c) => {
+      const repId = c.representante_id;
+      if (!repId) return;
+      if (!grouped[repId]) {
+        const rep = representantes.find((r) => r.id === repId);
+        grouped[repId] = {
+          nome: rep?.nome || "Sem representante",
+          kits: { qtd: 0, valor: 0 },
+          repasses: { qtd: 0, valor: 0 },
+        };
+      }
+      if (c.tipo === "kit") {
+        grouped[repId].kits.qtd++;
+        grouped[repId].kits.valor += c.valor_previsto || 0;
+      } else {
+        grouped[repId].repasses.qtd++;
+        grouped[repId].repasses.valor += c.valor_previsto || 0;
+      }
+    });
+
+    return Object.values(grouped).sort(
+      (a, b) =>
+        b.kits.valor + b.repasses.valor - (a.kits.valor + a.repasses.valor)
+    );
+  }, [cobrancasPendentes, representantes]);
+
+  const previsaoTotal = cobrancasPendentes.reduce(
+    (sum, c) => sum + (c.valor_previsto || 0),
+    0
+  );
+  const previsaoTotalNotas = cobrancasPendentes.length;
+
+  // Kits entregues por representante
+  const kitsEntreguesPorRep = useMemo(() => {
+    const grouped: Record<string, { nome: string; quantidade: number }> = {};
+    kitsEntregues.forEach((k) => {
+      const repId = k.representante_id;
+      if (!repId) return;
+      if (!grouped[repId]) {
+        const rep = representantes.find((r) => r.id === repId);
+        grouped[repId] = { nome: rep?.nome || "Sem representante", quantidade: 0 };
+      }
+      grouped[repId].quantidade++;
+    });
+    return Object.values(grouped).sort((a, b) => b.quantidade - a.quantidade);
+  }, [kitsEntregues, representantes]);
+
+  // Kits em posse por representante
+  const kitsPossePorRep = useMemo(() => {
+    const grouped: Record<string, { nome: string; quantidade: number }> = {};
+    kitsEmPosse.forEach((k) => {
+      const repId = k.representante_id;
+      if (!repId) return;
+      if (!grouped[repId]) {
+        const rep = representantes.find((r) => r.id === repId);
+        grouped[repId] = { nome: rep?.nome || "Sem representante", quantidade: 0 };
+      }
+      grouped[repId].quantidade++;
+    });
+    return Object.values(grouped).sort((a, b) => b.quantidade - a.quantidade);
+  }, [kitsEmPosse, representantes]);
+
+  // Revendedoras ativas por representante
+  const revendedorasAtivasPorRep = useMemo(() => {
+    const grouped: Record<string, Set<string>> = {};
+    revendedorasAtivasData.forEach((c) => {
+      const repId = c.representante_id;
+      if (!repId) return;
+      if (!grouped[repId]) grouped[repId] = new Set();
+      if (c.revendedora) grouped[repId].add(c.revendedora);
+    });
+
+    return Object.entries(grouped)
+      .map(([repId, revendedoras]) => ({
+        nome: representantes.find((r) => r.id === repId)?.nome || "Sem representante",
+        quantidade: revendedoras.size,
+      }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }, [revendedorasAtivasData, representantes]);
+
+  // Revendedoras inativas por representante
+  const revendedorasInativasPorRep = useMemo(() => {
+    // Criar sets de revendedoras ativas por representante
+    const ativasPorRep: Record<string, Set<string>> = {};
+    revendedorasAtivasData.forEach((c) => {
+      const repId = c.representante_id;
+      if (!repId) return;
+      if (!ativasPorRep[repId]) ativasPorRep[repId] = new Set();
+      if (c.revendedora) ativasPorRep[repId].add(c.revendedora);
+    });
+
+    // Calcular inativas por representante
+    const inativasPorRep: Record<string, Set<string>> = {};
+    todasRevendedorasData.forEach((p) => {
+      const repId = p.representante_id;
+      if (!repId) return;
+      if (!inativasPorRep[repId]) inativasPorRep[repId] = new Set();
+      if (p.revendedora && !ativasPorRep[repId]?.has(p.revendedora)) {
+        inativasPorRep[repId].add(p.revendedora);
+      }
+    });
+
+    return Object.entries(inativasPorRep)
+      .map(([repId, revendedoras]) => ({
+        nome: representantes.find((r) => r.id === repId)?.nome || "Sem representante",
+        quantidade: revendedoras.size,
+      }))
+      .filter((r) => r.quantidade > 0)
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }, [todasRevendedorasData, revendedorasAtivasData, representantes]);
 
   // BLOCO 6 - Alertas
   const alertas: Alerta[] = useMemo(() => {
@@ -620,25 +755,31 @@ export default function RelatorioKpis() {
 
       {/* BLOCO 2 - COBRANÇA & PREVISIBILIDADE */}
       <div className="grid md:grid-cols-2 gap-4">
-        <Card>
+        <Card 
+          className="cursor-pointer hover:bg-muted/30 transition-colors group"
+          onClick={() => setSheetPrevisao(true)}
+        >
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              Previsão de Recebimento
+              Previsão de Recebimento (Bruta)
+              <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex justify-between items-center py-2 border-b border-border/50">
-              <span className="text-sm text-muted-foreground">Próximos 7 dias</span>
-              <span className="font-semibold">{formatarValor(previsao7dias)}</span>
+              <span className="text-sm text-muted-foreground">Total a vencer</span>
+              <span className="font-bold text-lg">{formatarValor(previsaoTotal)}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-border/50">
-              <span className="text-sm text-muted-foreground">Próximos 15 dias</span>
-              <span className="font-semibold">{formatarValor(previsao15dias)}</span>
+              <span className="text-sm text-muted-foreground">Quantidade de notas</span>
+              <Badge variant="outline">{previsaoTotalNotas} notas</Badge>
             </div>
             <div className="flex justify-between items-center py-2">
-              <span className="text-sm text-muted-foreground">Próximos 30 dias</span>
-              <span className="font-semibold">{formatarValor(previsao30dias)}</span>
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                Clique para ver por representante
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -790,8 +931,12 @@ export default function RelatorioKpis() {
           Kits (Giro e Risco)
         </h2>
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
+          <Card 
+            className="cursor-pointer hover:bg-muted/30 transition-colors group"
+            onClick={() => setSheetKitsEntregues(true)}
+          >
+            <CardContent className="p-4 text-center relative">
+              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               <p className="text-xs text-muted-foreground mb-1">Entregues</p>
               {loadingKitsEntregues ? (
                 <Skeleton className="h-8 w-12 mx-auto" />
@@ -804,8 +949,12 @@ export default function RelatorioKpis() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4 text-center">
+          <Card 
+            className="cursor-pointer hover:bg-muted/30 transition-colors group"
+            onClick={() => setSheetKitsPosse(true)}
+          >
+            <CardContent className="p-4 text-center relative">
+              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               <p className="text-xs text-muted-foreground mb-1">Em Posse</p>
               {loadingKitsPosse ? (
                 <Skeleton className="h-8 w-12 mx-auto" />
@@ -818,12 +967,12 @@ export default function RelatorioKpis() {
             </CardContent>
           </Card>
 
-          <Card className={giroKits < 0.3 ? "border-yellow-500/30" : ""}>
+          <Card className={giroKits < 0.3 ? "border-warning/30" : ""}>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">Giro</p>
               <p
                 className={`text-2xl font-bold ${
-                  giroKits < 0.3 ? "text-yellow-600" : "text-foreground"
+                  giroKits < 0.3 ? "text-warning" : "text-foreground"
                 }`}
               >
                 {(giroKits * 100).toFixed(0)}%
@@ -841,17 +990,25 @@ export default function RelatorioKpis() {
           Revendedoras
         </h2>
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
+          <Card 
+            className="cursor-pointer hover:bg-muted/30 transition-colors group"
+            onClick={() => setSheetRevendedorasAtivas(true)}
+          >
+            <CardContent className="p-4 text-center relative">
+              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               <p className="text-xs text-muted-foreground mb-1">Ativas</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-2xl font-bold text-success">
                 {totalRevendedorasAtivas}
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4 text-center">
+          <Card 
+            className="cursor-pointer hover:bg-muted/30 transition-colors group"
+            onClick={() => setSheetRevendedorasInativas(true)}
+          >
+            <CardContent className="p-4 text-center relative">
+              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               <p className="text-xs text-muted-foreground mb-1">Inativas</p>
               <p className="text-2xl font-bold text-muted-foreground">
                 {totalRevendedorasInativas}
@@ -864,7 +1021,7 @@ export default function RelatorioKpis() {
               <p className="text-xs text-muted-foreground mb-1">Retenção</p>
               <p
                 className={`text-2xl font-bold ${
-                  taxaRetencao >= 70 ? "text-green-600" : "text-yellow-600"
+                  taxaRetencao >= 70 ? "text-success" : "text-warning"
                 }`}
               >
                 {taxaRetencao.toFixed(0)}%
@@ -929,6 +1086,176 @@ export default function RelatorioKpis() {
           </CardContent>
         </Card>
       )}
+
+      {/* SHEETS DE DETALHAMENTO */}
+      
+      {/* Sheet: Previsão de Recebimento por Representante */}
+      <Sheet open={sheetPrevisao} onOpenChange={setSheetPrevisao}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader className="pb-4 border-b border-border">
+            <SheetTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Previsão por Representante
+            </SheetTitle>
+            <SheetDescription>
+              Total: {formatarValor(previsaoTotal)} ({previsaoTotalNotas} notas)
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
+            <div className="space-y-3 py-4">
+              {previsaoPorRepresentante.map((rep, idx) => (
+                <div key={idx} className="p-4 rounded-lg bg-muted/30 border border-border/50">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-semibold text-sm">{rep.nome}</span>
+                    <span className="font-bold">
+                      {formatarValor(rep.kits.valor + rep.repasses.valor)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span className="flex items-center gap-1">
+                      <Package className="h-3 w-3" />
+                      Kits: {rep.kits.qtd}
+                    </span>
+                    <span>{formatarValor(rep.kits.valor)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Repeat className="h-3 w-3" />
+                      Repasses: {rep.repasses.qtd}
+                    </span>
+                    <span>{formatarValor(rep.repasses.valor)}</span>
+                  </div>
+                </div>
+              ))}
+              {previsaoPorRepresentante.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma previsão no período
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: Kits Entregues por Representante */}
+      <Sheet open={sheetKitsEntregues} onOpenChange={setSheetKitsEntregues}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader className="pb-4 border-b border-border">
+            <SheetTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              Kits Entregues por Representante
+            </SheetTitle>
+            <SheetDescription>
+              Total: {kitsEntreguesQtd} kits no período
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
+            <div className="space-y-2 py-4">
+              {kitsEntreguesPorRep.map((rep, idx) => (
+                <div key={idx} className="flex justify-between items-center py-3 px-4 rounded-lg bg-muted/30">
+                  <span className="font-medium text-sm">{rep.nome}</span>
+                  <Badge variant="outline">{rep.quantidade} kits</Badge>
+                </div>
+              ))}
+              {kitsEntreguesPorRep.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhum kit entregue no período
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: Kits em Posse por Representante */}
+      <Sheet open={sheetKitsPosse} onOpenChange={setSheetKitsPosse}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader className="pb-4 border-b border-border">
+            <SheetTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              Kits em Posse por Representante
+            </SheetTitle>
+            <SheetDescription>
+              Total: {kitsEmPosseQtd} kits com representantes
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
+            <div className="space-y-2 py-4">
+              {kitsPossePorRep.map((rep, idx) => (
+                <div key={idx} className="flex justify-between items-center py-3 px-4 rounded-lg bg-muted/30">
+                  <span className="font-medium text-sm">{rep.nome}</span>
+                  <Badge variant="outline">{rep.quantidade} kits</Badge>
+                </div>
+              ))}
+              {kitsPossePorRep.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhum kit em posse
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: Revendedoras Ativas por Representante */}
+      <Sheet open={sheetRevendedorasAtivas} onOpenChange={setSheetRevendedorasAtivas}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader className="pb-4 border-b border-border">
+            <SheetTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-success" />
+              Revendedoras Ativas por Representante
+            </SheetTitle>
+            <SheetDescription>
+              Total: {totalRevendedorasAtivas} revendedoras ativas
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
+            <div className="space-y-2 py-4">
+              {revendedorasAtivasPorRep.map((rep, idx) => (
+                <div key={idx} className="flex justify-between items-center py-3 px-4 rounded-lg bg-muted/30">
+                  <span className="font-medium text-sm">{rep.nome}</span>
+                  <Badge variant="success">{rep.quantidade} revend.</Badge>
+                </div>
+              ))}
+              {revendedorasAtivasPorRep.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma revendedora ativa
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: Revendedoras Inativas por Representante */}
+      <Sheet open={sheetRevendedorasInativas} onOpenChange={setSheetRevendedorasInativas}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader className="pb-4 border-b border-border">
+            <SheetTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-muted-foreground" />
+              Revendedoras Inativas por Representante
+            </SheetTitle>
+            <SheetDescription>
+              Total: {totalRevendedorasInativas} revendedoras inativas
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
+            <div className="space-y-2 py-4">
+              {revendedorasInativasPorRep.map((rep, idx) => (
+                <div key={idx} className="flex justify-between items-center py-3 px-4 rounded-lg bg-muted/30">
+                  <span className="font-medium text-sm">{rep.nome}</span>
+                  <Badge variant="secondary">{rep.quantidade} revend.</Badge>
+                </div>
+              ))}
+              {revendedorasInativasPorRep.length === 0 && (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma revendedora inativa
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
