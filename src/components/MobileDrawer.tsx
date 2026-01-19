@@ -15,7 +15,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useMessages } from '@/hooks/useMessages';
 import { MessagesDialog } from '@/components/messages/MessagesDialog';
 import { NotificationsSheet } from '@/components/notifications/NotificationsSheet';
-import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory, Bell } from 'lucide-react';
+import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory, Bell, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface MenuCategory {
@@ -147,6 +147,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     {
       label: "FERRAMENTAS",
       items: [
+        { title: 'Relatório KPIs', url: '/relatorio-kpis', icon: BarChart3 },
         { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload },
         { title: 'Relatórios', url: '/relatorios', icon: FileText },
       ],
