@@ -14,6 +14,7 @@ import {
   Settings,
   UserPlus,
   Shield,
+  BarChart3,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -152,6 +153,7 @@ export function AppSidebar() {
     {
       label: "FERRAMENTAS",
       items: [
+        { title: "Relatório KPIs", url: "/relatorio-kpis", icon: BarChart3 },
         { title: "Importar Cobranças", url: "/importar-cobrancas", icon: Upload },
         { title: "Relatórios", url: "/relatorios", icon: FileText },
       ],

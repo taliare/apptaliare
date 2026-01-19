@@ -12,6 +12,7 @@ import Metas from '@/pages/Metas';
 import GerenciarAgenda from '@/pages/GerenciarAgenda';
 import ImportarCobrancas from '@/pages/ImportarCobrancas';
 import Relatorios from '@/pages/Relatorios';
+import RelatorioKpis from '@/pages/RelatorioKpis';
 import Producao from '@/pages/Producao';
 import ProducaoDiaria from '@/pages/ProducaoDiaria';
 import DistribuicaoKits from '@/pages/DistribuicaoKits';
@@ -90,6 +91,11 @@ export function AnimatedRoutes() {
         <Route path="/relatorios" element={
           <ProtectedRoute requiredRole="admin">
             <Relatorios />
+          </ProtectedRoute>
+        } />
+        <Route path="/relatorio-kpis" element={
+          <ProtectedRoute requiredRole="admin">
+            <RelatorioKpis />
           </ProtectedRoute>
         } />
         <Route path="/fechamento-diario" element={
