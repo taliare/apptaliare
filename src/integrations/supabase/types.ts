@@ -140,6 +140,74 @@ export type Database = {
           },
         ]
       }
+      dre_categorias_despesas: {
+        Row: {
+          ativo: boolean | null
+          criado_em: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          ordem: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          criado_em?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          ordem?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          criado_em?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          ordem?: number | null
+        }
+        Relationships: []
+      }
+      dre_despesas: {
+        Row: {
+          ano_mes: string
+          atualizado_em: string | null
+          categoria_id: string | null
+          criado_em: string | null
+          criado_por: string | null
+          id: string
+          observacao: string | null
+          valor: number
+        }
+        Insert: {
+          ano_mes: string
+          atualizado_em?: string | null
+          categoria_id?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+          observacao?: string | null
+          valor: number
+        }
+        Update: {
+          ano_mes?: string
+          atualizado_em?: string | null
+          categoria_id?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+          observacao?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_despesas_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "dre_categorias_despesas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       encomendas_kits: {
         Row: {
           atualizado_em: string
