@@ -18,37 +18,15 @@ import {
   ChevronLeft,
   ChevronRight,
   DollarSign,
-  Package,
-  Percent,
   MinusCircle,
   PlusCircle,
-  AlertTriangle,
-  RefreshCw,
-  Wallet,
-  BarChart3,
 } from "lucide-react";
 
-interface Venda {
-  id: string;
-  data_execucao: string;
-  total_venda: number;
-  comissao_valor: number;
-  valor_devido_empresa: number;
-  valor_pago: number;
-  saldo_devedor: number | null;
-  cobrancas_agendadas: { tipo: string | null } | null;
-}
-
-interface Recuperacao {
-  id: string;
-  data_execucao: string;
-  valor_pago: number;
-  cobrancas_agendadas: { tipo: string | null } | null;
-}
-
+// FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado
 interface CobrancaDiaria {
   id: string;
   data: string;
+  total_cobrado: number | null;
   despesa_cobranca: number | null;
 }
 
@@ -100,59 +78,8 @@ export default function DreResumo() {
     setSelectedAno(String(novoAno));
   };
 
-  // QUERY PRINCIPAL: Vendas (prestacoes_contas) do período
-  // Baseado em data_execucao (competência da venda)
-  const { data: vendas = [], isLoading: loadingVendas } = useQuery({
-    queryKey: ["dre-vendas", anoMes],
-    queryFn: async () => {
-      const inicioMes = `${anoMes}-01`;
-      const fimMes = `${anoMes}-31`;
-
-      const { data, error } = await supabase
-        .from("prestacoes_contas")
-        .select(`
-          id, data_execucao, total_venda, comissao_valor,
-          valor_devido_empresa, valor_pago, saldo_devedor,
-          cobranca_id,
-          cobrancas_agendadas(tipo)
-        `)
-        .gte("data_execucao", inicioMes)
-        .lte("data_execucao", fimMes);
-
-      if (error) throw error;
-      return data as Venda[];
-    },
-  });
-
-  // QUERY RECUPERAÇÃO: Repasses pagos no período cuja venda original é de meses anteriores
-  const { data: recuperacao = [] } = useQuery({
-    queryKey: ["dre-recuperacao", anoMes],
-    queryFn: async () => {
-      const inicioMes = `${anoMes}-01`;
-      const fimMes = `${anoMes}-31`;
-
-      // Busca prestações de repasses realizadas no período
-      const { data, error } = await supabase
-        .from("prestacoes_contas")
-        .select(`
-          id, data_execucao, valor_pago,
-          cobrancas_agendadas(tipo)
-        `)
-        .gte("data_execucao", inicioMes)
-        .lte("data_execucao", fimMes);
-
-      if (error) throw error;
-      
-      // Filtra apenas repasses (recuperação de inadimplência)
-      return (data || []).filter(
-        (r: Recuperacao) => r.cobrancas_agendadas?.tipo === "repasse"
-      ) as Recuperacao[];
-    },
-  });
-
-  // Fetch cobranças diárias (despesas de cobrança automáticas)
-  // CORRIGIDO: Usar gte/lte ao invés de like para campo DATE
-  const { data: cobrancasDiarias = [] } = useQuery({
+  // FONTE FINANCEIRA OFICIAL: cobrancas_diarias (fechamentos dos representantes)
+  const { data: cobrancasDiarias = [], isLoading: loadingCobrancas } = useQuery({
     queryKey: ["dre-cobrancas-diarias", anoMes],
     queryFn: async () => {
       const inicioMes = `${anoMes}-01`;
@@ -160,12 +87,12 @@ export default function DreResumo() {
       
       const { data, error } = await supabase
         .from("cobrancas_diarias")
-        .select("id, data, despesa_cobranca")
+        .select("id, data, total_cobrado, despesa_cobranca")
         .gte("data", inicioMes)
         .lte("data", fimMes);
 
       if (error) throw error;
-      return data as CobrancaDiaria[];
+      return data || [];
     },
   });
 
@@ -183,49 +110,16 @@ export default function DreResumo() {
     },
   });
 
-  // Cálculos do DRE - REGIME DE CAIXA
+  // Cálculos do DRE - FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado
   const dre = useMemo(() => {
-    // ======== FILTRAR APENAS VENDAS DE KITS ========
-    // Repasses NÃO são receita nova, são recuperação de inadimplência
-    const vendasKits = vendas.filter(v => 
-      v.cobrancas_agendadas?.tipo === "kit" && 
-      v.total_venda > 0
+    // ======== RECEITA (TOTAL COBRADO) ========
+    // Soma dos fechamentos diários - já líquido, com comissão descontada
+    const totalCobrado = cobrancasDiarias.reduce(
+      (sum, cd) => sum + Number(cd.total_cobrado || 0), 0
     );
-
-    // ======== RECEITA BRUTA (informativo - não é entrada de caixa) ========
-    // Soma de TODOS os valores informados em "quanto foi a venda"
-    const receitaBruta = vendasKits.reduce(
-      (sum, v) => sum + Number(v.total_venda || 0), 0
-    );
-
-    // ======== COMISSÃO DAS REVENDEDORAS (informativo) ========
-    const comissaoRevendedoras = vendasKits.reduce(
-      (sum, v) => sum + Number(v.comissao_valor || 0), 0
-    );
-
-    // ======== RECEITA LÍQUIDA TEÓRICA (informativo) ========
-    const receitaLiquidaTeorica = vendasKits.reduce(
-      (sum, v) => sum + Number(v.valor_devido_empresa || 0), 0
-    );
-
-    // ======== INADIMPLÊNCIA DO PERÍODO (informativo) ========
-    const inadimplencia = vendasKits.reduce(
-      (sum, v) => sum + Number(v.saldo_devedor || 0), 0
-    );
-
-    // ======== ENTRADAS DE CAIXA ========
-    // Recebimentos de kits do período (pagamentos efetivos)
-    const recebimentosKits = vendasKits.reduce(
-      (sum, v) => sum + Number(v.valor_pago || 0), 0
-    );
-
-    // Recuperação de inadimplência (repasses de meses anteriores pagos agora)
-    const valorRecuperacao = recuperacao.reduce(
-      (sum, r) => sum + Number(r.valor_pago || 0), 0
-    );
-
-    // TOTAL NO CAIXA = Recebimentos de Kits + Recuperação
-    const totalNoCaixa = recebimentosKits + valorRecuperacao;
+    
+    // Quantidade de fechamentos realizados
+    const qtdFechamentos = cobrancasDiarias.length;
 
     // ======== DESPESAS OPERACIONAIS ========
     // Despesas de cobrança (automático do fechamento diário)
@@ -253,45 +147,28 @@ export default function DreResumo() {
     const totalDespesas = despesasCobranca + totalDespesasManuais;
 
     // ======== RESULTADO OPERACIONAL ========
-    // Baseado no TOTAL NO CAIXA (regime de caixa)
-    const resultadoOperacional = totalNoCaixa - totalDespesas;
-    const margemOperacional = totalNoCaixa > 0 
-      ? (resultadoOperacional / totalNoCaixa) * 100 
-      : 0;
-
-    // ======== KPIs INFORMATIVOS ========
-    const taxaInadimplencia = receitaLiquidaTeorica > 0
-      ? (inadimplencia / receitaLiquidaTeorica) * 100
-      : 0;
-
-    const comissaoMedia = receitaBruta > 0
-      ? (comissaoRevendedoras / receitaBruta) * 100
+    // Resultado = Total Cobrado - Despesas
+    const resultadoOperacional = totalCobrado - totalDespesas;
+    const margemOperacional = totalCobrado > 0 
+      ? (resultadoOperacional / totalCobrado) * 100 
       : 0;
 
     return {
-      vendas: { quantidade: vendasKits.length },
-      receitaBruta,
-      comissaoRevendedoras,
-      receitaLiquidaTeorica,
-      inadimplencia,
-      recebimentosKits,
-      recuperacao: valorRecuperacao,
-      totalNoCaixa,
+      totalCobrado,
+      qtdFechamentos,
       despesasCobranca,
       despesasListadas,
       totalDespesasManuais,
       totalDespesas,
       resultadoOperacional,
       margemOperacional,
-      taxaInadimplencia,
-      comissaoMedia,
     };
-  }, [vendas, recuperacao, cobrancasDiarias, despesasManuais]);
+  }, [cobrancasDiarias, despesasManuais]);
 
   const formatCurrency = (value: number) =>
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const isLoading = loadingVendas;
+  const isLoading = loadingCobrancas;
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -300,15 +177,12 @@ export default function DreResumo() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <TrendingUp className="h-6 w-6 text-primary" />
-            DRE - Regime de Caixa
+            DRE - Demonstrativo de Resultado
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Entradas e Saídas do Período
+            Resultado Mensal Consolidado
           </p>
         </div>
-        <Badge variant="outline" className="text-xs self-start sm:self-auto">
-          Regime de Caixa
-        </Badge>
       </div>
 
       {/* Navegação de Período */}
@@ -360,70 +234,31 @@ export default function DreResumo() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xl text-center">
-                Caixa - {mesLabel} {selectedAno}
+                {mesLabel} {selectedAno}
               </CardTitle>
               <p className="text-xs text-center text-muted-foreground">
-                Regime de Caixa
+                Baseado nos fechamentos diários dos representantes
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* ENTRADAS DE CAIXA */}
+              {/* RECEITA (TOTAL COBRADO) */}
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
                   <PlusCircle className="h-4 w-4 text-success" />
-                  Entradas de Caixa
+                  Receita
                 </h3>
-                
-                <div className="space-y-3">
-                  {/* Recebimentos de Kits */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-success/10">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-success" />
-                      <div className="flex flex-col">
-                        <span>Recebimentos de Kits</span>
-                        <span className="text-xs text-muted-foreground">
-                          Pagamentos recebidos no período
-                        </span>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {dre.vendas.quantidade} notas
-                      </Badge>
-                    </div>
-                    <span className="font-semibold text-success">
-                      {formatCurrency(dre.recebimentosKits)}
-                    </span>
-                  </div>
-
-                  {/* Recuperação de Inadimplência */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10">
-                    <div className="flex items-center gap-2">
-                      <RefreshCw className="h-4 w-4 text-primary" />
-                      <div className="flex flex-col">
-                        <span>(+) Recuperação de Inadimplência</span>
-                        <span className="text-xs text-muted-foreground">
-                          Repasses de meses anteriores pagos agora
-                        </span>
-                      </div>
-                    </div>
-                    <span className="font-semibold text-primary">
-                      {formatCurrency(dre.recuperacao)}
-                    </span>
-                  </div>
-                </div>
-
-                <Separator className="my-3" />
                 
                 <div className="flex items-center justify-between p-4 rounded-lg bg-success/20 border border-success/30 font-semibold">
                   <div className="flex items-center gap-2">
-                    <Wallet className="h-5 w-5 text-success" />
+                    <DollarSign className="h-5 w-5 text-success" />
                     <div className="flex flex-col">
-                      <span>TOTAL NO CAIXA</span>
+                      <span>TOTAL COBRADO</span>
                       <span className="text-xs font-normal text-muted-foreground">
-                        (dinheiro efetivamente recebido no período)
+                        Soma dos fechamentos diários ({dre.qtdFechamentos} fechamentos)
                       </span>
                     </div>
                   </div>
-                  <span className="text-xl text-success">{formatCurrency(dre.totalNoCaixa)}</span>
+                  <span className="text-xl text-success">{formatCurrency(dre.totalCobrado)}</span>
                 </div>
               </div>
 
@@ -490,9 +325,9 @@ export default function DreResumo() {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex flex-col">
-                      <span className="font-semibold">RESULTADO OPERACIONAL</span>
+                      <span className="font-semibold">RESULTADO</span>
                       <span className="text-xs text-muted-foreground">
-                        = Total no Caixa - Total Despesas
+                        = Total Cobrado - Total Despesas
                       </span>
                     </div>
                     <span
@@ -508,9 +343,9 @@ export default function DreResumo() {
                       {formatCurrency(dre.resultadoOperacional)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Margem sobre Total no Caixa
+                      Margem sobre Total Cobrado
                     </span>
                     <Badge
                       variant={dre.margemOperacional >= 0 ? "default" : "destructive"}
@@ -524,71 +359,15 @@ export default function DreResumo() {
             </CardContent>
           </Card>
 
-          {/* KPIs INFORMATIVOS */}
+          {/* NOTA EXPLICATIVA */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-primary" />
-                KPIs Informativos
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Métricas de gestão (não afetam o caixa diretamente)
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Taxa de Inadimplência */}
-                <div className="p-4 rounded-lg bg-muted/50 text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
-                    <span className="text-sm text-muted-foreground">Taxa de Inadimplência</span>
-                  </div>
-                  <span className={`text-2xl font-bold ${
-                    dre.taxaInadimplencia > 30 ? "text-destructive" : 
-                    dre.taxaInadimplencia > 15 ? "text-warning" : "text-success"
-                  }`}>
-                    {dre.taxaInadimplencia.toFixed(1)}%
-                  </span>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    do valor devido no período
-                  </p>
-                </div>
-
-                {/* Valor Bruto Vendido (informativo) */}
-                <div className="p-4 rounded-lg bg-muted/50 text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Package className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Valor Bruto Vendido</span>
-                  </div>
-                  <span className="text-2xl font-bold">
-                    {formatCurrency(dre.receitaBruta)}
-                  </span>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    total das vendas (antes comissão)
-                  </p>
-                </div>
-
-                {/* Comissão Média */}
-                <div className="p-4 rounded-lg bg-muted/50 text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Percent className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Comissão Média</span>
-                  </div>
-                  <span className="text-2xl font-bold">
-                    {dre.comissaoMedia.toFixed(1)}%
-                  </span>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    das revendedoras
-                  </p>
-                </div>
-              </div>
-
-              {/* Nota explicativa */}
-              <div className="mt-4 p-3 rounded-lg bg-muted/30 border border-muted">
+            <CardContent className="p-4">
+              <div className="p-3 rounded-lg bg-muted/30 border border-muted">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Regime de Caixa:</strong> Este DRE considera apenas o dinheiro que efetivamente 
-                  entrou e saiu do caixa no período. O "Total no Caixa" inclui tanto os recebimentos de 
-                  kits vendidos neste mês quanto a recuperação de inadimplência (repasses de meses anteriores).
+                  <strong>Fonte Oficial:</strong> Este DRE é baseado exclusivamente nos fechamentos diários 
+                  dos representantes (<code>cobrancas_diarias.total_cobrado</code>). O Total Cobrado representa 
+                  o valor líquido já com comissão descontada, informado conscientemente pelo representante 
+                  no momento do fechamento do dia.
                 </p>
               </div>
             </CardContent>

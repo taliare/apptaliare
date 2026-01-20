@@ -148,22 +148,8 @@ export default function RelatorioKpis() {
     },
   });
 
-  // REGIME DE CAIXA: Valores efetivamente pagos no período
-  const { data: prestacoesContasCaixa = [], isLoading: loadingCaixa } = useQuery({
-    queryKey: ["kpis-prestacoes-caixa", startDate, endDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("prestacoes_contas")
-        .select(`
-          id, data_execucao, valor_pago, representante_id,
-          cobrancas_agendadas(tipo)
-        `)
-        .gte("data_execucao", startDate)
-        .lte("data_execucao", endDate);
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  // REMOVIDO: Query de prestacoes_contas para regime de caixa
+  // A fonte financeira oficial é EXCLUSIVAMENTE cobrancas_diarias.total_cobrado
 
   // BLOCO 1 - Repasses ativos (notas do tipo repasse pendentes até o final do período)
   const { data: repassesAtivos = [], isLoading: loadingRepasses } = useQuery({
@@ -289,34 +275,24 @@ export default function RelatorioKpis() {
     return Array.from(allRevendedoras).filter((r) => !activeSet.has(r));
   }, [revendedorasAtivas, todasRevendedorasData]);
 
-  // Calculate metrics - OPERACIONAL (informativo)
-  const cobrancasRegistradas = cobrancasDiarias.reduce(
+  // FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado (fechamento dos representantes)
+  const totalCobrado = cobrancasDiarias.reduce(
     (sum, c) => sum + (c.total_cobrado || 0),
     0
   );
-  const qtdNotas = prestacoes.length;
-  const ticketMedio = qtdNotas > 0 ? cobrancasRegistradas / qtdNotas : 0;
   
-  // REGIME DE CAIXA: Valores efetivamente pagos
-  const recebimentosKits = prestacoesContasCaixa
-    .filter((p: { cobrancas_agendadas?: { tipo?: string | null } | null }) => p.cobrancas_agendadas?.tipo === "kit")
-    .reduce((sum: number, p: { valor_pago?: number | null }) => sum + (p.valor_pago || 0), 0);
-  
-  const recuperacaoInadimplencia = prestacoesContasCaixa
-    .filter((p: { cobrancas_agendadas?: { tipo?: string | null } | null }) => p.cobrancas_agendadas?.tipo === "repasse")
-    .reduce((sum: number, p: { valor_pago?: number | null }) => sum + (p.valor_pago || 0), 0);
-  
-  // TOTAL NO CAIXA = Kits pagos + Recuperação de inadimplência
-  const totalNoCaixa = recebimentosKits + recuperacaoInadimplencia;
-  
-  // Despesas do período
+  // Despesas do período (cobrancas_diarias.despesa_cobranca)
   const totalDespesas = cobrancasDiarias.reduce(
     (sum, c) => sum + (c.despesa_cobranca || 0),
     0
   );
   
-  // RESULTADO = Total no Caixa - Despesas
-  const resultadoPeriodo = totalNoCaixa - totalDespesas;
+  // RESULTADO = Total Cobrado - Despesas
+  const resultadoPeriodo = totalCobrado - totalDespesas;
+  
+  // Métricas operacionais (informativo)
+  const qtdNotas = prestacoes.length;
+  const ticketMedio = qtdNotas > 0 ? totalCobrado / qtdNotas : 0;
   
   const valorRepasseAtivo = repassesAtivos.reduce(
     (sum, r) => sum + (r.valor_previsto || 0),
@@ -629,21 +605,16 @@ export default function RelatorioKpis() {
     }
   };
 
-  const isLoading = loadingCobrancas || loadingRepasses || loadingVencidas || loadingCaixa;
+  const isLoading = loadingCobrancas || loadingRepasses || loadingVencidas;
 
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-              Relatório de KPIs
-            </h1>
-            <Badge variant="outline" className="text-[10px] font-normal">
-              Regime de Caixa
-            </Badge>
-          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+            Relatório de KPIs
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Visão executiva do negócio
           </p>
@@ -723,28 +694,27 @@ export default function RelatorioKpis() {
 
       {/* BLOCO 1 - VISÃO GERAL (FINANCEIRO) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Card Recebimentos - REGIME DE CAIXA */}
+        {/* Card Total Cobrado (FONTE FINANCEIRA OFICIAL) */}
         <Card className="border-success/30 bg-success/5">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-success mb-2">
               <DollarSign className="h-4 w-4" />
-              <span className="text-xs">Recebimentos</span>
+              <span className="text-xs">Total Cobrado</span>
             </div>
             {isLoading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
               <p className="text-lg sm:text-2xl font-bold text-success">
-                {formatarValor(totalNoCaixa)}
+                {formatarValor(totalCobrado)}
               </p>
             )}
-            <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
-              <p>📦 Kits: {formatarValor(recebimentosKits)}</p>
-              <p>🔄 Recup.: {formatarValor(recuperacaoInadimplencia)}</p>
-            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Soma dos fechamentos diários
+            </p>
           </CardContent>
         </Card>
 
-        {/* Card Resultado - REGIME DE CAIXA */}
+        {/* Card Resultado */}
         <Card className={resultadoPeriodo >= 0 ? "border-success/30" : "border-destructive/30"}>
           <CardContent className="p-4">
             <div className={`flex items-center gap-2 mb-2 ${resultadoPeriodo >= 0 ? "text-success" : "text-destructive"}`}>
@@ -814,13 +784,14 @@ export default function RelatorioKpis() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">Cobranças Registradas</p>
-              <p className="text-sm sm:text-base font-semibold">{formatarValor(cobrancasRegistradas)}</p>
-            </div>
-            <div>
               <p className="text-xs text-muted-foreground">Ticket Médio</p>
               <p className="text-sm sm:text-base font-semibold">{formatarValor(ticketMedio)}</p>
               <p className="text-[10px] text-muted-foreground">{qtdNotas} notas</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Qtd. Fechamentos</p>
+              <p className="text-sm sm:text-base font-semibold">{cobrancasDiarias.length}</p>
+              <p className="text-[10px] text-muted-foreground">no período</p>
             </div>
           </div>
         </CardContent>
