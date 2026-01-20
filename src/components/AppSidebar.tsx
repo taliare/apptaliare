@@ -114,17 +114,20 @@ export function AppSidebar() {
 
   const adminCategories: MenuCategory[] = [
     {
-      label: "INÍCIO",
+      label: "VISÃO GERAL",
       items: [
         { title: "Dashboard Admin", url: "/dashboard-admin", icon: Home },
       ],
     },
     {
-      label: "GESTÃO",
+      label: "OPERACIONAL",
       items: [
         { title: "Usuários", url: "/usuarios", icon: Users },
         { title: "Vendedoras", url: "/vendedoras", icon: Users },
         { title: "Venda Externa", url: "/venda-externa", icon: Users },
+        { title: "Leads Revendedoras", url: "/leads-revendedoras", icon: UserPlus },
+        { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
+        { title: "Garantias", url: "/garantias", icon: Shield },
       ],
     },
     {
@@ -134,46 +137,18 @@ export function AppSidebar() {
         { title: "Metas", url: "/metas", icon: Target },
         { title: "Gerenciar Agenda", url: "/gerenciar-agenda", icon: Calendar },
         { title: "Jurídico", url: "/juridico", icon: Scale },
-      ],
-    },
-    {
-      label: "KITS",
-      items: [
-        { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
-      ],
-    },
-    {
-      label: "CAPTAÇÃO",
-      items: [
-        { title: "Leads Revendedoras", url: "/leads-revendedoras", icon: UserPlus },
-      ],
-    },
-    {
-      label: "GARANTIAS",
-      items: [
-        { title: "Garantias", url: "/garantias", icon: Shield },
-      ],
-    },
-    {
-      label: "DRE",
-      items: [
         { title: "Resumo DRE", url: "/dre-resumo", icon: TrendingUp },
         { title: "Despesas", url: "/dre-despesas", icon: Receipt },
         { title: "Categorias", url: "/dre-categorias", icon: FolderOpen },
       ],
     },
     {
-      label: "FERRAMENTAS",
+      label: "RELATÓRIOS",
       items: [
         { title: "Relatório KPIs", url: "/relatorio-kpis", icon: BarChart3 },
+        { title: "Análise Comercial", url: "/analise-comercial", icon: LineChart },
         { title: "Importar Cobranças", url: "/importar-cobrancas", icon: Upload },
         { title: "Relatórios", url: "/relatorios", icon: FileText },
-      ],
-    },
-    {
-      label: "ANÁLISE COMERCIAL",
-      items: [
-        { title: "Análise Comercial", url: "/analise-comercial", icon: LineChart },
       ],
     },
   ];
