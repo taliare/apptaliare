@@ -134,7 +134,7 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para cobranças do período
+  // Query para cobranças do período (informativo - valores registrados no fechamento)
   const { data: cobrancasMes = [] } = useQuery({
     queryKey: ['cobrancas-mes-admin', startDate, endDate],
     queryFn: async () => {
@@ -161,6 +161,24 @@ export default function DashboardAdmin() {
       }, {});
       
       return Object.values(agrupado);
+    },
+  });
+
+  // QUERY REGIME DE CAIXA: Valores efetivamente pagos (prestações de contas)
+  const { data: prestacoesContasPeriodo = [] } = useQuery({
+    queryKey: ['prestacoes-contas-admin-periodo', startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('prestacoes_contas')
+        .select(`
+          id, data_execucao, valor_pago,
+          cobrancas_agendadas(tipo)
+        `)
+        .gte('data_execucao', startDate)
+        .lte('data_execucao', endDate);
+      
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -313,10 +331,28 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Cálculos
+  // Cálculos - REGIME DE CAIXA
   const totalHoje = cobrancasHoje.reduce((sum, c) => sum + (c.total_cobrado || 0), 0);
-  const totalMes = cobrancasMes.reduce((sum, c) => sum + c.total_cobrado, 0);
+  
+  // Valores registrados (informativo)
+  const cobrancasRegistradas = cobrancasMes.reduce((sum, c) => sum + c.total_cobrado, 0);
   const totalDespesas = cobrancasMes.reduce((sum, c) => sum + c.total_despesas, 0);
+  
+  // REGIME DE CAIXA: Valores efetivamente pagos
+  const recebimentosKits = prestacoesContasPeriodo
+    .filter((p: { cobrancas_agendadas?: { tipo?: string | null } | null }) => p.cobrancas_agendadas?.tipo === 'kit')
+    .reduce((sum: number, p: { valor_pago?: number | null }) => sum + (p.valor_pago || 0), 0);
+  
+  const recuperacaoInadimplencia = prestacoesContasPeriodo
+    .filter((p: { cobrancas_agendadas?: { tipo?: string | null } | null }) => p.cobrancas_agendadas?.tipo === 'repasse')
+    .reduce((sum: number, p: { valor_pago?: number | null }) => sum + (p.valor_pago || 0), 0);
+  
+  // TOTAL NO CAIXA = Kits pagos + Recuperação de inadimplência
+  const totalNoCaixa = recebimentosKits + recuperacaoInadimplencia;
+  
+  // RESULTADO = Total no Caixa - Despesas
+  const resultadoPeriodo = totalNoCaixa - totalDespesas;
+  
   const totalKits = kitsData?.length || 0;
   const totalProducaoHoje = producaoHoje.length;
   const totalEstoque = kitsEstoque.length;
@@ -333,9 +369,9 @@ export default function DashboardAdmin() {
     value: quantidade,
   }));
 
-  // Meta total e realizado
+  // Meta total e realizado (usa o caixa real para cálculo de meta)
   const totalMeta = metas.reduce((sum, m) => sum + m.meta_valor, 0);
-  const percentualMetaGeral = totalMeta > 0 ? (totalMes / totalMeta) * 100 : 0;
+  const percentualMetaGeral = totalMeta > 0 ? (totalNoCaixa / totalMeta) * 100 : 0;
 
   // Dados para gráfico de barras por representante
   const representantesComDados = representantes.map(rep => {
@@ -440,22 +476,24 @@ export default function DashboardAdmin() {
           </CardContent>
         </Card>
 
-        {/* Card Total Período */}
+        {/* Card Total no Caixa (Regime de Caixa) */}
         <Card 
           variant="interactive" 
           className="animate-card-entrance animate-card-entrance-2 w-full max-w-full overflow-hidden"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
-            <CardTitle className="text-xs md:text-sm font-medium truncate">Período</CardTitle>
+            <CardTitle className="text-xs md:text-sm font-medium truncate">Recebimentos</CardTitle>
             <div className="p-1.5 md:p-2 rounded-lg bg-chart-2/10 shrink-0">
               <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 text-chart-2" />
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarValor(totalMes)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">
-              Líquido: {formatarValor(totalMes - totalDespesas)}
-            </p>
+            <div className="text-base md:text-2xl font-display font-bold truncate text-chart-2">{formatarValor(totalNoCaixa)}</div>
+            <div className="text-[10px] md:text-xs text-muted-foreground mt-1 space-y-0.5">
+              <p className="truncate">📦 Kits: {formatarValor(recebimentosKits)}</p>
+              <p className="truncate">🔄 Recup.: {formatarValor(recuperacaoInadimplencia)}</p>
+              <p className="truncate font-medium text-foreground">💰 Resultado: {formatarValor(resultadoPeriodo)}</p>
+            </div>
           </CardContent>
         </Card>
 
