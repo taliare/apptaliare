@@ -151,13 +151,18 @@ export default function DreResumo() {
   });
 
   // Fetch cobranças diárias (despesas de cobrança automáticas)
+  // CORRIGIDO: Usar gte/lte ao invés de like para campo DATE
   const { data: cobrancasDiarias = [] } = useQuery({
     queryKey: ["dre-cobrancas-diarias", anoMes],
     queryFn: async () => {
+      const inicioMes = `${anoMes}-01`;
+      const fimMes = `${anoMes}-31`;
+      
       const { data, error } = await supabase
         .from("cobrancas_diarias")
         .select("id, data, despesa_cobranca")
-        .like("data", `${anoMes}%`);
+        .gte("data", inicioMes)
+        .lte("data", fimMes);
 
       if (error) throw error;
       return data as CobrancaDiaria[];
@@ -178,7 +183,7 @@ export default function DreResumo() {
     },
   });
 
-  // Cálculos do DRE - Modelo Consignação
+  // Cálculos do DRE - REGIME DE CAIXA
   const dre = useMemo(() => {
     // ======== FILTRAR APENAS VENDAS DE KITS ========
     // Repasses NÃO são receita nova, são recuperação de inadimplência
@@ -187,43 +192,40 @@ export default function DreResumo() {
       v.total_venda > 0
     );
 
-    // ======== RECEITA BRUTA ========
+    // ======== RECEITA BRUTA (informativo - não é entrada de caixa) ========
     // Soma de TODOS os valores informados em "quanto foi a venda"
-    // Baseado em competência (data_execucao), não em pagamento
     const receitaBruta = vendasKits.reduce(
       (sum, v) => sum + Number(v.total_venda || 0), 0
     );
 
-    // ======== COMISSÃO DAS REVENDEDORAS ========
-    // Comissão nasce no momento da venda, independente de pagamento
+    // ======== COMISSÃO DAS REVENDEDORAS (informativo) ========
     const comissaoRevendedoras = vendasKits.reduce(
       (sum, v) => sum + Number(v.comissao_valor || 0), 0
     );
 
-    // ======== RECEITA LÍQUIDA TEÓRICA ========
-    // O que deveria entrar se todos pagassem
+    // ======== RECEITA LÍQUIDA TEÓRICA (informativo) ========
     const receitaLiquidaTeorica = vendasKits.reduce(
       (sum, v) => sum + Number(v.valor_devido_empresa || 0), 0
     );
 
-    // ======== INADIMPLÊNCIA DO PERÍODO ========
-    // Saldo devedor das vendas do período
+    // ======== INADIMPLÊNCIA DO PERÍODO (informativo) ========
     const inadimplencia = vendasKits.reduce(
       (sum, v) => sum + Number(v.saldo_devedor || 0), 0
     );
 
-    // ======== RECEITA LÍQUIDA REAL (CAIXA) ========
-    // O que efetivamente entrou no caixa das vendas do período
-    const receitaLiquidaReal = vendasKits.reduce(
+    // ======== ENTRADAS DE CAIXA ========
+    // Recebimentos de kits do período (pagamentos efetivos)
+    const recebimentosKits = vendasKits.reduce(
       (sum, v) => sum + Number(v.valor_pago || 0), 0
     );
 
-    // ======== RECUPERAÇÃO DE INADIMPLÊNCIA ========
-    // Pagamentos de repasses (vendas de meses anteriores)
-    // NÃO conta como receita bruta, apenas como entrada de caixa informativa
+    // Recuperação de inadimplência (repasses de meses anteriores pagos agora)
     const valorRecuperacao = recuperacao.reduce(
       (sum, r) => sum + Number(r.valor_pago || 0), 0
     );
+
+    // TOTAL NO CAIXA = Recebimentos de Kits + Recuperação
+    const totalNoCaixa = recebimentosKits + valorRecuperacao;
 
     // ======== DESPESAS OPERACIONAIS ========
     // Despesas de cobrança (automático do fechamento diário)
@@ -251,10 +253,10 @@ export default function DreResumo() {
     const totalDespesas = despesasCobranca + totalDespesasManuais;
 
     // ======== RESULTADO OPERACIONAL ========
-    // Baseado na receita que efetivamente entrou (Receita Líquida Real)
-    const resultadoOperacional = receitaLiquidaReal - totalDespesas;
-    const margemOperacional = receitaLiquidaReal > 0 
-      ? (resultadoOperacional / receitaLiquidaReal) * 100 
+    // Baseado no TOTAL NO CAIXA (regime de caixa)
+    const resultadoOperacional = totalNoCaixa - totalDespesas;
+    const margemOperacional = totalNoCaixa > 0 
+      ? (resultadoOperacional / totalNoCaixa) * 100 
       : 0;
 
     // ======== KPIs INFORMATIVOS ========
@@ -272,8 +274,9 @@ export default function DreResumo() {
       comissaoRevendedoras,
       receitaLiquidaTeorica,
       inadimplencia,
-      receitaLiquidaReal,
+      recebimentosKits,
       recuperacao: valorRecuperacao,
+      totalNoCaixa,
       despesasCobranca,
       despesasListadas,
       totalDespesasManuais,
@@ -297,12 +300,15 @@ export default function DreResumo() {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <TrendingUp className="h-6 w-6 text-primary" />
-            DRE - Consignação
+            DRE - Regime de Caixa
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Demonstração do Resultado por Competência
+            Entradas e Saídas do Período
           </p>
         </div>
+        <Badge variant="outline" className="text-xs self-start sm:self-auto">
+          Regime de Caixa
+        </Badge>
       </div>
 
       {/* Navegação de Período */}
@@ -354,109 +360,78 @@ export default function DreResumo() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xl text-center">
-                DRE - {mesLabel} {selectedAno}
+                Caixa - {mesLabel} {selectedAno}
               </CardTitle>
               <p className="text-xs text-center text-muted-foreground">
-                Modelo de Vendas em Consignação
+                Regime de Caixa
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* RECEITAS */}
+              {/* ENTRADAS DE CAIXA */}
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
                   <PlusCircle className="h-4 w-4 text-success" />
-                  Receitas (por Competência)
+                  Entradas de Caixa
                 </h3>
                 
                 <div className="space-y-3">
+                  {/* Recebimentos de Kits */}
                   <div className="flex items-center justify-between p-3 rounded-lg bg-success/10">
                     <div className="flex items-center gap-2">
                       <Package className="h-4 w-4 text-success" />
-                      <span>Receita Bruta - Vendas de Kits</span>
+                      <div className="flex flex-col">
+                        <span>Recebimentos de Kits</span>
+                        <span className="text-xs text-muted-foreground">
+                          Pagamentos recebidos no período
+                        </span>
+                      </div>
                       <Badge variant="outline" className="text-xs">
-                        {dre.vendas.quantidade} vendas
+                        {dre.vendas.quantidade} notas
                       </Badge>
                     </div>
                     <span className="font-semibold text-success">
-                      {formatCurrency(dre.receitaBruta)}
+                      {formatCurrency(dre.recebimentosKits)}
+                    </span>
+                  </div>
+
+                  {/* Recuperação de Inadimplência */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10">
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4 text-primary" />
+                      <div className="flex flex-col">
+                        <span>(+) Recuperação de Inadimplência</span>
+                        <span className="text-xs text-muted-foreground">
+                          Repasses de meses anteriores pagos agora
+                        </span>
+                      </div>
+                    </div>
+                    <span className="font-semibold text-primary">
+                      {formatCurrency(dre.recuperacao)}
                     </span>
                   </div>
                 </div>
 
                 <Separator className="my-3" />
                 
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 font-semibold">
-                  <span>RECEITA BRUTA TOTAL</span>
-                  <span className="text-lg">{formatCurrency(dre.receitaBruta)}</span>
-                </div>
-
-                <div className="flex items-center justify-between p-3 mt-2 text-destructive">
-                  <div className="flex items-center gap-2">
-                    <Percent className="h-4 w-4" />
-                    <span>(-) Comissão das Revendedoras</span>
-                    <Badge variant="outline" className="text-xs">
-                      {dre.comissaoMedia.toFixed(1)}% média
-                    </Badge>
-                  </div>
-                  <span>- {formatCurrency(dre.comissaoRevendedoras)}</span>
-                </div>
-
-                <Separator className="my-3" />
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 font-semibold">
-                  <div className="flex flex-col">
-                    <span>RECEITA LÍQUIDA TEÓRICA</span>
-                    <span className="text-xs font-normal text-muted-foreground">
-                      (valor devido à empresa se todos pagassem)
-                    </span>
-                  </div>
-                  <span className="text-lg text-primary">{formatCurrency(dre.receitaLiquidaTeorica)}</span>
-                </div>
-              </div>
-
-              {/* INADIMPLÊNCIA */}
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  Inadimplência do Período
-                </h3>
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-warning/20 border border-warning/30">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
-                    <div className="flex flex-col">
-                      <span>Saldo Devedor (não recebido)</span>
-                      <span className="text-xs text-muted-foreground">
-                        Vendas do período com pagamento pendente
-                      </span>
-                    </div>
-                  </div>
-                  <span className="font-semibold text-warning">
-                    - {formatCurrency(dre.inadimplencia)}
-                  </span>
-                </div>
-
-                <Separator className="my-3" />
-
                 <div className="flex items-center justify-between p-4 rounded-lg bg-success/20 border border-success/30 font-semibold">
                   <div className="flex items-center gap-2">
                     <Wallet className="h-5 w-5 text-success" />
                     <div className="flex flex-col">
-                      <span>RECEITA LÍQUIDA REAL</span>
+                      <span>TOTAL NO CAIXA</span>
                       <span className="text-xs font-normal text-muted-foreground">
-                        (valor que efetivamente entrou no caixa)
+                        (dinheiro efetivamente recebido no período)
                       </span>
                     </div>
                   </div>
-                  <span className="text-xl text-success">{formatCurrency(dre.receitaLiquidaReal)}</span>
+                  <span className="text-xl text-success">{formatCurrency(dre.totalNoCaixa)}</span>
                 </div>
               </div>
 
-              {/* CUSTOS E DESPESAS */}
+              {/* SAÍDAS DE CAIXA (DESPESAS) */}
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
                   <MinusCircle className="h-4 w-4 text-destructive" />
-                  Despesas Operacionais
+                  Saídas de Caixa (Despesas)
                 </h3>
 
                 <div className="space-y-2">
@@ -494,7 +469,7 @@ export default function DreResumo() {
                 <Separator className="my-3" />
 
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 font-semibold">
-                  <span>TOTAL DESPESAS OPERACIONAIS</span>
+                  <span>TOTAL DESPESAS</span>
                   <span className="text-lg text-destructive">
                     - {formatCurrency(dre.totalDespesas)}
                   </span>
@@ -514,7 +489,12 @@ export default function DreResumo() {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold">RESULTADO OPERACIONAL</span>
+                    <div className="flex flex-col">
+                      <span className="font-semibold">RESULTADO OPERACIONAL</span>
+                      <span className="text-xs text-muted-foreground">
+                        = Total no Caixa - Total Despesas
+                      </span>
+                    </div>
                     <span
                       className={`text-2xl font-bold flex items-center gap-2 ${
                         dre.resultadoOperacional >= 0 ? "text-success" : "text-destructive"
@@ -530,7 +510,7 @@ export default function DreResumo() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">
-                      Margem sobre Receita Líquida Real
+                      Margem sobre Total no Caixa
                     </span>
                     <Badge
                       variant={dre.margemOperacional >= 0 ? "default" : "destructive"}
@@ -551,6 +531,9 @@ export default function DreResumo() {
                 <BarChart3 className="h-5 w-5 text-primary" />
                 KPIs Informativos
               </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Métricas de gestão (não afetam o caixa diretamente)
+              </p>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -571,17 +554,17 @@ export default function DreResumo() {
                   </p>
                 </div>
 
-                {/* Recuperação de Inadimplência */}
+                {/* Valor Bruto Vendido (informativo) */}
                 <div className="p-4 rounded-lg bg-muted/50 text-center">
                   <div className="flex items-center justify-center gap-2 mb-2">
-                    <RefreshCw className="h-4 w-4 text-primary" />
-                    <span className="text-sm text-muted-foreground">Recuperação de Inadimplência</span>
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Valor Bruto Vendido</span>
                   </div>
-                  <span className="text-2xl font-bold text-primary">
-                    {formatCurrency(dre.recuperacao)}
+                  <span className="text-2xl font-bold">
+                    {formatCurrency(dre.receitaBruta)}
                   </span>
                   <p className="text-xs text-muted-foreground mt-1">
-                    repasses de meses anteriores
+                    total das vendas (antes comissão)
                   </p>
                 </div>
 
@@ -603,9 +586,9 @@ export default function DreResumo() {
               {/* Nota explicativa */}
               <div className="mt-4 p-3 rounded-lg bg-muted/30 border border-muted">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Nota:</strong> A "Recuperação de Inadimplência" representa pagamentos de repasses 
-                  realizados neste mês, referentes a vendas de meses anteriores. Este valor NÃO é contabilizado 
-                  como receita bruta do período atual, pois a venda já foi registrada no mês de competência original.
+                  <strong>Regime de Caixa:</strong> Este DRE considera apenas o dinheiro que efetivamente 
+                  entrou e saiu do caixa no período. O "Total no Caixa" inclui tanto os recebimentos de 
+                  kits vendidos neste mês quanto a recuperação de inadimplência (repasses de meses anteriores).
                 </p>
               </div>
             </CardContent>
