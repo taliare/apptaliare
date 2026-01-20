@@ -13,6 +13,14 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   TrendingUp,
   TrendingDown,
   Percent,
@@ -25,6 +33,8 @@ import {
   Bell,
   Clock,
   CheckCircle,
+  Users,
+  UserX,
 } from "lucide-react";
 import { formatarValor } from "@/lib/utils";
 import { differenceInDays } from "date-fns";
@@ -140,16 +150,29 @@ export default function AnaliseComercial() {
     },
   });
 
-  // Query 5: Cobrancas em aberto (repasses pendentes/parciais)
+  // Query 5: Cobrancas em aberto (repasses pendentes/parciais) com valor
   const { data: cobrancasEmAberto } = useQuery({
     queryKey: ["analise-cobrancas-aberto"],
     queryFn: async () => {
       const { data } = await supabase
         .from("cobrancas_agendadas")
-        .select("id, revendedora, data_agendada, tipo, status")
+        .select("id, revendedora, data_agendada, valor_previsto, tipo, status")
         .in("status", ["pendente", "parcial"])
         .eq("tipo", "repasse");
       return data || [];
+    },
+  });
+
+  // Query 7: Repasses pagos por representante (para recuperação individual)
+  const { data: repassesPorRep } = useQuery({
+    queryKey: ["analise-repasses-rep", inicioMes, fimMes],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("prestacoes_contas")
+        .select(`representante_id, valor_pago, cobrancas_agendadas(tipo)`)
+        .gte("data_execucao", inicioMes)
+        .lte("data_execucao", fimMes);
+      return data?.filter(p => p.cobrancas_agendadas?.tipo === "repasse") || [];
     },
   });
 
@@ -307,6 +330,102 @@ export default function AnaliseComercial() {
     recuperacao,
     recuperacaoMesAnterior
   ]);
+
+  // RANKING 1: Representantes por Inadimplência
+  const rankingInadimplencia = useMemo(() => {
+    if (!representantes || !prestacoesKits || !cobrancasDiarias) return [];
+    
+    return representantes
+      .map(rep => {
+        const faturamentoRep = prestacoesKits
+          .filter(p => p.representante_id === rep.id)
+          .reduce((sum, p) => sum + (p.total_venda || 0), 0);
+        
+        const comissaoRep = prestacoesKits
+          .filter(p => p.representante_id === rep.id)
+          .reduce((sum, p) => sum + (p.comissao_valor || 0), 0);
+        
+        const receitaTeericaRep = faturamentoRep - comissaoRep;
+        
+        const recebidoRep = cobrancasDiarias
+          .filter(c => c.representante_id === rep.id)
+          .reduce((sum, c) => sum + (c.total_cobrado || 0), 0);
+        
+        const inadimplenciaRep = Math.max(0, receitaTeericaRep - recebidoRep);
+        const percentual = receitaTeericaRep > 0 
+          ? (inadimplenciaRep / receitaTeericaRep) * 100 
+          : 0;
+        
+        return {
+          nome: rep.nome,
+          receitaTeorica: receitaTeericaRep,
+          inadimplencia: inadimplenciaRep,
+          percentual
+        };
+      })
+      .filter(rep => rep.receitaTeorica > 0)
+      .sort((a, b) => b.percentual - a.percentual);
+  }, [representantes, prestacoesKits, cobrancasDiarias]);
+
+  // RANKING 2: Representantes por Performance
+  const rankingPerformance = useMemo(() => {
+    if (!representantes || !prestacoesKits || !repassesPorRep) return [];
+    
+    return representantes
+      .map(rep => {
+        const faturamentoRep = prestacoesKits
+          .filter(p => p.representante_id === rep.id)
+          .reduce((sum, p) => sum + (p.total_venda || 0), 0);
+        
+        const comissaoRep = prestacoesKits
+          .filter(p => p.representante_id === rep.id)
+          .reduce((sum, p) => sum + (p.comissao_valor || 0), 0);
+        
+        const receitaTeericaRep = faturamentoRep - comissaoRep;
+        
+        const recuperacaoRep = repassesPorRep
+          .filter(p => p.representante_id === rep.id)
+          .reduce((sum, p) => sum + (p.valor_pago || 0), 0);
+        
+        return {
+          nome: rep.nome,
+          faturamentoBruto: faturamentoRep,
+          receitaTeorica: receitaTeericaRep,
+          recuperacao: recuperacaoRep
+        };
+      })
+      .filter(rep => rep.receitaTeorica > 0)
+      .sort((a, b) => b.receitaTeorica - a.receitaTeorica);
+  }, [representantes, prestacoesKits, repassesPorRep]);
+
+  // RANKING 3: Revendedoras Críticas
+  const rankingRevendedoras = useMemo(() => {
+    if (!cobrancasEmAberto) return [];
+    
+    const agrupado: Record<string, {
+      nome: string;
+      valorAberto: number;
+      qtdRepasses: number;
+      diasAtraso: number;
+    }> = {};
+    
+    cobrancasEmAberto.forEach(c => {
+      const nome = c.revendedora || "Sem nome";
+      if (!agrupado[nome]) {
+        agrupado[nome] = { nome, valorAberto: 0, qtdRepasses: 0, diasAtraso: 0 };
+      }
+      agrupado[nome].valorAberto += c.valor_previsto || 0;
+      agrupado[nome].qtdRepasses++;
+      
+      const dias = differenceInDays(new Date(), new Date(c.data_agendada));
+      if (dias > agrupado[nome].diasAtraso) {
+        agrupado[nome].diasAtraso = dias;
+      }
+    });
+    
+    return Object.values(agrupado)
+      .sort((a, b) => b.valorAberto - a.valorAberto);
+  }, [cobrancasEmAberto]);
 
   const isLoading = loadingKits || loadingRepasses || loadingFechamento;
 
@@ -543,6 +662,146 @@ export default function AnaliseComercial() {
           </Card>
         </div>
       )}
+
+      {/* Rankings Analíticos */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Ranking 1: Representantes por Inadimplência */}
+        <Card className="border-dashed border-muted-foreground/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-amber-500" />
+              Representantes por Inadimplência
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {isLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+              </div>
+            ) : rankingInadimplencia.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado no período</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Representante</TableHead>
+                      <TableHead className="text-right">Receita Teórica</TableHead>
+                      <TableHead className="text-right">Inadimplência</TableHead>
+                      <TableHead className="text-right">%</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rankingInadimplencia.map((rep, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{rep.nome}</TableCell>
+                        <TableCell className="text-right">{formatarValor(rep.receitaTeorica)}</TableCell>
+                        <TableCell className="text-right text-amber-600">{formatarValor(rep.inadimplencia)}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={rep.percentual > 25 ? "destructive" : rep.percentual > 15 ? "warning" : "outline"}>
+                            {rep.percentual.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Ranking 2: Representantes por Performance */}
+        <Card className="border-dashed border-muted-foreground/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4 text-cyan-500" />
+              Representantes por Performance
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {isLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+              </div>
+            ) : rankingPerformance.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhum dado no período</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Representante</TableHead>
+                      <TableHead className="text-right">Fat. Bruto</TableHead>
+                      <TableHead className="text-right">Receita Teórica</TableHead>
+                      <TableHead className="text-right">Recuperação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rankingPerformance.map((rep, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{rep.nome}</TableCell>
+                        <TableCell className="text-right">{formatarValor(rep.faturamentoBruto)}</TableCell>
+                        <TableCell className="text-right">{formatarValor(rep.receitaTeorica)}</TableCell>
+                        <TableCell className="text-right text-green-600">{formatarValor(rep.recuperacao)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Ranking 3: Revendedoras Críticas - Full width */}
+      <Card className="border-dashed border-muted-foreground/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <UserX className="h-4 w-4 text-orange-500" />
+            Revendedoras Críticas
+            <Badge variant="outline" className="ml-auto text-[10px]">
+              {rankingRevendedoras.length} {rankingRevendedoras.length === 1 ? "revendedora" : "revendedoras"}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          ) : rankingRevendedoras.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhuma revendedora com repasses em aberto</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Revendedora</TableHead>
+                    <TableHead className="text-right">Valor em Aberto</TableHead>
+                    <TableHead className="text-right">Qtd Repasses</TableHead>
+                    <TableHead className="text-right">Maior Atraso</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rankingRevendedoras.map((rev, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell className="font-medium">{rev.nome}</TableCell>
+                      <TableCell className="text-right text-amber-600">{formatarValor(rev.valorAberto)}</TableCell>
+                      <TableCell className="text-right">{rev.qtdRepasses}</TableCell>
+                      <TableCell className="text-right">
+                        <span className={rev.diasAtraso > 30 ? "text-destructive font-medium" : ""}>
+                          {rev.diasAtraso > 0 ? `${rev.diasAtraso} dias` : "-"}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Nota informativa */}
       <Card className="border-dashed border-muted-foreground/20 bg-muted/5">
