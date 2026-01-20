@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   TrendingUp,
+  TrendingDown,
   Percent,
   Calculator,
   AlertTriangle,
@@ -21,8 +22,21 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  Bell,
+  Clock,
+  CheckCircle,
 } from "lucide-react";
 import { formatarValor } from "@/lib/utils";
+import { differenceInDays } from "date-fns";
+
+interface Alerta {
+  tipo: "inadimplencia" | "representante" | "revendedora" | "recuperacao";
+  icone: React.ReactNode;
+  titulo: string;
+  descricao: string;
+  corBorda: string;
+  corFundo: string;
+}
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -56,6 +70,13 @@ export default function AnaliseComercial() {
     }
   };
 
+  // Calcular período anterior para comparativo
+  const mesAnterior = mesSelecionado === 0 ? 11 : mesSelecionado - 1;
+  const anoMesAnterior = mesSelecionado === 0 ? anoSelecionado - 1 : anoSelecionado;
+  const inicioMesAnterior = `${anoMesAnterior}-${String(mesAnterior + 1).padStart(2, "0")}-01`;
+  const ultimoDiaMesAnterior = new Date(anoMesAnterior, mesAnterior + 1, 0).getDate();
+  const fimMesAnterior = `${anoMesAnterior}-${String(mesAnterior + 1).padStart(2, "0")}-${ultimoDiaMesAnterior}`;
+
   // Query 1: Prestações de Contas (Kits) - para faturamento e comissão
   const { data: prestacoesKits, isLoading: loadingKits } = useQuery({
     queryKey: ["analise-prestacoes-kits", inicioMes, fimMes],
@@ -63,7 +84,7 @@ export default function AnaliseComercial() {
       const { data, error } = await supabase
         .from("prestacoes_contas")
         .select(`
-          id, total_venda, comissao_valor, valor_pago,
+          id, total_venda, comissao_valor, valor_pago, representante_id,
           cobrancas_agendadas(tipo)
         `)
         .gte("data_execucao", inicioMes)
@@ -98,12 +119,50 @@ export default function AnaliseComercial() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cobrancas_diarias")
-        .select("id, total_cobrado")
+        .select("id, total_cobrado, representante_id")
         .gte("data", inicioMes)
         .lte("data", fimMes);
       
       if (error) throw error;
       return data || [];
+    },
+  });
+
+  // Query 4: Representantes ativos
+  const { data: representantes } = useQuery({
+    queryKey: ["analise-representantes"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .eq("ativo", true);
+      return data || [];
+    },
+  });
+
+  // Query 5: Cobrancas em aberto (repasses pendentes/parciais)
+  const { data: cobrancasEmAberto } = useQuery({
+    queryKey: ["analise-cobrancas-aberto"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cobrancas_agendadas")
+        .select("id, revendedora, data_agendada, tipo, status")
+        .in("status", ["pendente", "parcial"])
+        .eq("tipo", "repasse");
+      return data || [];
+    },
+  });
+
+  // Query 6: Recuperação do mês anterior (para comparativo)
+  const { data: recuperacaoAnterior } = useQuery({
+    queryKey: ["analise-recuperacao-anterior", inicioMesAnterior, fimMesAnterior],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("prestacoes_contas")
+        .select(`valor_pago, cobrancas_agendadas(tipo)`)
+        .gte("data_execucao", inicioMesAnterior)
+        .lte("data_execucao", fimMesAnterior);
+      return data?.filter(p => p.cobrancas_agendadas?.tipo === "repasse") || [];
     },
   });
 
@@ -132,6 +191,122 @@ export default function AnaliseComercial() {
   const percentualInadimplencia = receitaLiquidaTeorica > 0 
     ? ((inadimplencia / receitaLiquidaTeorica) * 100).toFixed(1) 
     : "0.0";
+
+  // Recuperação do mês anterior
+  const recuperacaoMesAnterior = recuperacaoAnterior?.reduce(
+    (sum, p) => sum + (p.valor_pago || 0), 0
+  ) || 0;
+
+  // Cálculo de alertas
+  const alertas = useMemo(() => {
+    const listaAlertas: Alerta[] = [];
+
+    // ALERTA 1: Inadimplência Alta (>15%)
+    if (receitaLiquidaTeorica > 0 && Number(percentualInadimplencia) > 15) {
+      listaAlertas.push({
+        tipo: "inadimplencia",
+        icone: <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />,
+        titulo: "Inadimplência acima do padrão no período atual",
+        descricao: `${percentualInadimplencia}% da receita teórica. Atenção à cobrança.`,
+        corBorda: "border-amber-500/30",
+        corFundo: "bg-amber-500/5",
+      });
+    }
+
+    // ALERTA 2: Representante em Risco
+    if (representantes && prestacoesKits && cobrancasDiarias) {
+      const mediaGeral = Number(percentualInadimplencia);
+      
+      const inadimplenciaPorRep = representantes.map(rep => {
+        const receitaRep = prestacoesKits
+          .filter(p => p.representante_id === rep.id)
+          .reduce((sum, p) => sum + ((p.total_venda || 0) - (p.comissao_valor || 0)), 0);
+        
+        const recebidoRep = cobrancasDiarias
+          .filter(c => c.representante_id === rep.id)
+          .reduce((sum, c) => sum + (c.total_cobrado || 0), 0);
+        
+        const inadimplenciaRep = Math.max(0, receitaRep - recebidoRep);
+        const percentual = receitaRep > 0 ? (inadimplenciaRep / receitaRep) * 100 : 0;
+        
+        return { ...rep, percentual, inadimplencia: inadimplenciaRep, receitaRep };
+      }).filter(rep => rep.receitaRep > 0);
+
+      const representantesEmRisco = inadimplenciaPorRep.filter(
+        rep => rep.percentual > mediaGeral && rep.percentual > 15
+      );
+
+      representantesEmRisco.slice(0, 3).forEach(rep => {
+        listaAlertas.push({
+          tipo: "representante",
+          icone: <TrendingDown className="h-4 w-4 text-destructive shrink-0" />,
+          titulo: "Representante com inadimplência acima da média",
+          descricao: `${rep.nome} - ${rep.percentual.toFixed(1)}% (média geral: ${mediaGeral}%)`,
+          corBorda: "border-destructive/30",
+          corFundo: "bg-destructive/5",
+        });
+      });
+    }
+
+    // ALERTA 3: Revendedora Crítica
+    if (cobrancasEmAberto && cobrancasEmAberto.length > 0) {
+      const revendedorasPendencias: Record<string, { nome: string; pendencias: number; diasAtraso: number }> = {};
+      
+      cobrancasEmAberto.forEach(c => {
+        const nome = c.revendedora || "Sem nome";
+        if (!revendedorasPendencias[nome]) {
+          revendedorasPendencias[nome] = { nome, pendencias: 0, diasAtraso: 0 };
+        }
+        revendedorasPendencias[nome].pendencias++;
+        
+        const diasAtraso = differenceInDays(new Date(), new Date(c.data_agendada));
+        if (diasAtraso > revendedorasPendencias[nome].diasAtraso) {
+          revendedorasPendencias[nome].diasAtraso = diasAtraso;
+        }
+      });
+
+      const revendedorasCriticas = Object.values(revendedorasPendencias)
+        .filter(r => r.pendencias > 1 || r.diasAtraso > 30);
+
+      revendedorasCriticas.slice(0, 3).forEach(rev => {
+        const motivo = rev.diasAtraso > 30 
+          ? `${rev.diasAtraso} dias de atraso`
+          : `${rev.pendencias} pendências em aberto`;
+        
+        listaAlertas.push({
+          tipo: "revendedora",
+          icone: <Clock className="h-4 w-4 text-orange-500 shrink-0" />,
+          titulo: "Revendedora com histórico crítico de atraso",
+          descricao: `${rev.nome} - ${motivo}`,
+          corBorda: "border-orange-500/30",
+          corFundo: "bg-orange-500/5",
+        });
+      });
+    }
+
+    // ALERTA 4: Recuperação Positiva
+    if (recuperacao > 0 && recuperacao > recuperacaoMesAnterior) {
+      listaAlertas.push({
+        tipo: "recuperacao",
+        icone: <CheckCircle className="h-4 w-4 text-success shrink-0" />,
+        titulo: "Boa recuperação de inadimplência no período",
+        descricao: `Fluxo positivo - ${formatarValor(recuperacao)} recuperados`,
+        corBorda: "border-success/30",
+        corFundo: "bg-success/5",
+      });
+    }
+
+    return listaAlertas;
+  }, [
+    receitaLiquidaTeorica, 
+    percentualInadimplencia, 
+    representantes, 
+    prestacoesKits, 
+    cobrancasDiarias,
+    cobrancasEmAberto,
+    recuperacao,
+    recuperacaoMesAnterior
+  ]);
 
   const isLoading = loadingKits || loadingRepasses || loadingFechamento;
 
@@ -208,6 +383,37 @@ export default function AnaliseComercial() {
           </Button>
         </div>
       </div>
+
+      {/* Seção de Alertas */}
+      {!isLoading && alertas.length > 0 && (
+        <Card className="border-dashed border-primary/30 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Bell className="h-4 w-4 text-primary" />
+              Alertas do Período
+              <Badge variant="outline" className="ml-auto text-[10px]">
+                {alertas.length} {alertas.length === 1 ? "alerta" : "alertas"}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {alertas.map((alerta, idx) => (
+              <div 
+                key={idx} 
+                className={`p-3 rounded-lg border ${alerta.corBorda} ${alerta.corFundo}`}
+              >
+                <div className="flex items-start gap-2">
+                  {alerta.icone}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{alerta.titulo}</p>
+                    <p className="text-xs text-muted-foreground">{alerta.descricao}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Cards Analíticos */}
       {isLoading ? (
