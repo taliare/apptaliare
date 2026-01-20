@@ -29,6 +29,7 @@ import NotFound from '@/pages/NotFound';
 import DreResumo from '@/pages/DreResumo';
 import DreDespesas from '@/pages/DreDespesas';
 import DreCategorias from '@/pages/DreCategorias';
+import AnaliseComercial from '@/pages/AnaliseComercial';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -146,6 +147,13 @@ export function AnimatedRoutes() {
         <Route path="/dre-categorias" element={
           <ProtectedRoute requiredRole="admin">
             <DreCategorias />
+          </ProtectedRoute>
+        } />
+        
+        {/* Análise Comercial route */}
+        <Route path="/analise-comercial" element={
+          <ProtectedRoute requiredRole="admin">
+            <AnaliseComercial />
           </ProtectedRoute>
         } />
         
