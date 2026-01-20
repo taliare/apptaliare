@@ -714,22 +714,22 @@ export default function RelatorioKpis() {
           </CardContent>
         </Card>
 
-        {/* Card Resultado */}
-        <Card className={resultadoPeriodo >= 0 ? "border-success/30" : "border-destructive/30"}>
+        {/* Card Ticket Médio */}
+        <Card className="border-blue-500/30 bg-blue-500/5">
           <CardContent className="p-4">
-            <div className={`flex items-center gap-2 mb-2 ${resultadoPeriodo >= 0 ? "text-success" : "text-destructive"}`}>
-              <TrendingUp className="h-4 w-4" />
-              <span className="text-xs">Resultado</span>
+            <div className="flex items-center gap-2 text-blue-600 mb-2">
+              <Target className="h-4 w-4" />
+              <span className="text-xs">Ticket Médio</span>
             </div>
             {isLoading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <p className={`text-lg sm:text-2xl font-bold ${resultadoPeriodo >= 0 ? "text-success" : "text-destructive"}`}>
-                {formatarValor(resultadoPeriodo)}
+              <p className="text-lg sm:text-2xl font-bold text-blue-600">
+                {formatarValor(ticketMedio)}
               </p>
             )}
             <p className="text-[10px] text-muted-foreground mt-1">
-              Despesas: {formatarValor(totalDespesas)}
+              {qtdNotas} notas no período
             </p>
           </CardContent>
         </Card>
@@ -774,28 +774,6 @@ export default function RelatorioKpis() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Métricas Operacionais (informativo) */}
-      <Card className="border-muted">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-3">
-            <Info className="h-4 w-4" />
-            <span className="text-xs font-medium">Métricas Operacionais (informativo)</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Ticket Médio</p>
-              <p className="text-sm sm:text-base font-semibold">{formatarValor(ticketMedio)}</p>
-              <p className="text-[10px] text-muted-foreground">{qtdNotas} notas</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Qtd. Fechamentos</p>
-              <p className="text-sm sm:text-base font-semibold">{cobrancasDiarias.length}</p>
-              <p className="text-[10px] text-muted-foreground">no período</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* BLOCO 2 - COBRANÇA & PREVISIBILIDADE */}
       <div className="grid md:grid-cols-2 gap-4">
