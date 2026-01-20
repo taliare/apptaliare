@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus, Shield, TrendingUp, Receipt, FolderOpen } from 'lucide-react';
+import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus, Shield, TrendingUp, Receipt, FolderOpen, LineChart } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -158,6 +158,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         { title: 'Relatório KPIs', url: '/relatorio-kpis', icon: BarChart3 },
         { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload },
         { title: 'Relatórios', url: '/relatorios', icon: FileText },
+      ],
+    },
+    {
+      label: "ANÁLISE COMERCIAL",
+      items: [
+        { title: 'Análise Comercial', url: '/analise-comercial', icon: LineChart },
       ],
     },
   ];

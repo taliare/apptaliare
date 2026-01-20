@@ -18,6 +18,7 @@ import {
   TrendingUp,
   Receipt,
   FolderOpen,
+  LineChart,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -167,6 +168,12 @@ export function AppSidebar() {
         { title: "Relatório KPIs", url: "/relatorio-kpis", icon: BarChart3 },
         { title: "Importar Cobranças", url: "/importar-cobrancas", icon: Upload },
         { title: "Relatórios", url: "/relatorios", icon: FileText },
+      ],
+    },
+    {
+      label: "ANÁLISE COMERCIAL",
+      items: [
+        { title: "Análise Comercial", url: "/analise-comercial", icon: LineChart },
       ],
     },
   ];
