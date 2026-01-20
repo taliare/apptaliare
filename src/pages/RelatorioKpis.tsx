@@ -148,6 +148,23 @@ export default function RelatorioKpis() {
     },
   });
 
+  // REGIME DE CAIXA: Valores efetivamente pagos no período
+  const { data: prestacoesContasCaixa = [], isLoading: loadingCaixa } = useQuery({
+    queryKey: ["kpis-prestacoes-caixa", startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prestacoes_contas")
+        .select(`
+          id, data_execucao, valor_pago, representante_id,
+          cobrancas_agendadas(tipo)
+        `)
+        .gte("data_execucao", startDate)
+        .lte("data_execucao", endDate);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // BLOCO 1 - Repasses ativos (notas do tipo repasse pendentes até o final do período)
   const { data: repassesAtivos = [], isLoading: loadingRepasses } = useQuery({
     queryKey: ["kpis-repasses-ativos", endDate],
@@ -272,13 +289,35 @@ export default function RelatorioKpis() {
     return Array.from(allRevendedoras).filter((r) => !activeSet.has(r));
   }, [revendedorasAtivas, todasRevendedorasData]);
 
-  // Calculate metrics
-  const totalCobrado = cobrancasDiarias.reduce(
+  // Calculate metrics - OPERACIONAL (informativo)
+  const cobrancasRegistradas = cobrancasDiarias.reduce(
     (sum, c) => sum + (c.total_cobrado || 0),
     0
   );
   const qtdNotas = prestacoes.length;
-  const ticketMedio = qtdNotas > 0 ? totalCobrado / qtdNotas : 0;
+  const ticketMedio = qtdNotas > 0 ? cobrancasRegistradas / qtdNotas : 0;
+  
+  // REGIME DE CAIXA: Valores efetivamente pagos
+  const recebimentosKits = prestacoesContasCaixa
+    .filter((p: { cobrancas_agendadas?: { tipo?: string | null } | null }) => p.cobrancas_agendadas?.tipo === "kit")
+    .reduce((sum: number, p: { valor_pago?: number | null }) => sum + (p.valor_pago || 0), 0);
+  
+  const recuperacaoInadimplencia = prestacoesContasCaixa
+    .filter((p: { cobrancas_agendadas?: { tipo?: string | null } | null }) => p.cobrancas_agendadas?.tipo === "repasse")
+    .reduce((sum: number, p: { valor_pago?: number | null }) => sum + (p.valor_pago || 0), 0);
+  
+  // TOTAL NO CAIXA = Kits pagos + Recuperação de inadimplência
+  const totalNoCaixa = recebimentosKits + recuperacaoInadimplencia;
+  
+  // Despesas do período
+  const totalDespesas = cobrancasDiarias.reduce(
+    (sum, c) => sum + (c.despesa_cobranca || 0),
+    0
+  );
+  
+  // RESULTADO = Total no Caixa - Despesas
+  const resultadoPeriodo = totalNoCaixa - totalDespesas;
+  
   const valorRepasseAtivo = repassesAtivos.reduce(
     (sum, r) => sum + (r.valor_previsto || 0),
     0
@@ -590,16 +629,21 @@ export default function RelatorioKpis() {
     }
   };
 
-  const isLoading = loadingCobrancas || loadingRepasses || loadingVencidas;
+  const isLoading = loadingCobrancas || loadingRepasses || loadingVencidas || loadingCaixa;
 
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">
-            Relatório de KPIs
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+              Relatório de KPIs
+            </h1>
+            <Badge variant="outline" className="text-[10px] font-normal">
+              Regime de Caixa
+            </Badge>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             Visão executiva do negócio
           </p>
@@ -677,43 +721,50 @@ export default function RelatorioKpis() {
         Período: {getPeriodLabel()}
       </Badge>
 
-      {/* BLOCO 1 - VISÃO GERAL */}
+      {/* BLOCO 1 - VISÃO GERAL (FINANCEIRO) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card>
+        {/* Card Recebimentos - REGIME DE CAIXA */}
+        <Card className="border-success/30 bg-success/5">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <div className="flex items-center gap-2 text-success mb-2">
               <DollarSign className="h-4 w-4" />
-              <span className="text-xs">Total Cobrado</span>
+              <span className="text-xs">Recebimentos</span>
             </div>
             {isLoading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <p className="text-lg sm:text-2xl font-bold text-foreground">
-                {formatarValor(totalCobrado)}
+              <p className="text-lg sm:text-2xl font-bold text-success">
+                {formatarValor(totalNoCaixa)}
               </p>
             )}
+            <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
+              <p>📦 Kits: {formatarValor(recebimentosKits)}</p>
+              <p>🔄 Recup.: {formatarValor(recuperacaoInadimplencia)}</p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        {/* Card Resultado - REGIME DE CAIXA */}
+        <Card className={resultadoPeriodo >= 0 ? "border-success/30" : "border-destructive/30"}>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <div className={`flex items-center gap-2 mb-2 ${resultadoPeriodo >= 0 ? "text-success" : "text-destructive"}`}>
               <TrendingUp className="h-4 w-4" />
-              <span className="text-xs">Ticket Médio</span>
+              <span className="text-xs">Resultado</span>
             </div>
             {isLoading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <p className="text-lg sm:text-2xl font-bold text-foreground">
-                {formatarValor(ticketMedio)}
+              <p className={`text-lg sm:text-2xl font-bold ${resultadoPeriodo >= 0 ? "text-success" : "text-destructive"}`}>
+                {formatarValor(resultadoPeriodo)}
               </p>
             )}
             <p className="text-[10px] text-muted-foreground mt-1">
-              {qtdNotas} notas
+              Despesas: {formatarValor(totalDespesas)}
             </p>
           </CardContent>
         </Card>
 
+        {/* Card Repasse Ativo */}
         <Card className="border-yellow-500/30 bg-yellow-500/5">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-yellow-600 mb-2">
@@ -733,6 +784,7 @@ export default function RelatorioKpis() {
           </CardContent>
         </Card>
 
+        {/* Card Valor Vencido */}
         <Card className="border-destructive/30 bg-destructive/5">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-destructive mb-2">
@@ -752,6 +804,27 @@ export default function RelatorioKpis() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Métricas Operacionais (informativo) */}
+      <Card className="border-muted">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-3">
+            <Info className="h-4 w-4" />
+            <span className="text-xs font-medium">Métricas Operacionais (informativo)</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Cobranças Registradas</p>
+              <p className="text-sm sm:text-base font-semibold">{formatarValor(cobrancasRegistradas)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Ticket Médio</p>
+              <p className="text-sm sm:text-base font-semibold">{formatarValor(ticketMedio)}</p>
+              <p className="text-[10px] text-muted-foreground">{qtdNotas} notas</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* BLOCO 2 - COBRANÇA & PREVISIBILIDADE */}
       <div className="grid md:grid-cols-2 gap-4">
