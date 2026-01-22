@@ -302,6 +302,36 @@ export default function DashboardAdmin() {
     },
   });
 
+  // Query para produção do período
+  const { data: producaoPeriodo = [] } = useQuery({
+    queryKey: ['producao-periodo-admin', startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('producao_diaria')
+        .select('tipo')
+        .gte('data', startDate)
+        .lte('data', endDate);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Query para meta de produção do mês atual
+  const { data: metaProducao } = useQuery({
+    queryKey: ['meta-producao-admin', mesAtual],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('metas_producao')
+        .select('*')
+        .eq('ano_mes', mesAtual)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Query para kits em estoque
   const { data: kitsEstoque = [] } = useQuery({
     queryKey: ['kits-estoque-admin'],
@@ -646,12 +676,18 @@ export default function DashboardAdmin() {
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-0">
-              <div className="grid gap-4 grid-cols-2">
+            <CardContent className="pt-0 space-y-4">
+              {/* Grid de Cards: 3 colunas */}
+              <div className="grid gap-4 grid-cols-3">
                 <div className="bg-chart-3/10 p-4 rounded-xl text-center">
                   <Package className="h-8 w-8 mx-auto text-chart-3 mb-2" />
                   <p className="text-sm text-muted-foreground">Produzidos Hoje</p>
                   <p className="text-3xl font-bold">{formatarNumero(totalProducaoHoje)}</p>
+                </div>
+                <div className="bg-primary/10 p-4 rounded-xl text-center">
+                  <Package className="h-8 w-8 mx-auto text-primary mb-2" />
+                  <p className="text-sm text-muted-foreground">No Período</p>
+                  <p className="text-3xl font-bold">{formatarNumero(producaoPeriodo.length)}</p>
                 </div>
                 <div className="bg-chart-2/10 p-4 rounded-xl text-center">
                   <Warehouse className="h-8 w-8 mx-auto text-chart-2 mb-2" />
@@ -659,6 +695,51 @@ export default function DashboardAdmin() {
                   <p className="text-3xl font-bold">{formatarNumero(totalEstoque)}</p>
                 </div>
               </div>
+
+              {/* Meta do Mês */}
+              {metaProducao && metaProducao.meta_kits > 0 && (
+                <div className="bg-muted/30 p-4 rounded-xl border border-border/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Target className="h-5 w-5 text-chart-2" />
+                    <span className="font-medium">
+                      Meta do Mês: {format(new Date(), 'MMMM/yyyy', { locale: ptBR })}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>
+                        Produzidos: <span className="font-bold">{formatarNumero(producaoPeriodo.length)}</span> / Meta: <span className="font-bold">{formatarNumero(metaProducao.meta_kits)}</span>
+                      </span>
+                      <span className="font-medium">
+                        {((producaoPeriodo.length / metaProducao.meta_kits) * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                    <Progress 
+                      value={Math.min((producaoPeriodo.length / metaProducao.meta_kits) * 100, 100)} 
+                      className="h-3"
+                    />
+                  </div>
+
+                  {/* Observação do Admin */}
+                  {metaProducao.observacao && (
+                    <div className="flex items-start gap-2 mt-3 p-2 bg-background/50 rounded-lg">
+                      <Sparkles className="h-4 w-4 text-chart-2 shrink-0 mt-0.5" />
+                      <p className="text-sm text-muted-foreground">{metaProducao.observacao}</p>
+                    </div>
+                  )}
+
+                  {/* Mensagem de meta atingida */}
+                  {(producaoPeriodo.length / metaProducao.meta_kits) * 100 >= 100 && (
+                    <div className="flex items-center gap-2 mt-3 p-3 bg-accent/50 rounded-lg border border-chart-2/30">
+                      <Flame className="h-5 w-5 text-chart-2" />
+                      <span className="font-medium text-chart-2">
+                        🎉 Meta atingida! Parabéns equipe!
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </CollapsibleContent>
         </Card>
