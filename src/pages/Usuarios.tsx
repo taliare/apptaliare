@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { UserPlus, Pencil, Key, Trash2 } from 'lucide-react';
+import { UserPlus, Pencil, Key, Trash2, MessageCircle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -50,7 +51,19 @@ interface ProfileWithRole extends ProfileRow {
   role: AppRole;
 }
 
+// Formatador de WhatsApp
+const formatWhatsApp = (value: string) => {
+  const numbers = value.replace(/\D/g, '');
+  if (numbers.length <= 2) return numbers;
+  if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  if (numbers.length <= 11) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+};
+
+const cleanWhatsApp = (value: string) => value.replace(/\D/g, '');
+
 export default function Usuarios() {
+  const { user: currentUser, profile: currentProfile } = useAuth();
   const [profiles, setProfiles] = useState<ProfileWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -62,6 +75,7 @@ export default function Usuarios() {
   // Form state
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [role, setRole] = useState<AppRole>('representante');
   const [ativo, setAtivo] = useState(true);
   const [habilitarDashboard, setHabilitarDashboard] = useState(true);
@@ -73,6 +87,26 @@ export default function Usuarios() {
   useEffect(() => {
     loadProfiles();
   }, []);
+
+  // Função para registrar log de auditoria
+  const registrarLog = async (
+    action: string,
+    targetUserId: string | null,
+    details: Record<string, any>
+  ) => {
+    if (!currentUser?.id) return;
+    
+    try {
+      await supabase.from('audit_logs').insert({
+        user_id: currentUser.id,
+        target_user_id: targetUserId,
+        action,
+        details
+      });
+    } catch (error) {
+      console.error('Erro ao registrar log:', error);
+    }
+  };
 
   const loadProfiles = async () => {
     try {
@@ -120,6 +154,7 @@ export default function Usuarios() {
     setEditingUser(user);
     setNome(user.nome);
     setEmail(user.email || '');
+    setWhatsapp(user.whatsapp ? formatWhatsApp(user.whatsapp) : '');
     setRole(user.role);
     setAtivo(user.ativo || false);
     setHabilitarDashboard(user.habilitar_dashboard || false);
@@ -132,6 +167,7 @@ export default function Usuarios() {
   const resetForm = () => {
     setNome('');
     setEmail('');
+    setWhatsapp('');
     setRole('representante');
     setAtivo(true);
     setHabilitarDashboard(true);
@@ -175,6 +211,13 @@ export default function Usuarios() {
 
     if (email.length > 255) {
       toast.error('O email deve ter no máximo 255 caracteres');
+      return;
+    }
+
+    // WhatsApp validation (optional but if provided must be valid)
+    const cleanedWhatsapp = cleanWhatsApp(whatsapp);
+    if (cleanedWhatsapp && (cleanedWhatsapp.length < 10 || cleanedWhatsapp.length > 11)) {
+      toast.error('WhatsApp deve ter 10 ou 11 dígitos (DDD + número)');
       return;
     }
 
@@ -232,6 +275,7 @@ export default function Usuarios() {
         .from('profiles')
         .update({
           ativo,
+          whatsapp: cleanedWhatsapp || null,
           habilitar_dashboard: habilitarDashboard,
           habilitar_kanban: habilitarKanban,
           habilitar_cobranca_diaria: habilitarCobrancaDiaria,
@@ -239,6 +283,14 @@ export default function Usuarios() {
         .eq('id', signUpData.user.id);
 
       if (profileError) throw profileError;
+
+      // Registrar log de auditoria
+      await registrarLog('user_created', signUpData.user.id, {
+        nome: nome.trim(),
+        email: email.trim(),
+        role,
+        admin_nome: currentProfile?.nome
+      });
 
       toast.success(`Usuário criado com sucesso!`);
       setDialogOpen(false);
@@ -283,8 +335,30 @@ export default function Usuarios() {
       }
     }
 
+    // WhatsApp validation (optional but if provided must be valid)
+    const cleanedWhatsapp = cleanWhatsApp(whatsapp);
+    if (cleanedWhatsapp && (cleanedWhatsapp.length < 10 || cleanedWhatsapp.length > 11)) {
+      toast.error('WhatsApp deve ter 10 ou 11 dígitos (DDD + número)');
+      return;
+    }
+
     try {
       setLoading(true);
+
+      // Track changes for audit log
+      const changes: Record<string, { old: any; new: any }> = {};
+      if (nome.trim() !== editingUser.nome) {
+        changes.nome = { old: editingUser.nome, new: nome.trim() };
+      }
+      if (ativo !== editingUser.ativo) {
+        changes.ativo = { old: editingUser.ativo, new: ativo };
+      }
+      if (cleanedWhatsapp !== (editingUser.whatsapp || '')) {
+        changes.whatsapp = { old: editingUser.whatsapp, new: cleanedWhatsapp || null };
+      }
+      if (role !== editingUser.role) {
+        changes.role = { old: editingUser.role, new: role };
+      }
 
       // Update profile
       const { error: profileError } = await supabase
@@ -292,6 +366,7 @@ export default function Usuarios() {
         .update({
           nome: nome.trim(),
           ativo,
+          whatsapp: cleanedWhatsapp || null,
           habilitar_dashboard: habilitarDashboard,
           habilitar_kanban: habilitarKanban,
           habilitar_cobranca_diaria: habilitarCobrancaDiaria,
@@ -315,6 +390,16 @@ export default function Usuarios() {
         });
 
         if (emailError) throw emailError;
+        changes.email = { old: editingUser.email, new: email.trim() };
+      }
+
+      // Registrar log de auditoria
+      if (Object.keys(changes).length > 0) {
+        await registrarLog('user_updated', editingUser.id, {
+          usuario_nome: editingUser.nome,
+          alteracoes: changes,
+          admin_nome: currentProfile?.nome
+        });
       }
 
       toast.success('Usuário atualizado com sucesso!');
@@ -329,6 +414,8 @@ export default function Usuarios() {
   };
 
   const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
+    const targetProfile = profiles.find(p => p.id === userId);
+    
     try {
       const { error } = await supabase
         .from('profiles')
@@ -336,6 +423,14 @@ export default function Usuarios() {
         .eq('id', userId);
 
       if (error) throw error;
+
+      // Registrar log de auditoria
+      await registrarLog('user_status_changed', userId, {
+        usuario_nome: targetProfile?.nome,
+        old_status: currentStatus,
+        new_status: !currentStatus,
+        admin_nome: currentProfile?.nome
+      });
 
       toast.success(`Usuário ${!currentStatus ? 'ativado' : 'desativado'}`);
       loadProfiles();
@@ -399,7 +494,24 @@ export default function Usuarios() {
 
       if (error) throw error;
 
-      toast.success('Senha alterada com sucesso!');
+      // Criar notificação para o usuário
+      await supabase.from('notifications').insert({
+        user_id: selectedUser.id,
+        title: '🔐 Senha Alterada',
+        message: 'Sua senha foi redefinida pelo administrador. Use a nova senha para fazer login.',
+        type: 'warning',
+        link: null
+      });
+
+      // Registrar log de auditoria
+      await registrarLog('password_reset', selectedUser.id, {
+        usuario_nome: selectedUser.nome,
+        usuario_email: selectedUser.email,
+        admin_nome: currentProfile?.nome,
+        motivo: 'Reset administrativo'
+      });
+
+      toast.success('Senha alterada e usuário notificado!');
       setPasswordDialogOpen(false);
       setNovaSenha('');
       setSelectedUser(null);
@@ -416,6 +528,14 @@ export default function Usuarios() {
     try {
       setLoading(true);
 
+      // Registrar log ANTES de excluir
+      await registrarLog('user_deleted', selectedUser.id, {
+        usuario_nome: selectedUser.nome,
+        usuario_email: selectedUser.email,
+        usuario_role: selectedUser.role,
+        admin_nome: currentProfile?.nome
+      });
+
       const { error } = await supabase.functions.invoke('admin-delete-user', {
         body: { userId: selectedUser.id }
       });
@@ -431,6 +551,11 @@ export default function Usuarios() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getWhatsAppLink = (whatsappNumber: string) => {
+    const cleaned = cleanWhatsApp(whatsappNumber);
+    return `https://wa.me/55${cleaned}`;
   };
 
   return (
@@ -463,6 +588,7 @@ export default function Usuarios() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>WhatsApp</TableHead>
                   <TableHead>Perfil</TableHead>
                   <TableHead className="text-center">Ativo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -473,6 +599,21 @@ export default function Usuarios() {
                   <TableRow key={profile.id}>
                     <TableCell className="font-medium">{profile.nome}</TableCell>
                     <TableCell className="text-muted-foreground">{profile.email || '-'}</TableCell>
+                    <TableCell>
+                      {profile.whatsapp ? (
+                        <a
+                          href={getWhatsAppLink(profile.whatsapp)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-chart-2 hover:underline"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          {formatWhatsApp(profile.whatsapp)}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell>{getRoleName(profile.role)}</TableCell>
                     <TableCell className="text-center">
                       <Switch
@@ -564,7 +705,7 @@ export default function Usuarios() {
                       type="password"
                       value={senha}
                       onChange={(e) => setSenha(e.target.value)}
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 8 caracteres"
                       required
                     />
                   </div>
@@ -586,6 +727,17 @@ export default function Usuarios() {
                   </p>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp">WhatsApp</Label>
+                <Input
+                  id="whatsapp"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(formatWhatsApp(e.target.value))}
+                  placeholder="(00) 00000-0000"
+                  maxLength={16}
+                />
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="role">Perfil *</Label>

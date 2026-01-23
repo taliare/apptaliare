@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          target_user_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          target_user_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       cobrancas_agendadas: {
         Row: {
           codigo_nota: string | null
@@ -721,6 +748,7 @@ export type Database = {
           idioma: string | null
           nome: string
           tema: string | null
+          whatsapp: string | null
         }
         Insert: {
           ativo?: boolean | null
@@ -734,6 +762,7 @@ export type Database = {
           idioma?: string | null
           nome: string
           tema?: string | null
+          whatsapp?: string | null
         }
         Update: {
           ativo?: boolean | null
@@ -747,6 +776,7 @@ export type Database = {
           idioma?: string | null
           nome?: string
           tema?: string | null
+          whatsapp?: string | null
         }
         Relationships: []
       }
