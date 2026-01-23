@@ -26,3 +26,12 @@ verify_jwt = false
 
 [functions.auto-close-daily]
 verify_jwt = false
+
+[functions.get-revendedoras-external]
+verify_jwt = false
+
+[functions.update-profile-external]
+verify_jwt = false
+
+[functions.reset-password-external]
+verify_jwt = false
