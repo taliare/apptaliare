@@ -303,10 +303,11 @@ export default function Garantias() {
     if (!dadosGarantias?.length) return [];
 
     return dadosGarantias
+      .filter(revGroup => revGroup && revGroup.clientes)
       .map(revGroup => {
-        const clientesFiltrados = revGroup.clientes
+        const clientesFiltrados = (revGroup.clientes || [])
           .map(clienteGroup => {
-            const garantiasFiltradas = clienteGroup.garantias.filter(g => {
+            const garantiasFiltradas = (clienteGroup.garantias || []).filter(g => {
               // Filtro por status
               if (filtroStatus !== 'todas') {
                 const ativa = isGarantiaAtiva(g.data_expiracao);
