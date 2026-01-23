@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.reset-password-external]
 verify_jwt = false
+
+[functions.toggle-ativo-external]
+verify_jwt = false
+
+[functions.delete-revendedora-external]
+verify_jwt = false
