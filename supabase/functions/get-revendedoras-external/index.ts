@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     // Buscar todos os profiles (revendedoras) do banco externo
     const { data: revendedoras, error: revendedorasError } = await supabaseAdmin
       .from('profiles')
-      .select('id, nome, email, created_at')
+      .select('id, nome, email')
       .order('nome', { ascending: true });
 
     if (revendedorasError) {
