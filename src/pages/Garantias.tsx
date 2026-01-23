@@ -341,7 +341,13 @@ export default function Garantias() {
       setDeleteRevendedora(null);
     },
     onError: (error) => {
-      toast.error(`Erro: ${error.message}`);
+      // Mensagem amigável para caso de garantias existentes
+      if (error.message.includes('garantia(s) registrada(s)')) {
+        toast.warning(error.message, { duration: 5000 });
+      } else {
+        toast.error(`Erro ao excluir: ${error.message}`);
+      }
+      setDeleteRevendedora(null);
     }
   });
 
