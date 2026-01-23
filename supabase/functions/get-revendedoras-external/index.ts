@@ -28,10 +28,10 @@ Deno.serve(async (req) => {
     // Criar cliente com service_role_key (bypass RLS)
     const supabaseAdmin = createClient(EXTERNAL_URL, EXTERNAL_SERVICE_KEY);
 
-    // Buscar todos os profiles (revendedoras) do banco externo
+    // Buscar todos os profiles (revendedoras) do banco externo - inclui ativo se existir
     const { data: revendedoras, error: revendedorasError } = await supabaseAdmin
       .from('profiles')
-      .select('id, nome, email')
+      .select('id, nome, email, ativo')
       .order('nome', { ascending: true });
 
     if (revendedorasError) {

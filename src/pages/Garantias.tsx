@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Calendar as CalendarIcon, Shield, Filter, User, Package, FileText, Clock, Search, Phone, Users, ChevronDown, Edit, Key, Eye, Copy, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, Shield, Filter, User, Package, FileText, Clock, Search, Phone, Users, ChevronDown, Edit, Key, Eye, Copy, RefreshCw, Power, Trash2, AlertTriangle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 
@@ -44,6 +45,7 @@ interface Revendedora {
   nome: string | null;
   email?: string | null;
   created_at?: string | null;
+  ativo?: boolean;
 }
 
 interface ClienteComGarantias {
@@ -127,6 +129,10 @@ export default function Garantias() {
   const [newPassword, setNewPassword] = useState('');
   const [passwordCopied, setPasswordCopied] = useState(false);
   const [passwordSaved, setPasswordSaved] = useState(false);
+  
+  // Modais de inativar/excluir
+  const [toggleAtivoRevendedora, setToggleAtivoRevendedora] = useState<Revendedora | null>(null);
+  const [deleteRevendedora, setDeleteRevendedora] = useState<Revendedora | null>(null);
 
   const toggleRevendedora = (revendedoraId: string) => {
     setOpenRevendedoras(prev => {
@@ -298,6 +304,47 @@ export default function Garantias() {
     }
   });
 
+  // Mutation para alternar ativo
+  const toggleAtivoMutation = useMutation({
+    mutationFn: async ({ userId, ativo }: { userId: string; ativo: boolean }) => {
+      const { data, error } = await supabase.functions.invoke('toggle-ativo-external', {
+        body: { userId, ativo }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(variables.ativo ? 'Revendedora ativada!' : 'Revendedora inativada!');
+      queryClient.invalidateQueries({ queryKey: ['revendedoras-external'] });
+      setToggleAtivoRevendedora(null);
+    },
+    onError: (error) => {
+      toast.error(`Erro: ${error.message}`);
+    }
+  });
+
+  // Mutation para excluir revendedora
+  const deleteRevendedoraMutation = useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      const { data, error } = await supabase.functions.invoke('delete-revendedora-external', {
+        body: { userId }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Revendedora excluída com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['revendedoras-external'] });
+      queryClient.invalidateQueries({ queryKey: ['garantias-admin'] });
+      setDeleteRevendedora(null);
+    },
+    onError: (error) => {
+      toast.error(`Erro: ${error.message}`);
+    }
+  });
+
   // Aplicar filtros
   const revendedorasFiltradas = useMemo(() => {
     if (!dadosGarantias?.length) return [];
@@ -415,6 +462,27 @@ export default function Garantias() {
     setOpenRevendedoras(new Set([revendedoraId]));
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleToggleAtivo = (revendedora: Revendedora) => {
+    setToggleAtivoRevendedora(revendedora);
+  };
+
+  const handleConfirmToggleAtivo = () => {
+    if (toggleAtivoRevendedora) {
+      const novoAtivo = toggleAtivoRevendedora.ativo === false; // se está inativo, vai ativar
+      toggleAtivoMutation.mutate({ userId: toggleAtivoRevendedora.id, ativo: novoAtivo });
+    }
+  };
+
+  const handleDeleteRevendedora = (revendedora: Revendedora) => {
+    setDeleteRevendedora(revendedora);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteRevendedora) {
+      deleteRevendedoraMutation.mutate({ userId: deleteRevendedora.id });
+    }
   };
 
   // Renderizar contador de dias restantes
@@ -839,17 +907,25 @@ export default function Garantias() {
                       <TableRow>
                         <TableHead>Nome</TableHead>
                         <TableHead>Email</TableHead>
-                        <TableHead>Cadastro</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {revendedorasListaFiltrada.map((rev: Revendedora) => (
-                        <TableRow key={rev.id}>
+                        <TableRow key={rev.id} className={rev.ativo === false ? 'opacity-60' : ''}>
                           <TableCell className="font-medium">{exibirCampo(rev.nome)}</TableCell>
                           <TableCell className="text-muted-foreground">{exibirCampo(rev.email)}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {rev.created_at ? format(new Date(rev.created_at), "dd/MM/yyyy", { locale: ptBR }) : '—'}
+                          <TableCell>
+                            {rev.ativo === false ? (
+                              <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                                Inativo
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                                Ativo
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-1">
@@ -868,6 +944,24 @@ export default function Garantias() {
                                 title="Redefinir senha"
                               >
                                 <Key className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleToggleAtivo(rev)}
+                                title={rev.ativo === false ? 'Ativar' : 'Inativar'}
+                                className={rev.ativo === false ? 'text-success hover:text-success' : 'text-warning hover:text-warning'}
+                              >
+                                <Power className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteRevendedora(rev)}
+                                title="Excluir"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -996,6 +1090,79 @@ export default function Garantias() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog: Confirmar Ativar/Inativar */}
+      <AlertDialog open={!!toggleAtivoRevendedora} onOpenChange={() => setToggleAtivoRevendedora(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {toggleAtivoRevendedora?.ativo === false ? 'Ativar Revendedora' : 'Inativar Revendedora'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {toggleAtivoRevendedora?.ativo === false ? (
+                <>
+                  Deseja ativar <strong>{toggleAtivoRevendedora?.nome || 'esta revendedora'}</strong>?
+                  <br />
+                  A revendedora poderá acessar o sistema novamente.
+                </>
+              ) : (
+                <>
+                  Deseja inativar <strong>{toggleAtivoRevendedora?.nome || 'esta revendedora'}</strong>?
+                  <br />
+                  A revendedora será marcada como inativa no sistema.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmToggleAtivo}
+              disabled={toggleAtivoMutation.isPending}
+              className={toggleAtivoRevendedora?.ativo === false ? '' : 'bg-warning text-warning-foreground hover:bg-warning/90'}
+            >
+              {toggleAtivoMutation.isPending 
+                ? 'Processando...' 
+                : toggleAtivoRevendedora?.ativo === false 
+                  ? 'Ativar' 
+                  : 'Inativar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog: Confirmar Exclusão */}
+      <AlertDialog open={!!deleteRevendedora} onOpenChange={() => setDeleteRevendedora(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Excluir Revendedora
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Deseja excluir permanentemente <strong>{deleteRevendedora?.nome || 'esta revendedora'}</strong>?
+              </p>
+              <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm">
+                <p className="font-medium text-destructive mb-1">⚠️ Esta ação não pode ser desfeita!</p>
+                <p className="text-muted-foreground">
+                  A exclusão só será permitida se a revendedora não possuir garantias registradas.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={deleteRevendedoraMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteRevendedoraMutation.isPending ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
