@@ -1,207 +1,166 @@
 
-## Plano: Inativar e Excluir Revendedoras do Sistema de Garantias
+## Plano: Corrigir Funcionalidade do Botão "Reabrir Dia"
 
-### Contexto
-- A lista de revendedoras na aba "Revendedoras" da página de Garantias precisa de novas ações
-- **Inativar**: Marcar revendedora como inativa (campo `ativo` no `profiles`)
-- **Excluir**: Remover completamente o cadastro (somente se não tiver garantias registradas)
-- Os dados estão no Supabase externo (mesmas secrets usadas pelas outras funções)
+### Diagnóstico
 
----
+O botão "Reabrir Dia" **está funcionando corretamente** no backend - os logs de rede confirmam:
+- PATCH request com `{"finalizado":false}` retorna status 204 (sucesso)
+- O dado é atualizado no banco de dados
 
-## Alterações Necessárias
+O problema está na **sincronização Realtime** entre a tela do Admin e a tela do Representante:
 
-### 1. Verificar/Adicionar campo `ativo` na tabela profiles do banco externo
-
-O campo `ativo` pode já existir ou precisar ser adicionado via SQL diretamente no banco externo. A Edge Function tratará a ausência do campo graciosamente.
+1. **A subscription no CobrancaDiaria.tsx está vinculada à data atual (`dateStr`)** - se o representante estiver vendo uma data diferente, não recebe a notificação
+2. **A subscription é recriada quando a data muda** - pode haver condições de corrida
+3. **O representante precisa recarregar a página** para ver a mudança
 
 ---
 
-### 2. Nova Edge Function: `toggle-ativo-external`
+### Solução
 
-| Endpoint | Método | Descrição |
-|----------|--------|-----------|
-| `/toggle-ativo-external` | POST | Alterna o status ativo/inativo de uma revendedora |
-
-```
-Arquivo: supabase/functions/toggle-ativo-external/index.ts
-```
-
-**Comportamento:**
-- Recebe `{ userId: string, ativo: boolean }`
-- Atualiza `profiles.ativo` no banco externo
-- Retorna o novo status
+Modificar a subscription do Realtime para escutar **todas as mudanças do representante** (não filtrar por data no evento) e invalidar as queries de forma mais abrangente.
 
 ---
 
-### 3. Nova Edge Function: `delete-revendedora-external`
+### Alterações no Arquivo
 
-| Endpoint | Método | Descrição |
-|----------|--------|-----------|
-| `/delete-revendedora-external` | POST | Exclui revendedora se não tiver garantias |
+**Arquivo:** `src/pages/CobrancaDiaria.tsx`
 
-```
-Arquivo: supabase/functions/delete-revendedora-external/index.ts
-```
+#### 1. Modificar a Subscription Realtime (linhas 153-195)
 
-**Comportamento:**
-1. Recebe `{ userId: string }`
-2. Verifica se existem garantias na tabela `garantias` com `revendedora_id = userId`
-3. Se houver garantias: retorna erro `"Esta revendedora possui X garantia(s) registrada(s) e não pode ser excluída."`
-4. Se não houver: exclui o usuário via `auth.admin.deleteUser(userId)`
-
----
-
-### 4. Atualizar `get-revendedoras-external`
-
-Incluir o campo `ativo` na query para exibir o status na tabela:
-
+**De:**
 ```typescript
-.select('id, nome, email, ativo')
+useEffect(() => {
+  if (!user?.id) return;
+  
+  const channel = supabase
+    .channel('cobranca-diaria-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'cobrancas_diarias',
+        filter: `representante_id=eq.${user.id}`
+      },
+      (payload) => {
+        // ... lógica atual
+        queryClient.invalidateQueries({ 
+          queryKey: ['cobranca-diaria', dateStr, user.id] 
+        });
+        // ...
+      }
+    )
+    .subscribe();
+}, [user?.id, dateStr, queryClient]); // dateStr como dependência
+```
+
+**Para:**
+```typescript
+useEffect(() => {
+  if (!user?.id) return;
+  
+  const channel = supabase
+    .channel('cobranca-diaria-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'cobrancas_diarias',
+        filter: `representante_id=eq.${user.id}`
+      },
+      (payload) => {
+        const newData = payload.new as CobrancaDiariaType;
+        const oldData = payload.old as CobrancaDiariaType;
+        
+        // Invalidar TODAS as queries de cobrança diária do usuário
+        queryClient.invalidateQueries({ 
+          queryKey: ['cobranca-diaria'],
+          predicate: (query) => 
+            Array.isArray(query.queryKey) && 
+            query.queryKey[0] === 'cobranca-diaria' &&
+            query.queryKey[2] === user.id
+        });
+        
+        // Também invalidar outras queries relacionadas
+        queryClient.invalidateQueries({ 
+          queryKey: ['historico-cobrancas', user.id] 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: ['dias-nao-finalizados', user.id] 
+        });
+        
+        // Notificar o usuário sobre a mudança
+        if (newData.finalizado === false && oldData.finalizado === true) {
+          toast.info(`O administrador reabriu o dia ${newData.data} para ajustes`, {
+            duration: 5000
+          });
+        }
+        
+        if (newData.finalizado === true && oldData.finalizado === false) {
+          toast.info(`O dia ${newData.data} foi finalizado`);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [user?.id, queryClient]); // REMOVER dateStr das dependências
+```
+
+#### Principais Mudanças:
+
+1. **Remover `dateStr` das dependências** - A subscription não será recriada quando o usuário mudar de data
+2. **Invalidar queries de forma mais abrangente** - Usar `predicate` para invalidar todas as queries do tipo `cobranca-diaria` do usuário
+3. **Invalidar queries relacionadas** - Também atualizar histórico e dias não finalizados
+4. **Melhorar a mensagem de notificação** - Incluir a data específica que foi reaberta
+
+---
+
+### Resultado Esperado
+
+Após as mudanças:
+1. Quando o admin clicar em "Reabrir Dia", a atualização será enviada pelo Realtime
+2. O representante receberá a notificação **independentemente de qual data estiver visualizando**
+3. A interface do representante será atualizada automaticamente com o novo status
+4. Se o representante estiver vendo a mesma data reaberta, verá o dia como "em aberto" imediatamente
+
+---
+
+### Fluxo Visual
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                         ADMIN (FechamentoDiario)                     │
+│  1. Seleciona representante + data                                   │
+│  2. Clica "Reabrir Dia"                                             │
+│  3. Confirma no AlertDialog                                          │
+│  4. UPDATE cobrancas_diarias SET finalizado = false                  │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    SUPABASE REALTIME                                 │
+│  Publica evento UPDATE na tabela cobrancas_diarias                   │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   REPRESENTANTE (CobrancaDiaria)                     │
+│  1. Subscription recebe payload com old/new                          │
+│  2. Detecta: finalizado false ← true                                 │
+│  3. toast.info("Admin reabriu dia 2026-01-24")                       │
+│  4. Invalida queries → UI atualiza                                   │
+│  5. Representante pode editar o dia reaberto                         │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 5. Atualizar Interface `src/pages/Garantias.tsx`
-
-#### 5.1 Adicionar ícones de importação
-
-```typescript
-import { ..., Power, Trash2, AlertTriangle } from 'lucide-react';
-```
-
-#### 5.2 Atualizar interface Revendedora
-
-```typescript
-interface Revendedora {
-  id: string;
-  nome: string | null;
-  email?: string | null;
-  ativo?: boolean;  // Novo campo
-}
-```
-
-#### 5.3 Novos estados para modais
-
-```typescript
-const [inativarRevendedora, setInativarRevendedora] = useState<Revendedora | null>(null);
-const [excluirRevendedora, setExcluirRevendedora] = useState<Revendedora | null>(null);
-```
-
-#### 5.4 Novas mutations
-
-```typescript
-// Mutation para alternar ativo
-const toggleAtivoMutation = useMutation({...});
-
-// Mutation para excluir
-const deleteRevendedoraMutation = useMutation({...});
-```
-
-#### 5.5 Novos botões na tabela
-
-```
-┌──────────────────┬─────────────────────┬────────┬─────────────────────────────┐
-│ Nome             │ Email               │ Status │ Ações                       │
-├──────────────────┼─────────────────────┼────────┼─────────────────────────────┤
-│ Maria Silva      │ maria@email.com     │ Ativo  │ [✏️] [🔑] [⚡] [🗑️] [👁️]    │
-│ João Santos      │ joao@email.com      │ Inativo│ [✏️] [🔑] [⚡] [🗑️] [👁️]    │
-└──────────────────┴─────────────────────┴────────┴─────────────────────────────┘
-
-Legenda: ✏️ Editar | 🔑 Senha | ⚡ Ativar/Inativar | 🗑️ Excluir | 👁️ Ver Clientes
-```
-
-#### 5.6 Nova coluna "Status" na tabela
-
-- Badge verde "Ativo" ou Badge cinza "Inativo"
-
-#### 5.7 Modal de Confirmação para Inativar/Ativar
-
-- Título: "Inativar Revendedora" ou "Ativar Revendedora"
-- Descrição: Explica a consequência da ação
-- Botões: Cancelar | Confirmar
-
-#### 5.8 Modal de Confirmação para Excluir
-
-- Alerta de que a ação é irreversível
-- Mensagem clara: "Esta ação não pode ser desfeita"
-- Se a exclusão falhar por ter garantias, exibe mensagem de erro
-
----
-
-### 6. Atualizar `supabase/config.toml`
-
-Adicionar configuração para as novas funções:
-
-```toml
-[functions.toggle-ativo-external]
-verify_jwt = false
-
-[functions.delete-revendedora-external]
-verify_jwt = false
-```
-
----
-
-## Fluxo Visual
-
-### Inativar Revendedora
-```
-1. Admin clica em ⚡ (Inativar)
-2. Modal de confirmação aparece
-3. Admin confirma
-4. Sistema atualiza profiles.ativo = false
-5. Toast de sucesso
-6. Lista atualizada com badge "Inativo"
-```
-
-### Excluir Revendedora
-```
-1. Admin clica em 🗑️ (Excluir)
-2. Modal de confirmação aparece com alerta vermelho
-3. Admin confirma
-4. Sistema verifica garantias:
-   ├─ Se tem garantias → Erro: "Possui X garantia(s), não pode excluir"
-   └─ Se não tem → Exclui usuário do auth + profile
-5. Toast de sucesso ou erro
-6. Lista atualizada
-```
-
----
-
-## Arquivos a Criar/Modificar
+### Arquivos a Modificar
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `supabase/functions/toggle-ativo-external/index.ts` | **CRIAR** | Alternar ativo/inativo |
-| `supabase/functions/delete-revendedora-external/index.ts` | **CRIAR** | Excluir com verificação |
-| `supabase/functions/get-revendedoras-external/index.ts` | **MODIFICAR** | Incluir campo `ativo` |
-| `supabase/config.toml` | **MODIFICAR** | Adicionar config das novas funções |
-| `src/pages/Garantias.tsx` | **MODIFICAR** | Adicionar botões, modais e lógica |
-
----
-
-## Detalhes Técnicos
-
-### Verificação de Garantias (delete-revendedora-external)
-
-```typescript
-// Contar garantias da revendedora
-const { count, error } = await supabaseAdmin
-  .from('garantias')
-  .select('*', { count: 'exact', head: true })
-  .eq('revendedora_id', userId);
-
-if (count && count > 0) {
-  return Response(JSON.stringify({ 
-    error: `Esta revendedora possui ${count} garantia(s) registrada(s) e não pode ser excluída.` 
-  }), { status: 400 });
-}
-
-// Se não tem garantias, excluir
-await supabaseAdmin.auth.admin.deleteUser(userId);
-```
-
-### Tratamento do campo `ativo` inexistente
-
-A Edge Function `toggle-ativo-external` tratará o caso onde o campo `ativo` não existe ainda no banco externo, retornando um erro explicativo para o admin.
+| `src/pages/CobrancaDiaria.tsx` | **MODIFICAR** | Ajustar subscription Realtime para ser mais robusta |
