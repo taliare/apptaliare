@@ -151,6 +151,7 @@ export default function CobrancaDiaria() {
   });
 
   // Realtime subscription para detectar quando admin reabre o dia
+  // IMPORTANTE: Não depender de dateStr para não recriar subscription ao mudar data
   useEffect(() => {
     if (!user?.id) return;
     
@@ -168,22 +169,32 @@ export default function CobrancaDiaria() {
           const newData = payload.new as CobrancaDiariaType;
           const oldData = payload.old as CobrancaDiariaType;
           
-          // Invalidar e forçar refetch da query local para buscar dados atualizados
+          // Invalidar TODAS as queries de cobrança diária do usuário (não só a data atual)
           queryClient.invalidateQueries({ 
-            queryKey: ['cobranca-diaria', dateStr, user.id] 
-          });
-          queryClient.refetchQueries({ 
-            queryKey: ['cobranca-diaria', dateStr, user.id] 
+            predicate: (query) => 
+              Array.isArray(query.queryKey) && 
+              query.queryKey[0] === 'cobranca-diaria' &&
+              query.queryKey[2] === user.id
           });
           
-          // Se o dia foi reaberto pelo admin, notificar o usuário
+          // Também invalidar queries relacionadas
+          queryClient.invalidateQueries({ 
+            queryKey: ['historico-cobrancas', user.id] 
+          });
+          queryClient.invalidateQueries({ 
+            queryKey: ['dias-nao-finalizados', user.id] 
+          });
+          
+          // Se o dia foi reaberto pelo admin, notificar o usuário com a data específica
           if (newData.finalizado === false && oldData.finalizado === true) {
-            toast.info('O administrador reabriu este dia para ajustes');
+            toast.info(`O administrador reabriu o dia ${newData.data} para ajustes`, {
+              duration: 5000
+            });
           }
           
           // Se o dia foi finalizado, notificar também
           if (newData.finalizado === true && oldData.finalizado === false) {
-            toast.info('O dia foi finalizado');
+            toast.info(`O dia ${newData.data} foi finalizado`);
           }
         }
       )
@@ -192,7 +203,7 @@ export default function CobrancaDiaria() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, dateStr, queryClient]);
+  }, [user?.id, queryClient]); // REMOVIDO dateStr das dependências
 
   // Carregar observações existentes quando há registro do dia
   useEffect(() => {
