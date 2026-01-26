@@ -29,6 +29,7 @@ export default function LeadsRevendedoras() {
   // Filtros
   const [statusFiltro, setStatusFiltro] = useState("todos");
   const [origemFiltro, setOrigemFiltro] = useState("todos");
+  const [responsavelFiltro, setResponsavelFiltro] = useState("todos");
   const [busca, setBusca] = useState("");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -44,6 +45,19 @@ export default function LeadsRevendedoras() {
 
       if (error) throw error;
       return data as LeadRevendedora[];
+    },
+  });
+
+  // Query para buscar responsáveis (profiles)
+  const { data: responsaveis = [] } = useQuery({
+    queryKey: ["responsaveis-leads"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .order("nome");
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -76,6 +90,15 @@ export default function LeadsRevendedoras() {
 
     // Filtro de origem
     if (origemFiltro !== "todos" && lead.origem !== origemFiltro) return false;
+
+    // Filtro de responsável
+    if (responsavelFiltro !== "todos") {
+      if (responsavelFiltro === "sem_responsavel") {
+        if (lead.responsavel_id !== null) return false;
+      } else {
+        if (lead.responsavel_id !== responsavelFiltro) return false;
+      }
+    }
 
     // Filtro de busca
     if (busca) {
@@ -144,7 +167,7 @@ export default function LeadsRevendedoras() {
         <CollapsibleContent className="mt-3">
           <Card>
             <CardContent className="pt-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 {/* Status */}
                 <div>
                   <Label className="text-xs">Status</Label>
@@ -173,6 +196,26 @@ export default function LeadsRevendedoras() {
                     <SelectContent>
                       <SelectItem value="todos">Todos</SelectItem>
                       <SelectItem value="site">Site</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Responsável */}
+                <div>
+                  <Label className="text-xs">Responsável</Label>
+                  <Select value={responsavelFiltro} onValueChange={setResponsavelFiltro}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="sem_responsavel">Sem responsável</SelectItem>
+                      {responsaveis.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.nome}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
