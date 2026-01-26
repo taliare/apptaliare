@@ -41,7 +41,6 @@ export const KANBAN_COLUMNS: KanbanColumnConfig[] = [
   { id: 'contato_realizado', label: 'Contato Realizado', color: 'yellow' },
   { id: 'follow_up', label: 'Follow-up', color: 'orange' },
   { id: 'interessada', label: 'Interessada', color: 'purple' },
-  { id: 'cadastro_pendente', label: 'Cadastro Pendente', color: 'cyan' },
   { id: 'aguardando_kit', label: 'Aguardando Kit', color: 'indigo' },
   { id: 'ativada', label: 'Ativada', color: 'green', final: true },
   { id: 'perdida', label: 'Perdida', color: 'red', final: true },
