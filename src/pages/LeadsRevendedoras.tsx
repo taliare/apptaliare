@@ -18,9 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Users, Search, Filter, ChevronDown, Plus } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Users, Search, Filter, ChevronDown, Plus, UserPlus, FileSpreadsheet } from "lucide-react";
 import { LeadsKanban } from "@/components/leads/LeadsKanban";
 import { ImportLeadDialog } from "@/components/leads/ImportLeadDialog";
+import { BulkImportLeadsDialog } from "@/components/leads/BulkImportLeadsDialog";
 import { LeadRevendedora, KANBAN_COLUMNS } from "@/components/leads/types";
 
 export default function LeadsRevendedoras() {
@@ -33,6 +40,7 @@ export default function LeadsRevendedoras() {
   const [busca, setBusca] = useState("");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   // Query para buscar leads
   const { data: leads = [], isLoading } = useQuery({
@@ -128,10 +136,24 @@ export default function LeadsRevendedoras() {
             <Users className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold">CRM - Leads de Revendedoras</h1>
           </div>
-          <Button onClick={() => setImportDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Importar Contato
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Importar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Importar Contato
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkImportOpen(true)}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Importar em Massa (Excel)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Contadores */}
@@ -252,6 +274,12 @@ export default function LeadsRevendedoras() {
       <ImportLeadDialog
         open={importDialogOpen}
         onClose={() => setImportDialogOpen(false)}
+      />
+
+      {/* Dialog de Importação em Massa */}
+      <BulkImportLeadsDialog
+        open={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
       />
     </div>
   );
