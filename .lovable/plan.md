@@ -1,128 +1,112 @@
 
 
-## Plano: Melhorias no CRM de Leads
+## Plano: Filtro por Responsável no CRM de Leads
 
 ### Resumo
-Adicionar botão de importação manual de contatos, melhorar acesso ao WhatsApp nos cards e remover a coluna "Cadastro Pendente" do Kanban.
+Adicionar um filtro por responsável na seção de filtros da página de Leads, permitindo que cada vendedor veja apenas os leads atribuídos a ele ou a qualquer outro responsável específico.
 
 ---
 
-### 1. Botão Importar Contato
+### Funcionalidades
 
-Adicionar no header da página um botão "Importar Contato" que abre um dialog simples para inserir:
-- Nome (obrigatório)
-- WhatsApp (obrigatório)
-
-O contato será salvo automaticamente com:
-- Status: `leads_novos`
-- Origem: `manual`
-- Data de criação: agora
+1. **Select de Responsável**: Novo campo de filtro no painel de filtros
+2. **Opções disponíveis**:
+   - Todos (exibe todos os leads)
+   - Sem responsável (leads ainda não atribuídos)
+   - [Lista de responsáveis] (filtrar por pessoa específica)
+3. **Filtro local**: Aplicado no array de leads já carregado (sem nova query)
 
 ---
 
-### 2. Botão WhatsApp Destacado no Card
-
-Substituir o link de texto por um botão verde com ícone do WhatsApp, mais visível e fácil de clicar:
+### Interface do Filtro
 
 ```text
-┌─────────────────────────┐
-│ Maria Silva             │
-│                         │
-│ [📱 WhatsApp]  ← Botão  │
-│ 📍 São Paulo            │
-│ 📅 26/01/26             │
-└─────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│ Filtros                                         ▼   │
+├─────────────────────────────────────────────────────┤
+│ Status        │ Origem   │ Responsável │ Busca     │
+│ [Todos     ▼] │ [Todos▼] │ [Todos   ▼] │ [🔍_____ ]│
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### 3. Remover Coluna "Cadastro Pendente"
-
-Atualizar o array `KANBAN_COLUMNS` removendo a entrada `cadastro_pendente`.
-
-**Colunas finais (7):**
-1. Leads Novos
-2. Contato Realizado
-3. Follow-up
-4. Interessada
-5. Aguardando Kit
-6. Ativada
-7. Perdida
-
----
-
-### Arquivos a Modificar
+### Arquivo a Modificar
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `src/components/leads/types.ts` | EDITAR | Remover "cadastro_pendente" do KANBAN_COLUMNS |
-| `src/components/leads/LeadCard.tsx` | EDITAR | Adicionar botão verde de WhatsApp destacado |
-| `src/pages/LeadsRevendedoras.tsx` | EDITAR | Adicionar botão e dialog de importação |
-| `src/components/leads/ImportLeadDialog.tsx` | CRIAR | Modal para importar contato manualmente |
+| `src/pages/LeadsRevendedoras.tsx` | EDITAR | Adicionar filtro de responsável |
 
 ---
 
-### Seção Técnica
+### Seção Tecnica
 
-#### Dialog de Importação
+#### Alteracoes no Componente
 
+1. **Novo estado para o filtro**:
 ```typescript
-// ImportLeadDialog.tsx
-interface ImportLeadDialogProps {
-  open: boolean;
-  onClose: () => void;
-}
+const [responsavelFiltro, setResponsavelFiltro] = useState("todos");
+```
 
-// Campos:
-// - nome: string (required)
-// - whatsapp: string (required, com máscara)
-
-// Ao salvar:
-await supabase.from('leads_revendedoras').insert({
-  nome,
-  whatsapp,
-  status: 'leads_novos',
-  origem: 'manual'
+2. **Query para buscar profiles** (reutilizar pattern existente):
+```typescript
+const { data: responsaveis = [] } = useQuery({
+  queryKey: ["responsaveis-leads"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, nome")
+      .order("nome");
+    if (error) throw error;
+    return data;
+  },
 });
 ```
 
-#### Novo Botão WhatsApp no Card
-
-```tsx
-<Button
-  size="sm"
-  variant="outline"
-  className="w-full bg-green-500/10 border-green-500/30 text-green-500 hover:bg-green-500/20"
-  onClick={(e) => {
-    e.stopPropagation();
-    window.open(`https://wa.me/${formatarWhatsapp(lead.whatsapp)}`, '_blank');
-  }}
->
-  <MessageCircle className="h-3 w-3 mr-1" />
-  WhatsApp
-</Button>
+3. **Logica de filtro adicional**:
+```typescript
+// Filtro de responsável
+if (responsavelFiltro !== "todos") {
+  if (responsavelFiltro === "sem_responsavel") {
+    if (lead.responsavel_id !== null) return false;
+  } else {
+    if (lead.responsavel_id !== responsavelFiltro) return false;
+  }
+}
 ```
 
-#### KANBAN_COLUMNS Atualizado
+4. **Componente Select no painel de filtros**:
+```tsx
+<div>
+  <Label className="text-xs">Responsável</Label>
+  <Select value={responsavelFiltro} onValueChange={setResponsavelFiltro}>
+    <SelectTrigger className="mt-1">
+      <SelectValue />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="todos">Todos</SelectItem>
+      <SelectItem value="sem_responsavel">Sem responsável</SelectItem>
+      {responsaveis.map((r) => (
+        <SelectItem key={r.id} value={r.id}>
+          {r.nome}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
+```
 
-```typescript
-export const KANBAN_COLUMNS: KanbanColumnConfig[] = [
-  { id: 'leads_novos', label: 'Leads Novos', color: 'blue' },
-  { id: 'contato_realizado', label: 'Contato Realizado', color: 'yellow' },
-  { id: 'follow_up', label: 'Follow-up', color: 'orange' },
-  { id: 'interessada', label: 'Interessada', color: 'purple' },
-  // Removido: cadastro_pendente
-  { id: 'aguardando_kit', label: 'Aguardando Kit', color: 'indigo' },
-  { id: 'ativada', label: 'Ativada', color: 'green', final: true },
-  { id: 'perdida', label: 'Perdida', color: 'red', final: true },
-];
+5. **Atualizar grid de filtros** de 3 para 4 colunas:
+```tsx
+<div className="grid grid-cols-1 md:grid-cols-4 gap-3">
 ```
 
 ---
 
 ### Resultado Final
 
-- Botão "Importar Contato" no header para adicionar leads manualmente
-- Botão verde de WhatsApp destacado em cada card
-- Kanban com 7 colunas (sem "Cadastro Pendente")
+- Novo filtro "Responsável" no painel de filtros
+- Opcoes: Todos, Sem responsável, ou nome de cada responsável
+- Vendedores podem rapidamente ver apenas seus leads atribuídos
+- Layout adaptado para 4 colunas em desktop
 
