@@ -18,9 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { Users, Search, Filter, ChevronDown, LayoutGrid, List } from "lucide-react";
+import { Users, Search, Filter, ChevronDown, Plus } from "lucide-react";
 import { LeadsKanban } from "@/components/leads/LeadsKanban";
+import { ImportLeadDialog } from "@/components/leads/ImportLeadDialog";
 import { LeadRevendedora, KANBAN_COLUMNS } from "@/components/leads/types";
 
 export default function LeadsRevendedoras() {
@@ -31,6 +31,7 @@ export default function LeadsRevendedoras() {
   const [origemFiltro, setOrigemFiltro] = useState("todos");
   const [busca, setBusca] = useState("");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // Query para buscar leads
   const { data: leads = [], isLoading } = useQuery({
@@ -104,6 +105,10 @@ export default function LeadsRevendedoras() {
             <Users className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold">CRM - Leads de Revendedoras</h1>
           </div>
+          <Button onClick={() => setImportDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Importar Contato
+          </Button>
         </div>
 
         {/* Contadores */}
@@ -199,6 +204,12 @@ export default function LeadsRevendedoras() {
       ) : (
         <LeadsKanban leads={leadsFiltrados} />
       )}
+
+      {/* Dialog de Importação */}
+      <ImportLeadDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+      />
     </div>
   );
 }

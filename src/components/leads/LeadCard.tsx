@@ -2,8 +2,9 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Phone, MapPin, Calendar, User } from "lucide-react";
+import { MapPin, Calendar, User, MessageCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { LeadRevendedora } from "./types";
 
 interface LeadCardProps {
@@ -46,18 +47,20 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
       <CardContent className="p-3 space-y-2">
         <p className="font-medium text-sm truncate">{lead.nome}</p>
         
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full bg-green-500/10 border-green-500/30 text-green-500 hover:bg-green-500/20"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(`https://wa.me/${formatarWhatsapp(lead.whatsapp)}`, '_blank');
+          }}
+        >
+          <MessageCircle className="h-3 w-3 mr-1" />
+          WhatsApp
+        </Button>
+        
         <div className="space-y-1 text-xs text-muted-foreground">
-          <a
-            href={`https://wa.me/${formatarWhatsapp(lead.whatsapp)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 text-green-500 hover:underline"
-          >
-            <Phone className="h-3 w-3" />
-            {lead.whatsapp}
-          </a>
-          
           {lead.cidade && (
             <p className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
