@@ -407,6 +407,8 @@ export type Database = {
           nome: string
           observacao: string | null
           origem: string | null
+          responsavel_id: string | null
+          responsavel_nome: string | null
           status: string
           tempo_disponivel: string | null
           utm_campaign: string | null
@@ -425,6 +427,8 @@ export type Database = {
           nome: string
           observacao?: string | null
           origem?: string | null
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
           status?: string
           tempo_disponivel?: string | null
           utm_campaign?: string | null
@@ -443,6 +447,8 @@ export type Database = {
           nome?: string
           observacao?: string | null
           origem?: string | null
+          responsavel_id?: string | null
+          responsavel_nome?: string | null
           status?: string
           tempo_disponivel?: string | null
           utm_campaign?: string | null
@@ -450,7 +456,60 @@ export type Database = {
           utm_source?: string | null
           whatsapp?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_revendedoras_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads_status_historico: {
+        Row: {
+          alterado_por: string | null
+          alterado_por_nome: string | null
+          criado_em: string | null
+          id: string
+          lead_id: string
+          status_anterior: string | null
+          status_novo: string
+        }
+        Insert: {
+          alterado_por?: string | null
+          alterado_por_nome?: string | null
+          criado_em?: string | null
+          id?: string
+          lead_id: string
+          status_anterior?: string | null
+          status_novo: string
+        }
+        Update: {
+          alterado_por?: string | null
+          alterado_por_nome?: string | null
+          criado_em?: string | null
+          id?: string
+          lead_id?: string
+          status_anterior?: string | null
+          status_novo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_status_historico_alterado_por_fkey"
+            columns: ["alterado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_status_historico_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads_revendedoras"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
