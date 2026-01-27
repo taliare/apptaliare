@@ -21,7 +21,7 @@ import EncomendaRepresentante from '@/pages/EncomendaRepresentante';
 import EncomendaProducao from '@/pages/EncomendaProducao';
 import Juridico from '@/pages/Juridico';
 import VendaExterna from '@/pages/VendaExterna';
-import Vendedoras from '@/pages/Vendedoras';
+import Revendedoras from '@/pages/Revendedoras';
 import RevendedorasInativas from '@/pages/RevendedorasInativas';
 import LeadsRevendedoras from '@/pages/LeadsRevendedoras';
 import Garantias from '@/pages/Garantias';
@@ -118,9 +118,9 @@ export function AnimatedRoutes() {
             <VendaExterna />
           </PermissionRoute>
         } />
-        <Route path="/vendedoras" element={
-          <PermissionRoute menuKey="vendedoras">
-            <Vendedoras />
+        <Route path="/revendedoras" element={
+          <PermissionRoute menuKey="revendedoras">
+            <Revendedoras />
           </PermissionRoute>
         } />
         <Route path="/leads-revendedoras" element={

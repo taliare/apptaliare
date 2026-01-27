@@ -904,6 +904,39 @@ export type Database = {
           },
         ]
       }
+      revendedoras: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string | null
+          criado_em: string | null
+          id: string
+          nome: string
+          representante_id: string | null
+          ultima_atividade: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string | null
+          criado_em?: string | null
+          id?: string
+          nome: string
+          representante_id?: string | null
+          ultima_atividade?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string | null
+          criado_em?: string | null
+          id?: string
+          nome?: string
+          representante_id?: string | null
+          ultima_atividade?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       user_menu_permissions: {
         Row: {
           created_at: string | null

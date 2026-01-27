@@ -116,7 +116,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       label: "OPERACIONAL",
       items: [
         { title: 'Usuários', url: '/usuarios', icon: Users },
-        { title: 'Vendedoras', url: '/vendedoras', icon: Users },
+        { title: 'Revendedoras', url: '/revendedoras', icon: Users },
         { title: 'Venda Externa', url: '/venda-externa', icon: Users },
         { title: 'CRM', url: '/leads-revendedoras', icon: UserPlus },
         { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package },
