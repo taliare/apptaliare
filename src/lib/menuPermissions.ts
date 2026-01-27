@@ -2,7 +2,7 @@
 
 export const ASSIGNABLE_MENUS = [
   { key: 'crm', label: 'CRM', route: '/leads-revendedoras' },
-  { key: 'vendedoras', label: 'Vendedoras', route: '/vendedoras' },
+  { key: 'revendedoras', label: 'Revendedoras', route: '/revendedoras' },
   { key: 'venda_externa', label: 'Venda Externa', route: '/venda-externa' },
   { key: 'garantias', label: 'Garantias', route: '/garantias' },
   { key: 'distribuicao_kits', label: 'Distribuição de Kits', route: '/distribuicao-kits' },
