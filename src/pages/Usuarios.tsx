@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { ASSIGNABLE_MENUS } from '@/lib/menuPermissions';
 import type { Database } from '@/integrations/supabase/types';
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -83,6 +85,7 @@ export default function Usuarios() {
   const [habilitarCobrancaDiaria, setHabilitarCobrancaDiaria] = useState(true);
   const [senha, setSenha] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     loadProfiles();
@@ -150,7 +153,20 @@ export default function Usuarios() {
     setDialogOpen(true);
   };
 
-  const openEditDialog = (user: ProfileWithRole) => {
+  const loadUserPermissions = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('user_menu_permissions')
+      .select('menu_key')
+      .eq('user_id', userId);
+    
+    if (!error && data) {
+      setSelectedPermissions(data.map(p => p.menu_key));
+    } else {
+      setSelectedPermissions([]);
+    }
+  };
+
+  const openEditDialog = async (user: ProfileWithRole) => {
     setEditingUser(user);
     setNome(user.nome);
     setEmail(user.email || '');
@@ -161,6 +177,14 @@ export default function Usuarios() {
     setHabilitarKanban(user.habilitar_kanban || false);
     setHabilitarCobrancaDiaria(user.habilitar_cobranca_diaria || false);
     setSenha('');
+    
+    // Load permissions for non-admin users
+    if (user.role !== 'admin') {
+      await loadUserPermissions(user.id);
+    } else {
+      setSelectedPermissions([]);
+    }
+    
     setDialogOpen(true);
   };
 
@@ -174,6 +198,7 @@ export default function Usuarios() {
     setHabilitarKanban(true);
     setHabilitarCobrancaDiaria(true);
     setSenha('');
+    setSelectedPermissions([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -284,11 +309,28 @@ export default function Usuarios() {
 
       if (profileError) throw profileError;
 
+      // Save menu permissions for non-admin users
+      if (role !== 'admin' && selectedPermissions.length > 0) {
+        const { error: permError } = await supabase
+          .from('user_menu_permissions')
+          .insert(
+            selectedPermissions.map(key => ({
+              user_id: signUpData.user!.id,
+              menu_key: key,
+            }))
+          );
+        
+        if (permError) {
+          console.error('Erro ao salvar permissões:', permError);
+        }
+      }
+
       // Registrar log de auditoria
       await registrarLog('user_created', signUpData.user.id, {
         nome: nome.trim(),
         email: email.trim(),
         role,
+        menu_permissions: role !== 'admin' ? selectedPermissions : [],
         admin_nome: currentProfile?.nome
       });
 
@@ -391,6 +433,37 @@ export default function Usuarios() {
 
         if (emailError) throw emailError;
         changes.email = { old: editingUser.email, new: email.trim() };
+      }
+
+      // Update menu permissions for non-admin users
+      if (role !== 'admin') {
+        // Delete existing permissions
+        await supabase
+          .from('user_menu_permissions')
+          .delete()
+          .eq('user_id', editingUser.id);
+
+        // Insert new permissions
+        if (selectedPermissions.length > 0) {
+          const { error: permError } = await supabase
+            .from('user_menu_permissions')
+            .insert(
+              selectedPermissions.map(key => ({
+                user_id: editingUser.id,
+                menu_key: key,
+              }))
+            );
+          
+          if (permError) {
+            console.error('Erro ao salvar permissões:', permError);
+          }
+        }
+      } else {
+        // If changing to admin, remove all menu permissions (admin has full access)
+        await supabase
+          .from('user_menu_permissions')
+          .delete()
+          .eq('user_id', editingUser.id);
       }
 
       // Registrar log de auditoria
@@ -796,6 +869,36 @@ export default function Usuarios() {
                   />
                 </div>
               </div>
+
+              {/* Menu Permissions - Only show for non-admin users */}
+              {role !== 'admin' && (
+                <div className="space-y-3 pt-4 border-t">
+                  <Label className="text-base font-semibold">Permissões de Menu</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Selecione os menus que este usuário pode acessar
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
+                    {ASSIGNABLE_MENUS.map(menu => (
+                      <div key={menu.key} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`perm-${menu.key}`}
+                          checked={selectedPermissions.includes(menu.key)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedPermissions([...selectedPermissions, menu.key]);
+                            } else {
+                              setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
+                          {menu.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter>

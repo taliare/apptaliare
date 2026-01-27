@@ -22,8 +22,8 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMenuPermissions } from "@/hooks/useMenuPermissions";
+import { ASSIGNABLE_MENUS } from "@/lib/menuPermissions";
 import {
   Sidebar,
   SidebarContent,
@@ -51,6 +51,7 @@ interface MenuCategory {
 export function AppSidebar() {
   const { profile } = useAuth();
   const { state } = useSidebar();
+  const { hasRouteAccess } = useMenuPermissions();
   const collapsed = state === "collapsed";
 
   const isAdmin = profile?.role === "admin";
@@ -125,7 +126,7 @@ export function AppSidebar() {
         { title: "Usuários", url: "/usuarios", icon: Users },
         { title: "Vendedoras", url: "/vendedoras", icon: Users },
         { title: "Venda Externa", url: "/venda-externa", icon: Users },
-        { title: "Leads Revendedoras", url: "/leads-revendedoras", icon: UserPlus },
+        { title: "CRM", url: "/leads-revendedoras", icon: UserPlus },
         { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
         { title: "Garantias", url: "/garantias", icon: Shield },
       ],
@@ -153,12 +154,30 @@ export function AppSidebar() {
     },
   ];
 
-  const categories =
+  // Filtra menus baseado em permissões
+  const filterMenusByPermission = (items: typeof adminCategories[0]['items']) => {
+    if (profile?.role === 'admin') return items;
+    
+    return items.filter(item => {
+      const menuDef = ASSIGNABLE_MENUS.find(m => m.route === item.url);
+      // Se não é um menu atribuível, mantém (menus base)
+      if (!menuDef) return true;
+      return hasRouteAccess(item.url);
+    });
+  };
+
+  const baseCategories =
     profile?.role === "admin"
       ? adminCategories
       : profile?.role === "producao"
       ? producaoCategories
       : representanteCategories;
+
+  // Aplica filtro de permissões e remove categorias vazias
+  const categories = baseCategories.map(cat => ({
+    ...cat,
+    items: filterMenusByPermission(cat.items)
+  })).filter(cat => cat.items.length > 0);
 
   return (
     <Sidebar

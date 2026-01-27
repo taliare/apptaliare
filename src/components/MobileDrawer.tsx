@@ -17,6 +17,8 @@ import { MessagesDialog } from '@/components/messages/MessagesDialog';
 import { NotificationsSheet } from '@/components/notifications/NotificationsSheet';
 import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory, Bell, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useMenuPermissions } from '@/hooks/useMenuPermissions';
+import { ASSIGNABLE_MENUS } from '@/lib/menuPermissions';
 
 interface MenuCategory {
   label: string;
@@ -40,6 +42,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const navigate = useNavigate();
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const { hasRouteAccess } = useMenuPermissions();
 
   const userInitials = profile?.nome
     ? profile.nome
@@ -115,7 +118,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         { title: 'Usuários', url: '/usuarios', icon: Users },
         { title: 'Vendedoras', url: '/vendedoras', icon: Users },
         { title: 'Venda Externa', url: '/venda-externa', icon: Users },
-        { title: 'Leads Revendedoras', url: '/leads-revendedoras', icon: UserPlus },
+        { title: 'CRM', url: '/leads-revendedoras', icon: UserPlus },
         { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package },
         { title: 'Garantias', url: '/garantias', icon: Shield },
       ],
@@ -143,11 +146,27 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     },
   ];
 
-  const categories = profile?.role === 'admin' 
+  // Filtra menus baseado em permissões
+  const filterMenusByPermission = (items: typeof adminCategories[0]['items']) => {
+    if (profile?.role === 'admin') return items;
+    
+    return items.filter(item => {
+      const menuDef = ASSIGNABLE_MENUS.find(m => m.route === item.url);
+      if (!menuDef) return true;
+      return hasRouteAccess(item.url);
+    });
+  };
+
+  const baseCategories = profile?.role === 'admin' 
     ? adminCategories 
     : profile?.role === 'producao' 
     ? producaoCategories 
     : representanteCategories;
+
+  const categories = baseCategories.map(cat => ({
+    ...cat,
+    items: filterMenusByPermission(cat.items)
+  })).filter(cat => cat.items.length > 0);
 
   const handleLinkClick = () => {
     onOpenChange(false);
