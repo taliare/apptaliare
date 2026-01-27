@@ -1,64 +1,94 @@
 
-
-## Plano: Importação em Massa de Leads para o CRM
+## Plano: Sistema de Permissões por Menu para Usuários
 
 ### Resumo
-Criar um componente para importação em massa de leads via arquivo Excel (.xlsx), seguindo o padrão já existente na página de Importar Cobranças.
+1. Renomear "Leads Revendedoras" para "CRM" no menu
+2. Criar tabela de permissões para controlar acesso a menus específicos do admin
+3. Adicionar interface no cadastro de usuários para atribuir permissões de menu
+4. Modificar sidebar e rotas para respeitar as permissões atribuídas
 
 ---
 
-### Funcionalidades
-
-1. **Upload de arquivo Excel**: Aceitar apenas arquivos .xlsx
-2. **Template para download**: Gerar modelo Excel com as colunas corretas
-3. **Validação de dados**: Verificar campos obrigatórios (nome, whatsapp)
-4. **Preview dos dados**: Exibir tabela com status de cada linha antes de confirmar
-5. **Detecção de duplicados**: Verificar se o WhatsApp já existe na base
-6. **Importação em lote**: Inserir todos os leads válidos de uma vez
-7. **Feedback visual**: Mostrar progresso e resultado da importação
-
----
-
-### Interface
+### Lógica de Permissões
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ Importar Leads em Massa                                     │
+│                    HIERARQUIA DE ACESSO                     │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  [📥 Baixar Modelo Excel]    [📤 Selecionar Arquivo]       │
+│   ADMIN ──────────────> Acesso TOTAL (todos os menus)      │
 │                                                             │
-│  Arquivo: leads_janeiro.xlsx                                │
+│   OUTROS ROLES ──────-> Acesso apenas aos menus            │
+│                         atribuídos pelo admin               │
 │                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ Status │ Nome          │ WhatsApp      │ Cidade     │   │
-│  ├─────────────────────────────────────────────────────┤   │
-│  │   ✓    │ Maria Silva   │ 11999998888   │ São Paulo  │   │
-│  │   ✓    │ João Santos   │ 21988887777   │ Rio        │   │
-│  │   ⚠    │ Ana Costa     │ (vazio)       │ Curitiba   │   │
-│  │   ⚠    │ Pedro Lima    │ 11999998888   │ SP         │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  ✓ 15 válidos   ⚠ 2 com erro   Total: 17 linhas           │
-│                                                             │
-│              [Cancelar]    [Importar 15 Leads]              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Colunas do Template Excel
+### Menus Atribuíveis
 
-| Coluna | Obrigatório | Descrição |
-|--------|-------------|-----------|
-| nome | Sim | Nome do lead |
-| whatsapp | Sim | Número de WhatsApp |
-| cidade | Não | Cidade do lead |
-| instagram | Não | @ do Instagram |
-| experiencia_vendas | Não | Experiência prévia |
-| tempo_disponivel | Não | Tempo disponível |
-| capital_inicial | Não | Capital para investir |
-| motivacao | Não | Motivação para revender |
+Os seguintes menus do admin poderão ser atribuídos a outros usuários:
+
+| Menu | Rota | Descrição |
+|------|------|-----------|
+| CRM | /leads-revendedoras | Gestão de leads (antigo Leads Revendedoras) |
+| Vendedoras | /vendedoras | Gestão de vendedoras |
+| Venda Externa | /venda-externa | Registro de vendas externas |
+| Garantias | /garantias | Gestão de garantias |
+| Distribuição de Kits | /distribuicao-kits | Distribuir kits para representantes |
+| Fechamento Diário | /fechamento-diario | Ver fechamentos diários |
+| Metas | /metas | Definir e acompanhar metas |
+| Jurídico | /juridico | Casos jurídicos |
+| Resumo DRE | /dre-resumo | Demonstrativo de resultados |
+| Despesas | /dre-despesas | Lançamento de despesas |
+| Categorias DRE | /dre-categorias | Categorias de despesas |
+| Relatório KPIs | /relatorio-kpis | Indicadores de performance |
+| Análise Comercial | /analise-comercial | Análise de vendas |
+| Importar Cobranças | /importar-cobrancas | Importação em massa |
+| Relatórios | /relatorios | Exportação de relatórios |
+| Gerenciar Agenda | /gerenciar-agenda | Gerenciar agendas |
+
+---
+
+### Interface de Atribuição (no Cadastro de Usuário)
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Editar Usuário                                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ Nome: [João Silva              ]                            │
+│ Email: [joao@email.com         ]                            │
+│ Perfil: [Representante ▼]                                   │
+│                                                             │
+│ ────────────────────────────────────────────────            │
+│                                                             │
+│ 📋 Permissões de Menu (somente se NÃO for Admin)           │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────┐    │
+│ │ ☑ CRM                                               │    │
+│ │ ☑ Vendedoras                                        │    │
+│ │ ☐ Venda Externa                                     │    │
+│ │ ☐ Garantias                                         │    │
+│ │ ☐ Fechamento Diário                                 │    │
+│ │ ☐ Metas                                             │    │
+│ │ ...                                                 │    │
+│ └─────────────────────────────────────────────────────┘    │
+│                                                             │
+│              [Cancelar]              [Salvar]               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Alterações no Menu
+
+**Antes:**
+- Leads Revendedoras
+
+**Depois:**
+- CRM
 
 ---
 
@@ -66,153 +96,247 @@ Criar um componente para importação em massa de leads via arquivo Excel (.xlsx
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `src/components/leads/BulkImportLeadsDialog.tsx` | CRIAR | Dialog com toda a lógica de importação |
-| `src/pages/LeadsRevendedoras.tsx` | EDITAR | Adicionar botão e integrar dialog |
+| **Banco de Dados** | CRIAR | Nova tabela `user_menu_permissions` |
+| `src/components/AppSidebar.tsx` | EDITAR | Renomear menu e filtrar por permissões |
+| `src/components/MobileDrawer.tsx` | EDITAR | Mesmas alterações do sidebar |
+| `src/pages/Usuarios.tsx` | EDITAR | Adicionar checkboxes de permissões |
+| `src/components/AnimatedRoutes.tsx` | EDITAR | Verificar permissões nas rotas |
+| `src/contexts/AuthContext.tsx` | EDITAR | Carregar permissões do usuário |
+| `src/hooks/useMenuPermissions.ts` | CRIAR | Hook para verificar permissões |
 
 ---
 
 ### Seção Técnica
 
-#### Estrutura do Componente
+#### 1. Nova Tabela: user_menu_permissions
+
+```sql
+-- Tabela para armazenar permissões de menu por usuário
+CREATE TABLE public.user_menu_permissions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  menu_key text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (user_id, menu_key)
+);
+
+-- Habilitar RLS
+ALTER TABLE public.user_menu_permissions ENABLE ROW LEVEL SECURITY;
+
+-- Política: Admins podem ver/editar todas as permissões
+CREATE POLICY "Admins can manage all permissions"
+ON public.user_menu_permissions
+FOR ALL
+TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+-- Política: Usuários podem ver suas próprias permissões
+CREATE POLICY "Users can view own permissions"
+ON public.user_menu_permissions
+FOR SELECT
+TO authenticated
+USING (user_id = auth.uid());
+```
+
+#### 2. Definição de Menus Atribuíveis
 
 ```typescript
-interface ImportedLeadRow {
-  nome: string;
-  whatsapp: string;
-  cidade?: string;
-  instagram?: string;
-  experiencia_vendas?: string;
-  tempo_disponivel?: string;
-  capital_inicial?: string;
-  motivacao?: string;
-  status: 'pendente' | 'erro' | 'sucesso' | 'duplicado';
-  erro?: string;
+// src/lib/menuPermissions.ts
+export const ASSIGNABLE_MENUS = [
+  { key: 'crm', label: 'CRM', route: '/leads-revendedoras', icon: 'UserPlus' },
+  { key: 'vendedoras', label: 'Vendedoras', route: '/vendedoras', icon: 'Users' },
+  { key: 'venda_externa', label: 'Venda Externa', route: '/venda-externa', icon: 'Users' },
+  { key: 'garantias', label: 'Garantias', route: '/garantias', icon: 'Shield' },
+  { key: 'distribuicao_kits', label: 'Distribuição de Kits', route: '/distribuicao-kits', icon: 'Package' },
+  { key: 'fechamento_diario', label: 'Fechamento Diário', route: '/fechamento-diario', icon: 'CalendarCheck' },
+  { key: 'metas', label: 'Metas', route: '/metas', icon: 'Target' },
+  { key: 'gerenciar_agenda', label: 'Gerenciar Agenda', route: '/gerenciar-agenda', icon: 'Calendar' },
+  { key: 'juridico', label: 'Jurídico', route: '/juridico', icon: 'Scale' },
+  { key: 'dre_resumo', label: 'Resumo DRE', route: '/dre-resumo', icon: 'TrendingUp' },
+  { key: 'dre_despesas', label: 'Despesas', route: '/dre-despesas', icon: 'Receipt' },
+  { key: 'dre_categorias', label: 'Categorias DRE', route: '/dre-categorias', icon: 'FolderOpen' },
+  { key: 'relatorio_kpis', label: 'Relatório KPIs', route: '/relatorio-kpis', icon: 'BarChart3' },
+  { key: 'analise_comercial', label: 'Análise Comercial', route: '/analise-comercial', icon: 'LineChart' },
+  { key: 'importar_cobrancas', label: 'Importar Cobranças', route: '/importar-cobrancas', icon: 'Upload' },
+  { key: 'relatorios', label: 'Relatórios', route: '/relatorios', icon: 'FileText' },
+] as const;
+
+export type MenuKey = typeof ASSIGNABLE_MENUS[number]['key'];
+```
+
+#### 3. Hook useMenuPermissions
+
+```typescript
+// src/hooks/useMenuPermissions.ts
+export function useMenuPermissions() {
+  const { profile, user } = useAuth();
+  
+  const { data: permissions = [] } = useQuery({
+    queryKey: ['menu-permissions', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data } = await supabase
+        .from('user_menu_permissions')
+        .select('menu_key')
+        .eq('user_id', user.id);
+      return data?.map(p => p.menu_key) || [];
+    },
+    enabled: !!user?.id && profile?.role !== 'admin',
+  });
+
+  const hasMenuAccess = useCallback((menuKey: string) => {
+    // Admin tem acesso a tudo
+    if (profile?.role === 'admin') return true;
+    // Outros verificam permissões
+    return permissions.includes(menuKey);
+  }, [profile?.role, permissions]);
+
+  return { permissions, hasMenuAccess };
 }
 ```
 
-#### Lógica de Parsing
+#### 4. Atualização do AuthContext
 
 ```typescript
-const parseExcel = async (file: File): Promise<ImportedLeadRow[]> => {
-  const reader = new FileReader();
-  const workbook = XLSX.read(data, { type: 'binary' });
-  const jsonData = XLSX.utils.sheet_to_json(worksheet);
+// Adicionar ao Profile interface
+interface Profile {
+  // ... campos existentes
+  menuPermissions?: string[]; // Lista de menu_keys permitidos
+}
+
+// No fetchProfile, carregar permissões se não for admin
+if (roleData.role !== 'admin') {
+  const { data: permissionsData } = await supabase
+    .from('user_menu_permissions')
+    .select('menu_key')
+    .eq('user_id', userId);
   
-  // Validar cada linha
-  return jsonData.map((row, index) => {
-    // Verificar campos obrigatórios
-    if (!row.nome || !row.whatsapp) {
-      return { ...row, status: 'erro', erro: 'Campos obrigatórios' };
-    }
-    return { ...row, status: 'pendente' };
+  setProfile({
+    ...profileData,
+    role: roleData.role,
+    menuPermissions: permissionsData?.map(p => p.menu_key) || []
+  });
+}
+```
+
+#### 5. Atualização do AppSidebar
+
+```typescript
+// Filtrar menus baseado em permissões
+const filterMenusByPermission = (items: MenuItem[]) => {
+  if (profile?.role === 'admin') return items;
+  
+  return items.filter(item => {
+    const menuDef = ASSIGNABLE_MENUS.find(m => m.route === item.url);
+    if (!menuDef) return true; // Menus base sempre visíveis
+    return profile?.menuPermissions?.includes(menuDef.key);
   });
 };
+
+// Aplicar filtro em cada categoria
+const filteredCategories = categories.map(cat => ({
+  ...cat,
+  items: filterMenusByPermission(cat.items)
+})).filter(cat => cat.items.length > 0);
 ```
 
-#### Detecção de Duplicados
+#### 6. Proteção de Rotas
 
 ```typescript
-// Buscar WhatsApps existentes
-const { data: existingLeads } = await supabase
-  .from('leads_revendedoras')
-  .select('whatsapp');
-
-const existingWhatsapps = new Set(existingLeads?.map(l => 
-  l.whatsapp.replace(/\D/g, '')
-));
-
-// Marcar duplicados
-rows.forEach(row => {
-  const cleanWhatsapp = row.whatsapp.replace(/\D/g, '');
-  if (existingWhatsapps.has(cleanWhatsapp)) {
-    row.status = 'duplicado';
-    row.erro = 'WhatsApp já existe na base';
-  }
-});
-```
-
-#### Inserção em Lote
-
-```typescript
-const validRows = importedData.filter(r => r.status === 'pendente');
-
-const { error } = await supabase
-  .from('leads_revendedoras')
-  .insert(validRows.map(row => ({
-    nome: row.nome.trim(),
-    whatsapp: row.whatsapp.trim(),
-    cidade: row.cidade?.trim() || null,
-    instagram: row.instagram?.trim() || null,
-    experiencia_vendas: row.experiencia_vendas?.trim() || null,
-    tempo_disponivel: row.tempo_disponivel?.trim() || null,
-    capital_inicial: row.capital_inicial?.trim() || null,
-    motivacao: row.motivacao?.trim() || null,
-    status: 'leads_novos',
-    origem: 'importacao',
-  })));
-```
-
-#### Template para Download
-
-```typescript
-const downloadTemplate = () => {
-  const template = [
-    {
-      nome: 'Maria Silva',
-      whatsapp: '11999998888',
-      cidade: 'São Paulo',
-      instagram: '@mariasilva',
-      experiencia_vendas: 'Sim, 2 anos',
-      tempo_disponivel: 'Meio período',
-      capital_inicial: 'R$ 500',
-      motivacao: 'Renda extra'
-    }
-  ];
+// src/components/PermissionRoute.tsx
+export function PermissionRoute({ children, menuKey }: { 
+  children: ReactNode; 
+  menuKey: string;
+}) {
+  const { hasMenuAccess } = useMenuPermissions();
+  const { profile } = useAuth();
   
-  const ws = XLSX.utils.json_to_sheet(template);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Leads');
-  XLSX.writeFile(wb, 'modelo_importacao_leads.xlsx');
+  if (profile?.role === 'admin' || hasMenuAccess(menuKey)) {
+    return <>{children}</>;
+  }
+  
+  return <Navigate to="/dashboard" replace />;
+}
+```
+
+#### 7. Interface de Permissões no Usuários.tsx
+
+```tsx
+// Estados para permissões
+const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+
+// Ao abrir dialog de edição
+const openEditDialog = (user: ProfileWithRole) => {
+  // ... código existente
+  // Carregar permissões do usuário
+  loadUserPermissions(user.id);
+};
+
+// Carregar permissões
+const loadUserPermissions = async (userId: string) => {
+  const { data } = await supabase
+    .from('user_menu_permissions')
+    .select('menu_key')
+    .eq('user_id', userId);
+  setSelectedPermissions(data?.map(p => p.menu_key) || []);
+};
+
+// No form, mostrar checkboxes apenas se role != admin
+{role !== 'admin' && (
+  <div className="space-y-3">
+    <Label>Permissões de Menu</Label>
+    <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+      {ASSIGNABLE_MENUS.map(menu => (
+        <div key={menu.key} className="flex items-center gap-2">
+          <Checkbox
+            checked={selectedPermissions.includes(menu.key)}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                setSelectedPermissions([...selectedPermissions, menu.key]);
+              } else {
+                setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
+              }
+            }}
+          />
+          <Label className="text-sm font-normal">{menu.label}</Label>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+// Ao salvar, atualizar permissões
+const savePermissions = async (userId: string, permissions: string[]) => {
+  // Deletar permissões antigas
+  await supabase.from('user_menu_permissions').delete().eq('user_id', userId);
+  
+  // Inserir novas permissões
+  if (permissions.length > 0) {
+    await supabase.from('user_menu_permissions').insert(
+      permissions.map(key => ({ user_id: userId, menu_key: key }))
+    );
+  }
 };
 ```
 
-#### Modificação na Página Principal
+---
 
-```tsx
-// Novo estado
-const [bulkImportOpen, setBulkImportOpen] = useState(false);
+### Fluxo de Uso
 
-// Botão no header (dropdown com opções)
-<DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button>
-      <Plus className="h-4 w-4 mr-2" />
-      Importar
-    </Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent>
-    <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
-      <UserPlus className="h-4 w-4 mr-2" />
-      Importar Contato
-    </DropdownMenuItem>
-    <DropdownMenuItem onClick={() => setBulkImportOpen(true)}>
-      <FileSpreadsheet className="h-4 w-4 mr-2" />
-      Importar em Massa (Excel)
-    </DropdownMenuItem>
-  </DropdownMenuContent>
-</DropdownMenu>
-```
+1. **Admin cria/edita usuário** com role "representante" ou "producao"
+2. **Admin marca checkboxes** dos menus que o usuário pode acessar
+3. **Sistema salva permissões** na tabela `user_menu_permissions`
+4. **Usuário faz login** → sistema carrega permissões junto com profile
+5. **Sidebar filtra menus** baseado nas permissões
+6. **Rotas verificam acesso** antes de renderizar páginas
 
 ---
 
 ### Resultado Final
 
-- Botão dropdown "Importar" com duas opções: Contato único e Em Massa
-- Dialog de importação em massa com:
-  - Download de template Excel
-  - Upload e validação de arquivo
-  - Preview com status de cada linha
-  - Detecção automática de duplicados
-  - Importação em lote dos leads válidos
-- Todos os leads importados entram com status `leads_novos` e origem `importacao`
-
+- Menu "Leads Revendedoras" renomeado para "CRM"
+- Admins continuam com acesso total a tudo
+- Outros usuários só veem os menus que o admin atribuiu
+- Interface simples com checkboxes no cadastro de usuário
+- Sistema seguro com verificação em rotas e menus
