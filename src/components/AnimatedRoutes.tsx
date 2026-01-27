@@ -1,5 +1,6 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { PermissionRoute } from '@/components/PermissionRoute';
 import Dashboard from '@/pages/Dashboard';
 import DashboardAdmin from '@/pages/DashboardAdmin';
 import Cobranca from '@/pages/Cobranca';
@@ -66,95 +67,95 @@ export function AnimatedRoutes() {
           </ProtectedRoute>
         } />
         
-        {/* Admin routes */}
+        {/* Admin routes - with permission control for non-admins */}
         <Route path="/dashboard-admin" element={
           <ProtectedRoute requiredRole="admin">
             <DashboardAdmin />
           </ProtectedRoute>
         } />
         <Route path="/usuarios" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="usuarios">
             <Usuarios />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/metas" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="metas">
             <Metas />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/gerenciar-agenda" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="gerenciar_agenda">
             <GerenciarAgenda />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/importar-cobrancas" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="importar_cobrancas">
             <ImportarCobrancas />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/relatorios" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="relatorios">
             <Relatorios />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/relatorio-kpis" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="relatorio_kpis">
             <RelatorioKpis />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/fechamento-diario" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="fechamento_diario">
             <FechamentoDiario />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/juridico" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="juridico">
             <Juridico />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/venda-externa" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="venda_externa">
             <VendaExterna />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/vendedoras" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="vendedoras">
             <Vendedoras />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/leads-revendedoras" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="crm">
             <LeadsRevendedoras />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/garantias" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="garantias">
             <Garantias />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         
         {/* DRE routes */}
         <Route path="/dre-resumo" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="dre_resumo">
             <DreResumo />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/dre-despesas" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="dre_despesas">
             <DreDespesas />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         <Route path="/dre-categorias" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="dre_categorias">
             <DreCategorias />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         
         {/* Análise Comercial route */}
         <Route path="/analise-comercial" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="analise_comercial">
             <AnaliseComercial />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         
         {/* Perfil - acessível para todos */}
