@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, Search, Filter, ChevronDown, Plus, UserPlus, FileSpreadsheet } from "lucide-react";
+import { Users, Search, Filter, ChevronDown, Plus, UserPlus, FileSpreadsheet, RefreshCw } from "lucide-react";
 import { LeadsKanban } from "@/components/leads/LeadsKanban";
 import { ImportLeadDialog } from "@/components/leads/ImportLeadDialog";
 import { BulkImportLeadsDialog } from "@/components/leads/BulkImportLeadsDialog";
 import { LeadRevendedora, KANBAN_COLUMNS } from "@/components/leads/types";
+import { toast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
 
 export default function LeadsRevendedoras() {
   const queryClient = useQueryClient();
@@ -41,6 +43,34 @@ export default function LeadsRevendedoras() {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+
+  // Mutation para sincronizar leads do site externo
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke(
+        "sync-leads-from-external"
+      );
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["leads-revendedoras"] });
+      toast({
+        title: "Sincronização concluída!",
+        description: data.synced > 0 
+          ? `${data.synced} novos leads importados do site.`
+          : data.message || "Todos os leads já estão sincronizados.",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Erro na sincronização:", error);
+      toast({
+        title: "Erro na sincronização",
+        description: error.message || "Não foi possível sincronizar os leads do site.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Query para buscar leads
   const { data: leads = [], isLoading } = useQuery({
@@ -136,24 +166,34 @@ export default function LeadsRevendedoras() {
             <Users className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold">CRM - Leads de Revendedoras</h1>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Importar
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Importar Contato
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setBulkImportOpen(true)}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Importar em Massa (Excel)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+            >
+              <RefreshCw className={cn("h-4 w-4 mr-2", syncMutation.isPending && "animate-spin")} />
+              Sincronizar do Site
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Importar
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Importar Contato
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkImportOpen(true)}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Importar em Massa (Excel)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Contadores */}
