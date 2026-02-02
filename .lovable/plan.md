@@ -1,58 +1,12 @@
 
 
-## Plano: Sincronização de Leads do Site Externo para o CRM
+## Plano: Notificação Push para Novos Leads + Badge no Menu CRM
 
 ### Resumo
 
-O site da Taliare armazena leads na tabela `leads_revendedoras` no **Supabase externo**, mas o CRM do sistema interno busca dados do **Supabase interno** (Lovable Cloud). 
-
-Vou criar uma Edge Function que sincroniza automaticamente os leads do Supabase externo para o interno, permitindo que o CRM exiba todos os leads do site.
-
----
-
-### Estratégia de Sincronização
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                      SITE TALIARE                           │
-│                                                             │
-│   Formulário de Cadastro → INSERT na tabela                │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│               SUPABASE EXTERNO                              │
-│                                                             │
-│   Tabela: leads_revendedoras                                │
-│   (dados originais do site)                                 │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼ Edge Function: sync-leads-from-external
-┌─────────────────────────────────────────────────────────────┐
-│               SUPABASE INTERNO (Lovable Cloud)              │
-│                                                             │
-│   Tabela: leads_revendedoras                                │
-│   (cópia sincronizada + dados do CRM)                       │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                            │
-                            ▼ Exibição no CRM
-┌─────────────────────────────────────────────────────────────┐
-│                   SISTEMA INTERNO (CRM)                     │
-│                                                             │
-│   Kanban - Leads Novos                                      │
-│   ┌─────────────────────┐                                   │
-│   │ Maria Silva         │                                   │
-│   │ [WhatsApp]          │                                   │
-│   │ São Paulo           │                                   │
-│   │ site                │                                   │
-│   │ 02/02/26 14:30      │                                   │
-│   └─────────────────────┘                                   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+Vou implementar duas funcionalidades:
+1. **Notificação push para admins** quando um novo lead se cadastrar no site
+2. **Badge (bolinha com número)** no menu lateral CRM mostrando quantidade de leads novos
 
 ---
 
@@ -60,18 +14,56 @@ Vou criar uma Edge Function que sincroniza automaticamente os leads do Supabase 
 
 | Componente | Descrição |
 |------------|-----------|
-| **Edge Function** | `sync-leads-from-external` - busca leads do Supabase externo e sincroniza para o interno |
-| **Botão de Sincronização** | Adicionar botão "Sincronizar Leads" na página do CRM |
-| **Campo de Referência** | Adicionar coluna `external_id` na tabela interna para rastrear origem |
+| **Edge Function** | Modificar `sync-leads-from-external` para enviar notificações push e criar notificações no banco quando novos leads forem sincronizados |
+| **Hook de Leads Novos** | Criar hook `useNewLeadsCount` para buscar contagem de leads com status "leads_novos" |
+| **AppSidebar** | Adicionar badge dinâmica no menu CRM mostrando contagem de leads novos |
+| **MobileDrawer** | Adicionar mesma badge no drawer mobile |
 
 ---
 
-### Lógica de Sincronização
+### Fluxo da Notificação
 
-1. Buscar todos os leads do Supabase externo
-2. Para cada lead, verificar se já existe no interno (via `external_id`)
-3. Se não existir, criar novo registro
-4. Se existir, manter os dados internos (status, responsável, observações do CRM)
+```text
+┌─────────────────────────────────────────────────────────────┐
+│   1. Admin clica em "Sincronizar do Site"                  │
+│      ↓                                                      │
+│   2. Edge Function busca leads do site externo              │
+│      ↓                                                      │
+│   3. Se há novos leads:                                     │
+│      ├── Insere no banco interno                            │
+│      ├── Cria notificação na tabela "notifications"         │
+│      │   para cada admin                                    │
+│      └── Envia push notification para admins                │
+│      ↓                                                      │
+│   4. Admin recebe:                                          │
+│      ├── Push no dispositivo (se ativado)                   │
+│      ├── Badge no sino de notificações                      │
+│      └── Badge no menu CRM (quantidade de leads novos)      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Badge no Menu CRM
+
+A badge mostrará a quantidade de leads com status "leads_novos":
+
+```text
+┌─────────────────────────┐
+│ OPERACIONAL             │
+├─────────────────────────┤
+│ 👤 Usuários             │
+│ 👥 Revendedoras         │
+│ 👥 Venda Externa        │
+│ ➕ CRM           [10]   │  ← Badge com número de leads novos
+│ 📦 Distribuição de Kits │
+│ 🛡️ Garantias            │
+└─────────────────────────┘
+```
+
+- Quando não há leads novos, a badge não aparece
+- A contagem atualiza automaticamente quando leads são movidos para outro status
+- Funciona tanto no sidebar desktop quanto no drawer mobile
 
 ---
 
@@ -79,150 +71,106 @@ Vou criar uma Edge Function que sincroniza automaticamente os leads do Supabase 
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `supabase/migrations/xxx.sql` | CRIAR | Adicionar coluna `external_id` na tabela |
-| `supabase/functions/sync-leads-from-external/index.ts` | CRIAR | Edge Function de sincronização |
-| `src/pages/LeadsRevendedoras.tsx` | EDITAR | Adicionar botão de sincronização |
+| `src/hooks/useNewLeadsCount.ts` | CRIAR | Hook para buscar contagem de leads novos |
+| `supabase/functions/sync-leads-from-external/index.ts` | EDITAR | Adicionar criação de notificações e push |
+| `src/components/AppSidebar.tsx` | EDITAR | Adicionar badge dinâmica no menu CRM |
+| `src/components/MobileDrawer.tsx` | EDITAR | Adicionar badge dinâmica no menu CRM |
 
 ---
 
 ### Seção Técnica
 
-#### 1. Migração: Adicionar coluna external_id
-
-```sql
--- Adicionar coluna para rastrear origem do lead externo
-ALTER TABLE public.leads_revendedoras 
-ADD COLUMN IF NOT EXISTS external_id uuid UNIQUE;
-
--- Índice para busca rápida
-CREATE INDEX IF NOT EXISTS idx_leads_external_id 
-ON public.leads_revendedoras(external_id);
-```
-
-#### 2. Edge Function: sync-leads-from-external
+#### 1. Hook useNewLeadsCount
 
 ```typescript
-import { createClient } from '@supabase/supabase-js';
+// src/hooks/useNewLeadsCount.ts
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
-// Buscar leads do Supabase externo
-const externalClient = createClient(
-  Deno.env.get('EXTERNAL_SUPABASE_URL'),
-  Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY')
-);
+export function useNewLeadsCount() {
+  const { data: count = 0 } = useQuery({
+    queryKey: ["leads-novos-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("leads_revendedoras")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "leads_novos");
+      
+      if (error) throw error;
+      return count || 0;
+    },
+    refetchInterval: 30000, // Atualiza a cada 30s
+  });
 
-// Buscar leads do Supabase interno
-const internalClient = createClient(
-  Deno.env.get('SUPABASE_URL'),
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-);
-
-// 1. Buscar todos os leads do externo
-const { data: externalLeads } = await externalClient
-  .from('leads_revendedoras')
-  .select('*');
-
-// 2. Buscar IDs já sincronizados
-const { data: existingLeads } = await internalClient
-  .from('leads_revendedoras')
-  .select('external_id');
-
-const existingIds = new Set(existingLeads?.map(l => l.external_id));
-
-// 3. Filtrar apenas novos
-const newLeads = externalLeads?.filter(l => !existingIds.has(l.id));
-
-// 4. Inserir novos leads com external_id
-for (const lead of newLeads) {
-  await internalClient
-    .from('leads_revendedoras')
-    .insert({
-      ...lead,
-      external_id: lead.id,
-      id: undefined, // Gerar novo ID interno
-      status: 'leads_novos', // Sempre começa como novo
-    });
+  return count;
 }
-
-return { synced: newLeads.length };
 ```
 
-#### 3. Botão de Sincronização no CRM
+#### 2. Modificação da Edge Function sync-leads-from-external
+
+Após inserir os leads, adicionar:
 
 ```typescript
-// Na página LeadsRevendedoras.tsx
-const syncMutation = useMutation({
-  mutationFn: async () => {
-    const { data, error } = await supabase.functions.invoke(
-      'sync-leads-from-external'
-    );
-    if (error) throw error;
-    return data;
-  },
-  onSuccess: (data) => {
-    queryClient.invalidateQueries({ queryKey: ['leads-revendedoras'] });
-    toast({
-      title: 'Sincronização concluída!',
-      description: `${data.synced} novos leads importados.`,
-    });
-  },
-});
+// Buscar todos os admins
+const { data: adminUsers } = await internalClient
+  .from("user_roles")
+  .select("user_id")
+  .eq("role", "admin");
 
-// No header, junto com "Importar"
-<Button 
-  variant="outline" 
-  onClick={() => syncMutation.mutate()}
-  disabled={syncMutation.isPending}
->
-  <RefreshCw className={cn("h-4 w-4 mr-2", syncMutation.isPending && "animate-spin")} />
-  Sincronizar do Site
-</Button>
+// Criar notificações para cada admin
+if (adminUsers && insertedLeads && insertedLeads.length > 0) {
+  const notifications = adminUsers.map((admin) => ({
+    user_id: admin.user_id,
+    title: "Novos leads do site!",
+    message: `${insertedLeads.length} novo(s) lead(s) cadastrado(s) no site.`,
+    type: "lead",
+    link: "/leads-revendedoras",
+  }));
+
+  await internalClient.from("notifications").insert(notifications);
+
+  // Enviar push notifications (opcional - se VAPID configurado)
+  // Usa a mesma lógica do send-push-notification
+}
 ```
 
----
+#### 3. AppSidebar com Badge
 
-### Mapeamento de Campos
+```typescript
+// Importar o hook
+import { useNewLeadsCount } from "@/hooks/useNewLeadsCount";
 
-| Campo no Externo | Campo no Interno | Observação |
-|------------------|------------------|------------|
-| `id` | `external_id` | ID original é salvo como referência |
-| `nome` | `nome` | Direto |
-| `whatsapp` | `whatsapp` | Direto |
-| `cidade` | `cidade` | Direto |
-| `instagram` | `instagram` | Direto |
-| `experiencia_vendas` | `experiencia_vendas` | Direto |
-| `tempo_disponivel` | `tempo_disponivel` | Direto |
-| `capital_inicial` | `capital_inicial` | Direto |
-| `motivacao` | `motivacao` | Direto |
-| `utm_source` | `utm_source` | Direto |
-| `utm_medium` | `utm_medium` | Direto |
-| `utm_campaign` | `utm_campaign` | Direto |
-| `created_at` | `created_at` | Data/hora original preservada |
-| - | `status` | Sempre `leads_novos` na importação |
-| - | `origem` | Sempre `site` |
-| - | `responsavel_id` | Null (será atribuído no CRM) |
-| - | `observacao` | Null (será preenchido no CRM) |
+// No componente
+const newLeadsCount = useNewLeadsCount();
+
+// No item CRM, adicionar badge dinamicamente
+{ 
+  title: "CRM", 
+  url: "/leads-revendedoras", 
+  icon: UserPlus,
+  badge: newLeadsCount  // Badge com contagem
+}
+```
+
+#### 4. MobileDrawer com Badge
+
+Mesma lógica aplicada no drawer mobile para consistência.
 
 ---
 
 ### Resultado Esperado
 
-1. Admin clica em "Sincronizar do Site" no CRM
-2. Edge Function busca leads do Supabase externo
-3. Novos leads são inseridos no Supabase interno com `external_id`
-4. Cards aparecem na coluna "Leads Novos" do Kanban
-5. Ao clicar no card, todas as informações do formulário são exibidas:
-   - Nome e WhatsApp (com botão de acesso)
-   - Cidade e Instagram
-   - Data e hora do cadastro
-   - Experiência, tempo disponível, capital, motivação
-   - UTMs de rastreamento
+1. **Quando leads são sincronizados**:
+   - Admins recebem notificação push (se ativado)
+   - Aparece notificação no sino (badge vermelha)
+   - Menu CRM mostra badge com quantidade de leads novos
 
----
+2. **Badge no CRM**:
+   - Mostra número de leads com status "leads_novos"
+   - Atualiza automaticamente a cada 30 segundos
+   - Quando lead é movido para outro status, contador diminui
+   - Se não há leads novos, badge não aparece
 
-### Sincronização Automática (Opcional Futuro)
-
-Após a implementação manual, podemos adicionar:
-- Sincronização automática a cada 5 minutos via cron job
-- Webhook no Supabase externo que notifica o interno sobre novos leads
-- Notificação push quando novo lead chega
+3. **Consistência**:
+   - Funciona igual no desktop (sidebar) e mobile (drawer)
 
