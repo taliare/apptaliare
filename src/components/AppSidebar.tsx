@@ -24,6 +24,7 @@ import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenuPermissions } from "@/hooks/useMenuPermissions";
 import { ASSIGNABLE_MENUS } from "@/lib/menuPermissions";
+import { useNewLeadsCount } from "@/hooks/useNewLeadsCount";
 import {
   Sidebar,
   SidebarContent,
@@ -52,6 +53,7 @@ export function AppSidebar() {
   const { profile } = useAuth();
   const { state } = useSidebar();
   const { hasRouteAccess } = useMenuPermissions();
+  const newLeadsCount = useNewLeadsCount();
   const collapsed = state === "collapsed";
 
   const isAdmin = profile?.role === "admin";
@@ -126,7 +128,7 @@ export function AppSidebar() {
         { title: "Usuários", url: "/usuarios", icon: Users },
         { title: "Revendedoras", url: "/revendedoras", icon: Users },
         { title: "Venda Externa", url: "/venda-externa", icon: Users },
-        { title: "CRM", url: "/leads-revendedoras", icon: UserPlus },
+        { title: "CRM", url: "/leads-revendedoras", icon: UserPlus, badge: newLeadsCount },
         { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
         { title: "Garantias", url: "/garantias", icon: Shield },
       ],
