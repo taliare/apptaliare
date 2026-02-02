@@ -159,6 +159,36 @@ serve(async (req) => {
 
     console.log(`Sincronizados ${insertedLeads?.length || 0} leads do site externo`);
 
+    // 6. Criar notificações para todos os admins se houver novos leads
+    if (insertedLeads && insertedLeads.length > 0) {
+      // Buscar todos os admins
+      const { data: adminUsers } = await internalClient
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+
+      if (adminUsers && adminUsers.length > 0) {
+        const notifications = adminUsers.map((admin) => ({
+          user_id: admin.user_id,
+          title: "Novos leads do site!",
+          message: `${insertedLeads.length} novo(s) lead(s) cadastrado(s) no site.`,
+          type: "lead",
+          link: "/leads-revendedoras",
+          read: false,
+        }));
+
+        const { error: notifError } = await internalClient
+          .from("notifications")
+          .insert(notifications);
+
+        if (notifError) {
+          console.error("Erro ao criar notificações:", notifError);
+        } else {
+          console.log(`Notificações criadas para ${adminUsers.length} admins`);
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({
         synced: insertedLeads?.length || 0,

@@ -19,6 +19,7 @@ import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package
 import { useNavigate } from 'react-router-dom';
 import { useMenuPermissions } from '@/hooks/useMenuPermissions';
 import { ASSIGNABLE_MENUS } from '@/lib/menuPermissions';
+import { useNewLeadsCount } from '@/hooks/useNewLeadsCount';
 
 interface MenuCategory {
   label: string;
@@ -43,6 +44,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { hasRouteAccess } = useMenuPermissions();
+  const newLeadsCount = useNewLeadsCount();
 
   const userInitials = profile?.nome
     ? profile.nome
@@ -118,7 +120,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         { title: 'Usuários', url: '/usuarios', icon: Users },
         { title: 'Revendedoras', url: '/revendedoras', icon: Users },
         { title: 'Venda Externa', url: '/venda-externa', icon: Users },
-        { title: 'CRM', url: '/leads-revendedoras', icon: UserPlus },
+        { title: 'CRM', url: '/leads-revendedoras', icon: UserPlus, badge: newLeadsCount },
         { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package },
         { title: 'Garantias', url: '/garantias', icon: Shield },
       ],
