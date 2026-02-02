@@ -14,13 +14,19 @@ serve(async (req) => {
   }
 
   try {
-    // Verificar autenticação (apenas admin pode sincronizar)
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    
+    // Verificar se é chamada do cron (POST sem auth de usuário, mas com body específico)
+    let isCronCall = false;
+    let body: { source?: string } = {};
+    
+    if (req.method === "POST") {
+      try {
+        body = await req.json();
+        isCronCall = body?.source === "cron";
+      } catch {
+        // Body vazio ou inválido, não é cron
+      }
     }
 
     // Cliente do Supabase externo (site Taliare)
@@ -44,30 +50,42 @@ serve(async (req) => {
     const internalKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const internalClient = createClient(internalUrl, internalKey);
 
-    // Verificar se o usuário é admin
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await internalClient.auth.getUser(token);
+    // Se é chamada do cron, pular verificação de admin
+    if (isCronCall) {
+      console.log("Sincronização automática via cron job");
+    } else {
+      // Chamada manual - verificar autenticação de admin
+      if (!authHeader) {
+        return new Response(
+          JSON.stringify({ error: "Não autorizado" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Token inválido" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user }, error: authError } = await internalClient.auth.getUser(token);
 
-    // Verificar role admin
-    const { data: roleData } = await internalClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .single();
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: "Token inválido" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-    if (!roleData) {
-      return new Response(
-        JSON.stringify({ error: "Apenas administradores podem sincronizar leads" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Verificar role admin
+      const { data: roleData } = await internalClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .single();
+
+      if (!roleData) {
+        return new Response(
+          JSON.stringify({ error: "Apenas administradores podem sincronizar leads" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // 1. Buscar todos os leads do Supabase externo
