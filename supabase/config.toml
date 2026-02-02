@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.delete-revendedora-external]
 verify_jwt = false
+
+[functions.sync-leads-from-external]
+verify_jwt = false
+
+[functions.get-external-supabase-config]
+verify_jwt = false
