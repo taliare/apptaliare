@@ -1,12 +1,10 @@
 
 
-## Plano: Notificação Push para Novos Leads + Badge no Menu CRM
+## Plano: Sincronização Automática de Leads a Cada 5 Minutos
 
 ### Resumo
 
-Vou implementar duas funcionalidades:
-1. **Notificação push para admins** quando um novo lead se cadastrar no site
-2. **Badge (bolinha com número)** no menu lateral CRM mostrando quantidade de leads novos
+Vou criar um cron job que executa automaticamente a Edge Function `sync-leads-from-external` a cada 5 minutos, eliminando a necessidade de clicar manualmente no botão "Sincronizar do Site".
 
 ---
 
@@ -14,163 +12,115 @@ Vou implementar duas funcionalidades:
 
 | Componente | Descrição |
 |------------|-----------|
-| **Edge Function** | Modificar `sync-leads-from-external` para enviar notificações push e criar notificações no banco quando novos leads forem sincronizados |
-| **Hook de Leads Novos** | Criar hook `useNewLeadsCount` para buscar contagem de leads com status "leads_novos" |
-| **AppSidebar** | Adicionar badge dinâmica no menu CRM mostrando contagem de leads novos |
-| **MobileDrawer** | Adicionar mesma badge no drawer mobile |
+| **Cron Job** | Criar job `sync-leads-cron` que executa a cada 5 minutos |
+| **Edge Function** | Ajustar `sync-leads-from-external` para funcionar sem autenticação quando chamada pelo cron |
 
 ---
 
-### Fluxo da Notificação
+### Fluxo da Sincronização Automática
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│   1. Admin clica em "Sincronizar do Site"                  │
-│      ↓                                                      │
-│   2. Edge Function busca leads do site externo              │
-│      ↓                                                      │
-│   3. Se há novos leads:                                     │
-│      ├── Insere no banco interno                            │
-│      ├── Cria notificação na tabela "notifications"         │
-│      │   para cada admin                                    │
-│      └── Envia push notification para admins                │
-│      ↓                                                      │
-│   4. Admin recebe:                                          │
-│      ├── Push no dispositivo (se ativado)                   │
-│      ├── Badge no sino de notificações                      │
-│      └── Badge no menu CRM (quantidade de leads novos)      │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│   A cada 5 minutos:                                          │
+│   ┌────────────────────────────────────────────────────────┐ │
+│   │  pg_cron dispara                                       │ │
+│   │        ↓                                               │ │
+│   │  pg_net.http_post() chama Edge Function                │ │
+│   │        ↓                                               │ │
+│   │  sync-leads-from-external executa                      │ │
+│   │        ↓                                               │ │
+│   │  Se há novos leads:                                    │ │
+│   │  ├── Insere no banco interno                           │ │
+│   │  └── Cria notificações para admins                     │ │
+│   └────────────────────────────────────────────────────────┘ │
+│                                                              │
+│   Admin vê:                                                  │
+│   ├── Badge no menu CRM atualiza automaticamente            │
+│   ├── Notificação no sino quando há novos leads             │
+│   └── Leads aparecem no Kanban em tempo real                │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Badge no Menu CRM
+### Cron Jobs Existentes (Referência)
 
-A badge mostrará a quantidade de leads com status "leads_novos":
+O projeto já possui 3 cron jobs configurados:
 
-```text
-┌─────────────────────────┐
-│ OPERACIONAL             │
-├─────────────────────────┤
-│ 👤 Usuários             │
-│ 👥 Revendedoras         │
-│ 👥 Venda Externa        │
-│ ➕ CRM           [10]   │  ← Badge com número de leads novos
-│ 📦 Distribuição de Kits │
-│ 🛡️ Garantias            │
-└─────────────────────────┘
-```
-
-- Quando não há leads novos, a badge não aparece
-- A contagem atualiza automaticamente quando leads são movidos para outro status
-- Funciona tanto no sidebar desktop quanto no drawer mobile
+| Job | Schedule | Descrição |
+|-----|----------|-----------|
+| `daily-closing-reminder` | `0 21 * * 1-6` | 21h de segunda a sábado |
+| `weekly-report` | `0 11 * * 1` | 11h toda segunda-feira |
+| `auto-close-daily-job` | `3 3 * * 1-6` | 3:03 de segunda a sábado |
 
 ---
 
-### Arquivos a Criar/Modificar
+### Alterações Necessárias
 
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `src/hooks/useNewLeadsCount.ts` | CRIAR | Hook para buscar contagem de leads novos |
-| `supabase/functions/sync-leads-from-external/index.ts` | EDITAR | Adicionar criação de notificações e push |
-| `src/components/AppSidebar.tsx` | EDITAR | Adicionar badge dinâmica no menu CRM |
-| `src/components/MobileDrawer.tsx` | EDITAR | Adicionar badge dinâmica no menu CRM |
+| Arquivo/Componente | Ação | Descrição |
+|-------------------|------|-----------|
+| Edge Function `sync-leads-from-external` | EDITAR | Permitir execução via cron (sem auth do usuário) |
+| Banco de dados | SQL | Criar cron job para executar a cada 5 minutos |
 
 ---
 
 ### Seção Técnica
 
-#### 1. Hook useNewLeadsCount
+#### 1. Ajuste na Edge Function
+
+A função atual requer autenticação de usuário admin. Para o cron funcionar, preciso adicionar uma verificação de chamada interna via header especial ou detectar quando é uma chamada do cron:
 
 ```typescript
-// src/hooks/useNewLeadsCount.ts
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+// Detectar se é chamada do cron (sem Authorization header mas com body específico)
+const isCronCall = !authHeader && req.method === "POST";
 
-export function useNewLeadsCount() {
-  const { data: count = 0 } = useQuery({
-    queryKey: ["leads-novos-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("leads_revendedoras")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "leads_novos");
-      
-      if (error) throw error;
-      return count || 0;
-    },
-    refetchInterval: 30000, // Atualiza a cada 30s
-  });
-
-  return count;
+if (isCronCall) {
+  console.log("Sincronização automática via cron job");
+  // Pular verificação de admin, executar diretamente
+} else {
+  // Manter verificação de admin para chamadas manuais
 }
 ```
 
-#### 2. Modificação da Edge Function sync-leads-from-external
+#### 2. Cron Job SQL
 
-Após inserir os leads, adicionar:
+Usando o mesmo padrão dos cron jobs existentes:
 
-```typescript
-// Buscar todos os admins
-const { data: adminUsers } = await internalClient
-  .from("user_roles")
-  .select("user_id")
-  .eq("role", "admin");
-
-// Criar notificações para cada admin
-if (adminUsers && insertedLeads && insertedLeads.length > 0) {
-  const notifications = adminUsers.map((admin) => ({
-    user_id: admin.user_id,
-    title: "Novos leads do site!",
-    message: `${insertedLeads.length} novo(s) lead(s) cadastrado(s) no site.`,
-    type: "lead",
-    link: "/leads-revendedoras",
-  }));
-
-  await internalClient.from("notifications").insert(notifications);
-
-  // Enviar push notifications (opcional - se VAPID configurado)
-  // Usa a mesma lógica do send-push-notification
-}
+```sql
+SELECT cron.schedule(
+  'sync-leads-cron',
+  '*/5 * * * *',  -- A cada 5 minutos
+  $$
+  SELECT net.http_post(
+    url := 'https://iqluvckcmbcndjjkfznw.supabase.co/functions/v1/sync-leads-from-external',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer <anon-key>"}'::jsonb,
+    body := '{"source": "cron"}'::jsonb
+  ) AS request_id;
+  $$
+);
 ```
 
-#### 3. AppSidebar com Badge
-
-```typescript
-// Importar o hook
-import { useNewLeadsCount } from "@/hooks/useNewLeadsCount";
-
-// No componente
-const newLeadsCount = useNewLeadsCount();
-
-// No item CRM, adicionar badge dinamicamente
-{ 
-  title: "CRM", 
-  url: "/leads-revendedoras", 
-  icon: UserPlus,
-  badge: newLeadsCount  // Badge com contagem
-}
-```
-
-#### 4. MobileDrawer com Badge
-
-Mesma lógica aplicada no drawer mobile para consistência.
+O schedule `*/5 * * * *` significa:
+- `*/5` = a cada 5 minutos
+- `*` = toda hora
+- `*` = todo dia do mês
+- `*` = todo mês
+- `*` = todo dia da semana
 
 ---
 
 ### Resultado Esperado
 
-1. **Quando leads são sincronizados**:
-   - Admins recebem notificação push (se ativado)
-   - Aparece notificação no sino (badge vermelha)
-   - Menu CRM mostra badge com quantidade de leads novos
+1. **Sem intervenção manual**: Leads do site são importados automaticamente a cada 5 minutos
+2. **Notificações**: Admins recebem notificação quando novos leads chegam
+3. **Badge atualizada**: O contador no menu CRM reflete os novos leads em até 30 segundos
+4. **Botão manual ainda funciona**: O botão "Sincronizar do Site" continua disponível para forçar sincronização imediata
 
-2. **Badge no CRM**:
-   - Mostra número de leads com status "leads_novos"
-   - Atualiza automaticamente a cada 30 segundos
-   - Quando lead é movido para outro status, contador diminui
-   - Se não há leads novos, badge não aparece
+---
 
-3. **Consistência**:
-   - Funciona igual no desktop (sidebar) e mobile (drawer)
+### Considerações
+
+- O cron executa 24/7, incluindo fins de semana e madrugada
+- A função é idempotente (não duplica leads já sincronizados via `external_id`)
+- Logs de execução ficam disponíveis no painel do backend
 
