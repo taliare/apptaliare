@@ -1,8 +1,8 @@
-import { useSortable } from "@dnd-kit/sortable";
+import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MapPin, Calendar, User, MessageCircle } from "lucide-react";
+import { MapPin, Calendar, User, MessageCircle, GripVertical } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LeadRevendedora } from "./types";
@@ -18,14 +18,13 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({ id: lead.id });
+  } = useDraggable({ id: lead.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? CSS.Transform.toString(transform) : undefined,
     opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : undefined,
   };
 
   const formatarWhatsapp = (whatsapp: string) => {
@@ -36,16 +35,23 @@ export function LeadCard({ lead, onClick }: LeadCardProps) {
     <Card
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className="cursor-grab active:cursor-grabbing hover:bg-accent/10 transition-colors touch-none"
+      className={`hover:bg-accent/10 transition-colors ${isDragging ? "shadow-lg" : ""}`}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
     >
       <CardContent className="p-3 space-y-2">
-        <p className="font-medium text-sm truncate">{lead.nome}</p>
+        <div className="flex items-center gap-2">
+          <div
+            {...listeners}
+            {...attributes}
+            className="cursor-grab active:cursor-grabbing touch-none p-1 -ml-1 hover:bg-muted rounded"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <p className="font-medium text-sm truncate flex-1">{lead.nome}</p>
+        </div>
         
         <Button
           size="sm"
