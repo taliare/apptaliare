@@ -1,61 +1,67 @@
 
 
-## Plano: Corrigir Exclusão de Leads - Adicionar Políticas RLS de DELETE
+## Correção: Exclusão de Leads no CRM
 
 ### Problema Identificado
 
-A exclusão de leads não funciona porque **não existem políticas RLS para DELETE** nas tabelas:
+O código atual usa `AlertDialogAction` que fecha o dialog **antes** de executar o `onClick`. Isso pode causar problemas de timing com a mutação.
 
-| Tabela | SELECT | INSERT | UPDATE | DELETE |
-|--------|--------|--------|--------|--------|
-| `leads_revendedoras` | ✅ Admin | ✅ Público | ✅ Admin | ❌ **Faltando** |
-| `leads_status_historico` | ✅ Admin | ✅ Admin | - | ❌ **Faltando** |
+Porém, após análise mais profunda, verifiquei que:
 
-Quando RLS está habilitado e não existe política para uma operação, ela é **bloqueada por padrão**.
+1. As políticas RLS de DELETE **estão criadas e funcionando** (confirmado pela consulta ao banco)
+2. O usuário logado **é admin** (user_id: `6ff5326e-7f4c-47ca-b77a-fca04b60bbf2`)
+3. O lead "Teste Ref" **ainda existe** no banco (id: `f152e6c3-c162-4126-882a-4decb74735a4`)
+
+O problema está no comportamento do `AlertDialogAction` do Radix UI: ele fecha o dialog automaticamente quando clicado, o que pode cancelar a execução da mutação em alguns casos.
+
+---
+
+### Causa Raiz
+
+O `AlertDialogAction` chama `onClick` mas também dispara o fechamento do dialog simultaneamente. Se o componente desmonta antes da mutação iniciar, ela pode ser interrompida.
 
 ---
 
 ### Solução
 
-Criar duas novas políticas RLS para permitir que administradores excluam leads e seus históricos:
+Modificar o `AlertDialogAction` para usar `onClick` com `preventDefault` e gerenciar o fechamento manualmente após a conclusão da mutação:
 
-1. **Policy DELETE para `leads_revendedoras`** - permite admin excluir leads
-2. **Policy DELETE para `leads_status_historico`** - permite admin excluir histórico
+```typescript
+// ANTES (problemático)
+<AlertDialogAction
+  onClick={() => deleteLead.mutate()}
+  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+>
+  {deleteLead.isPending ? "Excluindo..." : "Excluir"}
+</AlertDialogAction>
+
+// DEPOIS (corrigido)
+<AlertDialogAction
+  onClick={(e) => {
+    e.preventDefault(); // Impede o fechamento automático
+    deleteLead.mutate();
+  }}
+  disabled={deleteLead.isPending}
+  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+>
+  {deleteLead.isPending ? "Excluindo..." : "Excluir"}
+</AlertDialogAction>
+```
 
 ---
 
-### SQL a Executar
+### Arquivo a Modificar
 
-```sql
--- Política para Admin deletar leads
-CREATE POLICY "Admin pode deletar leads"
-ON public.leads_revendedoras
-FOR DELETE
-USING (has_role(auth.uid(), 'admin'::app_role));
-
--- Política para Admin deletar histórico de status
-CREATE POLICY "Admin pode deletar histórico"
-ON public.leads_status_historico
-FOR DELETE
-USING (has_role(auth.uid(), 'admin'::app_role));
-```
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/leads/LeadDetailsSheet.tsx` | Adicionar `e.preventDefault()` no `AlertDialogAction` |
 
 ---
 
 ### Resultado Esperado
 
-Após aplicar a migração:
-- Administradores poderão excluir leads pelo botão "Excluir Lead" no painel de detalhes
-- O histórico de status será removido automaticamente antes do lead
-- Usuários não-admin continuam sem permissão de exclusão
-
----
-
-### Arquivos a Modificar
-
-| Componente | Ação | Descrição |
-|------------|------|-----------|
-| Migração SQL | CRIAR | Adicionar 2 políticas RLS de DELETE |
-
-Nenhuma alteração de código é necessária - o código atual em `LeadDetailsSheet.tsx` já está correto, apenas faltavam as permissões no banco.
+1. Ao clicar em "Excluir", o dialog permanece aberto enquanto a mutação executa
+2. O botão mostra "Excluindo..." durante o processo
+3. Após sucesso, o dialog e o sheet fecham automaticamente
+4. O lead é removido do Kanban
 
