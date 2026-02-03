@@ -1012,6 +1012,7 @@ export type Database = {
         Args: { p_kit_id: string; p_user_id: string }
         Returns: boolean
       }
+      delete_lead_with_history: { Args: { p_lead_id: string }; Returns: Json }
       entregar_kit_para_revendedora: {
         Args: {
           p_data_vencimento: string

@@ -9,14 +9,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +33,7 @@ import {
   ExternalLink,
   User,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { LeadRevendedora, KANBAN_COLUMNS, COLUMN_COLORS } from "./types";
 import { LeadStatusHistory } from "./LeadStatusHistory";
@@ -79,6 +72,7 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     if (lead) {
       setObservacaoEdit(lead.observacao || "");
       setResponsavelId(lead.responsavel_id);
+      setShowDeleteConfirm(false);
     }
   }, [lead]);
 
@@ -109,21 +103,20 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     mutationFn: async () => {
       if (!lead) throw new Error("No lead selected");
 
-      // Primeiro, deletar histórico de status
-      const { error: historyError } = await supabase
-        .from("leads_status_historico")
-        .delete()
-        .eq("lead_id", lead.id);
-
-      if (historyError) throw historyError;
-
-      // Depois, deletar o lead
-      const { error } = await supabase
-        .from("leads_revendedoras")
-        .delete()
-        .eq("id", lead.id);
+      // Usar função atômica do banco
+      const { data, error } = await supabase.rpc("delete_lead_with_history", {
+        p_lead_id: lead.id,
+      });
 
       if (error) throw error;
+
+      // Verificar resultado da função
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) {
+        throw new Error(result.error || "Falha ao excluir lead");
+      }
+
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads-revendedoras"] });
@@ -137,6 +130,7 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
         description: error.message,
         variant: "destructive",
       });
+      setShowDeleteConfirm(false);
     },
   });
 
@@ -358,42 +352,51 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
 
           <Separator />
 
-          {/* Excluir */}
+          {/* Excluir - Confirmação Inline */}
           <div>
-            <Button
-              variant="destructive"
-              className="w-full"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Excluir Lead
-            </Button>
+            {showDeleteConfirm ? (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-sm">Excluir lead?</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Esta ação não pode ser desfeita. O lead "{lead.nome}" será removido permanentemente.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={deleteLead.isPending}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => deleteLead.mutate()}
+                    disabled={deleteLead.isPending}
+                  >
+                    {deleteLead.isPending ? "Excluindo..." : "Confirmar Exclusão"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Excluir Lead
+              </Button>
+            )}
           </div>
         </div>
       </SheetContent>
-
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm} modal={false}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Excluir lead?</DialogTitle>
-            <DialogDescription>
-              Esta ação não pode ser desfeita. O lead "{lead?.nome}" será removido permanentemente do sistema.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteLead.mutate()}
-              disabled={deleteLead.isPending}
-            >
-              {deleteLead.isPending ? "Excluindo..." : "Excluir"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Sheet>
   );
 }

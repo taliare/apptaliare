@@ -8,7 +8,7 @@ import {
   TouchSensor,
   useSensor,
   useSensors,
-  pointerWithin,
+  closestCorners,
 } from "@dnd-kit/core";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,13 +33,13 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,
-        tolerance: 5,
+        delay: 150,
+        tolerance: 8,
       },
     })
   );
@@ -123,7 +123,7 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
     // Get the column ID from the droppable
     const newStatus = over.id as string;
 
-    // Only update if status changed
+    // Only update if status changed and is a valid column
     if (lead.status !== newStatus && KANBAN_COLUMNS.some((c) => c.id === newStatus)) {
       moveLeadMutation.mutate({
         leadId,
@@ -141,12 +141,12 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={pointerWithin}
+        collisionDetection={closestCorners}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
         <ScrollArea className="w-full">
-          <div className="flex gap-3 pb-4 min-h-[calc(100vh-200px)]">
+          <div className="flex gap-3 pb-4 min-h-[calc(100vh-200px)] items-stretch">
             {KANBAN_COLUMNS.map((column) => (
               <KanbanColumn
                 key={column.id}
@@ -161,8 +161,8 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
 
         <DragOverlay>
           {activeLead && (
-            <div className="opacity-90">
-              <LeadCard lead={activeLead} onClick={() => {}} />
+            <div className="opacity-90 rotate-2 scale-105">
+              <LeadCard lead={activeLead} onClick={() => {}} isDragging />
             </div>
           )}
         </DragOverlay>
