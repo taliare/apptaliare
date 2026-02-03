@@ -9,6 +9,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +42,7 @@ import {
   MessageSquare,
   ExternalLink,
   User,
+  Trash2,
 } from "lucide-react";
 import { LeadRevendedora, KANBAN_COLUMNS, COLUMN_COLORS } from "./types";
 import { LeadStatusHistory } from "./LeadStatusHistory";
@@ -50,6 +61,7 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
   const queryClient = useQueryClient();
   const [observacaoEdit, setObservacaoEdit] = useState("");
   const [responsavelId, setResponsavelId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch admins for responsavel select
   const { data: admins = [] } = useQuery({
@@ -89,6 +101,41 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     onError: (error: Error) => {
       toast({
         title: "Erro ao atualizar lead",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLead = useMutation({
+    mutationFn: async () => {
+      if (!lead) throw new Error("No lead selected");
+
+      // Primeiro, deletar histórico de status
+      const { error: historyError } = await supabase
+        .from("leads_status_historico")
+        .delete()
+        .eq("lead_id", lead.id);
+
+      if (historyError) throw historyError;
+
+      // Depois, deletar o lead
+      const { error } = await supabase
+        .from("leads_revendedoras")
+        .delete()
+        .eq("id", lead.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads-revendedoras"] });
+      toast({ title: "Lead excluído com sucesso!" });
+      setShowDeleteConfirm(false);
+      onClose();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao excluir lead",
         description: error.message,
         variant: "destructive",
       });
@@ -310,8 +357,42 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
             </Label>
             <LeadStatusHistory leadId={lead.id} />
           </div>
+
+          <Separator />
+
+          {/* Excluir */}
+          <div>
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir Lead
+            </Button>
+          </div>
         </div>
       </SheetContent>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. O lead "{lead?.nome}" será removido permanentemente do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteLead.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteLead.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
