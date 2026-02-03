@@ -10,14 +10,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -373,16 +372,18 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
         </div>
       </SheetContent>
 
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir lead?</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm} modal={false}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir lead?</DialogTitle>
+            <DialogDescription>
               Esta ação não pode ser desfeita. O lead "{lead?.nome}" será removido permanentemente do sistema.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              Cancelar
+            </Button>
             <Button
               variant="destructive"
               onClick={() => deleteLead.mutate()}
@@ -390,9 +391,9 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
             >
               {deleteLead.isPending ? "Excluindo..." : "Excluir"}
             </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
