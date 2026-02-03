@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/sheet";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -384,16 +383,13 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                deleteLead.mutate();
-              }}
+            <Button
+              variant="destructive"
+              onClick={() => deleteLead.mutate()}
               disabled={deleteLead.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteLead.isPending ? "Excluindo..." : "Excluir"}
-            </AlertDialogAction>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
