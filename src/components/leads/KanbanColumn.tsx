@@ -1,5 +1,4 @@
 import { useDroppable } from "@dnd-kit/core";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { LeadCard } from "./LeadCard";
 import { LeadRevendedora, KanbanColumnConfig, COLUMN_COLORS } from "./types";
@@ -20,12 +19,12 @@ export function KanbanColumn({ column, leads, onLeadClick }: KanbanColumnProps) 
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col min-w-[280px] max-w-[280px] rounded-lg border bg-card/50 ${
-        isOver ? "ring-2 ring-primary/50" : ""
+      className={`flex flex-col min-w-[280px] max-w-[280px] h-full rounded-lg border bg-card/50 transition-all duration-200 ${
+        isOver ? "ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/5" : ""
       }`}
     >
       {/* Header */}
-      <div className={`p-3 border-b ${colorClasses} rounded-t-lg`}>
+      <div className={`p-3 border-b ${colorClasses} rounded-t-lg flex-shrink-0`}>
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-sm">{column.label}</h3>
           <Badge variant="secondary" className="text-xs">
@@ -34,9 +33,9 @@ export function KanbanColumn({ column, leads, onLeadClick }: KanbanColumnProps) 
         </div>
       </div>
 
-      {/* Cards */}
-      <ScrollArea className="flex-1 p-2">
-        <div className="space-y-2 min-h-[100px]">
+      {/* Cards - área de drop sempre visível */}
+      <div className="flex-1 p-2 overflow-y-auto min-h-[200px]">
+        <div className="space-y-2">
           {leads.map((lead) => (
             <LeadCard
               key={lead.id}
@@ -45,12 +44,14 @@ export function KanbanColumn({ column, leads, onLeadClick }: KanbanColumnProps) 
             />
           ))}
           {leads.length === 0 && (
-            <div className="text-center text-xs text-muted-foreground py-8">
-              Nenhum lead
+            <div className={`text-center text-xs text-muted-foreground py-12 border-2 border-dashed rounded-lg transition-colors ${
+              isOver ? "border-primary bg-primary/5" : "border-muted"
+            }`}>
+              Arraste um lead aqui
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

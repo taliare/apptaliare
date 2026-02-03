@@ -10,16 +10,20 @@ import { LeadRevendedora } from "./types";
 interface LeadCardProps {
   lead: LeadRevendedora;
   onClick: () => void;
+  isDragging?: boolean;
 }
 
-export function LeadCard({ lead, onClick }: LeadCardProps) {
+export function LeadCard({ lead, onClick, isDragging: isDraggingProp }: LeadCardProps) {
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
-    isDragging,
+    isDragging: isDraggingLocal,
   } = useDraggable({ id: lead.id });
+
+  // Use prop quando fornecida (para DragOverlay), senão use estado local
+  const isDragging = isDraggingProp ?? isDraggingLocal;
 
   const style = {
     transform: transform ? CSS.Transform.toString(transform) : undefined,
