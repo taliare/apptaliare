@@ -1,51 +1,64 @@
 
 
-## Correção: Exclusão de Leads no CRM
+## Correção: Rolagem Horizontal do Kanban Travando Após Exclusão
 
 ### Problema Identificado
 
-O código atual usa `AlertDialogAction` que fecha o dialog **antes** de executar o `onClick`. Isso pode causar problemas de timing com a mutação.
+O uso de `e.preventDefault()` no `AlertDialogAction` impede o comportamento normal do Radix UI, incluindo:
+1. O fechamento automático do dialog
+2. A limpeza correta do **scroll lock** que o Radix aplica ao `body`
 
-Porém, após análise mais profunda, verifiquei que:
-
-1. As políticas RLS de DELETE **estão criadas e funcionando** (confirmado pela consulta ao banco)
-2. O usuário logado **é admin** (user_id: `6ff5326e-7f4c-47ca-b77a-fca04b60bbf2`)
-3. O lead "Teste Ref" **ainda existe** no banco (id: `f152e6c3-c162-4126-882a-4decb74735a4`)
-
-O problema está no comportamento do `AlertDialogAction` do Radix UI: ele fecha o dialog automaticamente quando clicado, o que pode cancelar a execução da mutação em alguns casos.
+Quando o dialog abre, o Radix adiciona `overflow: hidden` ao body. Normalmente, ao fechar (via `AlertDialogAction`), ele remove esse estilo. Com `e.preventDefault()`, a limpeza não acontece corretamente, deixando a página "travada".
 
 ---
 
 ### Causa Raiz
 
-O `AlertDialogAction` chama `onClick` mas também dispara o fechamento do dialog simultaneamente. Se o componente desmonta antes da mutação iniciar, ela pode ser interrompida.
+```typescript
+// O problema está aqui:
+<AlertDialogAction
+  onClick={(e) => {
+    e.preventDefault(); // Impede TUDO, incluindo limpeza de scroll lock
+    deleteLead.mutate();
+  }}
+>
+```
+
+O `e.preventDefault()` estava necessário para evitar que o dialog fechasse antes da mutação, mas ele também quebra a lógica interna do Radix para restaurar o scroll.
 
 ---
 
 ### Solução
 
-Modificar o `AlertDialogAction` para usar `onClick` com `preventDefault` e gerenciar o fechamento manualmente após a conclusão da mutação:
+Usar um **Button normal** ao invés de `AlertDialogAction`, controlando o fechamento manualmente apenas no `onSuccess` da mutação. Isso permite total controle sem interferir nos internos do Radix:
 
 ```typescript
 // ANTES (problemático)
 <AlertDialogAction
-  onClick={() => deleteLead.mutate()}
-  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
->
-  {deleteLead.isPending ? "Excluindo..." : "Excluir"}
-</AlertDialogAction>
-
-// DEPOIS (corrigido)
-<AlertDialogAction
   onClick={(e) => {
-    e.preventDefault(); // Impede o fechamento automático
+    e.preventDefault();
     deleteLead.mutate();
   }}
+>
+
+// DEPOIS (correto)
+<Button
+  variant="destructive"
+  onClick={() => deleteLead.mutate()}
   disabled={deleteLead.isPending}
-  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 >
   {deleteLead.isPending ? "Excluindo..." : "Excluir"}
-</AlertDialogAction>
+</Button>
+```
+
+O fechamento do dialog continua sendo gerenciado pelo `onSuccess`:
+```typescript
+onSuccess: () => {
+  queryClient.invalidateQueries({ queryKey: ["leads-revendedoras"] });
+  toast({ title: "Lead excluído com sucesso!" });
+  setShowDeleteConfirm(false); // Fecha o AlertDialog
+  onClose(); // Fecha o Sheet
+},
 ```
 
 ---
@@ -54,14 +67,31 @@ Modificar o `AlertDialogAction` para usar `onClick` com `preventDefault` e geren
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/components/leads/LeadDetailsSheet.tsx` | Adicionar `e.preventDefault()` no `AlertDialogAction` |
+| `src/components/leads/LeadDetailsSheet.tsx` | Substituir `AlertDialogAction` por `Button` |
+
+---
+
+### Código Final
+
+```typescript
+<AlertDialogFooter>
+  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+  <Button
+    variant="destructive"
+    onClick={() => deleteLead.mutate()}
+    disabled={deleteLead.isPending}
+  >
+    {deleteLead.isPending ? "Excluindo..." : "Excluir"}
+  </Button>
+</AlertDialogFooter>
+```
 
 ---
 
 ### Resultado Esperado
 
-1. Ao clicar em "Excluir", o dialog permanece aberto enquanto a mutação executa
-2. O botão mostra "Excluindo..." durante o processo
-3. Após sucesso, o dialog e o sheet fecham automaticamente
-4. O lead é removido do Kanban
+1. Exclusão funciona normalmente
+2. Dialog permanece aberto durante a exclusão (controlado por `disabled`)
+3. Scroll horizontal do Kanban funciona corretamente após exclusão
+4. Nenhum estado de "scroll lock" residual no body
 
