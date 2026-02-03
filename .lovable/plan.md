@@ -1,97 +1,117 @@
 
 
-## Correção: Rolagem Horizontal do Kanban Travando Após Exclusão
+## Correção Definitiva: CRM Travando Após Exclusão de Lead
 
 ### Problema Identificado
 
-O uso de `e.preventDefault()` no `AlertDialogAction` impede o comportamento normal do Radix UI, incluindo:
-1. O fechamento automático do dialog
-2. A limpeza correta do **scroll lock** que o Radix aplica ao `body`
+O código atual tem um **AlertDialog aninhado dentro de um Sheet**, ambos componentes do Radix UI que aplicam scroll lock no body. Ao analisar o código-fonte do Radix UI, encontrei:
 
-Quando o dialog abre, o Radix adiciona `overflow: hidden` ao body. Normalmente, ao fechar (via `AlertDialogAction`), ele remove esse estilo. Com `e.preventDefault()`, a limpeza não acontece corretamente, deixando a página "travada".
+```typescript
+// node_modules/@radix-ui/react-alert-dialog/dist/index.d.ts linha 7
+interface AlertDialogProps extends Omit<DialogProps, 'modal'> {}
+```
+
+O AlertDialog **sempre é modal** e não permite desabilitar o scroll lock. Quando temos dois modais aninhados:
+
+1. O Sheet abre e aplica `data-scroll-locked="1"` no body
+2. O AlertDialog abre e incrementa para `data-scroll-locked="2"`
+3. Quando o AlertDialog fecha, ele remove o scroll lock de forma incorreta, interferindo no lock do Sheet
+4. O Sheet também fecha (via `onClose()`), mas o estado do body fica corrompido
 
 ---
 
 ### Causa Raiz
 
-```typescript
-// O problema está aqui:
-<AlertDialogAction
-  onClick={(e) => {
-    e.preventDefault(); // Impede TUDO, incluindo limpeza de scroll lock
-    deleteLead.mutate();
-  }}
->
+O problema NÃO é o botão ou a mutação - é a **arquitetura de modais aninhados** do Radix UI que conflita com o gerenciamento de scroll locks.
+
+Quando olhamos para a estrutura atual:
+
+```text
+Sheet (scroll-lock=1)
+  └── AlertDialog (scroll-lock=2)
+         └── Button onClick → mutate() → onSuccess → fecha AlertDialog + fecha Sheet
 ```
 
-O `e.preventDefault()` estava necessário para evitar que o dialog fechasse antes da mutação, mas ele também quebra a lógica interna do Radix para restaurar o scroll.
+Ao fechar ambos os modais em sequência rápida (no `onSuccess`), o Radix não consegue gerenciar corretamente o ciclo de vida dos scroll locks.
 
 ---
 
-### Solução
+### Solucao
 
-Usar um **Button normal** ao invés de `AlertDialogAction`, controlando o fechamento manualmente apenas no `onSuccess` da mutação. Isso permite total controle sem interferir nos internos do Radix:
+**Usar Dialog normal com `modal={false}`** ao invés de AlertDialog. Isso evita que o dialog interno aplique seu próprio scroll lock, deixando apenas o Sheet gerenciar:
 
 ```typescript
-// ANTES (problemático)
-<AlertDialogAction
-  onClick={(e) => {
-    e.preventDefault();
-    deleteLead.mutate();
-  }}
->
+// Antes: AlertDialog (sempre modal, sempre scroll lock)
+<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 
-// DEPOIS (correto)
-<Button
-  variant="destructive"
-  onClick={() => deleteLead.mutate()}
-  disabled={deleteLead.isPending}
->
-  {deleteLead.isPending ? "Excluindo..." : "Excluir"}
-</Button>
-```
-
-O fechamento do dialog continua sendo gerenciado pelo `onSuccess`:
-```typescript
-onSuccess: () => {
-  queryClient.invalidateQueries({ queryKey: ["leads-revendedoras"] });
-  toast({ title: "Lead excluído com sucesso!" });
-  setShowDeleteConfirm(false); // Fecha o AlertDialog
-  onClose(); // Fecha o Sheet
-},
+// Depois: Dialog com modal={false}
+<Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm} modal={false}>
 ```
 
 ---
 
-### Arquivo a Modificar
+### Arquivos a Modificar
 
-| Arquivo | Mudança |
+| Arquivo | Mudanca |
 |---------|---------|
-| `src/components/leads/LeadDetailsSheet.tsx` | Substituir `AlertDialogAction` por `Button` |
+| `src/components/leads/LeadDetailsSheet.tsx` | Substituir AlertDialog por Dialog com `modal={false}` |
 
 ---
 
-### Código Final
+### Codigo Final
 
 ```typescript
-<AlertDialogFooter>
-  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-  <Button
-    variant="destructive"
-    onClick={() => deleteLead.mutate()}
-    disabled={deleteLead.isPending}
-  >
-    {deleteLead.isPending ? "Excluindo..." : "Excluir"}
-  </Button>
-</AlertDialogFooter>
+// Imports
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+// No JSX (substituir o AlertDialog existente):
+<Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm} modal={false}>
+  <DialogContent className="sm:max-w-md">
+    <DialogHeader>
+      <DialogTitle>Excluir lead?</DialogTitle>
+      <DialogDescription>
+        Esta acao nao pode ser desfeita. O lead "{lead?.nome}" sera removido permanentemente do sistema.
+      </DialogDescription>
+    </DialogHeader>
+    <DialogFooter>
+      <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+        Cancelar
+      </Button>
+      <Button
+        variant="destructive"
+        onClick={() => deleteLead.mutate()}
+        disabled={deleteLead.isPending}
+      >
+        {deleteLead.isPending ? "Excluindo..." : "Excluir"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 ```
+
+---
+
+### Diferencas Principais
+
+| Aspecto | AlertDialog | Dialog modal={false} |
+|---------|-------------|---------------------|
+| Scroll Lock | Sempre aplica | Nao aplica |
+| Fecha ao clicar fora | Nao | Sim (controlavel) |
+| Conflito com Sheet | Sim | Nao |
 
 ---
 
 ### Resultado Esperado
 
-1. Exclusão funciona normalmente
-2. Dialog permanece aberto durante a exclusão (controlado por `disabled`)
-3. Scroll horizontal do Kanban funciona corretamente após exclusão
-4. Nenhum estado de "scroll lock" residual no body
+1. Exclusao funciona normalmente
+2. Rolagem horizontal do Kanban continua funcionando apos exclusao
+3. Nenhum estado de scroll-lock residual no body
+4. Dialog de confirmacao funciona dentro do Sheet sem conflitos
 
