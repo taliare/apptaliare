@@ -385,7 +385,11 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteLead.mutate()}
+              onClick={(e) => {
+                e.preventDefault();
+                deleteLead.mutate();
+              }}
+              disabled={deleteLead.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteLead.isPending ? "Excluindo..." : "Excluir"}
