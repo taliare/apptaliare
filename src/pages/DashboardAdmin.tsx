@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { 
   DollarSign, TrendingUp, Package, Users, TrendingDown, 
   Factory, Warehouse, ChevronDown, ChevronUp, Sparkles, Sun, Moon, 
-  CloudSun, Flame, Target, Calendar
+  CloudSun, Flame, Target, Calendar, Eye, EyeOff
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -102,6 +102,14 @@ export default function DashboardAdmin() {
   const [cobrancaHojeDialogOpen, setCobrancaHojeDialogOpen] = useState(false);
   const [showRepresentantes, setShowRepresentantes] = useState(false);
   const [showProducao, setShowProducao] = useState(false);
+  const [showValues, setShowValues] = useState(() => {
+    const saved = localStorage.getItem('dashboard-admin-show-values');
+    return saved !== 'false';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dashboard-admin-show-values', String(showValues));
+  }, [showValues]);
   
   const mesAtual = getLocalMonthString();
   const hoje = getLocalDateString();
@@ -359,6 +367,10 @@ export default function DashboardAdmin() {
   const totalKits = kitsData?.length || 0;
   const totalProducaoHoje = producaoHoje.length;
   const totalEstoque = kitsEstoque.length;
+
+  // Helpers de mascaramento
+  const mv = (valor: number) => showValues ? formatarValor(valor) : 'R$ *****';
+  const mn = (valor: number) => showValues ? formatarNumero(valor) : '*****';
   
   const estoquePorTipo = kitsEstoque.reduce((acc: Record<string, number>, curr) => {
     const tipo = curr.tipo?.toLowerCase() || 'outro';
@@ -439,14 +451,24 @@ export default function DashboardAdmin() {
               </div>
             </div>
             
-            {/* Filtro de Período */}
-            <DateRangeFilterPopover 
-              onFilterChange={(start, end) => {
-                setStartDate(start);
-                setEndDate(end);
-              }}
-              className="shrink-0"
-            />
+            {/* Ações: Ocultar valores + Filtro de Período */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowValues(!showValues)}
+                className="shrink-0"
+                title={showValues ? 'Ocultar valores' : 'Exibir valores'}
+              >
+                {showValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </Button>
+              <DateRangeFilterPopover 
+                onFilterChange={(start, end) => {
+                  setStartDate(start);
+                  setEndDate(end);
+                }}
+              />
+            </div>
           </div>
           
           <div className="flex items-start gap-2 bg-background/50 backdrop-blur-sm rounded-lg p-2 md:p-3 border border-primary/10">
@@ -474,7 +496,7 @@ export default function DashboardAdmin() {
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarValor(totalHoje)}</div>
+            <div className="text-base md:text-2xl font-display font-bold truncate">{mv(totalHoje)}</div>
             <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">Toque para detalhes</p>
           </CardContent>
         </Card>
@@ -491,11 +513,11 @@ export default function DashboardAdmin() {
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate text-chart-2">{formatarValor(totalPeriodo)}</div>
+            <div className="text-base md:text-2xl font-display font-bold truncate text-chart-2">{mv(totalPeriodo)}</div>
             <div className="text-[10px] md:text-xs text-muted-foreground mt-1 space-y-0.5">
-              <p className="truncate">📉 Despesas: {formatarValor(totalDespesas)}</p>
+              <p className="truncate">📉 Despesas: {mv(totalDespesas)}</p>
               <p className={`truncate font-medium ${resultadoPeriodo >= 0 ? 'text-chart-2' : 'text-destructive'}`}>
-                💰 Resultado: {formatarValor(resultadoPeriodo)}
+                💰 Resultado: {mv(resultadoPeriodo)}
               </p>
             </div>
           </CardContent>
@@ -513,7 +535,7 @@ export default function DashboardAdmin() {
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarNumero(totalKits)}</div>
+            <div className="text-base md:text-2xl font-display font-bold truncate">{mn(totalKits)}</div>
             <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">No período</p>
           </CardContent>
         </Card>
@@ -531,9 +553,9 @@ export default function DashboardAdmin() {
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
             <div className="text-base md:text-2xl font-display font-bold text-primary truncate">
-              {percentualMetaGeral.toFixed(0)}%
+              {showValues ? `${percentualMetaGeral.toFixed(0)}%` : '***%'}
             </div>
-            <Progress value={Math.min(percentualMetaGeral, 100)} className="mt-2 h-1.5 md:h-2" />
+            <Progress value={showValues ? Math.min(percentualMetaGeral, 100) : 0} className="mt-2 h-1.5 md:h-2" />
           </CardContent>
         </Card>
       </div>
@@ -556,7 +578,7 @@ export default function DashboardAdmin() {
                   <XAxis 
                     type="number" 
                     tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    tickFormatter={(value) => showValues ? `${(value / 1000).toFixed(0)}k` : '*****'}
                     stroke="hsl(var(--border))"
                   />
                   <YAxis 
@@ -567,7 +589,7 @@ export default function DashboardAdmin() {
                     stroke="hsl(var(--border))"
                   />
                   <Tooltip 
-                    formatter={(value: number) => formatarValor(value)}
+                    formatter={(value: number) => showValues ? formatarValor(value) : 'R$ *****'}
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
@@ -645,7 +667,7 @@ export default function DashboardAdmin() {
               </div>
             )}
             <div className="text-center mt-2">
-              <span className="text-2xl font-bold">{formatarNumero(totalEstoque)}</span>
+              <span className="text-2xl font-bold">{mn(totalEstoque)}</span>
               <span className="text-muted-foreground text-sm ml-2">kits em estoque</span>
             </div>
           </CardContent>
@@ -664,7 +686,7 @@ export default function DashboardAdmin() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-muted-foreground">
-                    Hoje: <span className="font-bold text-foreground">{formatarNumero(totalProducaoHoje)}</span> kits
+                    Hoje: <span className="font-bold text-foreground">{mn(totalProducaoHoje)}</span> kits
                   </span>
                   {showProducao ? (
                     <ChevronUp className="h-5 w-5 text-muted-foreground" />
@@ -682,17 +704,17 @@ export default function DashboardAdmin() {
                 <div className="bg-chart-3/10 p-4 rounded-xl text-center">
                   <Package className="h-8 w-8 mx-auto text-chart-3 mb-2" />
                   <p className="text-sm text-muted-foreground">Produzidos Hoje</p>
-                  <p className="text-3xl font-bold">{formatarNumero(totalProducaoHoje)}</p>
+                  <p className="text-3xl font-bold">{mn(totalProducaoHoje)}</p>
                 </div>
                 <div className="bg-primary/10 p-4 rounded-xl text-center">
                   <Package className="h-8 w-8 mx-auto text-primary mb-2" />
                   <p className="text-sm text-muted-foreground">No Período</p>
-                  <p className="text-3xl font-bold">{formatarNumero(producaoPeriodo.length)}</p>
+                  <p className="text-3xl font-bold">{mn(producaoPeriodo.length)}</p>
                 </div>
                 <div className="bg-chart-2/10 p-4 rounded-xl text-center">
                   <Warehouse className="h-8 w-8 mx-auto text-chart-2 mb-2" />
                   <p className="text-sm text-muted-foreground">Em Estoque</p>
-                  <p className="text-3xl font-bold">{formatarNumero(totalEstoque)}</p>
+                  <p className="text-3xl font-bold">{mn(totalEstoque)}</p>
                 </div>
               </div>
 
@@ -709,14 +731,14 @@ export default function DashboardAdmin() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>
-                        Produzidos: <span className="font-bold">{formatarNumero(producaoPeriodo.length)}</span> / Meta: <span className="font-bold">{formatarNumero(metaProducao.meta_kits)}</span>
+                        Produzidos: <span className="font-bold">{mn(producaoPeriodo.length)}</span> / Meta: <span className="font-bold">{mn(metaProducao.meta_kits)}</span>
                       </span>
                       <span className="font-medium">
-                        {((producaoPeriodo.length / metaProducao.meta_kits) * 100).toFixed(1)}%
+                        {showValues ? `${((producaoPeriodo.length / metaProducao.meta_kits) * 100).toFixed(1)}%` : '***%'}
                       </span>
                     </div>
                     <Progress 
-                      value={Math.min((producaoPeriodo.length / metaProducao.meta_kits) * 100, 100)} 
+                      value={showValues ? Math.min((producaoPeriodo.length / metaProducao.meta_kits) * 100, 100) : 0} 
                       className="h-3"
                     />
                   </div>
@@ -806,29 +828,29 @@ export default function DashboardAdmin() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right text-sm">
-                            {rep.meta > 0 ? formatarValor(rep.meta) : '-'}
+                            {rep.meta > 0 ? mv(rep.meta) : '-'}
                           </TableCell>
                           <TableCell className="text-right font-medium text-sm">
-                            {formatarValor(rep.realizado)}
+                            {mv(rep.realizado)}
                           </TableCell>
                           <TableCell className="text-right text-sm">
-                            {formatarValor(rep.realizado - rep.despesas)}
+                            {mv(rep.realizado - rep.despesas)}
                           </TableCell>
                           <TableCell className="text-right text-sm hidden md:table-cell">
-                            {formatarNumero(rep.qtdNotas)}
+                            {mn(rep.qtdNotas)}
                           </TableCell>
                           <TableCell className="text-right text-sm hidden md:table-cell">
-                            {rep.qtdNotas > 0 ? formatarValor(rep.ticketMedio) : '-'}
+                            {rep.qtdNotas > 0 ? mv(rep.ticketMedio) : '-'}
                           </TableCell>
                           <TableCell>
                             {rep.meta > 0 ? (
                               <div className="space-y-1 min-w-[100px]">
                                 <div className="flex justify-between text-xs">
                                   <span className={`font-medium ${rep.percentual >= 100 ? 'text-chart-3' : ''}`}>
-                                    {rep.percentual.toFixed(0)}%
+                                    {showValues ? `${rep.percentual.toFixed(0)}%` : '***%'}
                                   </span>
                                 </div>
-                                <Progress value={Math.min(rep.percentual, 100)} className="h-2" />
+                                <Progress value={showValues ? Math.min(rep.percentual, 100) : 0} className="h-2" />
                               </div>
                             ) : (
                               <span className="text-xs text-muted-foreground">Sem meta</span>
@@ -859,26 +881,26 @@ export default function DashboardAdmin() {
               <div className="bg-primary/10 p-4 rounded-xl text-center">
                 <p className="text-sm text-muted-foreground">Kits Iniciais</p>
                 <p className="text-3xl font-bold text-primary">
-                  {formatarNumero(estoquePorTipo['inicial'] || 0)}
+                  {mn(estoquePorTipo['inicial'] || 0)}
                 </p>
               </div>
               <div className="bg-chart-2/10 p-4 rounded-xl text-center">
                 <p className="text-sm text-muted-foreground">Kits Especiais</p>
                 <p className="text-3xl font-bold text-chart-2">
-                  {formatarNumero(estoquePorTipo['especial'] || 0)}
+                  {mn(estoquePorTipo['especial'] || 0)}
                 </p>
               </div>
             </div>
             <div className="bg-chart-3/10 p-4 rounded-xl text-center">
               <p className="text-sm text-muted-foreground">Maletas</p>
               <p className="text-3xl font-bold text-chart-3">
-                {formatarNumero(estoquePorTipo['maleta'] || 0)}
+                {mn(estoquePorTipo['maleta'] || 0)}
               </p>
             </div>
             <div className="border-t pt-4">
               <div className="flex justify-between items-center">
                 <span className="font-medium">Total Geral</span>
-                <span className="text-2xl font-bold">{formatarNumero(totalEstoque)}</span>
+                <span className="text-2xl font-bold">{mn(totalEstoque)}</span>
               </div>
             </div>
           </div>
@@ -917,15 +939,15 @@ export default function DashboardAdmin() {
                       <p className="font-medium">{item.nome}</p>
                       {item.despesa > 0 && (
                         <p className="text-xs text-muted-foreground">
-                          Despesa: {formatarValor(item.despesa)}
+                          Despesa: {mv(item.despesa)}
                         </p>
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-primary">{formatarValor(item.total_cobrado)}</p>
+                      <p className="font-bold text-primary">{mv(item.total_cobrado)}</p>
                       {item.despesa > 0 && (
                         <p className="text-xs text-muted-foreground">
-                          Líquido: {formatarValor(item.total_cobrado - item.despesa)}
+                          Líquido: {mv(item.total_cobrado - item.despesa)}
                         </p>
                       )}
                     </div>
@@ -936,7 +958,7 @@ export default function DashboardAdmin() {
             <div className="border-t pt-4">
               <div className="flex justify-between items-center">
                 <span className="font-medium">Total do Dia</span>
-                <span className="text-2xl font-bold text-primary">{formatarValor(totalHoje)}</span>
+                <span className="text-2xl font-bold text-primary">{mv(totalHoje)}</span>
               </div>
             </div>
           </div>
