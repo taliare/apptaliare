@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { profilesLimited } from '@/lib/profilesLimited';
 import { AlertTriangle, Bell, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -44,8 +45,7 @@ export function EncomendaAlertBanner() {
       // Buscar nomes dos representantes
       if (data && data.length > 0) {
         const representanteIds = [...new Set(data.map(e => e.representante_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
+        const { data: profiles } = await profilesLimited()
           .select('id, nome')
           .in('id', representanteIds);
 

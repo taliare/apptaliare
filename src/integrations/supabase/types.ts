@@ -109,6 +109,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cobrancas_agendadas_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cobrancas_agendadas_vendedora_id_fkey"
             columns: ["vendedora_id"]
             isOneToOne: false
@@ -163,6 +170,13 @@ export type Database = {
             columns: ["representante_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobrancas_diarias_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
             referencedColumns: ["id"]
           },
         ]
@@ -278,10 +292,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "encomendas_kits_producao_id_fkey"
+            columns: ["producao_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "encomendas_kits_representante_id_fkey"
             columns: ["representante_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "encomendas_kits_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
             referencedColumns: ["id"]
           },
         ]
@@ -340,6 +368,13 @@ export type Database = {
             columns: ["representante_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_entregues_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
             referencedColumns: ["id"]
           },
         ]
@@ -488,6 +523,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "leads_revendedoras_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
+            referencedColumns: ["id"]
+          },
         ]
       }
       leads_status_historico: {
@@ -524,6 +566,13 @@ export type Database = {
             columns: ["alterado_por"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_status_historico_alterado_por_fkey"
+            columns: ["alterado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
             referencedColumns: ["id"]
           },
           {
@@ -593,6 +642,13 @@ export type Database = {
             columns: ["representante_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metas_cobranca_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
             referencedColumns: ["id"]
           },
         ]
@@ -676,6 +732,13 @@ export type Database = {
             columns: ["representante_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_promissorias_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
             referencedColumns: ["id"]
           },
         ]
@@ -784,6 +847,13 @@ export type Database = {
             columns: ["representante_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prestacoes_contas_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
             referencedColumns: ["id"]
           },
         ]
@@ -1026,7 +1096,45 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_limited: {
+        Row: {
+          ativo: boolean | null
+          avatar_url: string | null
+          criado_em: string | null
+          habilitar_cobranca_diaria: boolean | null
+          habilitar_dashboard: boolean | null
+          habilitar_kanban: boolean | null
+          id: string | null
+          idioma: string | null
+          nome: string | null
+          tema: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          avatar_url?: string | null
+          criado_em?: string | null
+          habilitar_cobranca_diaria?: boolean | null
+          habilitar_dashboard?: boolean | null
+          habilitar_kanban?: boolean | null
+          id?: string | null
+          idioma?: string | null
+          nome?: string | null
+          tema?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          avatar_url?: string | null
+          criado_em?: string | null
+          habilitar_cobranca_diaria?: boolean | null
+          habilitar_dashboard?: boolean | null
+          habilitar_kanban?: boolean | null
+          id?: string | null
+          idioma?: string | null
+          nome?: string | null
+          tema?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       atualizar_status_kit_entrega: {

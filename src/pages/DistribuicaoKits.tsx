@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { profilesLimited } from "@/lib/profilesLimited";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Package, Trash2, Search, Pencil, CheckSquare, Square, Send } from "lucide-react";
@@ -306,8 +307,7 @@ export default function DistribuicaoKits() {
       const representanteIds = roles.map((r) => r.user_id);
 
       // Buscar profiles dos representantes
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
+      const { data: profiles, error: profilesError } = await profilesLimited()
         .select("id, nome")
         .in("id", representanteIds)
         .eq("ativo", true);

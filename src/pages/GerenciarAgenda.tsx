@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { profilesLimited } from '@/lib/profilesLimited';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDate, getDay, startOfMonth, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -82,8 +83,7 @@ export default function GerenciarAgenda() {
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes-admin'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
+      const { data, error } = await profilesLimited()
         .select('id, nome')
         .eq('ativo', true)
         .order('nome');

@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Users, Search, UserCheck, UserX, Phone, Edit2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { profilesLimited } from '@/lib/profilesLimited';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -43,8 +44,7 @@ export default function Revendedoras() {
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes-lista'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
+      const { data, error } = await profilesLimited()
         .select('id, nome')
         .order('nome');
       
@@ -82,8 +82,7 @@ export default function Revendedoras() {
       
       // Buscar nomes dos representantes
       const repIds = [...new Set(data?.map(r => r.representante_id).filter(Boolean) || [])];
-      const { data: profiles } = await supabase
-        .from('profiles')
+      const { data: profiles } = await profilesLimited()
         .select('id, nome')
         .in('id', repIds);
       
