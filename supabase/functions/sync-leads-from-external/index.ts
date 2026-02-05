@@ -110,20 +110,34 @@ serve(async (req) => {
     }
 
     // 2. Buscar IDs já sincronizados no banco interno
-    const { data: existingLeads, error: existingError } = await internalClient
-      .from("leads_revendedoras")
-      .select("external_id")
-      .not("external_id", "is", null);
+    const [existingResult, deletedResult] = await Promise.all([
+      internalClient
+        .from("leads_revendedoras")
+        .select("external_id")
+        .not("external_id", "is", null),
+      internalClient
+        .from("leads_external_deletados")
+        .select("external_id"),
+    ]);
 
-    if (existingError) {
-      console.error("Erro ao buscar leads internos:", existingError);
+    if (existingResult.error) {
+      console.error("Erro ao buscar leads internos:", existingResult.error);
       return new Response(
-        JSON.stringify({ error: "Erro ao verificar leads existentes", details: existingError.message }),
+        JSON.stringify({ error: "Erro ao verificar leads existentes", details: existingResult.error.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const existingIds = new Set(existingLeads?.map((l) => l.external_id) || []);
+    if (deletedResult.error) {
+      console.error("Erro ao buscar leads deletados:", deletedResult.error);
+      // Não bloquear a sync, apenas logar o erro
+    }
+
+    // Unir IDs existentes + IDs deletados intencionalmente
+    const existingIds = new Set([
+      ...(existingResult.data?.map((l) => l.external_id) || []),
+      ...(deletedResult.data?.map((l) => l.external_id) || []),
+    ]);
 
     // 3. Filtrar apenas leads novos (não sincronizados)
     const newLeads = externalLeads.filter((lead) => !existingIds.has(lead.id));

@@ -395,6 +395,27 @@ export type Database = {
           },
         ]
       }
+      leads_external_deletados: {
+        Row: {
+          deletado_em: string
+          deletado_por: string | null
+          external_id: string
+          id: string
+        }
+        Insert: {
+          deletado_em?: string
+          deletado_por?: string | null
+          external_id: string
+          id?: string
+        }
+        Update: {
+          deletado_em?: string
+          deletado_por?: string | null
+          external_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       leads_revendedoras: {
         Row: {
           capital_inicial: string | null
