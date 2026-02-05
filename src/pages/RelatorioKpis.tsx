@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { profilesLimited } from "@/lib/profilesLimited";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -110,8 +111,7 @@ export default function RelatorioKpis() {
       const repIds = roles?.map(r => r.user_id) || [];
       if (repIds.length === 0) return [];
       
-      const { data, error } = await supabase
-        .from("profiles")
+      const { data, error } = await profilesLimited()
         .select("id, nome, ativo")
         .eq("ativo", true)
         .in("id", repIds);

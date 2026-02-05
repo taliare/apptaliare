@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { profilesLimited } from "@/lib/profilesLimited";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -90,8 +91,7 @@ export default function LeadsRevendedoras() {
   const { data: responsaveis = [] } = useQuery({
     queryKey: ["responsaveis-leads"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
+      const { data, error } = await profilesLimited()
         .select("id, nome")
         .order("nome");
       if (error) throw error;

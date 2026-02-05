@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { profilesLimited } from "@/lib/profilesLimited";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -142,8 +143,7 @@ export default function AnaliseComercial() {
   const { data: representantes } = useQuery({
     queryKey: ["analise-representantes"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
+      const { data } = await profilesLimited()
         .select("id, nome")
         .eq("ativo", true);
       return data || [];

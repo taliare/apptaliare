@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { profilesLimited } from "@/lib/profilesLimited";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useMessages";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -49,8 +50,7 @@ export function MessagesDialog({ open, onOpenChange }: MessagesDialogProps) {
   const { data: allUsers = [] } = useQuery({
     queryKey: ["all-users-for-messages"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
+      const { data, error } = await profilesLimited()
         .select("id, nome, avatar_url")
         .neq("id", user?.id || "")
         .order("nome");
@@ -67,8 +67,7 @@ export function MessagesDialog({ open, onOpenChange }: MessagesDialogProps) {
     queryFn: async () => {
       if (!selectedUserId) return null;
       
-      const { data, error } = await supabase
-        .from("profiles")
+      const { data, error } = await profilesLimited()
         .select("id, nome, avatar_url")
         .eq("id", selectedUserId)
         .single();
