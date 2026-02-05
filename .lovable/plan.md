@@ -1,32 +1,9 @@
 
 
-## Botao de Ocultar/Exibir Dados no Dashboard
+## Botao de Ocultar/Exibir Dados no Dashboard Admin
 
 ### Objetivo
-Adicionar um botao com icone de olho para alternar entre exibir e ocultar os valores numericos (financeiros e quantitativos) do Dashboard, permitindo manter sigilo quando necessario.
-
----
-
-### Comportamento
-
-| Estado | Icone | Valores exibidos |
-|--------|-------|------------------|
-| Visivel (padrao) | `Eye` | Valores reais (ex: R$ 5.432,00) |
-| Oculto | `EyeOff` | Asteriscos (ex: R$ *****) |
-
-- O estado sera persistido no `localStorage` para manter a preferencia do usuario entre sessoes
-- Ao ocultar, todos os valores monetarios e numericos serao substituidos por `*****`
-- A barra de progresso da meta tambem sera ocultada quando os dados estiverem ocultos
-
----
-
-### Posicionamento do Botao
-
-O botao ficara ao lado do filtro de periodo no hero section, criando um agrupamento de acoes no canto superior direito:
-
-```
-[Saudacao e data]                    [Olho] [Filtro Periodo]
-```
+Replicar o mesmo botao de privacidade (olho) que ja existe no Dashboard do representante, agora no Dashboard Admin, permitindo ocultar todos os valores financeiros e numericos.
 
 ---
 
@@ -34,75 +11,83 @@ O botao ficara ao lado do filtro de periodo no hero section, criando um agrupame
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/pages/Dashboard.tsx` | Adicionar estado, botao e logica de mascaramento |
+| `src/pages/DashboardAdmin.tsx` | Adicionar estado, botao, helpers de mascaramento e aplicar em todos os valores |
 
 ---
 
 ### Implementacao
 
-1. **Novo estado com localStorage:**
+1. **Imports a adicionar** (linha 8-12): `Eye, EyeOff` do lucide-react e `useEffect` do react
+
+2. **Estado com localStorage** (apos linha 104, junto com os outros estados):
 ```typescript
 const [showValues, setShowValues] = useState(() => {
-  const saved = localStorage.getItem('dashboard-show-values');
-  return saved !== 'false'; // padrao: true (visivel)
+  const saved = localStorage.getItem('dashboard-admin-show-values');
+  return saved !== 'false';
 });
 
 useEffect(() => {
-  localStorage.setItem('dashboard-show-values', String(showValues));
+  localStorage.setItem('dashboard-admin-show-values', String(showValues));
 }, [showValues]);
 ```
+Nota: usa chave `dashboard-admin-show-values` separada do Dashboard do representante para independencia.
 
-2. **Funcao helper para mascarar valores:**
+3. **Helpers de mascaramento** (junto com os calculos):
 ```typescript
-const mascarar = (valor: string) => showValues ? valor : '*****';
-const mascarValor = (valor: number) => showValues ? formatarValor(valor) : 'R$ *****';
-const mascarNumero = (valor: number) => showValues ? formatarNumero(valor) : '*****';
+const mv = (valor: number) => showValues ? formatarValor(valor) : 'R$ *****';
+const mn = (valor: number) => showValues ? formatarNumero(valor) : '*****';
 ```
 
-3. **Botao no header (ao lado do DateRangeFilterPopover):**
+4. **Botao no hero section** (ao lado do DateRangeFilterPopover, linha ~441-449):
 ```typescript
-<Button
-  variant="ghost"
-  size="icon"
-  onClick={() => setShowValues(!showValues)}
-  className="shrink-0"
-  title={showValues ? 'Ocultar valores' : 'Exibir valores'}
->
-  {showValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-</Button>
+<div className="flex items-center gap-2 shrink-0">
+  <Button
+    variant="ghost"
+    size="icon"
+    onClick={() => setShowValues(!showValues)}
+    className="shrink-0"
+    title={showValues ? 'Ocultar valores' : 'Exibir valores'}
+  >
+    {showValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+  </Button>
+  <DateRangeFilterPopover ... />
+</div>
 ```
-
-4. **Aplicar mascaramento em todos os valores:**
-- Quick Stats (Hoje e Periodo)
-- Cards: Total Cobrado, Notas Cobradas, Ticket Medio, Despesas, Kits Entregues, Meta
-- Graficos: tooltips e eixos Y
-- Textos secundarios com valores (ex: "Liquido: R$ X")
 
 ---
 
 ### Locais que serao mascarados
 
-| Local | Antes | Depois (oculto) |
-|-------|-------|-----------------|
-| Quick Stats - Hoje | R$ 1.500,00 | R$ ***** |
-| Quick Stats - Periodo | R$ 15.000,00 | R$ ***** |
-| Total Cobrado | R$ 15.000,00 | R$ ***** |
-| Notas Cobradas | 42 | ***** |
-| Ticket Medio | R$ 357,14 | R$ ***** |
-| Despesas | R$ 2.000,00 | R$ ***** |
-| Liquido | R$ 13.000,00 | R$ ***** |
-| Kits Entregues | 15 | ***** |
-| Meta (percentual) | 75% | ***% |
-| Meta (valor) | R$ 20.000,00 | R$ ***** |
-| Graficos (tooltip) | R$ 500,00 | R$ ***** |
+| Local | Componente/Linha | Antes | Depois (oculto) |
+|-------|-----------------|-------|-----------------|
+| Card Hoje | linha ~477 | `formatarValor(totalHoje)` | `mv(totalHoje)` |
+| Card Total do Periodo | linha ~494 | `formatarValor(totalPeriodo)` | `mv(totalPeriodo)` |
+| Despesas no card | linha ~496 | `formatarValor(totalDespesas)` | `mv(totalDespesas)` |
+| Resultado no card | linha ~498 | `formatarValor(resultadoPeriodo)` | `mv(resultadoPeriodo)` |
+| Card Kits Entregues | linha ~516 | `formatarNumero(totalKits)` | `mn(totalKits)` |
+| Card Meta Geral (%) | linha ~534 | `percentualMetaGeral.toFixed(0)%` | `***%` |
+| Card Meta Geral (barra) | linha ~536 | `<Progress value=...>` | Ocultar ou zerar |
+| Grafico Top 5 (tooltip) | linha ~570 | `formatarValor(value)` | `R$ *****` |
+| Grafico Top 5 (eixo X) | linha ~559 | `tickFormatter` | `*****` |
+| Estoque total | linha ~648 | `formatarNumero(totalEstoque)` | `mn(totalEstoque)` |
+| Producao - Hoje | linha ~685 | `formatarNumero(totalProducaoHoje)` | `mn(...)` |
+| Producao - Periodo | linha ~690 | `formatarNumero(producaoPeriodo.length)` | `mn(...)` |
+| Producao - Estoque | linha ~695 | `formatarNumero(totalEstoque)` | `mn(...)` |
+| Producao - Hoje (collapsible header) | linha ~667 | `formatarNumero(totalProducaoHoje)` | `mn(...)` |
+| Meta producao (valores) | linhas ~712-715 | valores e percentual | `*****` e `***%` |
+| Meta producao (barra) | linha ~718-721 | `<Progress>` | Ocultar ou zerar |
+| Tabela representantes - Meta | linha ~809 | `formatarValor(rep.meta)` | `mv(...)` |
+| Tabela representantes - Realizado | linha ~812 | `formatarValor(rep.realizado)` | `mv(...)` |
+| Tabela representantes - Liquido | linha ~815 | `formatarValor(rep.realizado - rep.despesas)` | `mv(...)` |
+| Tabela representantes - Notas | linha ~818 | `formatarNumero(rep.qtdNotas)` | `mn(...)` |
+| Tabela representantes - Ticket | linha ~821 | `formatarValor(rep.ticketMedio)` | `mv(...)` |
+| Tabela representantes - Progresso (%) | linha ~828 | `rep.percentual.toFixed(0)%` | `***%` |
+| Tabela representantes - Barra | linha ~831 | `<Progress>` | Ocultar ou zerar |
+| Dialog Estoque - valores | linhas ~862-881 | `formatarNumero(...)` | `mn(...)` |
+| Dialog Cobrancas Hoje - valores | linhas ~920-939 | `formatarValor(...)` | `mv(...)` |
 
 ---
 
-### Imports a adicionar
-
-```typescript
-import { Eye, EyeOff } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useEffect } from 'react';
-```
+### Resumo
+Mesma logica e UX do Dashboard do representante, adaptada para o Dashboard Admin com localStorage independente e cobrindo todos os pontos de exibicao de valores: cards, graficos, tabelas, dialogs e barras de progresso.
 
