@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
 import { 
   Package, TrendingUp, DollarSign, Target, TrendingDown, FileText,
-  Sun, Moon, CloudSun, Sparkles, Calendar, ChevronDown, ChevronUp, BarChart3
+  Sun, Moon, CloudSun, Sparkles, Calendar, ChevronDown, ChevronUp, BarChart3,
+  Eye, EyeOff
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -75,6 +77,14 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [showGraficos, setShowGraficos] = useState(false);
+  const [showValues, setShowValues] = useState(() => {
+    const saved = localStorage.getItem('dashboard-show-values');
+    return saved !== 'false';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dashboard-show-values', String(showValues));
+  }, [showValues]);
   
   const mesAtual = format(new Date(), 'yyyy-MM');
   const hoje = format(new Date(), 'yyyy-MM-dd');
@@ -188,6 +198,10 @@ export default function Dashboard() {
     ? (totalCobrado / metaDoMes.meta_valor) * 100 
     : 0;
 
+  // Helpers de mascaramento
+  const mv = (valor: number) => showValues ? formatarValor(valor) : 'R$ *****';
+  const mn = (valor: number) => showValues ? formatarNumero(valor) : '*****';
+
   // Notificações de meta
   useMetaNotifications({
     percentualMeta,
@@ -244,14 +258,24 @@ export default function Dashboard() {
               </div>
             </div>
             
-            {/* Filtro de Período */}
-            <DateRangeFilterPopover 
-              onFilterChange={(start, end) => {
-                setStartDate(start);
-                setEndDate(end);
-              }}
-              className="shrink-0"
-            />
+            {/* Filtro de Período e Botão Ocultar */}
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowValues(v => !v)}
+                className="shrink-0 h-8 w-8 md:h-9 md:w-9"
+                title={showValues ? 'Ocultar valores' : 'Exibir valores'}
+              >
+                {showValues ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+              </Button>
+              <DateRangeFilterPopover 
+                onFilterChange={(start, end) => {
+                  setStartDate(start);
+                  setEndDate(end);
+                }}
+              />
+            </div>
           </div>
           
           <div className="flex items-start gap-2 bg-background/50 backdrop-blur-sm rounded-lg p-2 md:p-3 border border-primary/10">
@@ -265,11 +289,11 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex-1 text-center p-2 md:p-3 bg-background/60 backdrop-blur-sm rounded-lg md:rounded-xl border border-border/50">
               <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Hoje</p>
-              <p className="text-sm md:text-xl font-bold text-destructive truncate">{formatarValor(totalHoje)}</p>
+              <p className="text-sm md:text-xl font-bold text-destructive truncate">{mv(totalHoje)}</p>
             </div>
             <div className="flex-1 text-center p-2 md:p-3 bg-background/60 backdrop-blur-sm rounded-lg md:rounded-xl border border-border/50">
               <p className="text-[10px] md:text-xs text-muted-foreground mb-0.5 md:mb-1">Período</p>
-              <p className="text-sm md:text-xl font-bold text-primary truncate">{formatarValor(totalCobrado)}</p>
+              <p className="text-sm md:text-xl font-bold text-primary truncate">{mv(totalCobrado)}</p>
             </div>
           </div>
         </div>
@@ -286,9 +310,9 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarValor(totalCobrado)}</div>
+            <div className="text-base md:text-2xl font-display font-bold truncate">{mv(totalCobrado)}</div>
             <p className="text-[10px] md:text-xs text-muted-foreground truncate">
-              {formatarNumero(cobrancas.length)} dia{cobrancas.length !== 1 ? 's' : ''} de cobrança
+              {mn(cobrancas.length)} dia{cobrancas.length !== 1 ? 's' : ''} de cobrança
             </p>
           </CardContent>
         </Card>
@@ -302,7 +326,7 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarNumero(totalNotasCobradas)}</div>
+            <div className="text-base md:text-2xl font-display font-bold truncate">{mn(totalNotasCobradas)}</div>
             <p className="text-[10px] md:text-xs text-muted-foreground truncate">No período</p>
           </CardContent>
         </Card>
@@ -316,7 +340,7 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarValor(ticketMedio)}</div>
+            <div className="text-base md:text-2xl font-display font-bold truncate">{mv(ticketMedio)}</div>
             <p className="text-[10px] md:text-xs text-muted-foreground truncate">Por nota</p>
           </CardContent>
         </Card>
@@ -330,9 +354,9 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarValor(totalDespesas)}</div>
+            <div className="text-base md:text-2xl font-display font-bold truncate">{mv(totalDespesas)}</div>
             <p className="text-[10px] md:text-xs text-muted-foreground truncate">
-              Líquido: {formatarValor(totalCobrado - totalDespesas)}
+              Líquido: {mv(totalCobrado - totalDespesas)}
             </p>
           </CardContent>
         </Card>
@@ -346,7 +370,7 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
-            <div className="text-base md:text-2xl font-display font-bold truncate">{formatarNumero(totalKits)}</div>
+            <div className="text-base md:text-2xl font-display font-bold truncate">{mn(totalKits)}</div>
             <p className="text-[10px] md:text-xs text-muted-foreground truncate">No período</p>
           </CardContent>
         </Card>
@@ -363,11 +387,11 @@ export default function Dashboard() {
             {metaDoMes ? (
               <>
                 <div className={`text-base md:text-2xl font-display font-bold truncate ${percentualMeta >= 100 ? 'text-chart-3' : 'text-primary'}`}>
-                  {percentualMeta.toFixed(0)}%
+                  {showValues ? `${percentualMeta.toFixed(0)}%` : '***%'}
                 </div>
-                <Progress value={Math.min(percentualMeta, 100)} className="mt-2 h-1.5 md:h-2" />
+                {showValues && <Progress value={Math.min(percentualMeta, 100)} className="mt-2 h-1.5 md:h-2" />}
                 <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">
-                  {formatarValor(metaDoMes.meta_valor)}
+                  {mv(metaDoMes.meta_valor)}
                 </p>
               </>
             ) : (
@@ -424,10 +448,10 @@ export default function Dashboard() {
                         <YAxis 
                           tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
                           stroke="hsl(var(--border))"
-                          tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                          tickFormatter={(value) => showValues ? `${(value / 1000).toFixed(0)}k` : '***'}
                         />
                         <Tooltip 
-                          formatter={(value: number) => formatarValor(value)}
+                          formatter={(value: number) => mv(value)}
                           contentStyle={{
                             backgroundColor: 'hsl(var(--card))',
                             border: '1px solid hsl(var(--border))',
@@ -470,10 +494,10 @@ export default function Dashboard() {
                         <YAxis 
                           tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
                           stroke="hsl(var(--border))"
-                          tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                          tickFormatter={(value) => showValues ? `${(value / 1000).toFixed(0)}k` : '***'}
                         />
                         <Tooltip 
-                          formatter={(value: number) => formatarValor(value)}
+                          formatter={(value: number) => mv(value)}
                           contentStyle={{
                             backgroundColor: 'hsl(var(--card))',
                             border: '1px solid hsl(var(--border))',
