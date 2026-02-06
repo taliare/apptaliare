@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, HelpCircle, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, Plus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +17,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, parseLocalDate, formatDateBR, getLocalDateString } from '@/lib/utils';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
 import { ModalSenhaAdmin } from '@/components/cobranca/ModalSenhaAdmin';
-import { TutorialCobranca } from '@/components/cobranca/TutorialCobranca';
+
 import { ModalRegistrarAcrescimo } from '@/components/cobranca/ModalRegistrarAcrescimo';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -69,9 +69,6 @@ export default function Cobranca() {
   const [valorAdiantamento, setValorAdiantamento] = useState('');
   const [formaPagamentoAdiantamento, setFormaPagamentoAdiantamento] = useState<'pix' | 'dinheiro' | 'cartao'>('pix');
   const [dataAdiantamento, setDataAdiantamento] = useState<Date>(new Date());
-  const [showTutorial, setShowTutorial] = useState(() => {
-    return !localStorage.getItem('tutorial_cobranca_visto');
-  });
   
   // State para modal de acréscimo
   const [modalAcrescimoOpen, setModalAcrescimoOpen] = useState(false);
@@ -798,15 +795,6 @@ export default function Cobranca() {
           <p className="text-xs sm:text-sm text-muted-foreground">Organize suas cobranças por data de vencimento</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowTutorial(true)}
-            className="gap-1"
-          >
-            <HelpCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Guia Rápido</span>
-          </Button>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent>
             <DialogHeader>
@@ -1302,16 +1290,6 @@ export default function Cobranca() {
         />
       )}
 
-      {/* Tutorial */}
-      <TutorialCobranca 
-        open={showTutorial} 
-        onOpenChange={(open) => {
-          setShowTutorial(open);
-          if (!open) {
-            localStorage.setItem('tutorial_cobranca_visto', 'true');
-          }
-        }} 
-      />
     </div>
   );
 }
