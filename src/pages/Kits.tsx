@@ -5,13 +5,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, CalendarIcon } from 'lucide-react';
+import { Package, CalendarIcon, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
+import { Textarea } from '@/components/ui/textarea';
 import { ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -35,6 +36,9 @@ export default function Kits() {
   
   const [revendedoraKit, setRevendedoraKit] = useState('');
   const [dataVencimentoKit, setDataVencimentoKit] = useState<Date>(addDays(new Date(), 60));
+  
+  // State para acréscimos na entrega
+  const [acrescimos, setAcrescimos] = useState<Array<{ valor: string; descricao: string }>>([]);
 
   // Query for kits em estoque (atualmente com o representante)
   const { data: kitsEstoque = [], isLoading } = useQuery({
@@ -80,6 +84,38 @@ export default function Kits() {
     setSelectedVendedoraId('');
     setRevendedoraKit('');
     setDataVencimentoKit(addDays(new Date(), 60));
+    setAcrescimos([]);
+  };
+
+  const formatarValorInput = (valor: string): string => {
+    const apenasNumeros = valor.replace(/\D/g, '');
+    if (!apenasNumeros) return '';
+    const numero = parseFloat(apenasNumeros) / 100;
+    return numero.toFixed(2);
+  };
+
+  const parseValorFormatado = (valor: string): number => {
+    const numeros = valor.replace(/\D/g, '');
+    if (!numeros) return 0;
+    return parseFloat(numeros) / 100;
+  };
+
+  const addAcrescimo = () => {
+    setAcrescimos([...acrescimos, { valor: '', descricao: '' }]);
+  };
+
+  const removeAcrescimo = (index: number) => {
+    setAcrescimos(acrescimos.filter((_, i) => i !== index));
+  };
+
+  const updateAcrescimo = (index: number, field: 'valor' | 'descricao', value: string) => {
+    const updated = [...acrescimos];
+    if (field === 'valor') {
+      updated[index].valor = formatarValorInput(value);
+    } else {
+      updated[index].descricao = value;
+    }
+    setAcrescimos(updated);
   };
 
   // Mutation para registrar entrega de kit usando função RPC atômica
@@ -89,7 +125,8 @@ export default function Kits() {
       revendedora: string; 
       vendedoraId?: string; 
       vendedoraNome?: string;
-      dataVencimento: string 
+      dataVencimento: string;
+      acrescimos: Array<{ valor: number; descricao: string }>;
     }) => {
       // Usar função RPC atômica que faz tudo em uma única transação
       const { data: result, error } = await supabase
@@ -104,10 +141,34 @@ export default function Kits() {
 
       if (error) throw error;
       
-      // A função retorna JSON com success: true/false
-      const response = result as { success: boolean; error?: string };
+      const response = result as { success: boolean; error?: string; kit_entregue_id?: string };
       if (!response.success) {
         throw new Error(response.error || 'Erro ao registrar entrega');
+      }
+
+      // Registrar acréscimos se houver
+      if (data.acrescimos.length > 0 && response.kit_entregue_id) {
+        for (const acrescimo of data.acrescimos) {
+          const { data: acrescimoResult, error: acrescimoError } = await supabase
+            .rpc('registrar_acrescimo_pedido', {
+              p_kit_entregue_id: response.kit_entregue_id,
+              p_user_id: user!.id,
+              p_revendedora: data.revendedora,
+              p_valor: acrescimo.valor,
+              p_descricao: acrescimo.descricao || null,
+              p_data_vencimento: data.dataVencimento,
+            });
+
+          if (acrescimoError) {
+            console.error('Erro ao registrar acréscimo:', acrescimoError);
+            toast.error(`Entrega ok, mas erro no acréscimo: ${acrescimoError.message}`);
+          } else {
+            const acrescimoRes = acrescimoResult as { success: boolean; error?: string };
+            if (!acrescimoRes.success) {
+              toast.error(`Entrega ok, mas erro no acréscimo: ${acrescimoRes.error}`);
+            }
+          }
+        }
       }
       
       return response;
@@ -151,12 +212,18 @@ export default function Kits() {
 
     const vendedoraSelecionada = vendedoras.find(v => v.id === selectedVendedoraId);
 
+    // Preparar acréscimos válidos
+    const acrescimosValidos = acrescimos
+      .filter(a => a.valor && parseValorFormatado(a.valor) > 0)
+      .map(a => ({ valor: parseValorFormatado(a.valor), descricao: a.descricao }));
+
     entregaKitMutation.mutate({
       kitId: selectedKit,
       revendedora: revendedoraKit,
       vendedoraId: vincularVendedora ? selectedVendedoraId : undefined,
       vendedoraNome: vincularVendedora ? vendedoraSelecionada?.nome : undefined,
-      dataVencimento: getLocalDateString(dataVencimentoKit)
+      dataVencimento: getLocalDateString(dataVencimentoKit),
+      acrescimos: acrescimosValidos,
     });
   };
 
@@ -321,6 +388,59 @@ export default function Kits() {
                 )}
               </div>
             )}
+
+            {/* Seção de Acréscimos (joias adicionais) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Joias Adicionais (opcional)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addAcrescimo}
+                  className="h-7 text-xs gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Adicionar
+                </Button>
+              </div>
+              {acrescimos.length > 0 && (
+                <div className="space-y-3">
+                  {acrescimos.map((acrescimo, index) => (
+                    <div key={index} className="p-3 border rounded-lg space-y-2 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">Acréscimo {index + 1}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeAcrescimo(index)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                        <Input
+                          className="pl-10"
+                          value={acrescimo.valor}
+                          onChange={(e) => updateAcrescimo(index, 'valor', e.target.value)}
+                          placeholder="0,00"
+                        />
+                      </div>
+                      <Textarea
+                        value={acrescimo.descricao}
+                        onChange={(e) => updateAcrescimo(index, 'descricao', e.target.value)}
+                        placeholder="Ex: brincos extras..."
+                        rows={1}
+                        className="text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div>
               <Label>Data de Vencimento</Label>
