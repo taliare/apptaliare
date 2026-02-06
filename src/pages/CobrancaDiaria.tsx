@@ -363,6 +363,35 @@ export default function CobrancaDiaria() {
     enabled: !!user?.id,
   });
 
+  // Query para buscar acréscimos dos kits entregues do dia
+  const kitIdsDoDia = kitsEntreguesDoDia.map((k: any) => k.id);
+  
+  const { data: acrescimosKitsDoDia = [] } = useQuery({
+    queryKey: ['acrescimos-kits-dia', kitIdsDoDia],
+    queryFn: async () => {
+      if (kitIdsDoDia.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('acrescimos_pedido')
+        .select('id, kit_entregue_id, valor, descricao, status')
+        .in('kit_entregue_id', kitIdsDoDia);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: kitIdsDoDia.length > 0,
+  });
+
+  // Agrupar acréscimos por kit_entregue_id
+  const acrescimosMap = useMemo(() => {
+    const map: Record<string, Array<{ id: string; valor: number; descricao: string | null; status: string }>> = {};
+    acrescimosKitsDoDia.forEach((a: any) => {
+      if (!map[a.kit_entregue_id]) map[a.kit_entregue_id] = [];
+      map[a.kit_entregue_id].push(a);
+    });
+    return map;
+  }, [acrescimosKitsDoDia]);
+
   // Buscar detalhes das cobranças (revendedora, valor) para os kits entregues do dia
   const codigosKitsDoDia = kitsEntreguesDoDia.map((k: any) => k.codigo_mostruario);
   
@@ -1339,73 +1368,84 @@ export default function CobrancaDiaria() {
                 Nenhuma entrega hoje
               </div>
             ) : (
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {entregasDoDia.map((entrega: any) => (
-                  <div key={entrega.id} className="p-2 bg-muted/50 rounded-lg text-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="font-mono font-medium">{entrega.codigo_nota}</span>
-                      {!isDiaFinalizado && (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                            title="Registrar joias adicionais"
-                            onClick={() => {
-                              setCobrancaParaAcrescimo({
-                                id: entrega.id,
-                                kit_entregue_id: entrega.id,
-                                revendedora: entrega.revendedora,
-                                codigo_nota: entrega.codigo_nota,
-                                representante_id: user?.id || '',
-                                data_agendada: '',
-                                valor_previsto: 0,
-                                status: 'pendente',
-                              } as any);
-                              setModalAcrescimoOpen(true);
-                            }}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => excluirEntregaMutation.mutate({ 
-                                    id: entrega.id, 
-                                    codigo_nota: entrega.codigo_nota 
-                                  })}
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {entregasDoDia.map((entrega: any) => {
+                  const kitAcrescimos = acrescimosMap[entrega.id] || [];
+                  return (
+                    <div key={entrega.id} className="p-2 bg-muted/50 rounded-lg text-sm space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-mono font-medium">{entrega.codigo_nota}</span>
+                        {!isDiaFinalizado && (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                              title="Registrar joias adicionais"
+                              onClick={() => {
+                                setCobrancaParaAcrescimo({
+                                  id: entrega.id,
+                                  kit_entregue_id: entrega.id,
+                                  revendedora: entrega.revendedora,
+                                  codigo_nota: entrega.codigo_nota,
+                                  representante_id: user?.id || '',
+                                  data_agendada: '',
+                                  valor_previsto: 0,
+                                  status: 'pendente',
+                                } as any);
+                                setModalAcrescimoOpen(true);
+                              }}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => excluirEntregaMutation.mutate({ 
+                                      id: entrega.id, 
+                                      codigo_nota: entrega.codigo_nota 
+                                    })}
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{entrega.revendedora}</p>
+                      <div className="flex items-center gap-1 text-xs">
+                        <DollarSign className="h-3 w-3 text-muted-foreground" />
+                        <span>Kit: {formatarValor(entrega.valor_previsto)}</span>
+                      </div>
+                      {kitAcrescimos.map((acrescimo: any) => (
+                        <div key={acrescimo.id} className="flex items-center gap-1.5 text-xs pl-1">
+                          <Badge variant="warning" className="text-[10px] px-1.5 py-0">ACRÉSCIMO</Badge>
+                          <span className="truncate">{acrescimo.descricao || 'Joias adicionais'}</span>
+                          <span className="font-medium ml-auto whitespace-nowrap">{formatarValor(acrescimo.valor)}</span>
                         </div>
-                      )}
+                      ))}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{entrega.revendedora}</p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
-            <div className="mt-3 pt-3 border-t flex justify-between items-center">
+            <div className="mt-3 pt-3 border-t">
               <span className="text-sm text-muted-foreground">{entregasDoDia.length} entregas</span>
-              <span className="font-bold text-primary">
-                {formatarValor(entregasDoDia.reduce((acc: number, e: any) => acc + (e.valor_previsto || 0), 0))}
-              </span>
             </div>
             {!isDiaFinalizado && (
               <Dialog open={isKitEntregaDialogOpen} onOpenChange={setIsKitEntregaDialogOpen}>
