@@ -1345,32 +1345,55 @@ export default function CobrancaDiaria() {
                     <div className="flex justify-between items-center">
                       <span className="font-mono font-medium">{entrega.codigo_nota}</span>
                       {!isDiaFinalizado && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => excluirEntregaMutation.mutate({ 
-                                  id: entrega.id, 
-                                  codigo_nota: entrega.codigo_nota 
-                                })}
-                              >
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                            title="Registrar joias adicionais"
+                            onClick={() => {
+                              setCobrancaParaAcrescimo({
+                                id: entrega.id,
+                                kit_entregue_id: entrega.id,
+                                revendedora: entrega.revendedora,
+                                codigo_nota: entrega.codigo_nota,
+                                representante_id: user?.id || '',
+                                data_agendada: '',
+                                valor_previsto: 0,
+                                status: 'pendente',
+                              } as any);
+                              setModalAcrescimoOpen(true);
+                            }}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => excluirEntregaMutation.mutate({ 
+                                    id: entrega.id, 
+                                    codigo_nota: entrega.codigo_nota 
+                                  })}
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{entrega.revendedora}</p>
