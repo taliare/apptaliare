@@ -1,166 +1,112 @@
 
 
-# Plano: Acrescimo de Pedido (Joias Adicionais)
+# Plano: Adicionar opcao de acrescimo no Fechamento do Dia e corrigir na Agenda de Cobranca
 
-## Resumo
+## Problema Identificado
 
-Implementar a funcionalidade de "Acrescimo de Pedido" que permite representantes registrarem valores extras (joias adicionais) vinculados a um kit entregue, sem alterar o valor base do kit. Os acrescimos impactam o valor total a cobrar, comissoes, receita e inadimplencia.
+Existem **dois problemas** distintos:
+
+1. **Fechamento do Dia (CobrancaDiaria.tsx)**: A pagina nao possui NENHUMA funcionalidade de acrescimo. Nao existe o modal, nem botoes, nem imports relacionados.
+
+2. **Agenda de Cobranca (Cobranca.tsx)**: A opcao "Registrar joias adicionais" existe no codigo, mas so aparece quando `cobranca.tipo === 'kit' AND cobranca.kit_entregue_id != null`. Existem 41 cobrancas do tipo kit sem `kit_entregue_id` preenchido (registros mais antigos, antes da implementacao), para as quais a opcao nao aparece.
 
 ---
 
-## Etapa 1: Criar tabela no banco de dados
+## Etapa 1: Adicionar funcionalidade de acrescimo no Fechamento do Dia (CobrancaDiaria.tsx)
 
-Nova tabela `acrescimos_pedido` com os campos:
+### 1a. Importar o modal e adicionar estados
 
+- Importar `ModalRegistrarAcrescimo` de `@/components/cobranca/ModalRegistrarAcrescimo`
+- Importar icone `Plus` do lucide-react
+- Adicionar estados: `modalAcrescimoOpen` e `cobrancaParaAcrescimo`
+
+### 1b. Botao de acrescimo na busca de nota
+
+No dialog "Buscar Nota", quando uma nota e encontrada e e do tipo `kit`, adicionar um botao "Registrar joias adicionais" ao lado do botao "Cobrar". Ao clicar:
+- Fecha o dialog de busca
+- Abre o modal de acrescimo com os dados da cobranca encontrada
+
+### 1c. Botao de acrescimo na entrega de kit
+
+No dialog "Registrar Entrega de Kit", apos selecionar o kit e preencher os dados, adicionar uma secao opcional (identica a que foi feita em Kits.tsx):
+- Botao `[ + Adicionar valor adicional ]`
+- Campos: Valor (R$) e Observacao
+- Lista dinamica (multiplos acrescimos)
+- No submit, apos a entrega via RPC, chamar `registrar_acrescimo_pedido` para cada acrescimo
+
+### 1d. Renderizar o modal de acrescimo
+
+Adicionar o componente `ModalRegistrarAcrescimo` no final do JSX, conectado aos estados criados.
+
+---
+
+## Etapa 2: Melhorar a condicao na Agenda de Cobranca (Cobranca.tsx)
+
+### Situacao atual
+
+A opcao "Registrar joias adicionais" so aparece quando:
 ```text
-acrescimos_pedido
-  - id (uuid, PK, default gen_random_uuid())
-  - kit_entregue_id (uuid, NOT NULL) -- referencia kits_entregues
-  - cobranca_id (uuid) -- referencia cobrancas_agendadas (a cobranca gerada pelo acrescimo)
-  - representante_id (uuid, NOT NULL)
-  - revendedora (text, NOT NULL)
-  - valor (numeric, NOT NULL)
-  - descricao (text)
-  - data_lancamento (date, NOT NULL, default CURRENT_DATE)
-  - status (text, NOT NULL, default 'pendente') -- pendente, cobrado, pago
-  - criado_em (timestamptz, default now())
+cobranca.tipo === 'kit' && cobranca.kit_entregue_id
 ```
 
-Politicas RLS (RESTRICTIVE):
-- Admin: ALL
-- Representante: SELECT, INSERT, UPDATE onde `representante_id = auth.uid()`
+Isso exclui 41 cobrancas tipo `kit` que nao possuem `kit_entregue_id` (registros anteriores a implementacao).
 
----
+### Solucao
 
-## Etapa 2: Criar funcao RPC atomica
+Relaxar a condicao para mostrar a opcao para TODOS os kits. Para kits sem `kit_entregue_id`, buscar o ID correspondente na tabela `kits_entregues` usando o `codigo_nota` antes de abrir o modal.
 
-Funcao `registrar_acrescimo_pedido` que em uma unica transacao:
+Alterar a funcao `handleAcrescimoClick` para:
+1. Se a cobranca ja tem `kit_entregue_id`, abrir o modal diretamente
+2. Se nao tem, fazer um lookup rapido: buscar em `kits_entregues` pelo `codigo_mostruario` = `cobranca.codigo_nota`
+3. Se encontrar, abrir o modal com o `kit_entregue_id` encontrado
+4. Se nao encontrar, exibir um toast de erro informando que o kit nao foi encontrado
 
-1. Valida que o kit_entregue pertence ao representante
-2. Insere o acrescimo na tabela `acrescimos_pedido`
-3. Cria uma nova `cobranca_agendada` do tipo `'acrescimo'` com o valor do acrescimo, vinculada a mesma revendedora
-4. Atualiza o `cobranca_id` no acrescimo com o ID da cobranca criada
-5. Retorna JSON de sucesso com IDs
-
-Essa cobranca entra automaticamente na agenda do representante (pendente), e sera cobrada normalmente pelo fluxo existente de pagamento (completo, parcial, repasse).
-
----
-
-## Etapa 3: Interface -- Tela de Entrega do Kit (Kits.tsx)
-
-Apos selecionar o kit e preencher os dados da entrega, adicionar uma secao **opcional** de acrescimo:
-
-- Exibir valor base do kit (somente leitura, ja existe)
-- Botao `[ + Adicionar valor adicional ]` que expande campos:
-  - Valor do acrescimo (R$)
-  - Observacao (texto livre, ex: "brincos extras")
-- Permitir adicionar multiplos acrescimos (lista dinamica)
-- No submit, apos a entrega do kit via RPC, chamar `registrar_acrescimo_pedido` para cada acrescimo
-
----
-
-## Etapa 4: Interface -- Agenda de Cobranca (Cobranca.tsx)
-
-### 4a. Exibir acrescimos no card da cobranca
-
-Quando uma cobranca for do tipo `kit`, buscar acrescimos vinculados ao mesmo `kit_entregue_id` e exibir:
-- Badge `ACRESCIMO` ao lado de cobrancas do tipo `acrescimo`
-- Na listagem, os acrescimos aparecem como cobrancas separadas (pois sao registros independentes em `cobrancas_agendadas`)
-
-### 4b. Acao "Registrar Joias Adicionais"
-
-No menu "Mais opcoes" de cada cobranca do tipo `kit` (ja entregue):
-- Nova opcao: `+ Registrar joias adicionais`
-- Abre modal com campos: Valor, Observacao, Data de vencimento
-- Chama a RPC `registrar_acrescimo_pedido`
-- Invalida queries para atualizar a agenda
-
----
-
-## Etapa 5: Cobranca e Prestacao de Contas
-
-O fluxo existente ja suporta isso sem alteracoes, porque:
-
-- Cada acrescimo gera uma `cobranca_agendada` independente (tipo `acrescimo`)
-- O representante cobra e recebe normalmente (pagamento completo, parcial, repasse)
-- A `prestacao_contas` e criada pelo fluxo existente
-- A `nota_promissoria` alimenta o fechamento diario normalmente
-
-Nenhuma alteracao necessaria nos fluxos de pagamento.
-
----
-
-## Etapa 6: Comissao
-
-A comissao ja e calculada automaticamente pelo `ModalReceberCobranca`:
-- Para tipo `kit`: calcula comissao percentual baseada no valor da venda
-- Para tipo `repasse`: sem comissao
-- Para tipo `acrescimo`: usara a mesma logica do `kit` (baseada no valor da venda informado)
-
-Nenhuma alteracao necessaria no calculo de comissao.
-
----
-
-## Etapa 7: DRE e KPIs
-
-### DRE (DreResumo.tsx)
-- Nenhuma alteracao necessaria
-- O DRE usa `cobrancas_diarias.total_cobrado` como fonte oficial
-- Acrescimos cobrados entram no fechamento diario via notas promissorias, como qualquer outra cobranca
-- A receita total ja inclui naturalmente os acrescimos
-
-### KPIs (RelatorioKpis.tsx)
-- Nenhuma alteracao necessaria
-- Os acrescimos entram nos totais existentes (Total Cobrado, Valor Vencido, Repasses Ativos, Ticket Medio)
-- NAO criar KPIs duplicados, conforme a regra
+Alterar a condicao no `DropdownMenu` de:
+```text
+cobranca.tipo === 'kit' && cobranca.kit_entregue_id
+```
+Para:
+```text
+cobranca.tipo === 'kit'
+```
 
 ---
 
 ## Resumo de Arquivos Alterados
 
-| Arquivo | Tipo de Alteracao |
+| Arquivo | Alteracao |
 |---|---|
-| Migracao SQL | Nova tabela `acrescimos_pedido`, funcao RPC, politicas RLS |
-| `src/pages/Kits.tsx` | Adicionar secao de acrescimos na entrega |
-| `src/pages/Cobranca.tsx` | Adicionar acao "Registrar joias adicionais" no menu de opcoes, badge para tipo acrescimo |
-| `src/components/cobranca/ModalReceberCobranca.tsx` | Nenhuma alteracao (ja funciona com o novo tipo) |
-| `src/pages/DreResumo.tsx` | Nenhuma alteracao |
-| `src/pages/RelatorioKpis.tsx` | Nenhuma alteracao |
+| `src/pages/CobrancaDiaria.tsx` | Adicionar import do modal, estados, botao de acrescimo na busca de nota, secao de acrescimos na entrega de kit, renderizar modal |
+| `src/pages/Cobranca.tsx` | Relaxar condicao do menu para kits sem kit_entregue_id, adicionar lookup automatico |
 
 ---
 
 ## Detalhes Tecnicos
 
-### Migracao SQL completa
-
+### CobrancaDiaria.tsx - Novos estados
 ```text
-1. CREATE TABLE acrescimos_pedido (...)
-2. ALTER TABLE acrescimos_pedido ENABLE ROW LEVEL SECURITY
-3. Criar 4 politicas RLS RESTRICTIVE (admin ALL, representante SELECT/INSERT/UPDATE)
-4. CREATE FUNCTION registrar_acrescimo_pedido(...) RETURNS json
-   - Parametros: p_kit_entregue_id, p_user_id, p_revendedora, p_valor, p_descricao, p_data_vencimento
-   - Insere acrescimo
-   - Cria cobranca_agendada tipo 'acrescimo'
-   - Retorna JSON com IDs
+- modalAcrescimoOpen: boolean
+- cobrancaParaAcrescimo: Cobranca | null
 ```
 
-### Fluxo de dados
+### CobrancaDiaria.tsx - Botao no dialog "Buscar Nota"
+Ao lado do botao "Cobrar", adicionar botao "Joias adicionais" (visivel apenas para tipo kit com kit_entregue_id). Ao clicar:
+1. Fechar dialog de busca
+2. Setar cobrancaParaAcrescimo
+3. Abrir modalAcrescimoOpen
 
+### CobrancaDiaria.tsx - Secao de acrescimos na entrega de kit
+Reutilizar o mesmo padrao do Kits.tsx:
+- Array local de acrescimos [{valor, observacao}]
+- Botao para adicionar/remover itens
+- Apos entregaKitMutation.onSuccess, chamar registrar_acrescimo_pedido para cada acrescimo
+
+### Cobranca.tsx - Lookup de kit_entregue_id
+Nova funcao handleAcrescimoClick que faz lookup quando necessario:
 ```text
-Entrega Kit --> kit_entregue + cobranca_agendada (tipo=kit)
-                    |
-                    +--> acrescimo_pedido + cobranca_agendada (tipo=acrescimo)
-                    +--> acrescimo_pedido + cobranca_agendada (tipo=acrescimo)
-                    ...
-
-Cada cobranca_agendada segue o fluxo normal:
-  cobrar --> nota_promissoria --> fechamento_diario --> DRE/KPIs
+1. Se cobranca.kit_entregue_id existe -> abrir modal direto
+2. Se nao existe -> buscar kit_entregue_id via supabase query
+3. Se encontrar -> setar no state e abrir modal
+4. Se nao encontrar -> toast.error("Kit nao encontrado")
 ```
-
-### Restricoes respeitadas
-- Valor base do kit NUNCA e alterado
-- Nenhum novo tipo de pedido criado
-- DRE e KPIs nao quebram (os acrescimos entram naturalmente nos totais)
-- Historico financeiro permanece auditavel
-- Sem alteracao em valores historicos
 
