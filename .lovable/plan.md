@@ -1,90 +1,37 @@
 
 
-# Plano: Mostrar valor original + acrescimos na Agenda de Cobranca
+# Plano: Corrigir registro de joias adicionais na Agenda de Cobranca
 
-## O que sera feito
+## Problemas identificados
 
-Na Agenda de Cobrancas, cada cobranca do tipo "kit" passara a exibir:
+### 1. Query de acrescimos nao atualiza apos registro
+O `ModalRegistrarAcrescimo` invalida as queries `cobrancas-agendadas`, `kits-entregues-representante` e `acrescimos-kits-dia`, mas **NAO invalida** a query `acrescimos-kits-agenda` usada pela pagina de Agenda de Cobranca. Resultado: mesmo que o registro funcione, os acrescimos nao aparecem na tela ate recarregar manualmente.
 
-1. O **valor original** do kit
-2. A lista de **joias adicionais** (acrescimos) vinculadas, cada uma com descricao e valor
-3. O **valor total** (original + acrescimos) em destaque
+### 2. Lookup pode falhar silenciosamente
+A funcao `handleAcrescimoClick` faz lookup pela coluna `codigo_mostruario` na tabela `kits_entregues`, mas muitas cobrancas podem nao ter `kit_entregue_id` nem `codigo_nota` compativel, impedindo a abertura do modal.
 
-A opcao "Registrar joias adicionais" no menu "Mais opcoes" ja existe e continuara funcionando normalmente.
+## Correcoes
 
-## Alteracoes em `src/pages/Cobranca.tsx`
+### Arquivo 1: `src/components/cobranca/ModalRegistrarAcrescimo.tsx`
 
-### 1. Nova query para buscar acrescimos de todos os kits da agenda
-
-Adicionar uma query `useQuery` que busca todos os registros de `acrescimos_pedido` vinculados aos `kit_entregue_id` das cobrancas visíveis na agenda. Isso permite saber quais kits tem joias adicionais e seus valores.
-
-### 2. Criar mapa de acrescimos agrupados por kit_entregue_id
-
-Um `useMemo` que agrupa os acrescimos por `kit_entregue_id`, permitindo acesso rapido no componente `CobrancaItem`.
-
-### 3. Passar acrescimos para o componente `CobrancaItem`
-
-O componente `CobrancaItem` recebera uma nova prop `acrescimos` (array de acrescimos daquele kit, ou array vazio se nao houver).
-
-### 4. Atualizar exibicao no `CobrancaItem`
-
-Para cobrancas do tipo "kit" que possuam acrescimos:
+Adicionar invalidacao da query `acrescimos-kits-agenda` no `onSuccess` da mutation, para que a Agenda de Cobranca atualize imediatamente apos registrar um acrescimo.
 
 ```text
-Revendedora          [badges]
-Kit ABC-123
-Valor Kit: R$ 350,00
-  + brincos extras: R$ 50,00
-  + colar adicional: R$ 80,00
-Total: R$ 480,00        [Cobrar] [Mais opcoes]
+// Adicionar esta linha ao onSuccess:
+queryClient.invalidateQueries({ queryKey: ['acrescimos-kits-agenda'] });
 ```
 
-- O valor original continua exibido normalmente
-- Abaixo, cada acrescimo aparece com badge amber e valor individual
-- Uma linha "Total" mostra a soma (valor original + todos os acrescimos) em destaque
-- Se nao houver acrescimos, a exibicao permanece como esta hoje (so o valor original)
+### Arquivo 2: `src/pages/Cobranca.tsx`
 
-## Resumo de Arquivos Alterados
+Nenhuma alteracao estrutural necessaria - o fluxo de `handleAcrescimoClick`, o dropdown menu e o `ModalRegistrarAcrescimo` ja estao corretamente conectados. O unico problema era a falta de invalidacao da query no modal.
+
+## Resumo
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/pages/Cobranca.tsx` | Nova query de acrescimos, mapa por kit, prop no CobrancaItem, exibicao de acrescimos individuais e total |
+| `src/components/cobranca/ModalRegistrarAcrescimo.tsx` | Adicionar invalidacao de `acrescimos-kits-agenda` no onSuccess |
 
-## Detalhes Tecnicos
+## Impacto
 
-### Query de acrescimos
-
-```text
-// Extrair kit_entregue_ids unicos das cobrancas
-const kitEntregueIds = cobrancas
-  .filter(c => c.kit_entregue_id)
-  .map(c => c.kit_entregue_id)
-
-// Query
-supabase
-  .from('acrescimos_pedido')
-  .select('id, kit_entregue_id, valor, descricao, status')
-  .in('kit_entregue_id', kitEntregueIds)
-```
-
-### Mapa de acrescimos
-
-```text
-acrescimosMap: Record<string, Array<{id, valor, descricao, status}>>
-// Chave: kit_entregue_id
-// Valor: array de acrescimos
-```
-
-### CobrancaItem - nova prop e render
-
-Nova prop:
-```text
-acrescimos: Array<{id: string, valor: number, descricao: string | null, status: string}>
-```
-
-Logica de render:
-- Se `acrescimos.length > 0`, mostrar lista de acrescimos abaixo do valor original
-- Calcular `totalComAcrescimos = cobranca.valor_previsto + soma(acrescimos.valor)`
-- Exibir linha "Total com acrescimos: R$ X,XX" em verde/destaque
-- Se nao houver acrescimos, exibir apenas `valor_previsto` como hoje
+Apos essa correcao, ao registrar joias adicionais pelo menu "Mais opcoes" > "Registrar joias adicionais", o acrescimo sera salvo E a lista da agenda atualizara imediatamente mostrando o valor original + acrescimos individuais + total.
 
