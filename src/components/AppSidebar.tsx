@@ -67,7 +67,7 @@ export function AppSidebar() {
     {
       label: "INÍCIO",
       items: [
-        { title: "Dashboard", url: "/dashboard", icon: Home },
+        { title: "Painel Geral", url: "/dashboard", icon: Home },
       ],
     },
     {
@@ -97,7 +97,7 @@ export function AppSidebar() {
     {
       label: "INÍCIO",
       items: [
-        { title: "Dashboard", url: "/producao", icon: Factory },
+        { title: "Painel Geral", url: "/producao", icon: Factory },
       ],
     },
     {
@@ -119,7 +119,7 @@ export function AppSidebar() {
     {
       label: "VISÃO GERAL",
       items: [
-        { title: "Dashboard Admin", url: "/dashboard-admin", icon: Home },
+        { title: "Painel Admin", url: "/dashboard-admin", icon: Home },
       ],
     },
     {
