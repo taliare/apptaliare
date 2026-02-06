@@ -1,94 +1,91 @@
 
 
-# Plano: Corrigir acrescimo por kit individual e restaurar exclusao de entrega
+# Plano: Mostrar valor original + acrescimos individuais por kit na lista de entregas
 
-## Problemas Identificados
+## O que sera feito
 
-### Problema 1: Acrescimo aparece "no geral", nao por kit individual
+Na secao "Entregas de Kits" do Fechamento do Dia, cada kit listado passara a mostrar:
 
-Na tela de Fechamento do Dia, a secao "Entregas de Kits" lista os kits entregues no dia. Porem, cada kit individual na lista **nao tem** um botao para adicionar joias adicionais. A opcao de acrescimo so existe dentro do dialog de **nova entrega** (como secao geral), mas nao aparece como acao individual por kit ja entregue.
+1. O **valor original** do kit (ja existente como `valor_previsto`)
+2. Cada **acrescimo** registrado para aquele kit, listado individualmente abaixo do valor original, com descricao e valor
+3. O total geral no rodape mostrara apenas a **contagem de entregas** (sem somar valores, conforme solicitado)
 
-**Solucao**: Adicionar um botao "+" (joias adicionais) em cada kit listado na secao "Entregas de Kits", ao lado do botao de excluir. Ao clicar, abre o `ModalRegistrarAcrescimo` para aquele kit especifico.
+## Alteracoes em `src/pages/CobrancaDiaria.tsx`
 
-### Problema 2: Excluir entrega de kit nao funciona
+### 1. Nova query para buscar acrescimos dos kits do dia
 
-A funcao RPC `reverter_entrega_kit_atomico` tenta deletar registros nesta ordem:
-1. Deleta `cobrancas_agendadas` vinculadas ao kit
-2. Deleta `kits_entregues`
-
-Porem, com a criacao da tabela `acrescimos_pedido`, existem duas Foreign Keys que bloqueiam a exclusao:
+Adicionar uma query que busca todos os registros de `acrescimos_pedido` vinculados aos kits entregues no dia selecionado:
 
 ```text
-acrescimos_pedido.kit_entregue_id --> kits_entregues.id (sem CASCADE)
-acrescimos_pedido.cobranca_id --> cobrancas_agendadas.id (sem CASCADE)
+Query: acrescimos_pedido
+Filtro: kit_entregue_id IN (ids dos kits entregues do dia)
+Campos: id, kit_entregue_id, valor, descricao, status
 ```
 
-Ao tentar excluir, o banco retorna erro de violacao de FK porque existem acrescimos vinculados que precisam ser deletados primeiro.
+### 2. Agrupar acrescimos por kit_entregue_id
 
-**Solucao**: Atualizar a funcao RPC `reverter_entrega_kit_atomico` para deletar acrescimos ANTES de deletar cobrancas e o kit.
+Criar um mapa (Record) que agrupa os acrescimos por `kit_entregue_id`, para facilitar o acesso no render de cada kit.
 
----
+### 3. Atualizar a exibicao de cada kit na lista
 
-## Alteracoes
-
-### 1. Atualizar funcao RPC `reverter_entrega_kit_atomico` (Migracao SQL)
-
-Adicionar etapa de exclusao dos acrescimos vinculados ao kit, na ordem correta:
-
-```text
-Ordem de exclusao:
-1. DELETE FROM acrescimos_pedido WHERE kit_entregue_id = p_kit_entregue_id
-2. DELETE FROM cobrancas_agendadas WHERE kit_entregue_id = p_kit_entregue_id (ja existe)
-3. DELETE FROM kits_entregues WHERE id = p_kit_entregue_id (ja existe)
-```
-
-### 2. Adicionar botao de acrescimo por kit na lista de entregas (`CobrancaDiaria.tsx`)
-
-Na secao "Entregas de Kits" (linhas ~1342-1378), cada kit listado atualmente mostra apenas codigo, revendedora e botao de excluir. Alterar para:
-
-- Adicionar um botao `Plus` (cor amber) ao lado do botao de excluir em cada kit
-- Ao clicar, buscar o `kit_entregue_id` do kit (ja disponivel no `entrega.id` que vem de `kits_entregues`)
-- Abrir o `ModalRegistrarAcrescimo` com os dados daquele kit especifico (id, revendedora, codigo)
-
----
-
-## Resumo de Arquivos Alterados
-
-| Arquivo | Alteracao |
-|---|---|
-| Migracao SQL | Recriar `reverter_entrega_kit_atomico` com etapa de exclusao de acrescimos |
-| `src/pages/CobrancaDiaria.tsx` | Adicionar botao de acrescimo individual por kit na lista de entregas |
-
----
-
-## Detalhes Tecnicos
-
-### Migracao SQL - reverter_entrega_kit_atomico atualizada
-
-A funcao precisa ser recriada com `CREATE OR REPLACE` adicionando antes da exclusao de cobrancas:
-
-```text
--- NOVO: Deletar acrescimos vinculados ao kit (e suas cobrancas)
-DELETE FROM acrescimos_pedido WHERE kit_entregue_id = p_kit_entregue_id;
-
--- Depois, deletar cobrancas (incluindo tipo 'acrescimo')
-DELETE FROM cobrancas_agendadas WHERE kit_entregue_id = p_kit_entregue_id OR (...fallback...);
-
--- Por fim, deletar o kit_entregue
-DELETE FROM kits_entregues WHERE id = p_kit_entregue_id;
-```
-
-### CobrancaDiaria.tsx - Botao por kit individual
-
-No mapeamento de `entregasDoDia` (linha ~1343), cada item do kit tera:
+Cada kit na lista passara de:
 
 ```text
 [codigo]  [revendedora]  [+ acrescimo] [x excluir]
 ```
 
-O botao `+` chama:
-1. `setCobrancaParaAcrescimo` com dados do kit (id como kit_entregue_id, revendedora, codigo_nota)
-2. `setModalAcrescimoOpen(true)`
+Para:
 
-O `ModalRegistrarAcrescimo` ja esta importado e renderizado no final do JSX, bastando conectar os estados.
+```text
+[codigo]                   [+ acrescimo] [x excluir]
+[revendedora]
+Kit: R$ 350,00
+  Acrescimo: brincos extras - R$ 50,00
+  Acrescimo: colar adicional - R$ 80,00
+```
+
+Detalhes visuais:
+- O valor original do kit aparece com icone DollarSign e cor padrao
+- Cada acrescimo aparece com Badge amber "ACRESCIMO" + descricao + valor
+- Se nao houver acrescimos, mostra apenas o valor do kit
+
+### 4. Remover total de valores no rodape
+
+No rodape da secao, manter apenas a contagem de entregas (ex: "3 entregas") sem mostrar o total somado dos valores.
+
+## Resumo de Arquivos Alterados
+
+| Arquivo | Alteracao |
+|---|---|
+| `src/pages/CobrancaDiaria.tsx` | Nova query de acrescimos, mapa por kit, exibicao individual de valor + acrescimos, remover total de valores do rodape |
+
+## Detalhes Tecnicos
+
+### Nova query de acrescimos
+
+```text
+const kitIds = kitsEntreguesDoDia.map(k => k.id)
+
+supabase
+  .from('acrescimos_pedido')
+  .select('id, kit_entregue_id, valor, descricao, status')
+  .in('kit_entregue_id', kitIds)
+```
+
+### Mapa de acrescimos
+
+```text
+acrescimosMap: Record<string, Array<{id, valor, descricao, status}>>
+```
+
+### Render atualizado por kit
+
+Dentro de cada item `entrega` na lista, apos a linha da revendedora:
+- Linha com valor do kit: `Kit: R$ X,XX`
+- Para cada acrescimo do kit (via `acrescimosMap[entrega.id]`):
+  - Badge amber + descricao (ou "Joias adicionais") + valor
+
+### Rodape simplificado
+
+Remover a linha `formatarValor(entregasDoDia.reduce(...))` e manter apenas `{entregasDoDia.length} entregas`.
 
