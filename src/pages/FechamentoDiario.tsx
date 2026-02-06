@@ -33,6 +33,7 @@ interface NotaPromissoria {
   forma_pagamento_2?: 'pix' | 'dinheiro' | 'cartao' | 'transferencia' | null;
   valor_pagamento_2?: number | null;
   devolveu_tudo?: boolean;
+  cobranca_id?: string | null;
 }
 
 interface CobrancaDiaria {
@@ -143,7 +144,7 @@ export default function FechamentoDiario() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('codigo_nota, revendedora')
+        .select('id, codigo_nota, revendedora')
         .eq('representante_id', selectedRepresentante);
       
       if (error) throw error;
@@ -213,6 +214,14 @@ export default function FechamentoDiario() {
     }
     return acc;
   }, {} as Record<string, string>);
+
+  // Criar mapa de cobranca_id -> { codigo_nota, revendedora } para lookup reverso
+  const cobrancaIdMap = cobrancasAgendadas.reduce((acc, item) => {
+    if (item.id) {
+      acc[item.id] = { codigo_nota: item.codigo_nota || '', revendedora: item.revendedora };
+    }
+    return acc;
+  }, {} as Record<string, { codigo_nota: string; revendedora: string }>);
 
   // Cálculos baseados nas notas
   const totais = useMemo(() => {
@@ -675,17 +684,35 @@ export default function FechamentoDiario() {
                     </TableHeader>
                     <TableBody>
                       {notas.map((nota) => {
-                        // Tentar encontrar no mapa ou extrair do código
-                        let revendedora = revendedoraMap[nota.codigo_nota];
-                        if (!revendedora && nota.codigo_nota) {
+                        // Resolver revendedora e código do pedido real
+                        let revendedora: string | undefined;
+                        let codigoPedido: string | undefined;
+
+                        // 1. Tentar via cobranca_id (lookup reverso)
+                        if (nota.cobranca_id && cobrancaIdMap[nota.cobranca_id]) {
+                          const mapped = cobrancaIdMap[nota.cobranca_id];
+                          revendedora = mapped.revendedora;
+                          codigoPedido = mapped.codigo_nota;
+                        }
+                        // 2. Tentar via revendedoraMap (código curto direto)
+                        else if (revendedoraMap[nota.codigo_nota]) {
+                          revendedora = revendedoraMap[nota.codigo_nota];
+                          codigoPedido = nota.codigo_nota;
+                        }
+                        // 3. Código gerado com formato NOME-14digitos
+                        else if (nota.codigo_nota) {
                           const match = nota.codigo_nota.match(/^(.+?)-\d{14}$/);
                           if (match) {
                             revendedora = match[1];
+                            codigoPedido = undefined;
+                          } else {
+                            codigoPedido = nota.codigo_nota;
                           }
                         }
+
                         return (
                         <TableRow key={nota.id}>
-                          <TableCell className="font-mono">{nota.codigo_nota}</TableCell>
+                          <TableCell className="font-mono">{codigoPedido ? `Nota ${codigoPedido}` : '—'}</TableCell>
                           <TableCell>{revendedora || '-'}</TableCell>
                           <TableCell className="text-right font-medium">
                             {formatarValor(nota.valor_total)}

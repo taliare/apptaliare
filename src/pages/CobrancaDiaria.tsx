@@ -286,7 +286,7 @@ export default function CobrancaDiaria() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('codigo_nota, revendedora')
+        .select('id, codigo_nota, revendedora')
         .eq('representante_id', user?.id);
       
       if (error) throw error;
@@ -302,6 +302,14 @@ export default function CobrancaDiaria() {
     }
     return acc;
   }, {} as Record<string, string>);
+
+  // Criar mapa de cobranca_id -> { codigo_nota, revendedora } para lookup reverso
+  const cobrancaIdMap = cobrancasAgendadas.reduce((acc, item) => {
+    if (item.id) {
+      acc[item.id] = { codigo_nota: item.codigo_nota || '', revendedora: item.revendedora };
+    }
+    return acc;
+  }, {} as Record<string, { codigo_nota: string; revendedora: string }>);
 
   // Lista única de nomes de revendedoras do representante para autocomplete
   const revendedorasUnicas = useMemo(() => {
@@ -1175,14 +1183,32 @@ export default function CobrancaDiaria() {
             ) : (
               <div className="space-y-2 max-h-[240px] sm:max-h-[280px] overflow-y-auto">
               {notas.map((nota) => {
-                  // Tentar encontrar no mapa ou extrair do código
-                  let revendedora = revendedoraMap[nota.codigo_nota];
-                  if (!revendedora && nota.codigo_nota) {
+                  // Resolver revendedora e código do pedido real
+                  let revendedora: string | undefined;
+                  let codigoPedido: string | undefined;
+
+                  // 1. Tentar via cobranca_id (lookup reverso)
+                  if (nota.cobranca_id && cobrancaIdMap[nota.cobranca_id]) {
+                    const mapped = cobrancaIdMap[nota.cobranca_id];
+                    revendedora = mapped.revendedora;
+                    codigoPedido = mapped.codigo_nota;
+                  }
+                  // 2. Tentar via revendedoraMap (código curto direto)
+                  else if (revendedoraMap[nota.codigo_nota]) {
+                    revendedora = revendedoraMap[nota.codigo_nota];
+                    codigoPedido = nota.codigo_nota;
+                  }
+                  // 3. Código gerado com formato NOME-14digitos
+                  else if (nota.codigo_nota) {
                     const match = nota.codigo_nota.match(/^(.+?)-\d{14}$/);
                     if (match) {
                       revendedora = match[1];
+                      codigoPedido = undefined; // sem código real
+                    } else {
+                      codigoPedido = nota.codigo_nota;
                     }
                   }
+
                   // Usar a coluna devolveu_tudo para identificar devoluções, não apenas valor zero
                   const isDevolveuTudo = nota.devolveu_tudo === true;
                   return (
@@ -1195,7 +1221,11 @@ export default function CobrancaDiaria() {
                           {revendedora && (
                             <p className="font-medium text-foreground truncate max-w-[140px] sm:max-w-none">{revendedora}</p>
                           )}
-                          <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">{nota.codigo_nota}</p>
+                          {codigoPedido ? (
+                            <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">Nota {codigoPedido}</p>
+                          ) : (
+                            <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">—</p>
+                          )}
                           {isDevolveuTudo && (
                             <p className="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400 font-medium mt-0.5">Devolveu tudo</p>
                           )}
