@@ -641,7 +641,18 @@ export default function DashboardAdmin() {
                       outerRadius={80}
                       paddingAngle={5}
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent, x, y }) => (
+                        <text
+                          x={x}
+                          y={y}
+                          fill="hsl(var(--foreground))"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fontSize={12}
+                        >
+                          {`${name} ${(percent * 100).toFixed(0)}%`}
+                        </text>
+                      )}
                       labelLine={false}
                     >
                       {dadosEstoquePie.map((_, index) => (
@@ -650,6 +661,7 @@ export default function DashboardAdmin() {
                     </Pie>
                     <Tooltip 
                       formatter={(value: number) => `${value} kits`}
+                      itemStyle={{ color: 'hsl(var(--foreground))' }}
                       contentStyle={{
                         backgroundColor: 'hsl(var(--card))',
                         border: '1px solid hsl(var(--border))',
