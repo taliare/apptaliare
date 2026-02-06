@@ -1,114 +1,106 @@
 
 
-# Plano: Feedback visual para acrescimos na Agenda de Cobranca
+# Plano: Exibir codigo do pedido + nome da revendedora nas Cobrancas de Hoje
 
-## Resumo
+## Problema identificado
 
-Adicionar feedback visual claro na Agenda de Cobrancas explicando quando e por que o acrescimo nao pode ser utilizado, sem alterar nenhuma regra de negocio existente.
+Quando uma nota e cobrada pela agenda, o sistema gera um `codigo_nota` no formato `NOME DA REVENDEDORA-06022026112222` (nome + timestamp de 14 digitos). Esse codigo longo e confuso e exibido na tela "Cobrancas de Hoje".
 
-## O que ja funciona
+Porem, cada nota na agenda de cobranca tem um **codigo do pedido real** (ex: `5271`, `5309`, `5420`), que e o codigo util para o representante.
 
-- Badges de tipo (KIT/REPASSE) ja existem no componente `CobrancaItem` (linhas 1383-1398)
-- O menu "Registrar joias adicionais" ja aparece apenas para `tipo === 'kit'` (linha 1492)
-- A logica de lookup do kit ja existe em `handleAcrescimoClick` (linhas 638-662)
+**Dados reais do banco confirmam o problema:**
 
-## O que sera alterado
+| notas_promissorias.codigo_nota (exibido) | cobrancas_agendadas.codigo_nota (real) | Revendedora |
+|---|---|---|
+| CAMILA CANDIDO DE CARVALHO-06022026112222 | 5271 | CAMILA CANDIDO DE CARVALHO |
+| VALDERLANDE LIMA DOS SANTOS-05022026123746 | 5421 | VALDERLANDE LIMA DOS SANTOS |
+| GRACIELE MANGABEIRA-05022026105007 | 5376 | GRACIELE MANGABEIRA |
 
-### Arquivo: `src/pages/Cobranca.tsx`
+## Solucao
 
-#### 1. Importar componentes de Tooltip
+Usar o campo `cobranca_id` da `notas_promissorias` (que referencia `cobrancas_agendadas.id`) para buscar o **codigo do pedido real** e a **revendedora** diretamente da agenda. Exibir apenas essas duas informacoes, sem o codigo gerado longo.
 
-Adicionar imports de `Tooltip`, `TooltipTrigger`, `TooltipContent` e `TooltipProvider` de `@/components/ui/tooltip`, e o icone `Info` de `lucide-react`.
+## Alteracoes
 
-#### 2. Modificar o menu dropdown no `CobrancaItem`
+### Arquivo 1: `src/pages/CobrancaDiaria.tsx` (visao do representante)
 
-Atualmente o item "Registrar joias adicionais" so aparece quando `cobranca.tipo === 'kit'`. A mudanca sera:
+#### 1.1 Expandir a query de lookup existente
 
-- **Sempre mostrar** o item no dropdown para todas as cobrancas
-- Calcular a razao de bloqueio com base nas regras existentes
-- Se permitido: item habilitado, funciona como hoje
-- Se bloqueado: item desabilitado + icone de informacao com tooltip explicativo
-
-Logica de determinacao:
+A query `cobrancas-agendadas-lookup` (linha 284) ja busca `codigo_nota, revendedora`. Sera adicionado o campo `id` para permitir o lookup reverso via `cobranca_id`.
 
 ```text
-Se tipo === 'repasse' ou tipo === 'acrescimo':
-  razao = "Acrescimos nao sao permitidos em notas de repasse."
-  bloqueado = true
-
-Se tipo nao e 'kit' (null ou outro) e nao tem kit_entregue_id:
-  razao = "Esta nota nao esta vinculada a um kit."
-  bloqueado = true
-
-Se tipo === 'kit' e status === 'pago': (caso futuro)
-  razao = "Este kit ja foi quitado. Acrescimos nao sao permitidos."
-  bloqueado = true
-
-Caso contrario:
-  bloqueado = false
+.select('id, codigo_nota, revendedora')
 ```
 
-#### 3. Implementacao no dropdown
+#### 1.2 Criar mapa de cobranca_id -> dados
 
-A opcao "Registrar joias adicionais" passara a ser renderizada assim:
-
-- **Quando permitido**: Mesmo comportamento atual, item clicavel em amber
-- **Quando bloqueado**: Item com `disabled` visual (opacity reduzida, cursor not-allowed), acompanhado de um icone (Info) com Tooltip mostrando a mensagem explicativa
-
-Como `DropdownMenuItem` nao suporta Tooltip de forma nativa dentro do menu, a abordagem sera:
-- Envolver o conteudo do `DropdownMenuItem` com `TooltipProvider` e `Tooltip`
-- Usar `onSelect` com `e.preventDefault()` para itens bloqueados, evitando fechamento do menu
-- Aplicar classes visuais de desabilitado (`opacity-50 cursor-not-allowed`)
-
-#### 4. Garantir badges visiveis
-
-Os badges de tipo (KIT/REPASSE) ja estao implementados e visiveis na lista. Nenhuma alteracao necessaria nesta parte, pois as linhas 1383-1398 ja exibem o tipo da nota com cores distintas:
-- KIT: borda e fundo primary
-- REPASSE: borda e fundo muted
-- ACRESCIMO: borda e fundo amber
-
-## Resultado visual esperado
-
-Para uma nota de REPASSE no dropdown:
+Novo mapa alem do `revendedoraMap` existente:
 
 ```text
-  Reagendar
-  Adiantamento
-  Registrar joias adicionais  [i]     (desabilitado, cinza)
-     "Acrescimos nao sao permitidos em notas de repasse."
-  Encaminhar ao Juridico
+cobrancaIdMap: Record<string, { codigo_nota: string, revendedora: string }>
+// Chave: id da cobranca_agendada
+// Valor: codigo do pedido real + nome da revendedora
 ```
 
-Para uma nota sem kit vinculado:
+#### 1.3 Atualizar exibicao em "Cobrancas de Hoje" (linhas 1177-1243)
+
+Logica para determinar o que exibir:
+
+1. Se `nota.cobranca_id` existe e esta no `cobrancaIdMap`: usar o codigo e revendedora do mapa
+2. Se `nota.codigo_nota` esta no `revendedoraMap` (codigo curto): usar como esta
+3. Se `nota.codigo_nota` tem formato gerado (`NOME-14digitos`): extrair so o nome, sem codigo
+
+Exibicao:
 
 ```text
-  Reagendar
-  Adiantamento
-  Registrar joias adicionais  [i]     (desabilitado, cinza)
-     "Esta nota nao esta vinculada a um kit."
-  Encaminhar ao Juridico
+Antes:
+  CAMILA CANDIDO DE CARVALHO
+  CAMILA CANDIDO DE CARVALHO-06022026112222    (codigo confuso)
+
+Depois:
+  CAMILA CANDIDO DE CARVALHO
+  Nota 5271                                    (codigo do pedido real)
 ```
 
-Para uma nota KIT pendente:
+Para notas com codigo curto (ja funcionam bem):
 
 ```text
-  Reagendar
-  Adiantamento
-  Registrar joias adicionais          (habilitado, amber)
-  Encaminhar ao Juridico
+Antes:
+  DANIELLE FERREIRA NEVES
+  5309
+
+Depois:
+  DANIELLE FERREIRA NEVES
+  Nota 5309                                    (prefixo "Nota" para clareza)
 ```
 
-## Arquivos alterados
+### Arquivo 2: `src/pages/FechamentoDiario.tsx` (visao do admin)
+
+#### 2.1 Mesma expansao da query de lookup (linha 141)
+
+Adicionar `id` ao select da query `cobrancas-agendadas-lookup-fechamento`.
+
+#### 2.2 Criar `cobrancaIdMap`
+
+Mesmo mapa que no CobrancaDiaria.
+
+#### 2.3 Atualizar tabela "Notas do Dia" (linhas 677-710)
+
+A coluna "Codigo" mostrara o codigo do pedido real (ex: `5271`) em vez do codigo gerado longo. A coluna "Revendedora" continuara mostrando o nome corretamente.
+
+Mesma logica: se tem `cobranca_id` no mapa, usa o codigo real. Senao, usa o codigo curto existente ou mostra "-" se for gerado.
+
+## Resumo de arquivos
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/pages/Cobranca.tsx` | Import Tooltip + Info icon, logica de bloqueio no CobrancaItem, dropdown com feedback visual |
+| `src/pages/CobrancaDiaria.tsx` | Expandir query de lookup com `id`, criar cobrancaIdMap, atualizar exibicao das notas |
+| `src/pages/FechamentoDiario.tsx` | Mesmas alteracoes para a visao do admin |
 
-## Restricoes respeitadas
+## O que NAO sera alterado
 
-- Nenhuma regra de negocio alterada
-- Nenhum fluxo novo criado
-- Nao impacta fechamento, DRE ou KPIs
-- Nenhuma funcionalidade removida
-- Apenas adicao de feedback visual
+- Nenhuma regra de negocio
+- Nenhuma tabela no banco de dados
+- Nenhum fluxo de cobranca existente
+- Apenas a **exibicao** das notas na tela de Fechamento do Dia
 
