@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -160,6 +160,35 @@ export default function Cobranca() {
     },
     enabled: !!userId,
   });
+
+  // Query para buscar acréscimos de todos os kits da agenda
+  const kitEntregueIds = useMemo(() => {
+    return [...new Set(cobrancas.filter(c => c.kit_entregue_id).map(c => c.kit_entregue_id as string))];
+  }, [cobrancas]);
+
+  const { data: acrescimosData = [] } = useQuery({
+    queryKey: ['acrescimos-kits-agenda', kitEntregueIds],
+    queryFn: async () => {
+      if (kitEntregueIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('acrescimos_pedido')
+        .select('id, kit_entregue_id, valor, descricao, status')
+        .in('kit_entregue_id', kitEntregueIds);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: kitEntregueIds.length > 0,
+  });
+
+  // Mapa de acréscimos agrupados por kit_entregue_id
+  const acrescimosMap = useMemo(() => {
+    const map: Record<string, Array<{ id: string; valor: number; descricao: string | null; status: string }>> = {};
+    for (const a of acrescimosData) {
+      if (!map[a.kit_entregue_id]) map[a.kit_entregue_id] = [];
+      map[a.kit_entregue_id].push({ id: a.id, valor: a.valor, descricao: a.descricao, status: a.status });
+    }
+    return map;
+  }, [acrescimosData]);
 
   // createMutation removido - apenas admin pode criar cobranças via /gerenciar-agenda
 
@@ -974,6 +1003,7 @@ export default function Cobranca() {
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
                   onAcrescimo={handleAcrescimoClick}
+                  acrescimos={cobranca.kit_entregue_id ? (acrescimosMap[cobranca.kit_entregue_id] || []) : []}
                   destacarVencida
                   animationDelay={index * 0.05}
                 />
@@ -1002,6 +1032,7 @@ export default function Cobranca() {
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
                   onAcrescimo={handleAcrescimoClick}
+                  acrescimos={cobranca.kit_entregue_id ? (acrescimosMap[cobranca.kit_entregue_id] || []) : []}
                   animationDelay={index * 0.05}
                 />
               ))}
@@ -1029,6 +1060,7 @@ export default function Cobranca() {
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
                   onAcrescimo={handleAcrescimoClick}
+                  acrescimos={cobranca.kit_entregue_id ? (acrescimosMap[cobranca.kit_entregue_id] || []) : []}
                   animationDelay={index * 0.05}
                 />
               ))}
@@ -1056,6 +1088,7 @@ export default function Cobranca() {
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
                   onAcrescimo={handleAcrescimoClick}
+                  acrescimos={cobranca.kit_entregue_id ? (acrescimosMap[cobranca.kit_entregue_id] || []) : []}
                   animationDelay={index * 0.05}
                 />
               ))}
@@ -1303,6 +1336,7 @@ function CobrancaItem({
   onAdiantamento,
   onJuridico,
   onAcrescimo,
+  acrescimos = [],
   destacarVencida = false,
   animationDelay = 0,
 }: {
@@ -1313,10 +1347,15 @@ function CobrancaItem({
   onAdiantamento: (cobranca: Cobranca) => void;
   onJuridico: (cobranca: Cobranca) => void;
   onAcrescimo: (cobranca: Cobranca) => void;
+  acrescimos?: Array<{ id: string; valor: number; descricao: string | null; status: string }>;
   destacarVencida?: boolean;
   animationDelay?: number;
 }) {
   const { profile } = useAuth();
+
+  const totalAcrescimos = acrescimos.reduce((acc, a) => acc + a.valor, 0);
+  const totalComAcrescimos = cobranca.valor_previsto + totalAcrescimos;
+  const temAcrescimos = acrescimos.length > 0 && cobranca.tipo === 'kit';
   
   return (
     <Card 
@@ -1370,7 +1409,12 @@ function CobrancaItem({
               )}
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <DollarSign className="h-4 w-4" />
-                <span className="font-semibold text-foreground text-base">{formatarValor(cobranca.valor_previsto)}</span>
+                <span className={cn(
+                  "font-semibold text-foreground text-base",
+                  temAcrescimos && "text-sm"
+                )}>
+                  {temAcrescimos ? `Kit: ${formatarValor(cobranca.valor_previsto)}` : formatarValor(cobranca.valor_previsto)}
+                </span>
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <CalendarIcon className="h-4 w-4" />
@@ -1382,6 +1426,29 @@ function CobrancaItem({
                 </span>
               </div>
             </div>
+
+            {/* Lista de acréscimos (joias adicionais) */}
+            {temAcrescimos && (
+              <div className="space-y-1 pl-1">
+                {acrescimos.map((a) => (
+                  <div key={a.id} className="flex items-center gap-1.5 text-xs">
+                    <Plus className="h-3 w-3 text-amber-600 shrink-0" />
+                    <span className="text-amber-700 dark:text-amber-400">
+                      {a.descricao || 'Joia adicional'}
+                    </span>
+                    <span className="font-semibold text-amber-700 dark:text-amber-400">
+                      {formatarValor(a.valor)}
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
+                  <DollarSign className="h-4 w-4 text-success" />
+                  <span className="font-bold text-success text-sm">
+                    Total: {formatarValor(totalComAcrescimos)}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {cobranca.observacoes && (
               <p className="text-xs text-muted-foreground">{cobranca.observacoes}</p>
