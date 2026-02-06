@@ -1,0 +1,327 @@
+import { useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DollarSign, CreditCard, Banknote, Wallet, TrendingDown, TrendingUp, CalendarDays, BarChart3 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { formatarValor } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+
+interface Profile {
+  id: string;
+  nome: string;
+  ativo: boolean | null;
+}
+
+interface ResumoRepresentante {
+  representante_id: string;
+  nome: string;
+  dias: number;
+  total_cobrado: number;
+  total_pix: number;
+  total_dinheiro: number;
+  total_cartao: number;
+  despesas: number;
+  saldo: number;
+  media_diaria: number;
+}
+
+interface FechamentoPeriodoViewProps {
+  periodoInicio: string;
+  periodoFim: string;
+  selectedRepresentante: string;
+  representantes: Profile[];
+}
+
+export function FechamentoPeriodoView({
+  periodoInicio,
+  periodoFim,
+  selectedRepresentante,
+  representantes,
+}: FechamentoPeriodoViewProps) {
+  const hasValidRange = periodoInicio && periodoFim && periodoInicio <= periodoFim;
+
+  const { data: cobrancasPeriodo = [], isLoading } = useQuery({
+    queryKey: ['fechamento-periodo', periodoInicio, periodoFim, selectedRepresentante],
+    queryFn: async () => {
+      let query = supabase
+        .from('cobrancas_diarias')
+        .select('*')
+        .gte('data', periodoInicio)
+        .lte('data', periodoFim);
+
+      if (selectedRepresentante) {
+        query = query.eq('representante_id', selectedRepresentante);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: hasValidRange,
+  });
+
+  const representantesMap = useMemo(() => {
+    return representantes.reduce((acc, r) => {
+      acc[r.id] = r.nome;
+      return acc;
+    }, {} as Record<string, string>);
+  }, [representantes]);
+
+  const resumoPorRepresentante = useMemo((): ResumoRepresentante[] => {
+    const agrupado: Record<string, {
+      dias: Set<string>;
+      total_cobrado: number;
+      total_pix: number;
+      total_dinheiro: number;
+      total_cartao: number;
+      despesas: number;
+    }> = {};
+
+    for (const c of cobrancasPeriodo) {
+      if (!agrupado[c.representante_id]) {
+        agrupado[c.representante_id] = {
+          dias: new Set(),
+          total_cobrado: 0,
+          total_pix: 0,
+          total_dinheiro: 0,
+          total_cartao: 0,
+          despesas: 0,
+        };
+      }
+
+      const g = agrupado[c.representante_id];
+      g.dias.add(c.data);
+      g.total_cobrado += c.total_cobrado || 0;
+      g.total_pix += c.total_pix || 0;
+      g.total_dinheiro += c.total_dinheiro || 0;
+      g.total_cartao += c.total_cartao || 0;
+      g.despesas += c.despesa_cobranca || 0;
+    }
+
+    return Object.entries(agrupado)
+      .map(([id, g]) => ({
+        representante_id: id,
+        nome: representantesMap[id] || 'Desconhecido',
+        dias: g.dias.size,
+        total_cobrado: g.total_cobrado,
+        total_pix: g.total_pix,
+        total_dinheiro: g.total_dinheiro,
+        total_cartao: g.total_cartao,
+        despesas: g.despesas,
+        saldo: g.total_cobrado - g.despesas,
+        media_diaria: g.dias.size > 0 ? g.total_cobrado / g.dias.size : 0,
+      }))
+      .sort((a, b) => b.total_cobrado - a.total_cobrado);
+  }, [cobrancasPeriodo, representantesMap]);
+
+  const totaisGerais = useMemo(() => {
+    return resumoPorRepresentante.reduce(
+      (acc, r) => ({
+        total_cobrado: acc.total_cobrado + r.total_cobrado,
+        total_pix: acc.total_pix + r.total_pix,
+        total_dinheiro: acc.total_dinheiro + r.total_dinheiro,
+        total_cartao: acc.total_cartao + r.total_cartao,
+        despesas: acc.despesas + r.despesas,
+        saldo: acc.saldo + r.saldo,
+        dias: acc.dias + r.dias,
+      }),
+      { total_cobrado: 0, total_pix: 0, total_dinheiro: 0, total_cartao: 0, despesas: 0, saldo: 0, dias: 0 }
+    );
+  }, [resumoPorRepresentante]);
+
+  if (!hasValidRange) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-muted-foreground">
+          Selecione um período válido para visualizar os dados consolidados
+        </p>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-muted-foreground">Carregando dados do período...</p>
+      </Card>
+    );
+  }
+
+  if (cobrancasPeriodo.length === 0) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-muted-foreground">
+          Nenhum fechamento encontrado neste período
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4 md:space-y-6">
+      {/* Cards de Totais Gerais */}
+      <div>
+        <h2 className="text-sm font-medium text-muted-foreground mb-3">Totais do Período</h2>
+        <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">PIX</CardTitle>
+              <div className="p-1.5 rounded-lg bg-blue-500/10">
+                <Wallet className="h-4 w-4 text-blue-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className="text-lg md:text-xl font-bold">{formatarValor(totaisGerais.total_pix)}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">Dinheiro</CardTitle>
+              <div className="p-1.5 rounded-lg bg-green-500/10">
+                <Banknote className="h-4 w-4 text-green-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className="text-lg md:text-xl font-bold">{formatarValor(totaisGerais.total_dinheiro)}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">Cartão/Transf.</CardTitle>
+              <div className="p-1.5 rounded-lg bg-purple-500/10">
+                <CreditCard className="h-4 w-4 text-purple-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className="text-lg md:text-xl font-bold">{formatarValor(totaisGerais.total_cartao)}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">Total Cobrado</CardTitle>
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <DollarSign className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className="text-lg md:text-xl font-bold text-primary">{formatarValor(totaisGerais.total_cobrado)}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">Despesas</CardTitle>
+              <div className="p-1.5 rounded-lg bg-red-500/10">
+                <TrendingDown className="h-4 w-4 text-red-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className="text-lg md:text-xl font-bold text-red-500">- {formatarValor(totaisGerais.despesas)}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-primary/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">Saldo Líquido</CardTitle>
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                {totaisGerais.saldo >= 0 ? (
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-red-500" />
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 md:p-4 pt-0">
+              <div className={cn(
+                "text-lg md:text-xl font-bold",
+                totaisGerais.saldo >= 0 ? "text-green-500" : "text-red-500"
+              )}>
+                {formatarValor(totaisGerais.saldo)}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Tabela por Representante */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Resumo por Representante
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Representante</TableHead>
+                  <TableHead className="text-center">Dias</TableHead>
+                  <TableHead className="text-right">Total Cobrado</TableHead>
+                  <TableHead className="text-right hidden md:table-cell">PIX</TableHead>
+                  <TableHead className="text-right hidden md:table-cell">Dinheiro</TableHead>
+                  <TableHead className="text-right hidden md:table-cell">Cartão</TableHead>
+                  <TableHead className="text-right">Despesas</TableHead>
+                  <TableHead className="text-right">Saldo</TableHead>
+                  <TableHead className="text-right hidden sm:table-cell">Média/Dia</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {resumoPorRepresentante.map((r) => (
+                  <TableRow key={r.representante_id}>
+                    <TableCell className="font-medium">{r.nome}</TableCell>
+                    <TableCell className="text-center">
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {r.dias}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-primary">
+                      {formatarValor(r.total_cobrado)}
+                    </TableCell>
+                    <TableCell className="text-right hidden md:table-cell">{formatarValor(r.total_pix)}</TableCell>
+                    <TableCell className="text-right hidden md:table-cell">{formatarValor(r.total_dinheiro)}</TableCell>
+                    <TableCell className="text-right hidden md:table-cell">{formatarValor(r.total_cartao)}</TableCell>
+                    <TableCell className="text-right text-red-500">- {formatarValor(r.despesas)}</TableCell>
+                    <TableCell className={cn(
+                      "text-right font-medium",
+                      r.saldo >= 0 ? "text-green-500" : "text-red-500"
+                    )}>
+                      {formatarValor(r.saldo)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground hidden sm:table-cell">
+                      {formatarValor(r.media_diaria)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+              <TableFooter>
+                <TableRow className="font-bold">
+                  <TableCell>Total</TableCell>
+                  <TableCell className="text-center">{totaisGerais.dias}</TableCell>
+                  <TableCell className="text-right text-primary">{formatarValor(totaisGerais.total_cobrado)}</TableCell>
+                  <TableCell className="text-right hidden md:table-cell">{formatarValor(totaisGerais.total_pix)}</TableCell>
+                  <TableCell className="text-right hidden md:table-cell">{formatarValor(totaisGerais.total_dinheiro)}</TableCell>
+                  <TableCell className="text-right hidden md:table-cell">{formatarValor(totaisGerais.total_cartao)}</TableCell>
+                  <TableCell className="text-right text-red-500">- {formatarValor(totaisGerais.despesas)}</TableCell>
+                  <TableCell className={cn(
+                    "text-right",
+                    totaisGerais.saldo >= 0 ? "text-green-500" : "text-red-500"
+                  )}>
+                    {formatarValor(totaisGerais.saldo)}
+                  </TableCell>
+                  <TableCell className="text-right hidden sm:table-cell">—</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

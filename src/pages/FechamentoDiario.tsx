@@ -9,13 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus, MessageSquare } from 'lucide-react';
-import { format } from 'date-fns';
+import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus, MessageSquare, CalendarRange } from 'lucide-react';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { cn, formatarValor } from '@/lib/utils';
+import { cn, formatarValor, getLocalDateString } from '@/lib/utils';
+import { FechamentoPeriodoView } from '@/components/fechamento/FechamentoPeriodoView';
 
 interface Profile {
   id: string;
@@ -77,6 +78,11 @@ export default function FechamentoDiario() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [despesaCobranca, setDespesaCobranca] = useState('');
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  // Estados do modo período
+  const [modoPeriodo, setModoPeriodo] = useState(false);
+  const [periodoInicio, setPeriodoInicio] = useState(getLocalDateString(startOfMonth(new Date())));
+  const [periodoFim, setPeriodoFim] = useState(getLocalDateString(endOfMonth(new Date())));
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
@@ -379,13 +385,36 @@ export default function FechamentoDiario() {
           </p>
         </div>
 
+        {/* Toggle Dia Único / Período */}
+        <div className="flex gap-2">
+          <Button
+            variant={!modoPeriodo ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setModoPeriodo(false)}
+          >
+            <CalendarIcon className="h-4 w-4 mr-2" />
+            Dia único
+          </Button>
+          <Button
+            variant={modoPeriodo ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setModoPeriodo(true)}
+          >
+            <CalendarRange className="h-4 w-4 mr-2" />
+            Selecionar período
+          </Button>
+        </div>
+
         {/* Filtros */}
         <div className="flex flex-col sm:flex-row gap-3">
           <Select value={selectedRepresentante} onValueChange={setSelectedRepresentante}>
             <SelectTrigger className="w-full sm:w-[280px]">
-              <SelectValue placeholder="Selecione um representante" />
+              <SelectValue placeholder={modoPeriodo ? "Todos os representantes" : "Selecione um representante"} />
             </SelectTrigger>
             <SelectContent>
+              {modoPeriodo && (
+                <SelectItem value="todos">Todos os representantes</SelectItem>
+              )}
               {representantes.map((rep) => (
                 <SelectItem key={rep.id} value={rep.id}>
                   {rep.nome}
@@ -394,32 +423,63 @@ export default function FechamentoDiario() {
             </SelectContent>
           </Select>
 
-          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-[200px] justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {format(selectedDate, "dd 'de' MMMM, yyyy", { locale: ptBR })}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => {
-                  if (date) {
-                    setSelectedDate(date);
-                    setIsCalendarOpen(false);
-                  }
-                }}
-                locale={ptBR}
-                disabled={(date) => date > new Date()}
-              />
-            </PopoverContent>
-          </Popover>
+          {!modoPeriodo ? (
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-[200px] justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(selectedDate, "dd 'de' MMMM, yyyy", { locale: ptBR })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      setSelectedDate(date);
+                      setIsCalendarOpen(false);
+                    }
+                  }}
+                  locale={ptBR}
+                  disabled={(date) => date > new Date()}
+                />
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs whitespace-nowrap">De:</Label>
+                <Input
+                  type="date"
+                  value={periodoInicio}
+                  onChange={(e) => setPeriodoInicio(e.target.value)}
+                  className="h-9 w-full sm:w-[160px] text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs whitespace-nowrap">Até:</Label>
+                <Input
+                  type="date"
+                  value={periodoFim}
+                  onChange={(e) => setPeriodoFim(e.target.value)}
+                  className="h-9 w-full sm:w-[160px] text-sm"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {!selectedRepresentante ? (
+      {/* Modo Período */}
+      {modoPeriodo ? (
+        <FechamentoPeriodoView
+          periodoInicio={periodoInicio}
+          periodoFim={periodoFim}
+          selectedRepresentante={selectedRepresentante === 'todos' ? '' : selectedRepresentante}
+          representantes={representantes}
+        />
+      ) : !selectedRepresentante ? (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">
             Selecione um representante para visualizar o fechamento
