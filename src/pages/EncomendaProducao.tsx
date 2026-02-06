@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { profilesLimited } from '@/lib/profilesLimited';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,9 +23,7 @@ type Encomenda = {
   status: string;
   codigo_kit: string | null;
   criado_em: string;
-  profiles: {
-    nome: string;
-  };
+  representante_nome: string | null;
 };
 
 export default function EncomendaProducao() {
@@ -39,11 +38,31 @@ export default function EncomendaProducao() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('encomendas_kits')
-        .select('*, profiles!encomendas_kits_representante_id_fkey(nome)')
+        .select('*')
         .order('criado_em', { ascending: false });
 
       if (error) throw error;
-      return data as Encomenda[];
+
+      // Buscar nomes dos representantes via profiles_limited
+      const representanteIds = [...new Set((data || []).map(e => e.representante_id))];
+      let namesMap: Record<string, string> = {};
+
+      if (representanteIds.length > 0) {
+        const { data: profiles } = await profilesLimited()
+          .select('id, nome')
+          .in('id', representanteIds);
+
+        if (profiles) {
+          namesMap = Object.fromEntries(
+            profiles.map((p: { id: string; nome: string }) => [p.id, p.nome])
+          );
+        }
+      }
+
+      return (data || []).map(e => ({
+        ...e,
+        representante_nome: namesMap[e.representante_id] || null,
+      })) as Encomenda[];
     },
   });
 
@@ -238,7 +257,7 @@ export default function EncomendaProducao() {
                       <TableCell>
                         {format(new Date(encomenda.criado_em), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
-                      <TableCell>{encomenda.profiles?.nome}</TableCell>
+                      <TableCell>{encomenda.representante_nome ?? '—'}</TableCell>
                       <TableCell>{getTipoKitLabel(encomenda.tipo_kit)}</TableCell>
                       <TableCell>{getStatusBadge(encomenda.status)}</TableCell>
                       <TableCell>
@@ -268,7 +287,7 @@ export default function EncomendaProducao() {
             <div className="space-y-4 py-4">
               <div>
                 <Label className="text-muted-foreground">Representante</Label>
-                <p className="font-medium">{selectedEncomenda.profiles?.nome}</p>
+                <p className="font-medium">{selectedEncomenda.representante_nome ?? '—'}</p>
               </div>
 
               <div>
