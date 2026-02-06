@@ -1,74 +1,54 @@
 
 
-# Plano: Adicionar opcao de acrescimo no Fechamento do Dia e corrigir na Agenda de Cobranca
+# Plano: Corrigir acrescimo por kit individual e restaurar exclusao de entrega
 
-## Problema Identificado
+## Problemas Identificados
 
-Existem **dois problemas** distintos:
+### Problema 1: Acrescimo aparece "no geral", nao por kit individual
 
-1. **Fechamento do Dia (CobrancaDiaria.tsx)**: A pagina nao possui NENHUMA funcionalidade de acrescimo. Nao existe o modal, nem botoes, nem imports relacionados.
+Na tela de Fechamento do Dia, a secao "Entregas de Kits" lista os kits entregues no dia. Porem, cada kit individual na lista **nao tem** um botao para adicionar joias adicionais. A opcao de acrescimo so existe dentro do dialog de **nova entrega** (como secao geral), mas nao aparece como acao individual por kit ja entregue.
 
-2. **Agenda de Cobranca (Cobranca.tsx)**: A opcao "Registrar joias adicionais" existe no codigo, mas so aparece quando `cobranca.tipo === 'kit' AND cobranca.kit_entregue_id != null`. Existem 41 cobrancas do tipo kit sem `kit_entregue_id` preenchido (registros mais antigos, antes da implementacao), para as quais a opcao nao aparece.
+**Solucao**: Adicionar um botao "+" (joias adicionais) em cada kit listado na secao "Entregas de Kits", ao lado do botao de excluir. Ao clicar, abre o `ModalRegistrarAcrescimo` para aquele kit especifico.
+
+### Problema 2: Excluir entrega de kit nao funciona
+
+A funcao RPC `reverter_entrega_kit_atomico` tenta deletar registros nesta ordem:
+1. Deleta `cobrancas_agendadas` vinculadas ao kit
+2. Deleta `kits_entregues`
+
+Porem, com a criacao da tabela `acrescimos_pedido`, existem duas Foreign Keys que bloqueiam a exclusao:
+
+```text
+acrescimos_pedido.kit_entregue_id --> kits_entregues.id (sem CASCADE)
+acrescimos_pedido.cobranca_id --> cobrancas_agendadas.id (sem CASCADE)
+```
+
+Ao tentar excluir, o banco retorna erro de violacao de FK porque existem acrescimos vinculados que precisam ser deletados primeiro.
+
+**Solucao**: Atualizar a funcao RPC `reverter_entrega_kit_atomico` para deletar acrescimos ANTES de deletar cobrancas e o kit.
 
 ---
 
-## Etapa 1: Adicionar funcionalidade de acrescimo no Fechamento do Dia (CobrancaDiaria.tsx)
+## Alteracoes
 
-### 1a. Importar o modal e adicionar estados
+### 1. Atualizar funcao RPC `reverter_entrega_kit_atomico` (Migracao SQL)
 
-- Importar `ModalRegistrarAcrescimo` de `@/components/cobranca/ModalRegistrarAcrescimo`
-- Importar icone `Plus` do lucide-react
-- Adicionar estados: `modalAcrescimoOpen` e `cobrancaParaAcrescimo`
+Adicionar etapa de exclusao dos acrescimos vinculados ao kit, na ordem correta:
 
-### 1b. Botao de acrescimo na busca de nota
-
-No dialog "Buscar Nota", quando uma nota e encontrada e e do tipo `kit`, adicionar um botao "Registrar joias adicionais" ao lado do botao "Cobrar". Ao clicar:
-- Fecha o dialog de busca
-- Abre o modal de acrescimo com os dados da cobranca encontrada
-
-### 1c. Botao de acrescimo na entrega de kit
-
-No dialog "Registrar Entrega de Kit", apos selecionar o kit e preencher os dados, adicionar uma secao opcional (identica a que foi feita em Kits.tsx):
-- Botao `[ + Adicionar valor adicional ]`
-- Campos: Valor (R$) e Observacao
-- Lista dinamica (multiplos acrescimos)
-- No submit, apos a entrega via RPC, chamar `registrar_acrescimo_pedido` para cada acrescimo
-
-### 1d. Renderizar o modal de acrescimo
-
-Adicionar o componente `ModalRegistrarAcrescimo` no final do JSX, conectado aos estados criados.
-
----
-
-## Etapa 2: Melhorar a condicao na Agenda de Cobranca (Cobranca.tsx)
-
-### Situacao atual
-
-A opcao "Registrar joias adicionais" so aparece quando:
 ```text
-cobranca.tipo === 'kit' && cobranca.kit_entregue_id
+Ordem de exclusao:
+1. DELETE FROM acrescimos_pedido WHERE kit_entregue_id = p_kit_entregue_id
+2. DELETE FROM cobrancas_agendadas WHERE kit_entregue_id = p_kit_entregue_id (ja existe)
+3. DELETE FROM kits_entregues WHERE id = p_kit_entregue_id (ja existe)
 ```
 
-Isso exclui 41 cobrancas tipo `kit` que nao possuem `kit_entregue_id` (registros anteriores a implementacao).
+### 2. Adicionar botao de acrescimo por kit na lista de entregas (`CobrancaDiaria.tsx`)
 
-### Solucao
+Na secao "Entregas de Kits" (linhas ~1342-1378), cada kit listado atualmente mostra apenas codigo, revendedora e botao de excluir. Alterar para:
 
-Relaxar a condicao para mostrar a opcao para TODOS os kits. Para kits sem `kit_entregue_id`, buscar o ID correspondente na tabela `kits_entregues` usando o `codigo_nota` antes de abrir o modal.
-
-Alterar a funcao `handleAcrescimoClick` para:
-1. Se a cobranca ja tem `kit_entregue_id`, abrir o modal diretamente
-2. Se nao tem, fazer um lookup rapido: buscar em `kits_entregues` pelo `codigo_mostruario` = `cobranca.codigo_nota`
-3. Se encontrar, abrir o modal com o `kit_entregue_id` encontrado
-4. Se nao encontrar, exibir um toast de erro informando que o kit nao foi encontrado
-
-Alterar a condicao no `DropdownMenu` de:
-```text
-cobranca.tipo === 'kit' && cobranca.kit_entregue_id
-```
-Para:
-```text
-cobranca.tipo === 'kit'
-```
+- Adicionar um botao `Plus` (cor amber) ao lado do botao de excluir em cada kit
+- Ao clicar, buscar o `kit_entregue_id` do kit (ja disponivel no `entrega.id` que vem de `kits_entregues`)
+- Abrir o `ModalRegistrarAcrescimo` com os dados daquele kit especifico (id, revendedora, codigo)
 
 ---
 
@@ -76,37 +56,39 @@ cobranca.tipo === 'kit'
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/pages/CobrancaDiaria.tsx` | Adicionar import do modal, estados, botao de acrescimo na busca de nota, secao de acrescimos na entrega de kit, renderizar modal |
-| `src/pages/Cobranca.tsx` | Relaxar condicao do menu para kits sem kit_entregue_id, adicionar lookup automatico |
+| Migracao SQL | Recriar `reverter_entrega_kit_atomico` com etapa de exclusao de acrescimos |
+| `src/pages/CobrancaDiaria.tsx` | Adicionar botao de acrescimo individual por kit na lista de entregas |
 
 ---
 
 ## Detalhes Tecnicos
 
-### CobrancaDiaria.tsx - Novos estados
+### Migracao SQL - reverter_entrega_kit_atomico atualizada
+
+A funcao precisa ser recriada com `CREATE OR REPLACE` adicionando antes da exclusao de cobrancas:
+
 ```text
-- modalAcrescimoOpen: boolean
-- cobrancaParaAcrescimo: Cobranca | null
+-- NOVO: Deletar acrescimos vinculados ao kit (e suas cobrancas)
+DELETE FROM acrescimos_pedido WHERE kit_entregue_id = p_kit_entregue_id;
+
+-- Depois, deletar cobrancas (incluindo tipo 'acrescimo')
+DELETE FROM cobrancas_agendadas WHERE kit_entregue_id = p_kit_entregue_id OR (...fallback...);
+
+-- Por fim, deletar o kit_entregue
+DELETE FROM kits_entregues WHERE id = p_kit_entregue_id;
 ```
 
-### CobrancaDiaria.tsx - Botao no dialog "Buscar Nota"
-Ao lado do botao "Cobrar", adicionar botao "Joias adicionais" (visivel apenas para tipo kit com kit_entregue_id). Ao clicar:
-1. Fechar dialog de busca
-2. Setar cobrancaParaAcrescimo
-3. Abrir modalAcrescimoOpen
+### CobrancaDiaria.tsx - Botao por kit individual
 
-### CobrancaDiaria.tsx - Secao de acrescimos na entrega de kit
-Reutilizar o mesmo padrao do Kits.tsx:
-- Array local de acrescimos [{valor, observacao}]
-- Botao para adicionar/remover itens
-- Apos entregaKitMutation.onSuccess, chamar registrar_acrescimo_pedido para cada acrescimo
+No mapeamento de `entregasDoDia` (linha ~1343), cada item do kit tera:
 
-### Cobranca.tsx - Lookup de kit_entregue_id
-Nova funcao handleAcrescimoClick que faz lookup quando necessario:
 ```text
-1. Se cobranca.kit_entregue_id existe -> abrir modal direto
-2. Se nao existe -> buscar kit_entregue_id via supabase query
-3. Se encontrar -> setar no state e abrir modal
-4. Se nao encontrar -> toast.error("Kit nao encontrado")
+[codigo]  [revendedora]  [+ acrescimo] [x excluir]
 ```
+
+O botao `+` chama:
+1. `setCobrancaParaAcrescimo` com dados do kit (id como kit_entregue_id, revendedora, codigo_nota)
+2. `setModalAcrescimoOpen(true)`
+
+O `ModalRegistrarAcrescimo` ja esta importado e renderizado no final do JSX, bastando conectar os estados.
 
