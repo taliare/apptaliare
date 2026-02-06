@@ -1,52 +1,62 @@
 
+# Plano: Corrigir legibilidade do grafico "Estoque por Tipo" no tema escuro
 
-# Plano: Renomear "Dashboard" para "Painel Geral"
+## Problema
 
-## Contexto
+No grafico de pizza "Estoque por Tipo" do Painel Admin, os rotulos (labels) dos segmentos usam cor preta por padrao, tornando-os invisiveis no fundo escuro do tema dark.
 
-O termo "Dashboard" e um anglicismo que pode nao ser intuitivo para todos os usuarios. A proposta e renomear todos os textos visiveis de "Dashboard" para **"Painel Geral"** (representante/producao) e **"Painel Admin"** (administrador), mantendo as rotas e nomes internos de variaveis/tabelas inalterados para evitar quebras.
+A causa esta na linha 644 do arquivo `src/pages/DashboardAdmin.tsx`:
 
-## O que sera alterado (apenas textos de exibicao)
+```text
+label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+```
 
-### 1. Menu lateral desktop - `src/components/AppSidebar.tsx`
+Os labels sao renderizados como texto SVG sem cor definida, resultando em preto (`#000`).
 
-| Antes | Depois |
-|---|---|
-| `title: "Dashboard"` (representante) | `title: "Painel Geral"` |
-| `title: "Dashboard"` (producao) | `title: "Painel Geral"` |
-| `title: "Dashboard Admin"` (admin) | `title: "Painel Admin"` |
+## Solucao
 
-### 2. Menu mobile - `src/components/MobileDrawer.tsx`
+Trocar o label de uma funcao que retorna string para uma funcao que retorna um elemento SVG `<text>` com a cor `hsl(var(--foreground))`, que se adapta automaticamente ao tema ativo (branco no escuro, escuro no claro).
 
-| Antes | Depois |
-|---|---|
-| `title: 'Dashboard'` (representante) | `title: 'Painel Geral'` |
-| `title: 'Dashboard'` (producao) | `title: 'Painel Geral'` |
-| `title: 'Dashboard Admin'` (admin) | `title: 'Painel Admin'` |
+### Arquivo: `src/pages/DashboardAdmin.tsx`
 
-### 3. Tela de usuarios (admin) - `src/pages/Usuarios.tsx`
+Substituir a prop `label` do componente `Pie` (linha 644) de:
 
-| Antes | Depois |
-|---|---|
-| `Habilitar Dashboard` (label do switch) | `Habilitar Painel Geral` |
+```text
+label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+```
 
-### 4. Rotas e nomes internos
+Para uma render function que retorna um elemento `<text>` SVG:
 
-As URLs (`/dashboard`, `/dashboard-admin`), nomes de componentes (`Dashboard`, `DashboardAdmin`), variaveis internas (`habilitarDashboard`, `habilitar_dashboard`) e colunas do banco **NAO serao alterados**. Isso garante que nada quebra -- apenas os textos que o usuario ve na tela mudam.
+```text
+label={({ name, percent, x, y }) => (
+  <text
+    x={x}
+    y={y}
+    fill="hsl(var(--foreground))"
+    textAnchor="middle"
+    dominantBaseline="central"
+    fontSize={12}
+  >
+    {`${name} ${(percent * 100).toFixed(0)}%`}
+  </text>
+)}
+```
 
-## Resumo de arquivos
+Tambem sera adicionada a prop `itemStyle` no Tooltip para garantir que o texto dentro do tooltip use a cor correta:
+
+```text
+itemStyle={{ color: 'hsl(var(--foreground))' }}
+```
+
+## Resumo
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/components/AppSidebar.tsx` | 3 textos de menu renomeados |
-| `src/components/MobileDrawer.tsx` | 3 textos de menu renomeados |
-| `src/pages/Usuarios.tsx` | 1 label de switch renomeada |
+| `src/pages/DashboardAdmin.tsx` | Label do PieChart com cor adaptavel ao tema + tooltip legivel |
 
-## O que NAO sera alterado
+## O que NAO muda
 
-- URLs/rotas (continuam `/dashboard` e `/dashboard-admin`)
-- Nomes de componentes e funcoes
-- Variaveis internas e colunas do banco de dados
+- Dados exibidos no grafico
+- Layout ou posicao do grafico
 - Nenhuma logica de negocio
-- Nenhuma funcionalidade existente
-
+- Nenhum outro componente
