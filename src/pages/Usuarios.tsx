@@ -840,7 +840,7 @@ export default function Usuarios() {
                 </div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="dashboard" className="font-normal">
-                    Habilitar Dashboard
+                    Habilitar Painel Geral
                   </Label>
                   <Switch
                     id="dashboard"
