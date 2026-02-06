@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { cn, formatarValor, formatarNumero, getLocalDateString } from '@/lib/utils';
 import { sanitizeString } from '@/lib/validations';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
+import { ModalRegistrarAcrescimo } from '@/components/cobranca/ModalRegistrarAcrescimo';
 import { RevendedoraAutocomplete } from '@/components/RevendedoraAutocomplete';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -86,6 +87,13 @@ export default function CobrancaDiaria() {
   const [vendedoraId, setVendedoraId] = useState('');
   const [revendedoraKit, setRevendedoraKit] = useState('');
   const [dataVencimentoKit, setDataVencimentoKit] = useState<string>(getLocalDateString(addDays(new Date(), 60)));
+
+  // State para modal de acréscimo
+  const [modalAcrescimoOpen, setModalAcrescimoOpen] = useState(false);
+  const [cobrancaParaAcrescimo, setCobrancaParaAcrescimo] = useState<Cobranca | null>(null);
+
+  // State para acréscimos na entrega de kit
+  const [acrescimosKit, setAcrescimosKit] = useState<Array<{ valor: string; observacao: string }>>([]);
 
   // Form states for Cobrança Diária
   const [despesaCobranca, setDespesaCobranca] = useState('');
@@ -464,13 +472,35 @@ export default function CobrancaDiaria() {
       
       return response;
     },
-    onSuccess: () => {
+    onSuccess: async (response: any) => {
+      // Registrar acréscimos se houver
+      if (acrescimosKit.length > 0 && response.kit_entregue_id) {
+        for (const acrescimo of acrescimosKit) {
+          const valorNumerico = parseValorFormatado(acrescimo.valor);
+          if (valorNumerico > 0) {
+            try {
+              await supabase.rpc('registrar_acrescimo_pedido', {
+                p_kit_entregue_id: response.kit_entregue_id,
+                p_user_id: user!.id,
+                p_revendedora: sanitizeString(revendedoraKit),
+                p_valor: valorNumerico,
+                p_descricao: acrescimo.observacao || null,
+                p_data_vencimento: dataVencimentoKit,
+              });
+            } catch (err) {
+              console.error('Erro ao registrar acréscimo:', err);
+            }
+          }
+        }
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep-diaria'] });
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       queryClient.invalidateQueries({ queryKey: ['kits-entregues-dia'] });
       queryClient.invalidateQueries({ queryKey: ['detalhes-kits-cobrancas'] });
       queryClient.invalidateQueries({ queryKey: ['kits-entregues-representante'] });
-      toast.success('Entrega de kit registrada com sucesso!');
+      const msgAcrescimos = acrescimosKit.length > 0 ? ` com ${acrescimosKit.length} acréscimo(s)` : '';
+      toast.success(`Entrega de kit registrada com sucesso${msgAcrescimos}!`);
       resetKitEntregaForm();
       setIsKitEntregaDialogOpen(false);
     },
@@ -517,6 +547,7 @@ export default function CobrancaDiaria() {
     setVendedoraId('');
     setRevendedoraKit('');
     setDataVencimentoKit(getLocalDateString(addDays(new Date(), 60)));
+    setAcrescimosKit([]);
   };
 
   const handleSubmitKitEntrega = () => {
@@ -544,6 +575,41 @@ export default function CobrancaDiaria() {
       vendedoraNome: vincularVendedora && vendedoraSelecionada ? vendedoraSelecionada.nome : undefined,
       dataVencimento: dataVencimentoKit
     });
+  };
+
+  // Função para abrir modal de acréscimo a partir da busca de nota
+  const handleAcrescimoFromBusca = async () => {
+    if (!notaEncontrada) return;
+    
+    let kitEntregueId = notaEncontrada.kit_entregue_id;
+    
+    // Se não tem kit_entregue_id, fazer lookup
+    if (!kitEntregueId && notaEncontrada.codigo_nota) {
+      const { data } = await supabase
+        .from('kits_entregues')
+        .select('id')
+        .eq('codigo_mostruario', notaEncontrada.codigo_nota)
+        .eq('representante_id', user!.id)
+        .limit(1)
+        .maybeSingle();
+      
+      if (data) {
+        kitEntregueId = data.id;
+      } else {
+        toast.error('Kit entregue não encontrado para esta nota');
+        return;
+      }
+    }
+    
+    if (!kitEntregueId) {
+      toast.error('Kit entregue não encontrado');
+      return;
+    }
+    
+    // Setar a cobrança com o kit_entregue_id resolvido
+    setCobrancaParaAcrescimo({ ...notaEncontrada, kit_entregue_id: kitEntregueId });
+    setIsBuscarNotaDialogOpen(false);
+    setModalAcrescimoOpen(true);
   };
 
   // Mutation para excluir nota da cobrança de hoje e devolver para agenda
@@ -1226,13 +1292,25 @@ export default function CobrancaDiaria() {
                             <Badge variant="outline">{notaEncontrada.status}</Badge>
                           </div>
                         </div>
-                        <Button 
-                          className="w-full mt-2" 
-                          onClick={handleAbrirModalCobrar}
-                        >
-                          <DollarSign className="h-4 w-4 mr-1" />
-                          Cobrar
-                        </Button>
+                        <div className="flex gap-2 mt-2">
+                          <Button 
+                            className="flex-1" 
+                            onClick={handleAbrirModalCobrar}
+                          >
+                            <DollarSign className="h-4 w-4 mr-1" />
+                            Cobrar
+                          </Button>
+                          {notaEncontrada.tipo === 'kit' && (
+                            <Button
+                              variant="outline"
+                              className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                              onClick={handleAcrescimoFromBusca}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Joias adicionais
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1420,6 +1498,61 @@ export default function CobrancaDiaria() {
                         className="w-full"
                       />
                     </div>
+
+                    {/* Seção de Joias Adicionais */}
+                    <div className="border-t pt-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">Joias Adicionais (opcional)</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAcrescimosKit([...acrescimosKit, { valor: '', observacao: '' }])}
+                          className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Adicionar
+                        </Button>
+                      </div>
+                      {acrescimosKit.map((acrescimo, index) => (
+                        <div key={index} className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Acréscimo {index + 1}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setAcrescimosKit(acrescimosKit.filter((_, i) => i !== index))}
+                              className="h-6 w-6 p-0 text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                            <Input
+                              className="pl-10"
+                              value={acrescimo.valor}
+                              onChange={(e) => {
+                                const novos = [...acrescimosKit];
+                                novos[index].valor = formatarValorInput(e.target.value);
+                                setAcrescimosKit(novos);
+                              }}
+                              placeholder="0,00"
+                            />
+                          </div>
+                          <Input
+                            value={acrescimo.observacao}
+                            onChange={(e) => {
+                              const novos = [...acrescimosKit];
+                              novos[index].observacao = e.target.value;
+                              setAcrescimosKit(novos);
+                            }}
+                            placeholder="Observação (ex: brincos extras)"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsKitEntregaDialogOpen(false)}>
@@ -1559,6 +1692,20 @@ export default function CobrancaDiaria() {
           diasNaoFinalizados={diasNaoFinalizados}
           onPagamentoCompleto={handlePagamentoCompleto}
           onPagamentoParcial={handlePagamentoParcial}
+        />
+      )}
+
+      {/* Modal de Acréscimo */}
+      {cobrancaParaAcrescimo && cobrancaParaAcrescimo.kit_entregue_id && (
+        <ModalRegistrarAcrescimo
+          open={modalAcrescimoOpen}
+          onOpenChange={(open) => {
+            setModalAcrescimoOpen(open);
+            if (!open) setCobrancaParaAcrescimo(null);
+          }}
+          kitEntregueId={cobrancaParaAcrescimo.kit_entregue_id}
+          revendedora={cobrancaParaAcrescimo.revendedora}
+          codigoKit={cobrancaParaAcrescimo.codigo_nota || ''}
         />
       )}
 
