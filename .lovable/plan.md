@@ -1,47 +1,47 @@
 
-
-# Plano: Corrigir nome do representante nas encomendas (perfil producao)
+# Plano: Paginacao na lista de encomendas (10 por pagina)
 
 ## Problema
 
-Na tela de encomendas da producao (`/encomendas-producao`), a coluna "Representante" aparece vazia. A resposta da API retorna `"profiles": null` para todos os registros.
-
-**Causa raiz**: A query usa um JOIN via foreign key (`profiles!encomendas_kits_representante_id_fkey(nome)`), mas o usuario com role `producao` nao tem permissao de leitura na tabela `profiles` (RLS restringe a apenas o proprio perfil ou admin). Por isso, o JOIN retorna `null`.
+A lista de encomendas mostra todos os registros de uma vez, ficando extensa e poluindo a visualizacao.
 
 ## Solucao
 
-Usar a mesma abordagem ja adotada no componente `EncomendaAlertBanner.tsx`: buscar os nomes dos representantes separadamente via a view `profiles_limited`, que nao possui restricoes de RLS e expoe apenas campos nao sensiveis (id, nome, ativo, avatar_url).
+Adicionar paginacao client-side com 10 itens por pagina e controles de navegacao (anterior/proximo) no rodape da tabela.
 
 ## Alteracoes
 
 ### Arquivo: `src/pages/EncomendaProducao.tsx`
 
-1. **Importar** `profilesLimited` de `@/lib/profilesLimited`
+1. **Novo estado** para controlar a pagina atual:
+   - `const [paginaAtual, setPaginaAtual] = useState(1);`
+   - Resetar para pagina 1 quando o filtro de status mudar
 
-2. **Alterar a query** `encomendas-producao`:
-   - Remover o JOIN `profiles!encomendas_kits_representante_id_fkey(nome)` do select
-   - Usar `select('*')` apenas
-   - Apos buscar as encomendas, extrair os `representante_id` unicos
-   - Buscar os nomes via `profilesLimited().select('id, nome').in('id', representanteIds)`
-   - Mapear o nome do representante em cada encomenda
+2. **Calcular a fatia visivel** das encomendas filtradas:
+   - `ITENS_POR_PAGINA = 10`
+   - `totalPaginas = Math.ceil(encomendasFiltradas.length / ITENS_POR_PAGINA)`
+   - `encomendasPaginadas = encomendasFiltradas.slice((paginaAtual - 1) * 10, paginaAtual * 10)`
 
-3. **Atualizar o tipo** `Encomenda`:
-   - Trocar `profiles: { nome: string }` por `representante_nome: string | null`
+3. **Substituir** `encomendasFiltradas.map(...)` por `encomendasPaginadas.map(...)` na tabela
 
-4. **Atualizar as referencias na interface**:
-   - Na tabela: trocar `encomenda.profiles?.nome` por `encomenda.representante_nome`
-   - No modal de detalhes: mesma troca
+4. **Adicionar controles de paginacao** abaixo da tabela:
+   - Texto informativo: "Mostrando X-Y de Z encomendas"
+   - Botao "Anterior" (desabilitado na primeira pagina)
+   - Indicador de pagina atual / total
+   - Botao "Proximo" (desabilitado na ultima pagina)
+   - Usar os componentes `Button` ja existentes com icones `ChevronLeft` e `ChevronRight` do lucide-react
 
-## Resumo de arquivos
+5. **Resetar pagina** ao trocar de aba de status (dentro do `onValueChange` do Tabs)
+
+## Resumo
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/pages/EncomendaProducao.tsx` | Query sem JOIN, busca nomes via profiles_limited, atualiza tipo e referencias |
+| `src/pages/EncomendaProducao.tsx` | Estado de paginacao, fatia de dados, controles de navegacao, reset ao trocar filtro |
 
 ## O que NAO muda
 
-- Nenhuma tabela ou politica de seguranca no banco de dados
-- Nenhuma funcionalidade existente (acoes de marcar em producao, finalizar, notificacoes)
+- Nenhuma query ou busca de dados (todos os dados continuam sendo carregados)
+- Nenhuma funcionalidade existente (acoes, modal, notificacoes)
 - Nenhum outro componente ou pagina
-- Layout e visual da tela permanecem identicos
-
+- Layout geral da tela
