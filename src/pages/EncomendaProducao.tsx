@@ -12,8 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Package } from 'lucide-react';
+import { Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+const ITENS_POR_PAGINA = 10;
 
 type Encomenda = {
   id: string;
@@ -32,6 +34,7 @@ export default function EncomendaProducao() {
   const [selectedEncomenda, setSelectedEncomenda] = useState<Encomenda | null>(null);
   const [codigoKit, setCodigoKit] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('todos');
+  const [paginaAtual, setPaginaAtual] = useState(1);
 
   const { data: encomendas = [], isLoading } = useQuery({
     queryKey: ['encomendas-producao'],
@@ -209,6 +212,10 @@ export default function EncomendaProducao() {
     filtroStatus === 'todos' ? true : e.status === filtroStatus
   );
 
+  const totalPaginas = Math.ceil(encomendasFiltradas.length / ITENS_POR_PAGINA);
+  const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+  const encomendasPaginadas = encomendasFiltradas.slice(inicio, inicio + ITENS_POR_PAGINA);
+
   return (
     <div className="space-y-6">
       <div>
@@ -216,7 +223,7 @@ export default function EncomendaProducao() {
         <p className="text-muted-foreground">Gerencie as encomendas dos representantes</p>
       </div>
 
-      <Tabs value={filtroStatus} onValueChange={setFiltroStatus}>
+      <Tabs value={filtroStatus} onValueChange={(v) => { setFiltroStatus(v); setPaginaAtual(1); }}>
         <TabsList>
           <TabsTrigger value="todos">Todos</TabsTrigger>
           <TabsTrigger value="solicitado">
@@ -241,38 +248,70 @@ export default function EncomendaProducao() {
                 <p className="text-muted-foreground">Nenhuma encomenda encontrada</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Representante</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {encomendasFiltradas.map((encomenda) => (
-                    <TableRow key={encomenda.id}>
-                      <TableCell>
-                        {format(new Date(encomenda.criado_em), 'dd/MM/yyyy', { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>{encomenda.representante_nome ?? '—'}</TableCell>
-                      <TableCell>{getTipoKitLabel(encomenda.tipo_kit)}</TableCell>
-                      <TableCell>{getStatusBadge(encomenda.status)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenModal(encomenda)}
-                        >
-                          Ver Detalhes
-                        </Button>
-                      </TableCell>
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Representante</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Ação</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {encomendasPaginadas.map((encomenda) => (
+                      <TableRow key={encomenda.id}>
+                        <TableCell>
+                          {format(new Date(encomenda.criado_em), 'dd/MM/yyyy', { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>{encomenda.representante_nome ?? '—'}</TableCell>
+                        <TableCell>{getTipoKitLabel(encomenda.tipo_kit)}</TableCell>
+                        <TableCell>{getStatusBadge(encomenda.status)}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenModal(encomenda)}
+                          >
+                            Ver Detalhes
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {totalPaginas > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Mostrando {inicio + 1}–{Math.min(inicio + ITENS_POR_PAGINA, encomendasFiltradas.length)} de {encomendasFiltradas.length} encomendas
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
+                        disabled={paginaAtual === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Anterior
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {paginaAtual} / {totalPaginas}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPaginaAtual((p) => Math.min(totalPaginas, p + 1))}
+                        disabled={paginaAtual === totalPaginas}
+                      >
+                        Próximo
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </Card>
         </TabsContent>
