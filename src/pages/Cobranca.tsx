@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, Plus } from 'lucide-react';
+import { Calendar as CalendarIcon, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, Plus, Info } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cobrancaInsertSchema, cobrancaUpdateSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
@@ -1489,12 +1490,48 @@ function CobrancaItem({
                   <TrendingDown className="h-4 w-4 mr-2" />
                   Adiantamento
                 </DropdownMenuItem>
-                {cobranca.tipo === 'kit' && (
-                  <DropdownMenuItem onClick={() => onAcrescimo(cobranca)} className="text-amber-600">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Registrar joias adicionais
-                  </DropdownMenuItem>
-                )}
+                {(() => {
+                  const tipo = cobranca.tipo?.toLowerCase();
+                  const isRepasse = tipo === 'repasse' || tipo === 'acrescimo';
+                  const semKit = !isRepasse && !cobranca.kit_entregue_id && tipo !== 'kit';
+                  const kitQuitado = tipo === 'kit' && cobranca.status === 'pago';
+                  const bloqueado = isRepasse || semKit || kitQuitado;
+                  const razao = isRepasse
+                    ? 'Acréscimos não são permitidos em notas de repasse.'
+                    : semKit
+                    ? 'Esta nota não está vinculada a um kit.'
+                    : kitQuitado
+                    ? 'Este kit já foi quitado. Acréscimos não são permitidos.'
+                    : '';
+
+                  if (bloqueado) {
+                    return (
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm text-muted-foreground opacity-50"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Registrar joias adicionais
+                              <Info className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-[220px] text-xs">
+                            {razao}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    );
+                  }
+
+                  return (
+                    <DropdownMenuItem onClick={() => onAcrescimo(cobranca)} className="text-amber-600">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Registrar joias adicionais
+                    </DropdownMenuItem>
+                  );
+                })()}
                 <DropdownMenuItem onClick={() => onJuridico(cobranca)} className="text-purple-600">
                   <Scale className="h-4 w-4 mr-2" />
                   Encaminhar ao Jurídico
