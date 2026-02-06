@@ -1,62 +1,119 @@
 
-# Plano: Corrigir legibilidade do grafico "Estoque por Tipo" no tema escuro
 
-## Problema
+# Plano: Adicionar Filtro por Periodo ao Fechamento Diario
 
-No grafico de pizza "Estoque por Tipo" do Painel Admin, os rotulos (labels) dos segmentos usam cor preta por padrao, tornando-os invisiveis no fundo escuro do tema dark.
+## Contexto
 
-A causa esta na linha 644 do arquivo `src/pages/DashboardAdmin.tsx`:
+A tela de Fechamento Diario atualmente permite visualizar um unico dia por vez, selecionando representante + data. O objetivo e adicionar um modo "Periodo" que consolida os dados de varios dias em uma visao resumida, sem alterar o fechamento diario existente.
+
+## Como vai funcionar
+
+### Dois modos de visualizacao
+
+O admin podera alternar entre:
+
+1. **Dia unico** (modo atual, padrao) -- nada muda
+2. **Periodo** (novo) -- exibe totais consolidados de um intervalo de datas
+
+### Comportamento da interface
+
+- Um toggle/botao "Selecionar periodo" aparece ao lado do filtro de data existente
+- Ao ativar o modo periodo, o calendario de dia unico e substituido por dois campos de data (inicial e final)
+- Ao desativar, volta ao modo diario original
+- O filtro de representante continua funcionando normalmente: se nenhum for selecionado, mostra todos; se um for selecionado, filtra apenas ele
+
+### Dados exibidos no modo periodo
+
+Para cada representante (ou o selecionado):
+
+- Nome do representante
+- Total cobrado no periodo (soma de `total_cobrado` de `cobrancas_diarias`)
+- Total por forma de pagamento (PIX, Dinheiro, Cartao)
+- Despesas totais
+- Saldo liquido (cobrado - despesas)
+- Quantidade de dias com fechamento no periodo
+- Media diaria (total / dias)
+
+### Visao consolidada geral
+
+Cards no topo mostrando os totais gerais (todos os representantes ou o selecionado):
+- Total PIX, Dinheiro, Cartao, Total Cobrado
+- Total Despesas, Saldo Liquido
+
+Abaixo, uma tabela com o resumo por representante.
+
+## Alteracoes tecnicas
+
+### Arquivo: `src/pages/FechamentoDiario.tsx`
+
+#### 1. Novos estados
 
 ```text
-label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+const [modoPeriodo, setModoPeriodo] = useState(false);
+const [periodoInicio, setPeriodoInicio] = useState(''); // YYYY-MM-DD
+const [periodoFim, setPeriodoFim] = useState('');       // YYYY-MM-DD
 ```
 
-Os labels sao renderizados como texto SVG sem cor definida, resultando em preto (`#000`).
+#### 2. Nova query para dados do periodo
 
-## Solucao
-
-Trocar o label de uma funcao que retorna string para uma funcao que retorna um elemento SVG `<text>` com a cor `hsl(var(--foreground))`, que se adapta automaticamente ao tema ativo (branco no escuro, escuro no claro).
-
-### Arquivo: `src/pages/DashboardAdmin.tsx`
-
-Substituir a prop `label` do componente `Pie` (linha 644) de:
+Busca em `cobrancas_diarias` todos os registros no intervalo de datas. Se um representante estiver selecionado, filtra por ele; senao, traz todos.
 
 ```text
-label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+queryKey: ['fechamento-periodo', periodoInicio, periodoFim, selectedRepresentante]
+queryFn: busca cobrancas_diarias onde data >= periodoInicio AND data <= periodoFim
+  (e opcionalmente representante_id = selectedRepresentante)
 ```
 
-Para uma render function que retorna um elemento `<text>` SVG:
+#### 3. Processamento dos dados
+
+Agrupar por `representante_id`:
+- Somar `total_cobrado`, `total_pix`, `total_dinheiro`, `total_cartao`, `despesa_cobranca`
+- Contar quantidade de dias
+- Calcular media diaria
+
+Cruzar com a lista de `representantes` ja carregada para obter os nomes.
+
+#### 4. Interface condicional
+
+- Se `modoPeriodo === false`: renderiza exatamente o que existe hoje (nenhuma mudanca)
+- Se `modoPeriodo === true`: renderiza a nova visao consolidada:
+  - Cards de totais gerais no topo
+  - Tabela com colunas: Representante, Dias, Total Cobrado, PIX, Dinheiro, Cartao, Despesas, Saldo, Media/Dia
+  - Linha de totais no rodape da tabela
+
+#### 5. Botao de toggle no header
+
+Ao lado dos filtros existentes, um botao para alternar:
 
 ```text
-label={({ name, percent, x, y }) => (
-  <text
-    x={x}
-    y={y}
-    fill="hsl(var(--foreground))"
-    textAnchor="middle"
-    dominantBaseline="central"
-    fontSize={12}
-  >
-    {`${name} ${(percent * 100).toFixed(0)}%`}
-  </text>
-)}
+[Dia unico]  [Selecionar periodo]
 ```
 
-Tambem sera adicionada a prop `itemStyle` no Tooltip para garantir que o texto dentro do tooltip use a cor correta:
+Quando "Selecionar periodo" esta ativo:
+- O calendario de dia unico fica oculto
+- Aparecem dois inputs de data (inicio e fim)
+- O botao muda de estilo para indicar o modo ativo
 
-```text
-itemStyle={{ color: 'hsl(var(--foreground))' }}
-```
+#### 6. Secoes que NAO aparecem no modo periodo
 
-## Resumo
+- Status do dia (finalizado/aberto)
+- Tabela de notas individuais
+- Tabela de kits entregues
+- Acoes do administrador (finalizar/reabrir)
+
+Essas secoes so fazem sentido no contexto de um dia especifico.
+
+## Resumo de arquivos
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/pages/DashboardAdmin.tsx` | Label do PieChart com cor adaptavel ao tema + tooltip legivel |
+| `src/pages/FechamentoDiario.tsx` | Adicionar toggle de modo, query de periodo, visao consolidada |
 
-## O que NAO muda
+## O que NAO sera alterado
 
-- Dados exibidos no grafico
-- Layout ou posicao do grafico
-- Nenhuma logica de negocio
-- Nenhum outro componente
+- Nenhuma tabela no banco de dados
+- Nenhuma logica de fechamento existente
+- Nenhuma funcionalidade atual (tudo continua funcionando como antes)
+- DRE, KPIs e demais telas
+- Nenhuma regra de negocio -- apenas leitura e exibicao de dados existentes
+
