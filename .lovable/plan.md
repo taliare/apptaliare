@@ -1,51 +1,166 @@
 
 
-# Security Re-Scan Results: All Clear
+# Plano: Acrescimo de Pedido (Joias Adicionais)
 
-## Scan Overview
+## Resumo
 
-A full security re-scan was performed and returned **16 findings** across 3 scanners. After careful analysis of every RLS policy (93 total), **all findings are either already addressed or are false positives**. No code or database changes are needed.
+Implementar a funcionalidade de "Acrescimo de Pedido" que permite representantes registrarem valores extras (joias adicionais) vinculados a um kit entregue, sem alterar o valor base do kit. Os acrescimos impactam o valor total a cobrar, comissoes, receita e inadimplencia.
 
-## Why the Findings Are False Positives
+---
 
-The scanner flags tables that lack an explicit "deny anonymous access" policy. However, your database uses **RESTRICTIVE** policies exclusively, which means:
+## Etapa 1: Criar tabela no banco de dados
 
-- If no policy matches a user, access is **denied by default**
-- Anonymous users have no matching policy on any table, so they are automatically blocked
-- The scan confirmed this: **0 rows returned** for every table when queried with the anonymous key
+Nova tabela `acrescimos_pedido` com os campos:
 
-## Findings to Mark as Resolved
+```text
+acrescimos_pedido
+  - id (uuid, PK, default gen_random_uuid())
+  - kit_entregue_id (uuid, NOT NULL) -- referencia kits_entregues
+  - cobranca_id (uuid) -- referencia cobrancas_agendadas (a cobranca gerada pelo acrescimo)
+  - representante_id (uuid, NOT NULL)
+  - revendedora (text, NOT NULL)
+  - valor (numeric, NOT NULL)
+  - descricao (text)
+  - data_lancamento (date, NOT NULL, default CURRENT_DATE)
+  - status (text, NOT NULL, default 'pendente') -- pendente, cobrado, pago
+  - criado_em (timestamptz, default now())
+```
 
-### Error Level (4 findings - all false positives)
+Politicas RLS (RESTRICTIVE):
+- Admin: ALL
+- Representante: SELECT, INSERT, UPDATE onde `representante_id = auth.uid()`
 
-1. **profiles_table_public_exposure** -- The `profiles` table has 5 RESTRICTIVE policies: admin-only SELECT and own-profile SELECT. No anonymous access possible.
+---
 
-2. **leads_revendedoras_data_exposure** -- All 4 policies are RESTRICTIVE and admin-only. External leads are inserted via service_role Edge Function which bypasses RLS.
+## Etapa 2: Criar funcao RPC atomica
 
-3. **revendedoras public access** -- 2 RESTRICTIVE policies: admin manages all, representante sees own. Anonymous users blocked.
+Funcao `registrar_acrescimo_pedido` que em uma unica transacao:
 
-4. **profiles_limited no RLS** -- This is a SECURITY DEFINER view by design. It only exposes non-sensitive fields (id, nome, ativo, avatar_url). Views cannot have RLS policies in PostgreSQL; the security is enforced by the view definition itself.
+1. Valida que o kit_entregue pertence ao representante
+2. Insere o acrescimo na tabela `acrescimos_pedido`
+3. Cria uma nova `cobranca_agendada` do tipo `'acrescimo'` com o valor do acrescimo, vinculada a mesma revendedora
+4. Atualiza o `cobranca_id` no acrescimo com o ID da cobranca criada
+5. Retorna JSON de sucesso com IDs
 
-### Warn Level (8 findings - all false positives)
+Essa cobranca entra automaticamente na agenda do representante (pendente), e sera cobrada normalmente pelo fluxo existente de pagamento (completo, parcial, repasse).
 
-Tables flagged: `cobrancas_agendadas`, `notas_promissorias`, `prestacoes_contas`, `cobrancas_diarias`, `repasses`, `messages`, `user_roles`, `audit_logs`
+---
 
-All of these have RESTRICTIVE policies requiring either admin role or ownership (`representante_id = auth.uid()`). No anonymous access is possible.
+## Etapa 3: Interface -- Tela de Entrega do Kit (Kits.tsx)
 
-## Implementation Steps
+Apos selecionar o kit e preencher os dados da entrega, adicionar uma secao **opcional** de acrescimo:
 
-1. Mark all 3 remaining `supabase_lov` findings as **ignored** with detailed justifications explaining the RESTRICTIVE policy architecture
-2. No SQL migrations needed
-3. No code changes needed
+- Exibir valor base do kit (somente leitura, ja existe)
+- Botao `[ + Adicionar valor adicional ]` que expande campos:
+  - Valor do acrescimo (R$)
+  - Observacao (texto livre, ex: "brincos extras")
+- Permitir adicionar multiplos acrescimos (lista dinamica)
+- No submit, apos a entrega do kit via RPC, chamar `registrar_acrescimo_pedido` para cada acrescimo
 
-## Technical Details
+---
 
-The action is purely administrative -- updating the security dashboard to reflect that these scanner alerts are false positives. Each finding will be marked with a specific justification referencing the exact RLS policies that protect the table.
+## Etapa 4: Interface -- Agenda de Cobranca (Cobranca.tsx)
 
-### Current Security Posture (confirmed secure)
-- 26 tables, all with RLS enabled
-- 93 RLS policies, all RESTRICTIVE type
-- 0 rows accessible via anonymous key
-- Sensitive fields (email, whatsapp) isolated behind profiles_limited view
-- Lead insertion restricted to admin role only
+### 4a. Exibir acrescimos no card da cobranca
+
+Quando uma cobranca for do tipo `kit`, buscar acrescimos vinculados ao mesmo `kit_entregue_id` e exibir:
+- Badge `ACRESCIMO` ao lado de cobrancas do tipo `acrescimo`
+- Na listagem, os acrescimos aparecem como cobrancas separadas (pois sao registros independentes em `cobrancas_agendadas`)
+
+### 4b. Acao "Registrar Joias Adicionais"
+
+No menu "Mais opcoes" de cada cobranca do tipo `kit` (ja entregue):
+- Nova opcao: `+ Registrar joias adicionais`
+- Abre modal com campos: Valor, Observacao, Data de vencimento
+- Chama a RPC `registrar_acrescimo_pedido`
+- Invalida queries para atualizar a agenda
+
+---
+
+## Etapa 5: Cobranca e Prestacao de Contas
+
+O fluxo existente ja suporta isso sem alteracoes, porque:
+
+- Cada acrescimo gera uma `cobranca_agendada` independente (tipo `acrescimo`)
+- O representante cobra e recebe normalmente (pagamento completo, parcial, repasse)
+- A `prestacao_contas` e criada pelo fluxo existente
+- A `nota_promissoria` alimenta o fechamento diario normalmente
+
+Nenhuma alteracao necessaria nos fluxos de pagamento.
+
+---
+
+## Etapa 6: Comissao
+
+A comissao ja e calculada automaticamente pelo `ModalReceberCobranca`:
+- Para tipo `kit`: calcula comissao percentual baseada no valor da venda
+- Para tipo `repasse`: sem comissao
+- Para tipo `acrescimo`: usara a mesma logica do `kit` (baseada no valor da venda informado)
+
+Nenhuma alteracao necessaria no calculo de comissao.
+
+---
+
+## Etapa 7: DRE e KPIs
+
+### DRE (DreResumo.tsx)
+- Nenhuma alteracao necessaria
+- O DRE usa `cobrancas_diarias.total_cobrado` como fonte oficial
+- Acrescimos cobrados entram no fechamento diario via notas promissorias, como qualquer outra cobranca
+- A receita total ja inclui naturalmente os acrescimos
+
+### KPIs (RelatorioKpis.tsx)
+- Nenhuma alteracao necessaria
+- Os acrescimos entram nos totais existentes (Total Cobrado, Valor Vencido, Repasses Ativos, Ticket Medio)
+- NAO criar KPIs duplicados, conforme a regra
+
+---
+
+## Resumo de Arquivos Alterados
+
+| Arquivo | Tipo de Alteracao |
+|---|---|
+| Migracao SQL | Nova tabela `acrescimos_pedido`, funcao RPC, politicas RLS |
+| `src/pages/Kits.tsx` | Adicionar secao de acrescimos na entrega |
+| `src/pages/Cobranca.tsx` | Adicionar acao "Registrar joias adicionais" no menu de opcoes, badge para tipo acrescimo |
+| `src/components/cobranca/ModalReceberCobranca.tsx` | Nenhuma alteracao (ja funciona com o novo tipo) |
+| `src/pages/DreResumo.tsx` | Nenhuma alteracao |
+| `src/pages/RelatorioKpis.tsx` | Nenhuma alteracao |
+
+---
+
+## Detalhes Tecnicos
+
+### Migracao SQL completa
+
+```text
+1. CREATE TABLE acrescimos_pedido (...)
+2. ALTER TABLE acrescimos_pedido ENABLE ROW LEVEL SECURITY
+3. Criar 4 politicas RLS RESTRICTIVE (admin ALL, representante SELECT/INSERT/UPDATE)
+4. CREATE FUNCTION registrar_acrescimo_pedido(...) RETURNS json
+   - Parametros: p_kit_entregue_id, p_user_id, p_revendedora, p_valor, p_descricao, p_data_vencimento
+   - Insere acrescimo
+   - Cria cobranca_agendada tipo 'acrescimo'
+   - Retorna JSON com IDs
+```
+
+### Fluxo de dados
+
+```text
+Entrega Kit --> kit_entregue + cobranca_agendada (tipo=kit)
+                    |
+                    +--> acrescimo_pedido + cobranca_agendada (tipo=acrescimo)
+                    +--> acrescimo_pedido + cobranca_agendada (tipo=acrescimo)
+                    ...
+
+Cada cobranca_agendada segue o fluxo normal:
+  cobrar --> nota_promissoria --> fechamento_diario --> DRE/KPIs
+```
+
+### Restricoes respeitadas
+- Valor base do kit NUNCA e alterado
+- Nenhum novo tipo de pedido criado
+- DRE e KPIs nao quebram (os acrescimos entram naturalmente nos totais)
+- Historico financeiro permanece auditavel
+- Sem alteracao em valores historicos
 
