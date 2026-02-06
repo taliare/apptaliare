@@ -609,9 +609,30 @@ export default function Cobranca() {
     juridicoMutation.mutate(cobranca.id);
   };
 
-  const handleAcrescimoClick = (cobranca: Cobranca) => {
-    setCobrancaParaAcrescimo(cobranca);
-    setModalAcrescimoOpen(true);
+  const handleAcrescimoClick = async (cobranca: Cobranca) => {
+    if (cobranca.kit_entregue_id) {
+      // Já tem kit_entregue_id, abrir modal direto
+      setCobrancaParaAcrescimo(cobranca);
+      setModalAcrescimoOpen(true);
+    } else if (cobranca.codigo_nota) {
+      // Fazer lookup do kit_entregue_id
+      const { data } = await supabase
+        .from('kits_entregues')
+        .select('id')
+        .eq('codigo_mostruario', cobranca.codigo_nota)
+        .eq('representante_id', userId!)
+        .limit(1)
+        .maybeSingle();
+      
+      if (data) {
+        setCobrancaParaAcrescimo({ ...cobranca, kit_entregue_id: data.id });
+        setModalAcrescimoOpen(true);
+      } else {
+        toast({ title: 'Kit entregue não encontrado para esta nota', variant: 'destructive' });
+      }
+    } else {
+      toast({ title: 'Nota sem código de kit associado', variant: 'destructive' });
+    }
   };
 
   const handleConfirmarReagendamento = () => {
@@ -1423,7 +1444,7 @@ function CobrancaItem({
                   <TrendingDown className="h-4 w-4 mr-2" />
                   Adiantamento
                 </DropdownMenuItem>
-                {cobranca.tipo === 'kit' && cobranca.kit_entregue_id && (
+                {cobranca.tipo === 'kit' && (
                   <DropdownMenuItem onClick={() => onAcrescimo(cobranca)} className="text-amber-600">
                     <Plus className="h-4 w-4 mr-2" />
                     Registrar joias adicionais
