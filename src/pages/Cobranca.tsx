@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, HelpCircle } from 'lucide-react';
+import { Calendar as CalendarIcon, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, HelpCircle, Plus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +18,7 @@ import { formatarValor, parseLocalDate, formatDateBR, getLocalDateString } from 
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
 import { ModalSenhaAdmin } from '@/components/cobranca/ModalSenhaAdmin';
 import { TutorialCobranca } from '@/components/cobranca/TutorialCobranca';
+import { ModalRegistrarAcrescimo } from '@/components/cobranca/ModalRegistrarAcrescimo';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -71,6 +72,10 @@ export default function Cobranca() {
   const [showTutorial, setShowTutorial] = useState(() => {
     return !localStorage.getItem('tutorial_cobranca_visto');
   });
+  
+  // State para modal de acréscimo
+  const [modalAcrescimoOpen, setModalAcrescimoOpen] = useState(false);
+  const [cobrancaParaAcrescimo, setCobrancaParaAcrescimo] = useState<Cobranca | null>(null);
   
   const [formData, setFormData] = useState<CobrancaFormData>({
     revendedora: '',
@@ -604,6 +609,11 @@ export default function Cobranca() {
     juridicoMutation.mutate(cobranca.id);
   };
 
+  const handleAcrescimoClick = (cobranca: Cobranca) => {
+    setCobrancaParaAcrescimo(cobranca);
+    setModalAcrescimoOpen(true);
+  };
+
   const handleConfirmarReagendamento = () => {
     if (!cobrancaParaReagendar || !novaDataAgendada) return;
     
@@ -954,6 +964,7 @@ export default function Cobranca() {
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
+                  onAcrescimo={handleAcrescimoClick}
                   destacarVencida
                   animationDelay={index * 0.05}
                 />
@@ -981,6 +992,7 @@ export default function Cobranca() {
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
+                  onAcrescimo={handleAcrescimoClick}
                   animationDelay={index * 0.05}
                 />
               ))}
@@ -1007,6 +1019,7 @@ export default function Cobranca() {
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
+                  onAcrescimo={handleAcrescimoClick}
                   animationDelay={index * 0.05}
                 />
               ))}
@@ -1033,6 +1046,7 @@ export default function Cobranca() {
                   onReagendar={handleReagendarClick}
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
+                  onAcrescimo={handleAcrescimoClick}
                   animationDelay={index * 0.05}
                 />
               ))}
@@ -1253,6 +1267,20 @@ export default function Cobranca() {
         </DialogContent>
       </Dialog>
 
+      {/* Modal de Acréscimo */}
+      {cobrancaParaAcrescimo && cobrancaParaAcrescimo.kit_entregue_id && (
+        <ModalRegistrarAcrescimo
+          open={modalAcrescimoOpen}
+          onOpenChange={(open) => {
+            setModalAcrescimoOpen(open);
+            if (!open) setCobrancaParaAcrescimo(null);
+          }}
+          kitEntregueId={cobrancaParaAcrescimo.kit_entregue_id}
+          revendedora={cobrancaParaAcrescimo.revendedora}
+          codigoKit={cobrancaParaAcrescimo.codigo_nota || ''}
+        />
+      )}
+
       {/* Tutorial */}
       <TutorialCobranca 
         open={showTutorial} 
@@ -1275,6 +1303,7 @@ function CobrancaItem({
   onReagendar,
   onAdiantamento,
   onJuridico,
+  onAcrescimo,
   destacarVencida = false,
   animationDelay = 0,
 }: {
@@ -1284,6 +1313,7 @@ function CobrancaItem({
   onReagendar: (cobranca: Cobranca) => void;
   onAdiantamento: (cobranca: Cobranca) => void;
   onJuridico: (cobranca: Cobranca) => void;
+  onAcrescimo: (cobranca: Cobranca) => void;
   destacarVencida?: boolean;
   animationDelay?: number;
 }) {
@@ -1319,11 +1349,13 @@ function CobrancaItem({
                     "transition-all duration-200 text-[10px] sm:text-xs shrink-0",
                     cobranca.tipo === 'kit' 
                       ? 'border-primary/50 bg-primary/10 text-primary' 
+                      : cobranca.tipo === 'acrescimo'
+                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400'
                       : 'border-muted-foreground/50 bg-muted text-muted-foreground'
                   )}
                 >
                   <Package className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5" />
-                  {cobranca.tipo.toUpperCase()}
+                  {cobranca.tipo === 'acrescimo' ? 'ACRÉSCIMO' : cobranca.tipo.toUpperCase()}
                 </Badge>
               )}
             </div>
@@ -1391,6 +1423,12 @@ function CobrancaItem({
                   <TrendingDown className="h-4 w-4 mr-2" />
                   Adiantamento
                 </DropdownMenuItem>
+                {cobranca.tipo === 'kit' && cobranca.kit_entregue_id && (
+                  <DropdownMenuItem onClick={() => onAcrescimo(cobranca)} className="text-amber-600">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Registrar joias adicionais
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => onJuridico(cobranca)} className="text-purple-600">
                   <Scale className="h-4 w-4 mr-2" />
                   Encaminhar ao Jurídico

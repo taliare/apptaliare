@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      acrescimos_pedido: {
+        Row: {
+          cobranca_id: string | null
+          criado_em: string | null
+          data_lancamento: string
+          descricao: string | null
+          id: string
+          kit_entregue_id: string
+          representante_id: string
+          revendedora: string
+          status: string
+          valor: number
+        }
+        Insert: {
+          cobranca_id?: string | null
+          criado_em?: string | null
+          data_lancamento?: string
+          descricao?: string | null
+          id?: string
+          kit_entregue_id: string
+          representante_id: string
+          revendedora: string
+          status?: string
+          valor: number
+        }
+        Update: {
+          cobranca_id?: string | null
+          criado_em?: string | null
+          data_lancamento?: string
+          descricao?: string | null
+          id?: string
+          kit_entregue_id?: string
+          representante_id?: string
+          revendedora?: string
+          status?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acrescimos_pedido_cobranca_id_fkey"
+            columns: ["cobranca_id"]
+            isOneToOne: false
+            referencedRelation: "cobrancas_agendadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acrescimos_pedido_kit_entregue_id_fkey"
+            columns: ["kit_entregue_id"]
+            isOneToOne: false
+            referencedRelation: "kits_entregues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acrescimos_pedido_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acrescimos_pedido_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -1159,6 +1227,17 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      registrar_acrescimo_pedido: {
+        Args: {
+          p_data_vencimento?: string
+          p_descricao?: string
+          p_kit_entregue_id: string
+          p_revendedora: string
+          p_user_id: string
+          p_valor: number
+        }
+        Returns: Json
       }
       reverter_entrega_kit: {
         Args: { p_codigo_kit: string; p_user_id: string }
