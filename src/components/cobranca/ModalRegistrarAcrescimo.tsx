@@ -81,6 +81,7 @@ export function ModalRegistrarAcrescimo({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       queryClient.invalidateQueries({ queryKey: ['kits-entregues-representante'] });
+      queryClient.invalidateQueries({ queryKey: ['acrescimos-kits-dia'] });
       toast.success('Acréscimo registrado com sucesso!');
       resetForm();
       onOpenChange(false);
