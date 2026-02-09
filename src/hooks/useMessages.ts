@@ -38,7 +38,7 @@ export function useMessages() {
   const queryClient = useQueryClient();
   const { playMessageSound } = useNotificationSound();
   const previousUnreadRef = useRef<number>(0);
-  const isInitialLoadRef = useRef(true);
+  const mountedAtRef = useRef<number>(Date.now());
 
   // Fetch all messages
   const { data: messages = [], isLoading, refetch } = useQuery({
@@ -169,9 +169,9 @@ export function useMessages() {
 
   // Play sound when new messages arrive
   useEffect(() => {
-    if (isInitialLoadRef.current) {
+    const elapsedSinceMount = Date.now() - mountedAtRef.current;
+    if (elapsedSinceMount < 5000) {
       previousUnreadRef.current = unreadCount;
-      isInitialLoadRef.current = false;
       return;
     }
 
