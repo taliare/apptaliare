@@ -115,6 +115,7 @@ export type Database = {
           criado_em: string | null
           data_agendada: string
           data_encaminhado_juridico: string | null
+          data_quitacao: string | null
           id: string
           kit_entregue_id: string | null
           observacoes: string | null
@@ -123,6 +124,7 @@ export type Database = {
           status: Database["public"]["Enums"]["status_cobranca"] | null
           tipo: string | null
           valor_adiantado: number | null
+          valor_pago_acumulado: number | null
           valor_previsto: number
           vendedora: string | null
           vendedora_id: string | null
@@ -132,6 +134,7 @@ export type Database = {
           criado_em?: string | null
           data_agendada: string
           data_encaminhado_juridico?: string | null
+          data_quitacao?: string | null
           id?: string
           kit_entregue_id?: string | null
           observacoes?: string | null
@@ -140,6 +143,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_cobranca"] | null
           tipo?: string | null
           valor_adiantado?: number | null
+          valor_pago_acumulado?: number | null
           valor_previsto: number
           vendedora?: string | null
           vendedora_id?: string | null
@@ -149,6 +153,7 @@ export type Database = {
           criado_em?: string | null
           data_agendada?: string
           data_encaminhado_juridico?: string | null
+          data_quitacao?: string | null
           id?: string
           kit_entregue_id?: string | null
           observacoes?: string | null
@@ -157,6 +162,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_cobranca"] | null
           tipo?: string | null
           valor_adiantado?: number | null
+          valor_pago_acumulado?: number | null
           valor_previsto?: number
           vendedora?: string | null
           vendedora_id?: string | null

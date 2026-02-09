@@ -685,10 +685,18 @@ export default function CobrancaDiaria() {
       if (deleteError) throw deleteError;
 
       if (cobrancaOriginal) {
-        // Restaurar cobrança original para pendente (exatamente como estava)
+        // Restaurar cobrança: reverter valor_pago_acumulado e status
+        const acumuladoAtual = (cobrancaOriginal as any).valor_pago_acumulado || 0;
+        const novoAcumulado = Math.max(0, acumuladoAtual - nota.valor_total);
+        const novoStatus = novoAcumulado > 0 ? 'parcial' : 'pendente';
+        
         const { error: updateError } = await supabase
           .from('cobrancas_agendadas')
-          .update({ status: 'pendente' })
+          .update({ 
+            status: novoStatus,
+            valor_pago_acumulado: novoAcumulado,
+            data_quitacao: null
+          })
           .eq('id', cobrancaOriginal.id);
 
         if (updateError) throw updateError;
@@ -950,7 +958,6 @@ export default function CobrancaDiaria() {
     if (prestacaoError) throw prestacaoError;
 
     // 2. Criar nota promissória para alimentar a Cobrança Diária
-    // Sempre criar a nota, inclusive para devoluções (para contabilizar no dia)
     const { error: notaError } = await supabase
       .from('notas_promissorias')
       .insert({
@@ -967,10 +974,14 @@ export default function CobrancaDiaria() {
 
     if (notaError) throw notaError;
 
-    // 3. Atualizar status da cobrança para 'pago'
+    // 3. Atualizar cobrança: status pago + novas colunas
     const { error: updateError } = await supabase
       .from('cobrancas_agendadas')
-      .update({ status: 'pago' })
+      .update({ 
+        status: 'pago' as any,
+        valor_pago_acumulado: dados.valor_devido_empresa,
+        data_quitacao: dados.dataNota
+      })
       .eq('id', cobranca.id);
 
     if (updateError) throw updateError;
@@ -983,7 +994,7 @@ export default function CobrancaDiaria() {
     resetBuscarNotaForm();
   };
 
-  // Função para processar pagamento parcial (igual à da Agenda)
+  // Função para processar pagamento parcial - NOVA LÓGICA: abate saldo na mesma cobrança
   const handlePagamentoParcial = async (dados: {
     valor_venda: number;
     comissao_percentual: number;
@@ -1002,7 +1013,6 @@ export default function CobrancaDiaria() {
     const codigoNota = cobranca.codigo_nota || `${cobranca.revendedora}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
     
     // 1. Criar nota promissória para alimentar a Cobrança Diária (sempre criar, mesmo com valor 0)
-    // Isso garante que a cobrança apareça no fechamento do dia
     const notaData: any = {
       representante_id: user.id,
       codigo_nota: codigoNota,
@@ -1020,32 +1030,8 @@ export default function CobrancaDiaria() {
 
     if (notaError) throw notaError;
 
-    if (isRepasse) {
-      // Para REPASSE: criar nova cobrança com valor restante
-      const { error: novaCobrancaError } = await supabase
-        .from('cobrancas_agendadas')
-        .insert({
-          representante_id: user.id,
-          revendedora: cobranca.revendedora || '',
-          codigo_nota: cobranca.codigo_nota || null,
-          tipo: 'repasse',
-          valor_previsto: dados.valor_repasse,
-          data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
-          status: 'pendente',
-          observacoes: `Saldo restante de cobrança anterior`,
-          vendedora: cobranca.vendedora || null
-        });
-
-      if (novaCobrancaError) throw novaCobrancaError;
-
-      const { error: updateError } = await supabase
-        .from('cobrancas_agendadas')
-        .update({ status: 'pago' })
-        .eq('id', cobranca.id);
-
-      if (updateError) throw updateError;
-    } else {
-      // Para KIT: criar prestação de contas e nova cobrança do tipo repasse
+    // 2. Para KIT: criar prestação de contas
+    if (!isRepasse) {
       const { error: prestacaoError } = await supabase
         .from('prestacoes_contas')
         .insert({
@@ -1058,36 +1044,38 @@ export default function CobrancaDiaria() {
           valor_devido_empresa: dados.valor_devido_empresa,
           valor_pago: dados.valor_recebido,
           saldo_devedor: dados.valor_repasse,
-          forma_pagamento: dados.pagamentos[0].forma,
+          forma_pagamento: dados.pagamentos[0]?.forma || 'dinheiro',
           data_execucao: dados.dataNota,
           codigo_nota_referencia: codigoNota
         });
 
       if (prestacaoError) throw prestacaoError;
-
-      const { error: novaCobrancaError } = await supabase
-        .from('cobrancas_agendadas')
-        .insert({
-          representante_id: user.id,
-          revendedora: cobranca.revendedora || '',
-          codigo_nota: cobranca.codigo_nota || null,
-          tipo: 'repasse',
-          valor_previsto: dados.valor_repasse,
-          data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
-          status: 'pendente',
-          observacoes: `Saldo restante de cobrança anterior`,
-          vendedora: cobranca.vendedora || null
-        });
-
-      if (novaCobrancaError) throw novaCobrancaError;
-
-      const { error: updateError } = await supabase
-        .from('cobrancas_agendadas')
-        .update({ status: 'pago' })
-        .eq('id', cobranca.id);
-
-      if (updateError) throw updateError;
     }
+
+    // 3. Atualizar a MESMA cobrança - abater saldo (NÃO criar nova cobrança)
+    const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
+    const novoAcumulado = acumuladoAtual + dados.valor_recebido;
+    const valorPrevisto = cobranca.valor_previsto || 0;
+    const valorAdiantado = cobranca.valor_adiantado || 0;
+    const saldoAberto = valorPrevisto - novoAcumulado - valorAdiantado;
+    
+    const novoStatus = saldoAberto <= 0 ? 'pago' : 'parcial';
+    
+    const updateData: any = {
+      valor_pago_acumulado: novoAcumulado,
+      status: novoStatus,
+    };
+    
+    if (novoStatus === 'pago') {
+      updateData.data_quitacao = dados.dataNota;
+    }
+
+    const { error: updateError } = await supabase
+      .from('cobrancas_agendadas')
+      .update(updateData)
+      .eq('id', cobranca.id);
+
+    if (updateError) throw updateError;
 
     await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
     await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
@@ -1780,8 +1768,10 @@ export default function CobrancaDiaria() {
             id: cobrancaParaPagar.id,
             revendedora: cobrancaParaPagar.revendedora,
             valor_previsto: cobrancaParaPagar.valor_previsto,
-            tipo: cobrancaParaPagar.tipo
+            tipo: cobrancaParaPagar.tipo,
+            valor_adiantado: cobrancaParaPagar.valor_adiantado
           }}
+          valor_pago_acumulado={(cobrancaParaPagar as any)?.valor_pago_acumulado || 0}
           diasNaoFinalizados={diasNaoFinalizados}
           onPagamentoCompleto={handlePagamentoCompleto}
           onPagamentoParcial={handlePagamentoParcial}
