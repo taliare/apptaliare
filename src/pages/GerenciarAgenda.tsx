@@ -625,7 +625,9 @@ export default function GerenciarAgenda() {
                               <TableHead>Revendedora</TableHead>
                               <TableHead>Código</TableHead>
                               <TableHead>Tipo</TableHead>
-                              <TableHead>Valor</TableHead>
+                              <TableHead>Valor Previsto</TableHead>
+                              <TableHead>Pago</TableHead>
+                              <TableHead>Saldo</TableHead>
                               <TableHead>Data Vencimento</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead className="text-right">Ações</TableHead>
@@ -654,6 +656,21 @@ export default function GerenciarAgenda() {
                                   )}
                                 </TableCell>
                                 <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
+                                <TableCell>
+                                  {((cobranca as any).valor_pago_acumulado || 0) > 0 
+                                    ? formatarValor((cobranca as any).valor_pago_acumulado) 
+                                    : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {(() => {
+                                    const acumulado = (cobranca as any).valor_pago_acumulado || 0;
+                                    const adiantado = cobranca.valor_adiantado || 0;
+                                    const saldo = cobranca.valor_previsto - acumulado - adiantado;
+                                    return saldo > 0 && saldo < cobranca.valor_previsto 
+                                      ? <span className="text-orange-600 font-medium">{formatarValor(saldo)}</span>
+                                      : '-';
+                                  })()}
+                                </TableCell>
                                 <TableCell>
                                   {formatDateBR(cobranca.data_agendada)}
                                 </TableCell>

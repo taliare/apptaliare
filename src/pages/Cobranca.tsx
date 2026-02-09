@@ -274,7 +274,7 @@ export default function Cobranca() {
   }) => {
     try {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
-      const dataNota = dados.dataNota; // Usar a data selecionada pelo usuário
+      const dataNota = dados.dataNota;
       
       // 1. Criar prestação de contas
       const { error: prestacaoError } = await supabase
@@ -296,14 +296,13 @@ export default function Cobranca() {
       if (prestacaoError) throw prestacaoError;
 
       // 2. Criar nota promissória para alimentar a Cobrança Diária
-      // Sempre criar a nota, inclusive para devoluções (para contabilizar no dia)
       const codigoNotaGerado = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
       const { error: notaError } = await supabase
         .from('notas_promissorias')
         .insert({
           representante_id: userId!,
           codigo_nota: codigoNotaGerado,
-          cobranca_id: cobrancaId, // Vincula à cobrança original para restaurar depois
+          cobranca_id: cobrancaId,
           data: dataNota,
           valor_total: dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
           forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
@@ -315,10 +314,14 @@ export default function Cobranca() {
 
       if (notaError) throw notaError;
 
-      // 3. Atualizar status da cobrança para 'pago'
+      // 3. Atualizar cobrança: status pago + preencher novas colunas
       const { error: updateError } = await supabase
         .from('cobrancas_agendadas')
-        .update({ status: 'pago' })
+        .update({ 
+          status: 'pago' as any,
+          valor_pago_acumulado: dados.valor_devido_empresa,
+          data_quitacao: dataNota
+        })
         .eq('id', cobrancaId);
 
       if (updateError) throw updateError;
@@ -330,7 +333,7 @@ export default function Cobranca() {
     }
   };
 
-  // Função para processar pagamento parcial e criar repasse (para KIT) ou nova cobrança (para REPASSE)
+  // Função para processar pagamento parcial - NOVA LÓGICA: abate saldo na mesma cobrança
   const handlePagamentoParcial = async (cobrancaId: string, dados: {
     valor_venda: number;
     comissao_percentual: number;
@@ -344,16 +347,14 @@ export default function Cobranca() {
   }) => {
     try {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
-      const isRepasse = cobranca?.tipo?.toLowerCase() === 'repasse';
-      const dataNota = dados.dataNota; // Usar a data selecionada pelo usuário
+      const dataNota = dados.dataNota;
       const codigoNota = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
       
       // 1. Criar nota promissória para alimentar a Cobrança Diária (sempre criar, mesmo com valor 0)
-      // Isso garante que a cobrança apareça no fechamento do dia
       const notaData: any = {
         representante_id: userId!,
         codigo_nota: codigoNota,
-        cobranca_id: cobrancaId, // Vincula à cobrança original para restaurar depois
+        cobranca_id: cobrancaId,
         data: dataNota,
         valor_total: dados.valor_recebido,
         forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
@@ -368,34 +369,8 @@ export default function Cobranca() {
 
       if (notaError) throw notaError;
 
-      if (isRepasse) {
-        // Para REPASSE: criar nova cobrança com valor restante
-        const { error: novaCobrancaError } = await supabase
-          .from('cobrancas_agendadas')
-          .insert({
-            representante_id: userId!,
-            revendedora: cobranca?.revendedora || '',
-            codigo_nota: cobranca?.codigo_nota || null,
-            tipo: 'repasse',
-            valor_previsto: dados.valor_repasse,
-            data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
-            status: 'pendente',
-            observacoes: `Saldo restante de cobrança anterior`,
-            vendedora: cobranca?.vendedora || null
-          });
-
-        if (novaCobrancaError) throw novaCobrancaError;
-
-        // Marcar a cobrança original como paga
-        const { error: updateError } = await supabase
-          .from('cobrancas_agendadas')
-          .update({ status: 'pago' })
-          .eq('id', cobrancaId);
-
-        if (updateError) throw updateError;
-      } else {
-        // Para KIT: criar prestação de contas e nova cobrança do tipo repasse
-        // Usar fallback seguro para forma_pagamento quando não houver pagamentos
+      // 2. Para KIT: criar prestação de contas
+      if (cobranca?.tipo?.toLowerCase() !== 'repasse') {
         const formaPagamentoKIT = dados.pagamentos[0]?.forma || 'dinheiro';
         
         const { error: prestacaoError } = await supabase
@@ -416,32 +391,32 @@ export default function Cobranca() {
           });
 
         if (prestacaoError) throw prestacaoError;
-
-        // Criar nova cobrança do tipo REPASSE com o valor restante
-        const { error: novaCobrancaError } = await supabase
-          .from('cobrancas_agendadas')
-          .insert({
-            representante_id: userId!,
-            revendedora: cobranca?.revendedora || '',
-            codigo_nota: cobranca?.codigo_nota || null,
-            tipo: 'repasse',
-            valor_previsto: dados.valor_repasse,
-            data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
-            status: 'pendente',
-            observacoes: `Saldo restante de cobrança anterior`,
-            vendedora: cobranca?.vendedora || null
-          });
-
-        if (novaCobrancaError) throw novaCobrancaError;
-
-        // Marcar a cobrança original como paga (some da agenda)
-        const { error: updateError } = await supabase
-          .from('cobrancas_agendadas')
-          .update({ status: 'pago' })
-          .eq('id', cobrancaId);
-
-        if (updateError) throw updateError;
       }
+
+      // 3. Atualizar a MESMA cobrança - abater saldo (NÃO criar nova cobrança)
+      const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
+      const novoAcumulado = acumuladoAtual + dados.valor_recebido;
+      const valorPrevisto = cobranca?.valor_previsto || 0;
+      const valorAdiantado = cobranca?.valor_adiantado || 0;
+      const saldoAberto = valorPrevisto - novoAcumulado - valorAdiantado;
+      
+      const novoStatus = saldoAberto <= 0 ? 'pago' : 'parcial';
+      
+      const updateData: any = {
+        valor_pago_acumulado: novoAcumulado,
+        status: novoStatus,
+      };
+      
+      if (novoStatus === 'pago') {
+        updateData.data_quitacao = dataNota;
+      }
+
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update(updateData)
+        .eq('id', cobrancaId);
+
+      if (updateError) throw updateError;
 
       await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
@@ -1118,6 +1093,7 @@ export default function Cobranca() {
           }
         }}
         cobranca={cobrancaParaPagar || { id: '', revendedora: '', valor_previsto: 0, tipo: null }}
+        valor_pago_acumulado={(cobrancaParaPagar as any)?.valor_pago_acumulado || 0}
         diasNaoFinalizados={diasNaoFinalizados}
         onPagamentoCompleto={async (dados) => {
           if (cobrancaParaPagar) {
@@ -1427,6 +1403,28 @@ function CobrancaItem({
                 </span>
               </div>
             </div>
+
+            {/* Informações de pagamento parcial acumulado */}
+            {(() => {
+              const acumulado = (cobranca as any).valor_pago_acumulado || 0;
+              const adiantado = cobranca.valor_adiantado || 0;
+              const saldo = cobranca.valor_previsto - acumulado - adiantado;
+              if (acumulado > 0) {
+                return (
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-xs space-y-0.5">
+                    <div className="flex justify-between">
+                      <span className="text-blue-700 dark:text-blue-300">Já pago:</span>
+                      <span className="font-semibold text-blue-700 dark:text-blue-300">{formatarValor(acumulado)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-blue-700 dark:text-blue-300">Saldo em aberto:</span>
+                      <span className="font-bold text-blue-700 dark:text-blue-300">{formatarValor(Math.max(0, saldo))}</span>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             {/* Lista de acréscimos (joias adicionais) */}
             {temAcrescimos && (

@@ -28,7 +28,9 @@ interface ModalReceberCobrancaProps {
     revendedora: string;
     valor_previsto: number;
     tipo?: string | null;
+    valor_adiantado?: number | null;
   };
+  valor_pago_acumulado?: number;
   diasNaoFinalizados?: string[];
   onPagamentoCompleto: (dados: {
     valor_venda: number;
@@ -56,6 +58,7 @@ export function ModalReceberCobranca({
   open,
   onOpenChange,
   cobranca,
+  valor_pago_acumulado = 0,
   diasNaoFinalizados = [],
   onPagamentoCompleto,
   onPagamentoParcial
@@ -292,9 +295,13 @@ export function ModalReceberCobranca({
           dataNota: format(dataNota, 'yyyy-MM-dd')
         });
         
+        const saldoAbertoAtual = cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0);
+        const novoSaldo = saldoAbertoAtual - valorEfetivoReceber;
         toast({
           title: "Sucesso",
-          description: `Pagamento de ${formatarValor(valorEfetivoReceber)} registrado. Nova cobrança de ${formatarValor(valorRestante)} criada.`,
+          description: novoSaldo <= 0 
+            ? `Pagamento de ${formatarValor(valorEfetivoReceber)} registrado. Nota quitada!`
+            : `Pagamento de ${formatarValor(valorEfetivoReceber)} registrado. Saldo restante: ${formatarValor(novoSaldo)}.`,
         });
         
         onOpenChange(false);
@@ -375,6 +382,30 @@ export function ModalReceberCobranca({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Info de pagamentos anteriores */}
+          {valor_pago_acumulado > 0 && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg text-sm space-y-1">
+              <div className="flex justify-between text-blue-700 dark:text-blue-300">
+                <span>Valor total da nota:</span>
+                <span className="font-semibold">{formatarValor(cobranca.valor_previsto)}</span>
+              </div>
+              <div className="flex justify-between text-blue-700 dark:text-blue-300">
+                <span>Já pago:</span>
+                <span className="font-semibold">{formatarValor(valor_pago_acumulado)}</span>
+              </div>
+              {(cobranca.valor_adiantado || 0) > 0 && (
+                <div className="flex justify-between text-blue-700 dark:text-blue-300">
+                  <span>Adiantado:</span>
+                  <span className="font-semibold">{formatarValor(cobranca.valor_adiantado || 0)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-blue-700 dark:text-blue-300 font-bold border-t border-blue-200 dark:border-blue-700 pt-1">
+                <span>Saldo em aberto:</span>
+                <span>{formatarValor(Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0)))}</span>
+              </div>
+            </div>
+          )}
+
           {/* Tipo da cobrança */}
           {isRepasse && (
             <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg text-sm text-blue-700 dark:text-blue-300">
