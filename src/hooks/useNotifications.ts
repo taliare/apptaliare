@@ -20,7 +20,7 @@ export function useNotifications() {
   const queryClient = useQueryClient();
   const { playNotificationSound } = useNotificationSound();
   const previousCountRef = useRef<number>(0);
-  const isInitialLoadRef = useRef(true);
+  const mountedAtRef = useRef<number>(Date.now());
 
   // Buscar notificações
   const { data: notifications = [], isLoading, refetch } = useQuery({
@@ -94,9 +94,9 @@ export function useNotifications() {
 
   // Play sound when new notifications arrive
   useEffect(() => {
-    if (isInitialLoadRef.current) {
+    const elapsedSinceMount = Date.now() - mountedAtRef.current;
+    if (elapsedSinceMount < 5000) {
       previousCountRef.current = unreadCount;
-      isInitialLoadRef.current = false;
       return;
     }
 
