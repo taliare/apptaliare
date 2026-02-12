@@ -1,58 +1,65 @@
 
 
-# Desistência como inverso exato da entrega
+# Correção urgente: Kit 5708 bloqueado para re-entrega
 
-## Problema atual
+## Diagnóstico
 
-A desistência atual apenas marca a cobrança como "cancelado" e tenta reverter o status do kit. Isso deixa registros órfãos em `kits_entregues` e `cobrancas_agendadas`, que bloqueiam a re-entrega do kit (a função `entregar_kit_para_revendedora` verifica se já existe registro em `kits_entregues`).
+A desistência do kit 5708 foi executada com o codigo antigo (antes da correção), que apenas marcou a cobrança como "cancelado" sem deletar os registros. Resultado:
 
-## Solução
+- `kits_estoque`: status `com_representante` (correto)
+- `kits_entregues`: registro ainda existe (deveria ter sido deletado)
+- `cobrancas_agendadas`: registro com status "cancelado" ainda existe (deveria ter sido deletado)
 
-Usar a função `reverter_entrega_kit_atomico` que já existe no banco e faz exatamente o inverso da entrega em uma única transação:
+A função `entregar_kit_para_revendedora` verifica se existe registro em `kits_entregues` e bloqueia com "Este kit já foi entregue anteriormente".
 
-1. Reverte o status do kit em `kits_estoque` para `com_representante`
-2. Deleta os `acrescimos_pedido` vinculados
-3. Deleta a `cobrancas_agendadas` associada
-4. Deleta o registro em `kits_entregues`
+## Solução em 2 passos
 
-Resultado: o kit fica como se nunca tivesse sido entregue, disponível para nova entrega.
+### 1. Limpeza imediata dos registros órfãos do kit 5708
 
-## Alteração
+Migração SQL para deletar os registros que deveriam ter sido removidos pela desistência:
 
-### `src/pages/Cobranca.tsx` - Simplificar `desistenciaMutation`
+```sql
+-- Deletar cobrança cancelada do kit 5708
+DELETE FROM cobrancas_agendadas 
+WHERE id = 'a33653f2-3042-4075-a184-09375941b3da';
 
-Substituir toda a lógica manual (update status cancelado + reverter kit) por uma única chamada RPC:
-
-```typescript
-const desistenciaMutation = useMutation({
-  mutationFn: async (cobrancaId: string) => {
-    const cobranca = cobrancas.find(c => c.id === cobrancaId);
-    if (!cobranca) throw new Error('Cobrança não encontrada');
-    if (!cobranca.kit_entregue_id) throw new Error('Kit entregue não encontrado');
-
-    // Usar função atômica que faz o inverso completo da entrega
-    const { data: resultado, error } = await supabase.rpc('reverter_entrega_kit_atomico', {
-      p_kit_entregue_id: cobranca.kit_entregue_id,
-      p_user_id: userId,
-    });
-
-    if (error) throw error;
-    const res = resultado as { success: boolean; error?: string };
-    if (!res.success) throw new Error(res.error || 'Erro ao reverter entrega');
-  },
-  // ... invalidate queries on success
-});
+-- Deletar registro de entrega órfão do kit 5708  
+DELETE FROM kits_entregues 
+WHERE id = '3dc79ad2-b8ff-443a-99cb-83376999b6ab';
 ```
 
-Nenhuma alteração no banco de dados é necessária - a função `reverter_entrega_kit_atomico` já existe e faz tudo que é preciso.
+### 2. Proteção futura na função de entrega
+
+Atualizar a função `entregar_kit_para_revendedora` para que a verificação de duplicidade ignore entregas antigas cujas cobranças foram canceladas. Isso evita que o problema se repita caso alguma desistência futura falhe parcialmente:
+
+```sql
+-- Verificação atualizada: só bloquear se existir entrega ATIVA
+IF EXISTS (
+  SELECT 1 FROM kits_entregues ke
+  WHERE ke.codigo_mostruario = v_kit.codigo 
+    AND ke.representante_id = p_user_id
+    AND NOT EXISTS (
+      SELECT 1 FROM cobrancas_agendadas ca
+      WHERE ca.kit_entregue_id = ke.id
+        AND ca.status = 'cancelado'
+    )
+) THEN
+  RETURN json_build_object(
+    'success', false,
+    'error', 'Este kit já foi entregue anteriormente'
+  );
+END IF;
+```
+
+## Resultado esperado
+
+Após a migração, o representante BLYNDSON poderá entregar o kit 5708 imediatamente para uma nova revendedora, sem erros.
 
 ## Detalhes técnicos
 
-| Arquivo | Alteração |
+| Alteracao | Tipo |
 |---|---|
-| `src/pages/Cobranca.tsx` | Substituir lógica da `desistenciaMutation` por chamada a `reverter_entrega_kit_atomico` |
+| Deletar registros orfaos do kit 5708 | Migracao SQL |
+| Atualizar verificacao de duplicidade na funcao `entregar_kit_para_revendedora` | Migracao SQL |
 
-## O que muda no comportamento
-
-- Antes: cobrança ficava com status "cancelado", registros mantidos, kit bloqueado para re-entrega
-- Depois: todos os registros são deletados, kit volta ao estoque limpo, disponível para nova entrega imediata
+Nenhum arquivo de codigo precisa ser alterado.
