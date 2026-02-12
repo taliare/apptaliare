@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar as CalendarIcon, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, Plus, Info } from 'lucide-react';
+import { Calendar as CalendarIcon, Filter, DollarSign, Clock, User, Edit, Trash2, CreditCard, CalendarDays, FileText, Package, AlertCircle, Search, TrendingDown, MoreVertical, Scale, Plus, Info, XCircle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, parseLocalDate, formatDateBR, getLocalDateString } from '@/lib/utils';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { ModalSenhaAdmin } from '@/components/cobranca/ModalSenhaAdmin';
 
 import { ModalRegistrarAcrescimo } from '@/components/cobranca/ModalRegistrarAcrescimo';
@@ -39,12 +40,13 @@ interface CobrancaFormData {
   observacoes: string;
 }
 
-const statusConfig: Record<StatusCobranca, { label: string; color: string }> = {
+const statusConfig: Record<string, { label: string; color: string }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400' },
   pago: { label: 'Pago', color: 'bg-green-500/10 text-green-700 dark:text-green-400' },
   parcial: { label: 'Parcial', color: 'bg-blue-500/10 text-blue-700 dark:text-blue-400' },
   reagendado: { label: 'Reagendado', color: 'bg-orange-500/10 text-orange-700 dark:text-orange-400' },
   juridico: { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' },
+  cancelado: { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-400' },
 };
 
 export default function Cobranca() {
@@ -74,6 +76,10 @@ export default function Cobranca() {
   // State para modal de acréscimo
   const [modalAcrescimoOpen, setModalAcrescimoOpen] = useState(false);
   const [cobrancaParaAcrescimo, setCobrancaParaAcrescimo] = useState<Cobranca | null>(null);
+
+  // State para modal de desistência
+  const [modalDesistenciaOpen, setModalDesistenciaOpen] = useState(false);
+  const [cobrancaParaDesistencia, setCobrancaParaDesistencia] = useState<Cobranca | null>(null);
   
   const [formData, setFormData] = useState<CobrancaFormData>({
     revendedora: '',
@@ -611,6 +617,70 @@ export default function Cobranca() {
     juridicoMutation.mutate(cobranca.id);
   };
 
+  // Mutation de desistência
+  const desistenciaMutation = useMutation({
+    mutationFn: async (cobrancaId: string) => {
+      const cobranca = cobrancas.find(c => c.id === cobrancaId);
+      if (!cobranca) throw new Error('Cobrança não encontrada');
+
+      // 1. Atualizar cobrança: status cancelado + data_quitacao + observações
+      const hoje = format(new Date(), 'dd/MM/yyyy');
+      const nomeRep = profile?.nome || 'Representante';
+      const obsExistente = cobranca.observacoes || '';
+      const novaObs = obsExistente 
+        ? `${obsExistente}\nDesistência registrada em ${hoje} por ${nomeRep}`
+        : `Desistência registrada em ${hoje} por ${nomeRep}`;
+
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update({
+          status: 'cancelado' as any,
+          data_quitacao: getLocalDateString(),
+          observacoes: novaObs,
+        })
+        .eq('id', cobrancaId);
+      if (updateError) throw updateError;
+
+      // 2. Reverter kit_estoque para com_representante
+      if (cobranca.kit_entregue_id) {
+        const { data: kitEntregue } = await supabase
+          .from('kits_entregues')
+          .select('kit_estoque_id')
+          .eq('id', cobranca.kit_entregue_id)
+          .single();
+
+        if (kitEntregue?.kit_estoque_id) {
+          const { error: kitError } = await supabase
+            .from('kits_estoque')
+            .update({ status: 'com_representante' })
+            .eq('id', kitEntregue.kit_estoque_id);
+          if (kitError) throw kitError;
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-entregues'] });
+      toast({ title: 'Desistência registrada com sucesso!', description: 'O kit foi devolvido para seus kits atribuídos.' });
+      setModalDesistenciaOpen(false);
+      setCobrancaParaDesistencia(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erro ao registrar desistência', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const handleDesistenciaClick = (cobranca: Cobranca) => {
+    setCobrancaParaDesistencia(cobranca);
+    setModalDesistenciaOpen(true);
+  };
+
+  const handleConfirmarDesistencia = () => {
+    if (!cobrancaParaDesistencia) return;
+    desistenciaMutation.mutate(cobrancaParaDesistencia.id);
+  };
+
   const handleAcrescimoClick = async (cobranca: Cobranca) => {
     if (cobranca.kit_entregue_id) {
       // Já tem kit_entregue_id, abrir modal direto
@@ -979,6 +1049,7 @@ export default function Cobranca() {
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
                   onAcrescimo={handleAcrescimoClick}
+                  onDesistencia={handleDesistenciaClick}
                   acrescimos={cobranca.kit_entregue_id ? (acrescimosMap[cobranca.kit_entregue_id] || []) : []}
                   destacarVencida
                   animationDelay={index * 0.05}
@@ -1008,6 +1079,7 @@ export default function Cobranca() {
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
                   onAcrescimo={handleAcrescimoClick}
+                  onDesistencia={handleDesistenciaClick}
                   acrescimos={cobranca.kit_entregue_id ? (acrescimosMap[cobranca.kit_entregue_id] || []) : []}
                   animationDelay={index * 0.05}
                 />
@@ -1036,6 +1108,7 @@ export default function Cobranca() {
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
                   onAcrescimo={handleAcrescimoClick}
+                  onDesistencia={handleDesistenciaClick}
                   acrescimos={cobranca.kit_entregue_id ? (acrescimosMap[cobranca.kit_entregue_id] || []) : []}
                   animationDelay={index * 0.05}
                 />
@@ -1064,6 +1137,7 @@ export default function Cobranca() {
                   onAdiantamento={handleAdiantamentoClick}
                   onJuridico={handleJuridicoClick}
                   onAcrescimo={handleAcrescimoClick}
+                  onDesistencia={handleDesistenciaClick}
                   acrescimos={cobranca.kit_entregue_id ? (acrescimosMap[cobranca.kit_entregue_id] || []) : []}
                   animationDelay={index * 0.05}
                 />
@@ -1300,6 +1374,33 @@ export default function Cobranca() {
         />
       )}
 
+      {/* Modal de Desistência */}
+      <AlertDialog open={modalDesistenciaOpen} onOpenChange={setModalDesistenciaOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>TEM CERTEZA QUE DESEJA REGISTRAR A DESISTÊNCIA?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação irá cancelar a nota e devolver o kit para seus kits atribuídos.
+              {cobrancaParaDesistencia && (
+                <span className="block mt-2 font-medium text-foreground">
+                  Revendedora: {cobrancaParaDesistencia.revendedora} — {formatarValor(cobrancaParaDesistencia.valor_previsto)}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarDesistencia}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={desistenciaMutation.isPending}
+            >
+              {desistenciaMutation.isPending ? 'Processando...' : 'Confirmar desistência'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
@@ -1313,6 +1414,7 @@ function CobrancaItem({
   onAdiantamento,
   onJuridico,
   onAcrescimo,
+  onDesistencia,
   acrescimos = [],
   destacarVencida = false,
   animationDelay = 0,
@@ -1324,6 +1426,7 @@ function CobrancaItem({
   onAdiantamento: (cobranca: Cobranca) => void;
   onJuridico: (cobranca: Cobranca) => void;
   onAcrescimo: (cobranca: Cobranca) => void;
+  onDesistencia: (cobranca: Cobranca) => void;
   acrescimos?: Array<{ id: string; valor: number; descricao: string | null; status: string }>;
   destacarVencida?: boolean;
   animationDelay?: number;
@@ -1534,6 +1637,18 @@ function CobrancaItem({
                   <Scale className="h-4 w-4 mr-2" />
                   Encaminhar ao Jurídico
                 </DropdownMenuItem>
+                {/* Botão Desistência - só aparece para kit sem pagamentos */}
+                {cobranca.kit_entregue_id &&
+                  cobranca.tipo?.toLowerCase() === 'kit' &&
+                  (cobranca.valor_pago_acumulado || 0) === 0 &&
+                  (cobranca.valor_adiantado || 0) === 0 &&
+                  cobranca.status !== 'pago' &&
+                  cobranca.status !== ('cancelado' as any) && (
+                  <DropdownMenuItem onClick={() => onDesistencia(cobranca)} className="text-destructive">
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Desistência
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
