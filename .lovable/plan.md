@@ -1,93 +1,76 @@
 
-# Plano: Botao de Desistencia (Devolucao Total do Kit)
 
-## Resumo
+# Correcao: Kit nao volta para posse do representante na desistencia
 
-Adicionar um botao "Desistencia" na agenda de cobrancas do representante que permite registrar a devolucao total de um kit pela revendedora, cancelando a nota e devolvendo o kit ao estoque do representante.
+## Problema Identificado
 
-## Alteracoes Necessarias
+O kit de codigo 5708 (kit_estoque_id: `8d63f297-a293-4847-bbe3-31a5ea0c6147`) continua com status `com_revendedora` mesmo apos a desistencia ter sido registrada com sucesso na cobranca.
 
-### 1. Migracao de Banco de Dados
+A causa raiz e que o `UPDATE` no `kits_estoque` pode falhar silenciosamente (0 rows affected) sem gerar erro, e o codigo atual nao valida se a atualizacao realmente ocorreu.
 
-Adicionar o valor `cancelado` ao enum `status_cobranca`, pois atualmente so existem: pendente, pago, parcial, reagendado, juridico.
+## Correcoes
 
-```text
-ALTER TYPE status_cobranca ADD VALUE 'cancelado';
+### 1. Correcao imediata dos dados (Migracao SQL)
+
+Atualizar o kit 5708 para `com_representante` diretamente:
+
+```
+UPDATE kits_estoque 
+SET status = 'com_representante' 
+WHERE id = '8d63f297-a293-4847-bbe3-31a5ea0c6147';
 ```
 
-### 2. Cobranca.tsx - Botao "Desistencia" no CobrancaItem
+### 2. Melhorar a mutation de desistencia (Cobranca.tsx)
 
-Adicionar no dropdown "Mais opcoes" do componente `CobrancaItem` uma nova opcao "Desistencia" com as seguintes condicoes de visibilidade:
+Tornar a reversao do kit mais robusta:
 
-- `kit_entregue_id` preenchido (nota vinculada a um kit)
-- `tipo` igual a "kit" (nao e repasse)
-- `valor_pago_acumulado` igual a 0 (sem pagamentos registrados)
-- `valor_adiantado` igual a 0 (sem adiantamentos)
-- `status` diferente de "pago" e "cancelado"
+- Usar `.select()` apos o `.update()` para verificar se a atualizacao realmente ocorreu
+- Se a atualizacao via client falhar (0 rows), usar a funcao `reverter_entrega_kit` que ja existe no banco como SECURITY DEFINER (ignora RLS)
+- Adicionar fallback usando o `codigo_nota` da cobranca caso `kit_estoque_id` nao seja encontrado
+- Lancar erro explicito se o kit nao puder ser revertido
 
-Se qualquer condicao nao for atendida, o botao nao aparece.
+Logica melhorada:
 
-### 3. Cobranca.tsx - Modal de Confirmacao
-
-Criar um AlertDialog de confirmacao com a mensagem:
-
-"TEM CERTEZA QUE DESEJA REGISTRAR A DESISTENCIA? Esta acao ira cancelar a nota e devolver o kit para seus kits atribuidos."
-
-Botoes: [Confirmar desistencia] [Cancelar]
-
-### 4. Cobranca.tsx - Mutation de Desistencia
-
-Ao confirmar, executar em sequencia:
-
-1. **Atualizar cobranca**: status = 'cancelado', data_quitacao = data atual (como data_cancelamento)
-2. **Reverter kit_estoque**: buscar o kit pelo `kit_entregue_id` -> `kits_entregues.kit_estoque_id`, alterar status de `com_revendedora` para `com_representante`
-3. **Registrar observacao**: adicionar na propria cobranca um campo observacoes com "Desistencia registrada em dd/mm/aaaa por [nome do representante]"
-4. Invalidar queries relacionadas
-
-### 5. StatusConfig - Novo Status
-
-Adicionar ao objeto `statusConfig` o novo status:
-
-```text
-cancelado: { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-400' }
 ```
+// 2. Reverter kit_estoque para com_representante
+if (cobranca.kit_entregue_id) {
+  // Buscar kit_estoque_id
+  const { data: kitEntregue } = await supabase
+    .from('kits_entregues')
+    .select('kit_estoque_id, codigo_mostruario')
+    .eq('id', cobranca.kit_entregue_id)
+    .single();
 
-### 6. Filtro da Agenda
-
-A query de cobrancas ja filtra por status `['pendente', 'parcial', 'reagendado']`, entao cobrancas canceladas nao aparecerao na agenda apos a desistencia - comportamento correto.
-
-### 7. GerenciarAgenda.tsx (Admin)
-
-Adicionar o status "cancelado" ao statusConfig do admin para que cobrancas canceladas sejam visiveis com o badge correto na visao administrativa.
-
-## Fluxo Completo
-
-```text
-Representante ve cobranca do tipo kit sem pagamentos
-  -> Clica em "Mais opcoes" -> "Desistencia"
-  -> Modal de confirmacao aparece
-  -> Clica em "Confirmar desistencia"
-  -> Sistema:
-     1. Marca cobranca como cancelada
-     2. Reverte kit_estoque para com_representante
-     3. Registra historico nas observacoes
-  -> Kit volta para tela "Meus Kits" do representante
-  -> Cobranca sai da agenda
+  if (kitEntregue?.kit_estoque_id) {
+    const { data: updated, error: kitError } = await supabase
+      .from('kits_estoque')
+      .update({ status: 'com_representante' })
+      .eq('id', kitEntregue.kit_estoque_id)
+      .select('id');
+    
+    if (kitError) throw kitError;
+    
+    // Se update direto nao afetou nenhuma linha, usar funcao SECURITY DEFINER
+    if (!updated || updated.length === 0) {
+      const { data: resultado } = await supabase.rpc('reverter_entrega_kit', {
+        p_codigo_kit: kitEntregue.codigo_mostruario,
+        p_user_id: user?.id,
+      });
+      if (!resultado) throw new Error('Nao foi possivel reverter o kit');
+    }
+  }
+}
 ```
 
 ## Arquivos Alterados
 
 | Arquivo | Alteracao |
 |---|---|
-| Migracao SQL | Adicionar 'cancelado' ao enum status_cobranca |
-| src/pages/Cobranca.tsx | Botao desistencia, modal de confirmacao, mutation, statusConfig |
-| src/pages/GerenciarAgenda.tsx | Adicionar 'cancelado' ao statusConfig |
+| Migracao SQL | Corrigir kit 5708 para com_representante |
+| src/pages/Cobranca.tsx | Melhorar mutation com verificacao + fallback via RPC |
 
-## O que NAO muda
+## O que nao muda
 
-- Dados historicos
-- Tabelas notas_promissorias, prestacoes_contas
-- Fluxo de pagamento completo ou parcial
-- DRE
-- Kits entregues (registro mantido para historico)
-- RLS policies existentes
+- Status da cobranca (ja esta cancelado corretamente)
+- Observacoes da cobranca (ja registrado)
+- Demais dados historicos
