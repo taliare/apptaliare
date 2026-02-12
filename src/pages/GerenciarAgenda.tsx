@@ -26,12 +26,13 @@ type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'] & {
   profiles?: { nome: string };
 };
 
-const statusConfig: Record<StatusCobranca, { label: string; color: string }> = {
+const statusConfig: Record<string, { label: string; color: string }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-500/10 text-yellow-700' },
   pago: { label: 'Pago', color: 'bg-green-500/10 text-green-700' },
   parcial: { label: 'Parcial', color: 'bg-blue-500/10 text-blue-700' },
   reagendado: { label: 'Reagendado', color: 'bg-orange-500/10 text-orange-700' },
   juridico: { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700' },
+  cancelado: { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700' },
 };
 
 export default function GerenciarAgenda() {

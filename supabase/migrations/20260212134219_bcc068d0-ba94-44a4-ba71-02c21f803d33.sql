@@ -1,0 +1,1 @@
+ALTER TYPE status_cobranca ADD VALUE 'cancelado';
