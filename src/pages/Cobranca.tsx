@@ -645,16 +645,35 @@ export default function Cobranca() {
       if (cobranca.kit_entregue_id) {
         const { data: kitEntregue } = await supabase
           .from('kits_entregues')
-          .select('kit_estoque_id')
+          .select('kit_estoque_id, codigo_mostruario')
           .eq('id', cobranca.kit_entregue_id)
-          .single();
+          .maybeSingle();
 
         if (kitEntregue?.kit_estoque_id) {
-          const { error: kitError } = await supabase
+          // Tentar update direto com verificação
+          const { data: updated, error: kitError } = await supabase
             .from('kits_estoque')
             .update({ status: 'com_representante' })
-            .eq('id', kitEntregue.kit_estoque_id);
+            .eq('id', kitEntregue.kit_estoque_id)
+            .select('id');
+          
           if (kitError) throw kitError;
+          
+          // Se update direto falhou (RLS/0 rows), usar função SECURITY DEFINER
+          if (!updated || updated.length === 0) {
+            const { data: resultado } = await supabase.rpc('reverter_entrega_kit', {
+              p_codigo_kit: kitEntregue.codigo_mostruario,
+              p_user_id: userId,
+            });
+            if (!resultado) throw new Error('Não foi possível reverter o kit para seus kits atribuídos');
+          }
+        } else if (kitEntregue?.codigo_mostruario) {
+          // Fallback: sem kit_estoque_id, usar RPC por código
+          const { data: resultado } = await supabase.rpc('reverter_entrega_kit', {
+            p_codigo_kit: kitEntregue.codigo_mostruario,
+            p_user_id: userId,
+          });
+          if (!resultado) throw new Error('Não foi possível reverter o kit para seus kits atribuídos');
         }
       }
     },
