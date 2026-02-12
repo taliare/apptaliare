@@ -622,66 +622,25 @@ export default function Cobranca() {
     mutationFn: async (cobrancaId: string) => {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
       if (!cobranca) throw new Error('Cobrança não encontrada');
+      if (!cobranca.kit_entregue_id) throw new Error('Kit entregue não encontrado');
 
-      // 1. Atualizar cobrança: status cancelado + data_quitacao + observações
-      const hoje = format(new Date(), 'dd/MM/yyyy');
-      const nomeRep = profile?.nome || 'Representante';
-      const obsExistente = cobranca.observacoes || '';
-      const novaObs = obsExistente 
-        ? `${obsExistente}\nDesistência registrada em ${hoje} por ${nomeRep}`
-        : `Desistência registrada em ${hoje} por ${nomeRep}`;
+      // Usar função atômica que faz o inverso completo da entrega
+      const { data: resultado, error } = await supabase.rpc('reverter_entrega_kit_atomico', {
+        p_kit_entregue_id: cobranca.kit_entregue_id,
+        p_user_id: userId,
+      });
 
-      const { error: updateError } = await supabase
-        .from('cobrancas_agendadas')
-        .update({
-          status: 'cancelado' as any,
-          data_quitacao: getLocalDateString(),
-          observacoes: novaObs,
-        })
-        .eq('id', cobrancaId);
-      if (updateError) throw updateError;
-
-      // 2. Reverter kit_estoque para com_representante
-      if (cobranca.kit_entregue_id) {
-        const { data: kitEntregue } = await supabase
-          .from('kits_entregues')
-          .select('kit_estoque_id, codigo_mostruario')
-          .eq('id', cobranca.kit_entregue_id)
-          .maybeSingle();
-
-        if (kitEntregue?.kit_estoque_id) {
-          // Tentar update direto com verificação
-          const { data: updated, error: kitError } = await supabase
-            .from('kits_estoque')
-            .update({ status: 'com_representante' })
-            .eq('id', kitEntregue.kit_estoque_id)
-            .select('id');
-          
-          if (kitError) throw kitError;
-          
-          // Se update direto falhou (RLS/0 rows), usar função SECURITY DEFINER
-          if (!updated || updated.length === 0) {
-            const { data: resultado } = await supabase.rpc('reverter_entrega_kit', {
-              p_codigo_kit: kitEntregue.codigo_mostruario,
-              p_user_id: userId,
-            });
-            if (!resultado) throw new Error('Não foi possível reverter o kit para seus kits atribuídos');
-          }
-        } else if (kitEntregue?.codigo_mostruario) {
-          // Fallback: sem kit_estoque_id, usar RPC por código
-          const { data: resultado } = await supabase.rpc('reverter_entrega_kit', {
-            p_codigo_kit: kitEntregue.codigo_mostruario,
-            p_user_id: userId,
-          });
-          if (!resultado) throw new Error('Não foi possível reverter o kit para seus kits atribuídos');
-        }
-      }
+      if (error) throw error;
+      const res = resultado as { success: boolean; error?: string };
+      if (!res.success) throw new Error(res.error || 'Erro ao reverter entrega');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque-rep'] });
       queryClient.invalidateQueries({ queryKey: ['kits-entregues'] });
-      toast({ title: 'Desistência registrada com sucesso!', description: 'O kit foi devolvido para seus kits atribuídos.' });
+      queryClient.invalidateQueries({ queryKey: ['kits-entregues-representante'] });
+      toast({ title: 'Desistência registrada com sucesso!', description: 'O kit foi devolvido e está disponível para nova entrega.' });
       setModalDesistenciaOpen(false);
       setCobrancaParaDesistencia(null);
     },
