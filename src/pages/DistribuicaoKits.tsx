@@ -739,11 +739,7 @@ export default function DistribuicaoKits() {
         onOpenChange={(open) => {
           if (!open) {
             setIsEditDialogOpen(false);
-            // Delay clearing the kit data and invalidating queries until dialog animation completes
-            setTimeout(() => {
-              setKitToEdit(null);
-              queryClient.invalidateQueries({ queryKey: ["kits-estoque"] });
-            }, 150);
+            setKitToEdit(null);
           }
         }}
       >
