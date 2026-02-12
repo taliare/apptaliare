@@ -1,76 +1,58 @@
 
 
-# Correcao: Kit nao volta para posse do representante na desistencia
+# Desistência como inverso exato da entrega
 
-## Problema Identificado
+## Problema atual
 
-O kit de codigo 5708 (kit_estoque_id: `8d63f297-a293-4847-bbe3-31a5ea0c6147`) continua com status `com_revendedora` mesmo apos a desistencia ter sido registrada com sucesso na cobranca.
+A desistência atual apenas marca a cobrança como "cancelado" e tenta reverter o status do kit. Isso deixa registros órfãos em `kits_entregues` e `cobrancas_agendadas`, que bloqueiam a re-entrega do kit (a função `entregar_kit_para_revendedora` verifica se já existe registro em `kits_entregues`).
 
-A causa raiz e que o `UPDATE` no `kits_estoque` pode falhar silenciosamente (0 rows affected) sem gerar erro, e o codigo atual nao valida se a atualizacao realmente ocorreu.
+## Solução
 
-## Correcoes
+Usar a função `reverter_entrega_kit_atomico` que já existe no banco e faz exatamente o inverso da entrega em uma única transação:
 
-### 1. Correcao imediata dos dados (Migracao SQL)
+1. Reverte o status do kit em `kits_estoque` para `com_representante`
+2. Deleta os `acrescimos_pedido` vinculados
+3. Deleta a `cobrancas_agendadas` associada
+4. Deleta o registro em `kits_entregues`
 
-Atualizar o kit 5708 para `com_representante` diretamente:
+Resultado: o kit fica como se nunca tivesse sido entregue, disponível para nova entrega.
 
-```
-UPDATE kits_estoque 
-SET status = 'com_representante' 
-WHERE id = '8d63f297-a293-4847-bbe3-31a5ea0c6147';
-```
+## Alteração
 
-### 2. Melhorar a mutation de desistencia (Cobranca.tsx)
+### `src/pages/Cobranca.tsx` - Simplificar `desistenciaMutation`
 
-Tornar a reversao do kit mais robusta:
+Substituir toda a lógica manual (update status cancelado + reverter kit) por uma única chamada RPC:
 
-- Usar `.select()` apos o `.update()` para verificar se a atualizacao realmente ocorreu
-- Se a atualizacao via client falhar (0 rows), usar a funcao `reverter_entrega_kit` que ja existe no banco como SECURITY DEFINER (ignora RLS)
-- Adicionar fallback usando o `codigo_nota` da cobranca caso `kit_estoque_id` nao seja encontrado
-- Lancar erro explicito se o kit nao puder ser revertido
+```typescript
+const desistenciaMutation = useMutation({
+  mutationFn: async (cobrancaId: string) => {
+    const cobranca = cobrancas.find(c => c.id === cobrancaId);
+    if (!cobranca) throw new Error('Cobrança não encontrada');
+    if (!cobranca.kit_entregue_id) throw new Error('Kit entregue não encontrado');
 
-Logica melhorada:
+    // Usar função atômica que faz o inverso completo da entrega
+    const { data: resultado, error } = await supabase.rpc('reverter_entrega_kit_atomico', {
+      p_kit_entregue_id: cobranca.kit_entregue_id,
+      p_user_id: userId,
+    });
 
-```
-// 2. Reverter kit_estoque para com_representante
-if (cobranca.kit_entregue_id) {
-  // Buscar kit_estoque_id
-  const { data: kitEntregue } = await supabase
-    .from('kits_entregues')
-    .select('kit_estoque_id, codigo_mostruario')
-    .eq('id', cobranca.kit_entregue_id)
-    .single();
-
-  if (kitEntregue?.kit_estoque_id) {
-    const { data: updated, error: kitError } = await supabase
-      .from('kits_estoque')
-      .update({ status: 'com_representante' })
-      .eq('id', kitEntregue.kit_estoque_id)
-      .select('id');
-    
-    if (kitError) throw kitError;
-    
-    // Se update direto nao afetou nenhuma linha, usar funcao SECURITY DEFINER
-    if (!updated || updated.length === 0) {
-      const { data: resultado } = await supabase.rpc('reverter_entrega_kit', {
-        p_codigo_kit: kitEntregue.codigo_mostruario,
-        p_user_id: user?.id,
-      });
-      if (!resultado) throw new Error('Nao foi possivel reverter o kit');
-    }
-  }
-}
+    if (error) throw error;
+    const res = resultado as { success: boolean; error?: string };
+    if (!res.success) throw new Error(res.error || 'Erro ao reverter entrega');
+  },
+  // ... invalidate queries on success
+});
 ```
 
-## Arquivos Alterados
+Nenhuma alteração no banco de dados é necessária - a função `reverter_entrega_kit_atomico` já existe e faz tudo que é preciso.
 
-| Arquivo | Alteracao |
+## Detalhes técnicos
+
+| Arquivo | Alteração |
 |---|---|
-| Migracao SQL | Corrigir kit 5708 para com_representante |
-| src/pages/Cobranca.tsx | Melhorar mutation com verificacao + fallback via RPC |
+| `src/pages/Cobranca.tsx` | Substituir lógica da `desistenciaMutation` por chamada a `reverter_entrega_kit_atomico` |
 
-## O que nao muda
+## O que muda no comportamento
 
-- Status da cobranca (ja esta cancelado corretamente)
-- Observacoes da cobranca (ja registrado)
-- Demais dados historicos
+- Antes: cobrança ficava com status "cancelado", registros mantidos, kit bloqueado para re-entrega
+- Depois: todos os registros são deletados, kit volta ao estoque limpo, disponível para nova entrega imediata
