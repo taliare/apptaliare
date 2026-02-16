@@ -82,6 +82,67 @@ export type Database = {
           },
         ]
       }
+      ajustes_representantes: {
+        Row: {
+          cobranca_id: string
+          criado_em: string | null
+          diferenca: number
+          id: string
+          motivo: string | null
+          quitado_em: string | null
+          representante_id: string
+          status: string
+          valor_conferido: number
+          valor_registrado: number
+        }
+        Insert: {
+          cobranca_id: string
+          criado_em?: string | null
+          diferenca: number
+          id?: string
+          motivo?: string | null
+          quitado_em?: string | null
+          representante_id: string
+          status?: string
+          valor_conferido: number
+          valor_registrado: number
+        }
+        Update: {
+          cobranca_id?: string
+          criado_em?: string | null
+          diferenca?: number
+          id?: string
+          motivo?: string | null
+          quitado_em?: string | null
+          representante_id?: string
+          status?: string
+          valor_conferido?: number
+          valor_registrado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ajustes_representantes_cobranca_id_fkey"
+            columns: ["cobranca_id"]
+            isOneToOne: false
+            referencedRelation: "cobrancas_agendadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ajustes_representantes_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ajustes_representantes_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
