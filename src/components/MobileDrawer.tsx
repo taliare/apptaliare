@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus, Shield, TrendingUp, Receipt, FolderOpen, LineChart } from 'lucide-react';
+import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus, Shield, TrendingUp, Receipt, FolderOpen, LineChart, ClipboardList } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -81,6 +81,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       label: "GESTÃO",
       items: [
         { title: 'Revendedoras Inativas', url: '/revendedoras-inativas', icon: Users },
+        { title: 'Histórico de Ações', url: '/historico-acoes', icon: ClipboardList },
       ],
     },
   ];
@@ -142,6 +143,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       items: [
         { title: 'Relatório KPIs', url: '/relatorio-kpis', icon: BarChart3 },
         { title: 'Análise Comercial', url: '/analise-comercial', icon: LineChart },
+        { title: 'Auditoria Geral', url: '/auditoria-geral', icon: ClipboardList },
         { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload },
         { title: 'Relatórios', url: '/relatorios', icon: FileText },
       ],

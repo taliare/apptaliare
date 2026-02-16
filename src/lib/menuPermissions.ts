@@ -18,6 +18,7 @@ export const ASSIGNABLE_MENUS = [
   { key: 'importar_cobrancas', label: 'Importar Cobranças', route: '/importar-cobrancas' },
   { key: 'relatorios', label: 'Relatórios', route: '/relatorios' },
   { key: 'usuarios', label: 'Usuários', route: '/usuarios' },
+  { key: 'auditoria_geral', label: 'Auditoria Geral', route: '/auditoria-geral' },
 ] as const;
 
 export type MenuKey = typeof ASSIGNABLE_MENUS[number]['key'];

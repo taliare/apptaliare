@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { registrarLog } from '@/lib/logOperacional';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -334,6 +335,28 @@ export default function Cobranca() {
 
       await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+
+      // Registrar log
+      const userLog = { id: userId!, nome: profile?.nome || '', papel: profile?.role || 'representante' };
+      if (dados.tipo === 'devolucao') {
+        registrarLog({
+          tipo_acao: 'ALTERACAO_DEVOLUCAO',
+          pedido_id: cobrancaId,
+          valor_antes: cobranca?.valor_previsto,
+          valor_depois: 0,
+          descricao: `Devolução total registrada para ${cobranca?.revendedora || 'revendedora'}`,
+          user: userLog,
+        });
+      } else {
+        registrarLog({
+          tipo_acao: 'REGISTRO_PAGAMENTO',
+          pedido_id: cobrancaId,
+          valor_antes: cobranca?.valor_previsto,
+          valor_depois: dados.valor_devido_empresa,
+          descricao: `Pagamento completo registrado para ${cobranca?.revendedora || 'revendedora'} - ${formatarValor(dados.valor_devido_empresa)}`,
+          user: userLog,
+        });
+      }
     } catch (error) {
       throw error;
     }
@@ -426,6 +449,16 @@ export default function Cobranca() {
 
       await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+
+      // Registrar log
+      registrarLog({
+        tipo_acao: 'REGISTRO_PAGAMENTO',
+        pedido_id: cobrancaId,
+        valor_antes: cobranca?.valor_previsto,
+        valor_depois: dados.valor_recebido,
+        descricao: `Pagamento parcial de ${formatarValor(dados.valor_recebido)} registrado para ${cobranca?.revendedora || 'revendedora'}`,
+        user: { id: userId!, nome: profile?.nome || '', papel: profile?.role || 'representante' },
+      });
     } catch (error) {
       throw error;
     }
@@ -545,10 +578,17 @@ export default function Cobranca() {
 
       if (updateError) throw updateError;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
       queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
       toast({ title: 'Adiantamento registrado com sucesso!' });
+      registrarLog({
+        tipo_acao: 'REGISTRO_ADIANTAMENTO',
+        pedido_id: variables.cobrancaId,
+        valor_depois: variables.valor,
+        descricao: `Adiantamento de ${formatarValor(variables.valor)} registrado via ${variables.forma}`,
+        user: { id: userId!, nome: profile?.nome || '', papel: profile?.role || 'representante' },
+      });
       setModalAdiantamentoOpen(false);
       setCobrancaParaAdiantar(null);
       setValorAdiantamento('');
@@ -641,6 +681,13 @@ export default function Cobranca() {
       queryClient.invalidateQueries({ queryKey: ['kits-entregues'] });
       queryClient.invalidateQueries({ queryKey: ['kits-entregues-representante'] });
       toast({ title: 'Desistência registrada com sucesso!', description: 'O kit foi devolvido e está disponível para nova entrega.' });
+      registrarLog({
+        tipo_acao: 'DESISTENCIA_KIT',
+        pedido_id: cobrancaParaDesistencia?.id,
+        valor_antes: cobrancaParaDesistencia?.valor_previsto,
+        descricao: `Desistência de kit registrada para ${cobrancaParaDesistencia?.revendedora || 'revendedora'}`,
+        user: { id: userId!, nome: profile?.nome || '', papel: profile?.role || 'representante' },
+      });
       setModalDesistenciaOpen(false);
       setCobrancaParaDesistencia(null);
     },

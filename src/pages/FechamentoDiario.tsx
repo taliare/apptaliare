@@ -15,6 +15,8 @@ import { ptBR } from 'date-fns/locale';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { registrarLog } from '@/lib/logOperacional';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn, formatarValor, getLocalDateString } from '@/lib/utils';
 import { FechamentoPeriodoView } from '@/components/fechamento/FechamentoPeriodoView';
 
@@ -74,6 +76,7 @@ const formaPagamentoLabels = {
 
 export default function FechamentoDiario() {
   const queryClient = useQueryClient();
+  const { user, profile } = useAuth();
   const [selectedRepresentante, setSelectedRepresentante] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [despesaCobranca, setDespesaCobranca] = useState('');
@@ -341,6 +344,12 @@ export default function FechamentoDiario() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cobranca-diaria-fechamento'] });
       toast.success('Dia finalizado com sucesso pelo admin!');
+      const repNome = representantes.find(r => r.id === selectedRepresentante)?.nome || '';
+      registrarLog({
+        tipo_acao: 'CONFERENCIA_INTERNA',
+        descricao: `Conferência interna finalizada para ${repNome} no dia ${dateStr}`,
+        user: { id: user!.id, nome: profile?.nome || '', papel: profile?.role || 'admin' },
+      });
       setDespesaCobranca('');
     },
     onError: (error: any) => {
@@ -363,6 +372,12 @@ export default function FechamentoDiario() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cobranca-diaria-fechamento'] });
       toast.success('Dia reaberto com sucesso!');
+      const repNome = representantes.find(r => r.id === selectedRepresentante)?.nome || '';
+      registrarLog({
+        tipo_acao: 'REABERTURA_PEDIDO',
+        descricao: `Dia ${dateStr} reaberto para ${repNome}`,
+        user: { id: user!.id, nome: profile?.nome || '', papel: profile?.role || 'admin' },
+      });
     },
     onError: (error: any) => {
       toast.error(`Erro ao reabrir dia: ${error.message}`);

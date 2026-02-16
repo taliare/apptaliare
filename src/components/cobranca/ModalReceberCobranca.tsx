@@ -12,6 +12,8 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { formatarValor } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { registrarLog } from '@/lib/logOperacional';
+import { useAuth } from '@/contexts/AuthContext';
 
 type FormaPagamento = 'pix' | 'dinheiro' | 'cartao' | 'transferencia';
 
@@ -64,6 +66,7 @@ export function ModalReceberCobranca({
   onPagamentoParcial
 }: ModalReceberCobrancaProps) {
   const { toast } = useToast();
+  const { user, profile } = useAuth();
   
   const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
   
@@ -213,6 +216,15 @@ export function ModalReceberCobranca({
         description: "Devolução total registrada com sucesso.",
       });
       
+      registrarLog({
+        tipo_acao: 'ALTERACAO_DEVOLUCAO',
+        pedido_id: cobranca.id,
+        valor_antes: cobranca.valor_previsto,
+        valor_depois: 0,
+        descricao: `Devolução total registrada para ${cobranca.revendedora}`,
+        user: { id: user!.id, nome: profile?.nome || '', papel: profile?.role || 'representante' },
+      });
+      
       onOpenChange(false);
     } catch (error) {
       toast({
@@ -351,6 +363,18 @@ export function ModalReceberCobranca({
         title: "Sucesso",
         description: "Cobrança recebida com sucesso.",
       });
+      
+      // Log de comissão manual se aplicável
+      if (comissaoManual && comissaoPercentualManual) {
+        registrarLog({
+          tipo_acao: 'ALTERACAO_COMISSAO',
+          pedido_id: cobranca.id,
+          valor_antes: undefined,
+          valor_depois: comissaoPercentual,
+          descricao: `Comissão manual de ${comissaoPercentual}% aplicada para ${cobranca.revendedora}`,
+          user: { id: user!.id, nome: profile?.nome || '', papel: profile?.role || 'representante' },
+        });
+      }
       
       onOpenChange(false);
     } catch (error) {

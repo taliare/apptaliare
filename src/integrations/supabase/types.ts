@@ -719,6 +719,45 @@ export type Database = {
           },
         ]
       }
+      logs_operacionais: {
+        Row: {
+          criado_em: string
+          descricao: string
+          id: string
+          nome_usuario: string
+          papel: string
+          pedido_id: string | null
+          tipo_acao: string
+          usuario_id: string
+          valor_antes: number | null
+          valor_depois: number | null
+        }
+        Insert: {
+          criado_em?: string
+          descricao: string
+          id?: string
+          nome_usuario: string
+          papel: string
+          pedido_id?: string | null
+          tipo_acao: string
+          usuario_id: string
+          valor_antes?: number | null
+          valor_depois?: number | null
+        }
+        Update: {
+          criado_em?: string
+          descricao?: string
+          id?: string
+          nome_usuario?: string
+          papel?: string
+          pedido_id?: string | null
+          tipo_acao?: string
+          usuario_id?: string
+          valor_antes?: number | null
+          valor_depois?: number | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
