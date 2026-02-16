@@ -1,65 +1,37 @@
 
 
-# Correção urgente: Kit 5708 bloqueado para re-entrega
+# Criar tabela `ajustes_representantes`
 
-## Diagnóstico
+Tabela auxiliar para uso futuro, sem impacto em nenhuma logica existente do sistema.
 
-A desistência do kit 5708 foi executada com o codigo antigo (antes da correção), que apenas marcou a cobrança como "cancelado" sem deletar os registros. Resultado:
+## Estrutura da tabela
 
-- `kits_estoque`: status `com_representante` (correto)
-- `kits_entregues`: registro ainda existe (deveria ter sido deletado)
-- `cobrancas_agendadas`: registro com status "cancelado" ainda existe (deveria ter sido deletado)
+| Coluna | Tipo | Detalhes |
+|---|---|---|
+| id | uuid | PK, default gen_random_uuid() |
+| representante_id | uuid | FK para profiles.id, NOT NULL |
+| cobranca_id | uuid | FK para cobrancas_agendadas.id, NOT NULL |
+| valor_registrado | numeric | NOT NULL |
+| valor_conferido | numeric | NOT NULL |
+| diferenca | numeric | NOT NULL |
+| motivo | text | Nullable |
+| status | text | default 'pendente', NOT NULL |
+| criado_em | timestamptz | default now() |
+| quitado_em | timestamptz | Nullable |
 
-A função `entregar_kit_para_revendedora` verifica se existe registro em `kits_entregues` e bloqueia com "Este kit já foi entregue anteriormente".
+## Politicas RLS
 
-## Solução em 2 passos
+Apenas admin tem acesso completo (INSERT, SELECT, UPDATE, DELETE). Representantes nao tem nenhuma politica, ou seja, nao conseguem ver nem interagir com a tabela.
 
-### 1. Limpeza imediata dos registros órfãos do kit 5708
+- **Admin ALL**: `has_role(auth.uid(), 'admin'::app_role)`
 
-Migração SQL para deletar os registros que deveriam ter sido removidos pela desistência:
+## O que NAO sera alterado
 
-```sql
--- Deletar cobrança cancelada do kit 5708
-DELETE FROM cobrancas_agendadas 
-WHERE id = 'a33653f2-3042-4075-a184-09375941b3da';
+- Nenhum arquivo de codigo
+- Nenhuma logica de dashboard, metas ou DRE
+- Nenhuma rota ou componente existente
 
--- Deletar registro de entrega órfão do kit 5708  
-DELETE FROM kits_entregues 
-WHERE id = '3dc79ad2-b8ff-443a-99cb-83376999b6ab';
-```
+## Detalhe tecnico
 
-### 2. Proteção futura na função de entrega
+Uma unica migracao SQL sera executada para criar a tabela, habilitar RLS e adicionar a politica de admin.
 
-Atualizar a função `entregar_kit_para_revendedora` para que a verificação de duplicidade ignore entregas antigas cujas cobranças foram canceladas. Isso evita que o problema se repita caso alguma desistência futura falhe parcialmente:
-
-```sql
--- Verificação atualizada: só bloquear se existir entrega ATIVA
-IF EXISTS (
-  SELECT 1 FROM kits_entregues ke
-  WHERE ke.codigo_mostruario = v_kit.codigo 
-    AND ke.representante_id = p_user_id
-    AND NOT EXISTS (
-      SELECT 1 FROM cobrancas_agendadas ca
-      WHERE ca.kit_entregue_id = ke.id
-        AND ca.status = 'cancelado'
-    )
-) THEN
-  RETURN json_build_object(
-    'success', false,
-    'error', 'Este kit já foi entregue anteriormente'
-  );
-END IF;
-```
-
-## Resultado esperado
-
-Após a migração, o representante BLYNDSON poderá entregar o kit 5708 imediatamente para uma nova revendedora, sem erros.
-
-## Detalhes técnicos
-
-| Alteracao | Tipo |
-|---|---|
-| Deletar registros orfaos do kit 5708 | Migracao SQL |
-| Atualizar verificacao de duplicidade na funcao `entregar_kit_para_revendedora` | Migracao SQL |
-
-Nenhum arquivo de codigo precisa ser alterado.
