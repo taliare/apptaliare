@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { registrarLog } from '@/lib/logOperacional';
 
 interface ModalRegistrarAcrescimoProps {
   open: boolean;
@@ -84,6 +85,14 @@ export function ModalRegistrarAcrescimo({
       queryClient.invalidateQueries({ queryKey: ['acrescimos-kits-dia'] });
       queryClient.invalidateQueries({ queryKey: ['acrescimos-kits-agenda'] });
       toast.success('Acréscimo registrado com sucesso!');
+      const valorNumerico = parseValorFormatado(valor);
+      registrarLog({
+        tipo_acao: 'ACRESCIMO_PEDIDO',
+        pedido_id: kitEntregueId,
+        valor_depois: valorNumerico,
+        descricao: `Acréscimo de ${valorNumerico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} registrado para ${revendedora} - Kit: ${codigoKit}`,
+        user: { id: user!.id, nome: user!.email || '', papel: 'representante' },
+      });
       resetForm();
       onOpenChange(false);
     },

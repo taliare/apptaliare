@@ -19,6 +19,7 @@ import {
   Receipt,
   FolderOpen,
   LineChart,
+  ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -89,6 +90,7 @@ export function AppSidebar() {
       label: "GESTÃO",
       items: [
         { title: "Revendedoras Inativas", url: "/revendedoras-inativas", icon: Users },
+        { title: "Histórico de Ações", url: "/historico-acoes", icon: ClipboardList },
       ],
     },
   ];
@@ -150,6 +152,7 @@ export function AppSidebar() {
       items: [
         { title: "Relatório KPIs", url: "/relatorio-kpis", icon: BarChart3 },
         { title: "Análise Comercial", url: "/analise-comercial", icon: LineChart },
+        { title: "Auditoria Geral", url: "/auditoria-geral", icon: ClipboardList },
         { title: "Importar Cobranças", url: "/importar-cobrancas", icon: Upload },
         { title: "Relatórios", url: "/relatorios", icon: FileText },
       ],

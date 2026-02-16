@@ -31,6 +31,8 @@ import DreResumo from '@/pages/DreResumo';
 import DreDespesas from '@/pages/DreDespesas';
 import DreCategorias from '@/pages/DreCategorias';
 import AnaliseComercial from '@/pages/AnaliseComercial';
+import HistoricoAcoes from '@/pages/HistoricoAcoes';
+import AuditoriaGeral from '@/pages/AuditoriaGeral';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -157,6 +159,16 @@ export function AnimatedRoutes() {
             <AnaliseComercial />
           </PermissionRoute>
         } />
+        
+        {/* Auditoria Geral */}
+        <Route path="/auditoria-geral" element={
+          <PermissionRoute menuKey="auditoria_geral">
+            <AuditoriaGeral />
+          </PermissionRoute>
+        } />
+        
+        {/* Histórico de Ações - representantes */}
+        <Route path="/historico-acoes" element={<HistoricoAcoes />} />
         
         {/* Perfil - acessível para todos */}
         <Route path="/perfil" element={<Perfil />} />
