@@ -33,7 +33,7 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
