@@ -1,43 +1,40 @@
 
 
-# Corrigir Drag-and-Drop do Kanban CRM
+# Corrigir Drop em Colunas do Kanban CRM
 
-## Problema
+## Problema Raiz
 
-O drag-and-drop esta dificil de usar porque:
-- A area de arraste e apenas o pequeno icone de grip (14x14px) - muito pequeno para clicar com precisao
-- O usuario espera arrastar o card inteiro, nao apenas um icone minusculo
-- O clique no card (`onClick`) compete com o inicio do arraste, causando conflitos
+O algoritmo de deteccao de colisao `closestCorners` calcula distancias entre cantos do card arrastado e cantos das colunas. Em colunas lado a lado de 280px, isso frequentemente seleciona a coluna **errada** ou nenhuma coluna, fazendo com que "Contato Realizado" (e potencialmente outras) nao aceitem drops.
 
 ## Solucao
 
-### 1. Tornar o card inteiro arrastavel (`LeadCard.tsx`)
+### Arquivo: `src/components/leads/LeadsKanban.tsx`
 
-- Mover os `listeners` e `attributes` do dnd-kit do icone de grip para o card (`Card`) inteiro
-- Remover o icone `GripVertical` (nao e mais necessario se o card inteiro arrasta)
-- Manter `e.stopPropagation()` nos botoes interativos (WhatsApp, chevron) para que eles nao iniciem o arraste
-- Ajustar o `cursor` do card para `cursor-grab` / `active:cursor-grabbing`
+Trocar o algoritmo de colisao de `closestCorners` para `pointerWithin`:
 
-### 2. Aumentar a distancia de ativacao (`LeadsKanban.tsx`)
+- `pointerWithin` verifica se o **ponteiro do mouse** esta dentro do retangulo da coluna destino
+- Muito mais intuitivo e previsivel para quadros Kanban com colunas lado a lado
+- Resolve o problema para **todas** as 7 colunas de uma vez
 
-- Mudar `PointerSensor` distance de `5` para `8` pixels - isso separa melhor o gesto de "clicar" do gesto de "arrastar", evitando arrastar acidentalmente ao clicar
-- Manter `TouchSensor` com delay de 150ms para mobile
+Alteracao unica: na importacao e no `DndContext`, substituir `closestCorners` por `pointerWithin`.
 
-### 3. Separar clique de arraste (`LeadCard.tsx`)
+### Arquivo: `src/components/leads/KanbanColumn.tsx`
 
-- Usar a flag `isDragging` do dnd-kit para impedir que o `onClick` do card dispare apos um arraste
-- O `onClick` so abre o `LeadDetailsSheet` se o card **nao** estava sendo arrastado
+Aumentar a area minima de drop para facilitar o alvo:
+
+- Mudar `min-h-[200px]` para `min-h-[300px]` na area de cards, garantindo zona de drop maior mesmo em colunas com poucos cards
 
 ## Arquivos alterados
 
 | Arquivo | Alteracao |
 |---|---|
-| `src/components/leads/LeadCard.tsx` | Listeners no card inteiro, remover GripVertical, proteger onClick contra drag |
-| `src/components/leads/LeadsKanban.tsx` | Aumentar distance do PointerSensor para 8 |
+| `src/components/leads/LeadsKanban.tsx` | Trocar `closestCorners` por `pointerWithin` |
+| `src/components/leads/KanbanColumn.tsx` | Aumentar min-height da zona de drop |
 
 ## O que NAO muda
 
-- Logica de movimentacao de status entre colunas
-- Layout das colunas do Kanban
-- Deteccao de colisao (`closestCorners`)
-- Funcionalidade do WhatsApp, chevron e LeadDetailsSheet
+- Logica de movimentacao de status
+- Layout geral das colunas
+- Funcionalidade dos cards (clique, WhatsApp, expandir)
+- Sensor de ativacao (distance 8px, touch delay 150ms)
+
