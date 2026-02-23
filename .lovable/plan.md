@@ -1,37 +1,43 @@
 
 
-# Simplificar Cards do CRM Kanban
+# Corrigir Drag-and-Drop do Kanban CRM
 
-## Objetivo
+## Problema
 
-Reduzir o tamanho visual dos cards no Kanban, mostrando apenas o **nome** e o **botao de WhatsApp** por padrao. As demais informacoes (cidade, origem, data, responsavel) ficam ocultas e podem ser expandidas com um clique.
+O drag-and-drop esta dificil de usar porque:
+- A area de arraste e apenas o pequeno icone de grip (14x14px) - muito pequeno para clicar com precisao
+- O usuario espera arrastar o card inteiro, nao apenas um icone minusculo
+- O clique no card (`onClick`) compete com o inicio do arraste, causando conflitos
 
-## Alteracoes
+## Solucao
 
-### Arquivo: `src/components/leads/LeadCard.tsx`
+### 1. Tornar o card inteiro arrastavel (`LeadCard.tsx`)
 
-- Manter visivel apenas:
-  - Nome do lead (truncado)
-  - Botao de WhatsApp (compacto)
-- Esconder por padrao (em um bloco colapsavel):
-  - Cidade
-  - Origem
-  - Data de criacao
-  - Responsavel
-- Adicionar um pequeno icone/botao de expandir (chevron) para revelar os detalhes extras
-- Remover o grip de drag da area visivel principal e manter o card inteiro arrastavel pelo handle existente
-- Reduzir padding geral do card para ficar mais compacto
+- Mover os `listeners` e `attributes` do dnd-kit do icone de grip para o card (`Card`) inteiro
+- Remover o icone `GripVertical` (nao e mais necessario se o card inteiro arrasta)
+- Manter `e.stopPropagation()` nos botoes interativos (WhatsApp, chevron) para que eles nao iniciem o arraste
+- Ajustar o `cursor` do card para `cursor-grab` / `active:cursor-grabbing`
 
-### Comportamento
+### 2. Aumentar a distancia de ativacao (`LeadsKanban.tsx`)
 
-- Card padrao: nome + WhatsApp + chevron pequeno
-- Ao clicar no chevron: expande mostrando cidade, origem, data e responsavel
-- Clicar no card continua abrindo o LeadDetailsSheet normalmente
+- Mudar `PointerSensor` distance de `5` para `8` pixels - isso separa melhor o gesto de "clicar" do gesto de "arrastar", evitando arrastar acidentalmente ao clicar
+- Manter `TouchSensor` com delay de 150ms para mobile
 
-## Detalhes tecnicos
+### 3. Separar clique de arraste (`LeadCard.tsx`)
 
-- Usar estado local `expanded` com `useState` no LeadCard
-- O clique no chevron usa `e.stopPropagation()` para nao abrir o Sheet
-- Nenhum outro arquivo precisa ser alterado
-- Nenhuma logica de drag-and-drop sera modificada
+- Usar a flag `isDragging` do dnd-kit para impedir que o `onClick` do card dispare apos um arraste
+- O `onClick` so abre o `LeadDetailsSheet` se o card **nao** estava sendo arrastado
 
+## Arquivos alterados
+
+| Arquivo | Alteracao |
+|---|---|
+| `src/components/leads/LeadCard.tsx` | Listeners no card inteiro, remover GripVertical, proteger onClick contra drag |
+| `src/components/leads/LeadsKanban.tsx` | Aumentar distance do PointerSensor para 8 |
+
+## O que NAO muda
+
+- Logica de movimentacao de status entre colunas
+- Layout das colunas do Kanban
+- Deteccao de colisao (`closestCorners`)
+- Funcionalidade do WhatsApp, chevron e LeadDetailsSheet
