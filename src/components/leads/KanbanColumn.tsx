@@ -34,7 +34,7 @@ export function KanbanColumn({ column, leads, onLeadClick }: KanbanColumnProps) 
       </div>
 
       {/* Cards - área de drop sempre visível */}
-      <div className="flex-1 p-2 overflow-y-auto min-h-[200px]">
+      <div className="flex-1 p-2 overflow-y-auto min-h-[300px]">
         <div className="space-y-2">
           {leads.map((lead) => (
             <LeadCard
