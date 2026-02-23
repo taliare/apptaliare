@@ -1,9 +1,9 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { MapPin, Calendar, User, MessageCircle, GripVertical, ChevronDown } from "lucide-react";
+import { MapPin, Calendar, User, MessageCircle, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LeadRevendedora } from "./types";
@@ -16,6 +16,7 @@ interface LeadCardProps {
 
 export function LeadCard({ lead, onClick, isDragging: isDraggingProp }: LeadCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [wasDragging, setWasDragging] = useState(false);
   const {
     attributes,
     listeners,
@@ -25,6 +26,17 @@ export function LeadCard({ lead, onClick, isDragging: isDraggingProp }: LeadCard
   } = useDraggable({ id: lead.id });
 
   const isDragging = isDraggingProp ?? isDraggingLocal;
+
+  // Track drag state to prevent onClick after drag
+  const prevDragging = React.useRef(false);
+  React.useEffect(() => {
+    if (prevDragging.current && !isDragging) {
+      setWasDragging(true);
+      const timer = setTimeout(() => setWasDragging(false), 100);
+      return () => clearTimeout(timer);
+    }
+    prevDragging.current = isDragging;
+  }, [isDragging]);
 
   const style = {
     transform: transform ? CSS.Transform.toString(transform) : undefined,
@@ -40,21 +52,16 @@ export function LeadCard({ lead, onClick, isDragging: isDraggingProp }: LeadCard
     <Card
       ref={setNodeRef}
       style={style}
-      className={`hover:bg-accent/10 transition-colors ${isDragging ? "shadow-lg" : ""}`}
+      {...listeners}
+      {...attributes}
+      className={`cursor-grab active:cursor-grabbing touch-none hover:bg-accent/10 transition-colors ${isDragging ? "shadow-lg" : ""}`}
       onClick={(e) => {
         e.stopPropagation();
-        onClick();
+        if (!wasDragging) onClick();
       }}
     >
       <CardContent className="p-2 space-y-1.5">
         <div className="flex items-center gap-1.5">
-          <div
-            {...listeners}
-            {...attributes}
-            className="cursor-grab active:cursor-grabbing touch-none p-0.5 -ml-0.5 hover:bg-muted rounded"
-          >
-            <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-          </div>
           <p className="font-medium text-sm truncate flex-1">{lead.nome}</p>
           {hasDetails && (
             <button
