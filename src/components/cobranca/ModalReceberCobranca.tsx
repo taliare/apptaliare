@@ -299,7 +299,7 @@ export function ModalReceberCobranca({
           valor_venda: parseFloat(valorVenda.replace(',', '.')),
           comissao_percentual: comissaoPercentual,
           comissao_valor: comissaoValor,
-          valor_devido_empresa: valorEfetivoReceber,
+          valor_devido_empresa: valorAReceber,
           valor_recebido: valorEfetivoReceber,
           pagamentos,
           valor_repasse: valorRestante,
