@@ -1,87 +1,94 @@
 
-# Corrigir Fluxo Reverso: Restaurar valor_previsto ao Cancelar Cobranca
+# Corrigir Logica de Acrescimo: Somar na Nota Original em vez de Criar Nova Nota
 
 ## Problema
 
-Quando o representante remove uma nota do fechamento do dia (cancela a cobranca), o sistema:
-- Reverte o `valor_pago_acumulado` (correto)
-- Reverte o `status` para pendente (correto)
-- **NAO reverte o `valor_previsto`** para o valor original do kit (BUG)
-- **NAO deleta a `prestacao_contas`** associada (dados orfaos ficam no banco)
+Quando o representante registra um acrescimo (joias adicionais), o sistema cria uma nota separada tipo "acrescimo" alem da nota original do kit. A revendedora fica com duas notas na agenda -- uma situacao incorreta. O correto e somar o valor do acrescimo na nota original do kit (campo `valor_previsto`), mantendo um unico pedido.
 
-Exemplo real: nota da TAIANA GISELE M. SOARES (kit 5456)
-- Valor original do kit: R$4.460
-- Apos cobranca de teste: `valor_previsto` foi atualizado para R$600 (valor devido)
-- Apos cancelar a cobranca: `valor_previsto` ficou em R$600 em vez de voltar para R$4.460
-- Ha 3 prestacoes orfas no banco vinculadas a essa cobranca
+## Situacao Atual no Banco
+
+Existem **13 notas tipo "acrescimo"** que nao deveriam existir. Em nenhum caso o valor do acrescimo foi somado na nota original (diferenca = 0 em todos).
 
 ## Solucao
 
-### 1. Corrigir `excluirNotaDaCobrancaMutation` em `src/pages/CobrancaDiaria.tsx` (linhas 652-743)
+### 1. Alterar a funcao de banco `registrar_acrescimo_pedido`
 
-Ao remover uma nota do fechamento:
+A funcao atual (steps 4-5) cria uma nova `cobrancas_agendadas` tipo "acrescimo" e vincula o `cobranca_id` do acrescimo a essa nova nota.
 
-- **Buscar o valor original do kit** via `kits_estoque` (atraves de `kit_entregue_id` -> `kits_entregues` -> `kits_estoque`)
-- **Restaurar `valor_previsto`** para o valor original do kit quando `novoAcumulado == 0` (ou seja, todo pagamento do dia foi revertido e nao ha pagamentos anteriores)
-- **Deletar a `prestacao_contas`** vinculada a essa nota promissoria (mesma `cobranca_id` e `data_execucao`)
+**Nova logica:**
+- Em vez de criar nova `cobrancas_agendadas`, buscar a nota original tipo "kit" vinculada ao mesmo `kit_entregue_id`
+- Somar `p_valor` ao `valor_previsto` da nota original
+- Vincular o `acrescimo_pedido.cobranca_id` a nota original (tipo "kit")
+- Remover completamente a criacao de nota tipo "acrescimo"
 
-Logica detalhada:
+### 2. Corrigir dados existentes (13 notas)
 
-```text
-// Dentro da excluirNotaDaCobrancaMutation, apos reverter acumulado:
+Para cada nota tipo "acrescimo":
+- Somar o `valor_previsto` dela na nota original tipo "kit" do mesmo `kit_entregue_id`
+- Atualizar o `cobranca_id` no `acrescimos_pedido` para apontar para a nota original
+- Deletar a nota tipo "acrescimo"
 
-// 1. Deletar a prestacao_contas vinculada a essa cobranca + data
-await supabase.from('prestacoes_contas').delete()
-  .eq('cobranca_id', cobrancaOriginal.id)
-  .eq('data_execucao', dateStr);
+### 3. Atualizar `ModalRegistrarAcrescimo.tsx`
 
-// 2. Se novoAcumulado == 0, restaurar valor_previsto original
-if (novoAcumulado === 0 && cobrancaOriginal.kit_entregue_id) {
-  // Buscar valor original do kit
-  const { data: kitEntregue } = await supabase
-    .from('kits_entregues').select('kit_estoque_id')
-    .eq('id', cobrancaOriginal.kit_entregue_id).single();
-  
-  if (kitEntregue?.kit_estoque_id) {
-    const { data: kitEstoque } = await supabase
-      .from('kits_estoque').select('valor')
-      .eq('id', kitEntregue.kit_estoque_id).single();
-    
-    if (kitEstoque?.valor) {
-      updateData.valor_previsto = kitEstoque.valor;
-    }
-  }
-}
-```
+O componente nao precisa de mudancas significativas pois ja chama a RPC. Apenas ajustar as queries invalidadas (remover query de acrescimos se nao for mais necessaria).
 
-### 2. Corrigir dados da TAIANA GISELE (correcao pontual no banco)
+## Detalhes Tecnicos
 
-Executar via ferramenta de dados:
+### Migration SQL - Alterar funcao `registrar_acrescimo_pedido`
 
-- Atualizar `valor_previsto` da cobranca `821d09b8-...` de 600 para 4460 (valor original do kit)
-- Deletar as 3 prestacoes orfas vinculadas a essa cobranca (IDs: `ca2960c3`, `affff236`, `378fbd19`)
+Substituir os steps 4 e 5 da funcao por:
 
 ```text
--- Restaurar valor_previsto original
-UPDATE cobrancas_agendadas
-SET valor_previsto = 4460
-WHERE id = '821d09b8-f3a3-4ae6-877e-a32aa9e32334';
+-- 4. Buscar cobranca original tipo 'kit' do mesmo kit_entregue_id
+SELECT id INTO v_cobranca_id
+FROM cobrancas_agendadas
+WHERE kit_entregue_id = p_kit_entregue_id
+  AND tipo = 'kit'
+LIMIT 1;
 
--- Deletar prestacoes orfas de teste
-DELETE FROM prestacoes_contas
-WHERE cobranca_id = '821d09b8-f3a3-4ae6-877e-a32aa9e32334';
+-- 5. Somar acrescimo ao valor_previsto da nota original
+IF v_cobranca_id IS NOT NULL THEN
+  UPDATE cobrancas_agendadas
+  SET valor_previsto = valor_previsto + p_valor
+  WHERE id = v_cobranca_id;
+END IF;
+
+-- 6. Vincular acrescimo a nota original
+UPDATE acrescimos_pedido
+SET cobranca_id = v_cobranca_id
+WHERE id = v_acrescimo_id;
 ```
 
-### 3. Verificar se ha outros casos similares no banco
+### Correcao de dados existentes (via insert tool)
 
-Consultar se existem outras cobranacas com `status = 'pendente'` e `valor_pago_acumulado = 0` que tem prestacoes vinculadas (indicando que foram cobradas e canceladas sem restaurar o valor).
+```text
+-- 1. Somar acrescimos nas notas originais
+UPDATE cobrancas_agendadas orig
+SET valor_previsto = orig.valor_previsto + acr.valor_previsto
+FROM cobrancas_agendadas acr
+WHERE acr.tipo = 'acrescimo'
+  AND orig.kit_entregue_id = acr.kit_entregue_id
+  AND orig.tipo = 'kit';
+
+-- 2. Atualizar cobranca_id dos acrescimos_pedido para apontar para nota original
+UPDATE acrescimos_pedido ap
+SET cobranca_id = orig.id
+FROM cobrancas_agendadas orig
+WHERE orig.kit_entregue_id = ap.kit_entregue_id
+  AND orig.tipo = 'kit';
+
+-- 3. Deletar notas tipo acrescimo
+DELETE FROM cobrancas_agendadas WHERE tipo = 'acrescimo';
+```
 
 ## Arquivos alterados
 
-- `src/pages/CobrancaDiaria.tsx` - Corrigir `excluirNotaDaCobrancaMutation` para restaurar `valor_previsto` e deletar prestacoes ao cancelar
+- **Migration SQL**: Alterar funcao `registrar_acrescimo_pedido` para somar na nota original
+- **Dados**: Corrigir 13 notas existentes
 
 ## O que NAO muda
 
-- Fluxo de cobranca parcial (ja corrigido anteriormente)
-- Logica de pagamento completo
-- Nenhuma outra pagina e alterada
+- A tabela `acrescimos_pedido` continua existindo (registro individual de cada acrescimo)
+- O `ModalRegistrarAcrescimo.tsx` continua funcionando igual (chama a mesma RPC)
+- Fluxo de cobranca parcial e cancelamento
+- Visualizacao na agenda (agora mostra valor correto: kit + acrescimos)
