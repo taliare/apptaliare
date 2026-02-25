@@ -1,55 +1,87 @@
 
-# Corrigir Dados de Notas Parciais com valor_previsto Errado
+# Corrigir Fluxo Reverso: Restaurar valor_previsto ao Cancelar Cobranca
 
-## Problema Encontrado
+## Problema
 
-Existem **4 notas de kit com status "parcial"** que foram cobradas ANTES da correção do código, e por isso:
-- O `valor_previsto` ainda mostra o valor original do kit (errado)
-- O `valor_devido_empresa` na prestação ficou como 0 (era o bug do ModalReceberCobranca)
-- Na agenda, essas notas aparecem com valores absurdos (ex: R$5.075 em vez de R$1.056)
+Quando o representante remove uma nota do fechamento do dia (cancela a cobranca), o sistema:
+- Reverte o `valor_pago_acumulado` (correto)
+- Reverte o `status` para pendente (correto)
+- **NAO reverte o `valor_previsto`** para o valor original do kit (BUG)
+- **NAO deleta a `prestacao_contas`** associada (dados orfaos ficam no banco)
 
-| Revendedora | valor_previsto (errado) | Valor correto (venda - comissao) |
-|---|---|---|
-| BRUNA PEREIRA GONCALVES | R$5.075 | R$1.056 |
-| JAQUELINE LIMA DOS SANTOS | R$7.235 | R$437,50 |
-| MARIA DE FATIMA FREIRE DA SILVA | R$4.920 | R$472,50 |
-| MARIA IRACY VIEIRA DA SILVA | R$5.045 | R$322 |
+Exemplo real: nota da TAIANA GISELE M. SOARES (kit 5456)
+- Valor original do kit: R$4.460
+- Apos cobranca de teste: `valor_previsto` foi atualizado para R$600 (valor devido)
+- Apos cancelar a cobranca: `valor_previsto` ficou em R$600 em vez de voltar para R$4.460
+- Ha 3 prestacoes orfas no banco vinculadas a essa cobranca
 
 ## Solucao
 
-Executar uma unica migration SQL que:
+### 1. Corrigir `excluirNotaDaCobrancaMutation` em `src/pages/CobrancaDiaria.tsx` (linhas 652-743)
 
-1. **Atualiza `valor_previsto`** em `cobrancas_agendadas` para `total_venda - comissao_valor` (o valor real devido a empresa)
-2. **Atualiza `valor_devido_empresa`** em `prestacoes_contas` para o mesmo valor correto (corrige o campo que ficou zerado pelo bug anterior)
+Ao remover uma nota do fechamento:
 
-### SQL da correcao
+- **Buscar o valor original do kit** via `kits_estoque` (atraves de `kit_entregue_id` -> `kits_entregues` -> `kits_estoque`)
+- **Restaurar `valor_previsto`** para o valor original do kit quando `novoAcumulado == 0` (ou seja, todo pagamento do dia foi revertido e nao ha pagamentos anteriores)
+- **Deletar a `prestacao_contas`** vinculada a essa nota promissoria (mesma `cobranca_id` e `data_execucao`)
+
+Logica detalhada:
 
 ```text
--- Corrigir valor_previsto nas cobrancas
-UPDATE cobrancas_agendadas ca
-SET valor_previsto = pc.total_venda - pc.comissao_valor
-FROM prestacoes_contas pc
-WHERE pc.cobranca_id = ca.id
-  AND ca.status = 'parcial'
-  AND ca.tipo = 'kit'
-  AND pc.valor_devido_empresa = 0
-  AND ca.valor_pago_acumulado = 0
-  AND pc.total_venda > 0;
+// Dentro da excluirNotaDaCobrancaMutation, apos reverter acumulado:
 
--- Corrigir valor_devido_empresa nas prestacoes
-UPDATE prestacoes_contas pc
-SET valor_devido_empresa = pc.total_venda - pc.comissao_valor
-FROM cobrancas_agendadas ca
-WHERE pc.cobranca_id = ca.id
-  AND ca.status = 'parcial'
-  AND ca.tipo = 'kit'
-  AND pc.valor_devido_empresa = 0
-  AND ca.valor_pago_acumulado = 0
-  AND pc.total_venda > 0;
+// 1. Deletar a prestacao_contas vinculada a essa cobranca + data
+await supabase.from('prestacoes_contas').delete()
+  .eq('cobranca_id', cobrancaOriginal.id)
+  .eq('data_execucao', dateStr);
+
+// 2. Se novoAcumulado == 0, restaurar valor_previsto original
+if (novoAcumulado === 0 && cobrancaOriginal.kit_entregue_id) {
+  // Buscar valor original do kit
+  const { data: kitEntregue } = await supabase
+    .from('kits_entregues').select('kit_estoque_id')
+    .eq('id', cobrancaOriginal.kit_entregue_id).single();
+  
+  if (kitEntregue?.kit_estoque_id) {
+    const { data: kitEstoque } = await supabase
+      .from('kits_estoque').select('valor')
+      .eq('id', kitEntregue.kit_estoque_id).single();
+    
+    if (kitEstoque?.valor) {
+      updateData.valor_previsto = kitEstoque.valor;
+    }
+  }
+}
 ```
+
+### 2. Corrigir dados da TAIANA GISELE (correcao pontual no banco)
+
+Executar via ferramenta de dados:
+
+- Atualizar `valor_previsto` da cobranca `821d09b8-...` de 600 para 4460 (valor original do kit)
+- Deletar as 3 prestacoes orfas vinculadas a essa cobranca (IDs: `ca2960c3`, `affff236`, `378fbd19`)
+
+```text
+-- Restaurar valor_previsto original
+UPDATE cobrancas_agendadas
+SET valor_previsto = 4460
+WHERE id = '821d09b8-f3a3-4ae6-877e-a32aa9e32334';
+
+-- Deletar prestacoes orfas de teste
+DELETE FROM prestacoes_contas
+WHERE cobranca_id = '821d09b8-f3a3-4ae6-877e-a32aa9e32334';
+```
+
+### 3. Verificar se ha outros casos similares no banco
+
+Consultar se existem outras cobranacas com `status = 'pendente'` e `valor_pago_acumulado = 0` que tem prestacoes vinculadas (indicando que foram cobradas e canceladas sem restaurar o valor).
+
+## Arquivos alterados
+
+- `src/pages/CobrancaDiaria.tsx` - Corrigir `excluirNotaDaCobrancaMutation` para restaurar `valor_previsto` e deletar prestacoes ao cancelar
 
 ## O que NAO muda
 
-- Nenhum arquivo de codigo e alterado
-- Apenas dados existentes sao corrigidos no banco
-- O codigo ja foi corrigido na implementacao anterior para novas cobranças
+- Fluxo de cobranca parcial (ja corrigido anteriormente)
+- Logica de pagamento completo
+- Nenhuma outra pagina e alterada
