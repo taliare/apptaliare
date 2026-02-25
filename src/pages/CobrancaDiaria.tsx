@@ -690,16 +690,46 @@ export default function CobrancaDiaria() {
         const novoAcumulado = Math.max(0, acumuladoAtual - nota.valor_total);
         const novoStatus = novoAcumulado > 0 ? 'parcial' : 'pendente';
         
+        const updateData: any = { 
+          status: novoStatus,
+          valor_pago_acumulado: novoAcumulado,
+          data_quitacao: null
+        };
+
+        // Se novoAcumulado == 0, restaurar valor_previsto para o valor original do kit
+        if (novoAcumulado === 0 && cobrancaOriginal.kit_entregue_id) {
+          const { data: kitEntregue } = await supabase
+            .from('kits_entregues')
+            .select('kit_estoque_id')
+            .eq('id', cobrancaOriginal.kit_entregue_id)
+            .single();
+          
+          if (kitEntregue?.kit_estoque_id) {
+            const { data: kitEstoque } = await supabase
+              .from('kits_estoque')
+              .select('valor')
+              .eq('id', kitEntregue.kit_estoque_id)
+              .single();
+            
+            if (kitEstoque?.valor) {
+              updateData.valor_previsto = kitEstoque.valor;
+            }
+          }
+        }
+
         const { error: updateError } = await supabase
           .from('cobrancas_agendadas')
-          .update({ 
-            status: novoStatus,
-            valor_pago_acumulado: novoAcumulado,
-            data_quitacao: null
-          })
+          .update(updateData)
           .eq('id', cobrancaOriginal.id);
 
         if (updateError) throw updateError;
+
+        // Deletar prestacoes_contas vinculadas a essa cobrança + data
+        await supabase
+          .from('prestacoes_contas')
+          .delete()
+          .eq('cobranca_id', cobrancaOriginal.id)
+          .eq('data_execucao', dateStr);
       } else {
         // Sem cobrança original - criar uma nova (raro, só para notas órfãs)
         let revendedora = revendedoraMap[nota.codigo_nota];
