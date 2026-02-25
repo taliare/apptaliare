@@ -1054,17 +1054,29 @@ export default function CobrancaDiaria() {
 
     // 3. Atualizar a MESMA cobrança - abater saldo (NÃO criar nova cobrança)
     const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
-    const novoAcumulado = acumuladoAtual + dados.valor_recebido;
-    const valorPrevisto = cobranca.valor_previsto || 0;
     const valorAdiantado = cobranca.valor_adiantado || 0;
-    const saldoAberto = valorPrevisto - novoAcumulado - valorAdiantado;
     
-    const novoStatus = saldoAberto <= 0 ? 'pago' : 'parcial';
+    // Se é primeira cobrança de KIT, atualizar valor_previsto para o total devido à empresa
+    let valorPrevistoEfetivo = cobranca.valor_previsto || 0;
     
     const updateData: any = {
-      valor_pago_acumulado: novoAcumulado,
-      status: novoStatus,
+      valor_pago_acumulado: acumuladoAtual + dados.valor_recebido,
     };
+    
+    if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
+      // Primeira cobrança: valor_previsto passa a ser o total devido à empresa
+      valorPrevistoEfetivo = dados.valor_devido_empresa + dados.valor_recebido;
+      updateData.valor_previsto = valorPrevistoEfetivo;
+    }
+    
+    // Sempre atualizar data_agendada para a próxima data informada
+    updateData.data_agendada = format(dados.data_repasse, 'yyyy-MM-dd');
+    
+    const novoAcumulado = acumuladoAtual + dados.valor_recebido;
+    const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
+    
+    const novoStatus = saldoAberto <= 0 ? 'pago' : 'parcial';
+    updateData.status = novoStatus;
     
     if (novoStatus === 'pago') {
       updateData.data_quitacao = dados.dataNota;
