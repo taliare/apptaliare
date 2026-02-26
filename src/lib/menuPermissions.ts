@@ -23,6 +23,29 @@ export const ASSIGNABLE_MENUS = [
 
 export type MenuKey = typeof ASSIGNABLE_MENUS[number]['key'];
 
+// Mapa de ícones e categorias para injeção dinâmica de menus extras
+// Usado quando um representante/produção recebe permissão para menus que não estão na sua lista base
+export const MENU_EXTRA_CONFIG: Record<string, { iconName: string; category: string }> = {
+  crm: { iconName: 'UserPlus', category: 'GESTÃO' },
+  revendedoras: { iconName: 'Users', category: 'GESTÃO' },
+  venda_externa: { iconName: 'Users', category: 'GESTÃO' },
+  garantias: { iconName: 'Shield', category: 'GESTÃO' },
+  distribuicao_kits: { iconName: 'Package', category: 'GESTÃO' },
+  fechamento_diario: { iconName: 'CalendarCheck', category: 'FINANCEIRO' },
+  metas: { iconName: 'Target', category: 'FINANCEIRO' },
+  gerenciar_agenda: { iconName: 'Calendar', category: 'FINANCEIRO' },
+  juridico: { iconName: 'Scale', category: 'FINANCEIRO' },
+  dre_resumo: { iconName: 'TrendingUp', category: 'FINANCEIRO' },
+  dre_despesas: { iconName: 'Receipt', category: 'FINANCEIRO' },
+  dre_categorias: { iconName: 'FolderOpen', category: 'FINANCEIRO' },
+  relatorio_kpis: { iconName: 'BarChart3', category: 'RELATÓRIOS' },
+  analise_comercial: { iconName: 'LineChart', category: 'RELATÓRIOS' },
+  importar_cobrancas: { iconName: 'Upload', category: 'RELATÓRIOS' },
+  relatorios: { iconName: 'FileText', category: 'RELATÓRIOS' },
+  usuarios: { iconName: 'Users', category: 'GESTÃO' },
+  auditoria_geral: { iconName: 'ClipboardList', category: 'RELATÓRIOS' },
+};
+
 // Função para obter a chave do menu a partir da rota
 export function getMenuKeyFromRoute(route: string): MenuKey | null {
   const menu = ASSIGNABLE_MENUS.find(m => m.route === route);

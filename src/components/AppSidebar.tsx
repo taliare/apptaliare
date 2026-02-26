@@ -24,7 +24,7 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenuPermissions } from "@/hooks/useMenuPermissions";
-import { ASSIGNABLE_MENUS } from "@/lib/menuPermissions";
+import { ASSIGNABLE_MENUS, MENU_EXTRA_CONFIG } from "@/lib/menuPermissions";
 import { useNewLeadsCount } from "@/hooks/useNewLeadsCount";
 import {
   Sidebar,
@@ -38,6 +38,12 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+
+// Mapa de ícones para resolver string -> componente
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  UserPlus, Users, Shield, Package, CalendarCheck, Target, Calendar, Scale,
+  TrendingUp, Receipt, FolderOpen, BarChart3, LineChart, Upload, FileText, ClipboardList,
+};
 
 interface MenuCategory {
   label: string;
@@ -53,15 +59,11 @@ interface MenuCategory {
 export function AppSidebar() {
   const { profile } = useAuth();
   const { state } = useSidebar();
-  const { hasRouteAccess } = useMenuPermissions();
+  const { hasRouteAccess, permissions } = useMenuPermissions();
   const newLeadsCount = useNewLeadsCount();
   const collapsed = state === "collapsed";
 
   const isAdmin = profile?.role === "admin";
-  const isProducao = profile?.role === "producao";
-  const isRepresentante = !isAdmin && !isProducao;
-
-  // Menu items por role, divididos em categorias
 
   // Menu items por role, divididos em categorias
   const representanteCategories: MenuCategory[] = [
@@ -165,7 +167,6 @@ export function AppSidebar() {
     
     return items.filter(item => {
       const menuDef = ASSIGNABLE_MENUS.find(m => m.route === item.url);
-      // Se não é um menu atribuível, mantém (menus base)
       if (!menuDef) return true;
       return hasRouteAccess(item.url);
     });
@@ -178,11 +179,52 @@ export function AppSidebar() {
       ? producaoCategories
       : representanteCategories;
 
-  // Aplica filtro de permissões e remove categorias vazias
-  const categories = baseCategories.map(cat => ({
+  // Aplica filtro de permissões
+  let categories = baseCategories.map(cat => ({
     ...cat,
     items: filterMenusByPermission(cat.items)
-  })).filter(cat => cat.items.length > 0);
+  }));
+
+  // Para não-admin: injetar menus extras que o usuário tem permissão mas não estão nas categorias base
+  if (!isAdmin) {
+    const existingUrls = new Set(categories.flatMap(c => c.items.map(i => i.url)));
+    
+    const extraMenusByCategory: Record<string, MenuCategory['items']> = {};
+    
+    for (const permKey of permissions) {
+      const menuDef = ASSIGNABLE_MENUS.find(m => m.key === permKey);
+      if (!menuDef || existingUrls.has(menuDef.route)) continue;
+      
+      const config = MENU_EXTRA_CONFIG[permKey];
+      if (!config) continue;
+      
+      const icon = ICON_MAP[config.iconName] || Shield;
+      const item = {
+        title: menuDef.label,
+        url: menuDef.route,
+        icon,
+        ...(permKey === 'crm' && newLeadsCount > 0 ? { badge: newLeadsCount } : {}),
+      };
+      
+      if (!extraMenusByCategory[config.category]) {
+        extraMenusByCategory[config.category] = [];
+      }
+      extraMenusByCategory[config.category].push(item);
+    }
+    
+    // Adicionar extras nas categorias existentes ou criar novas
+    for (const [catLabel, items] of Object.entries(extraMenusByCategory)) {
+      const existing = categories.find(c => c.label === catLabel);
+      if (existing) {
+        existing.items.push(...items);
+      } else {
+        categories.push({ label: catLabel, items });
+      }
+    }
+  }
+
+  // Remove categorias vazias
+  categories = categories.filter(cat => cat.items.length > 0);
 
   return (
     <Sidebar
@@ -243,7 +285,6 @@ export function AppSidebar() {
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
-            {/* Separator line between categories */}
             {catIndex < categories.length - 1 && !collapsed && (
               <div className="mt-4 mx-3 border-t border-sidebar-border/50" />
             )}
