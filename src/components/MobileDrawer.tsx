@@ -18,8 +18,13 @@ import { NotificationsSheet } from '@/components/notifications/NotificationsShee
 import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory, Bell, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useMenuPermissions } from '@/hooks/useMenuPermissions';
-import { ASSIGNABLE_MENUS } from '@/lib/menuPermissions';
+import { ASSIGNABLE_MENUS, MENU_EXTRA_CONFIG } from '@/lib/menuPermissions';
 import { useNewLeadsCount } from '@/hooks/useNewLeadsCount';
+// Mapa de ícones para resolver string -> componente
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  UserPlus, Users, Shield, Package, CalendarCheck, Target, Calendar, Scale,
+  TrendingUp, Receipt, FolderOpen, BarChart3, LineChart, Upload, FileText, ClipboardList,
+};
 
 interface MenuCategory {
   label: string;
@@ -43,7 +48,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const navigate = useNavigate();
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { hasRouteAccess } = useMenuPermissions();
+  const { hasRouteAccess, permissions } = useMenuPermissions();
   const newLeadsCount = useNewLeadsCount();
 
   const userInitials = profile?.nome
@@ -167,10 +172,49 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     ? producaoCategories 
     : representanteCategories;
 
-  const categories = baseCategories.map(cat => ({
+  let categories = baseCategories.map(cat => ({
     ...cat,
     items: filterMenusByPermission(cat.items)
-  })).filter(cat => cat.items.length > 0);
+  }));
+
+  // Para não-admin: injetar menus extras que o usuário tem permissão mas não estão nas categorias base
+  if (profile?.role !== 'admin') {
+    const existingUrls = new Set(categories.flatMap(c => c.items.map(i => i.url)));
+    
+    const extraMenusByCategory: Record<string, MenuCategory['items']> = {};
+    
+    for (const permKey of permissions) {
+      const menuDef = ASSIGNABLE_MENUS.find(m => m.key === permKey);
+      if (!menuDef || existingUrls.has(menuDef.route)) continue;
+      
+      const config = MENU_EXTRA_CONFIG[permKey];
+      if (!config) continue;
+      
+      const icon = ICON_MAP[config.iconName] || Shield;
+      const item = {
+        title: menuDef.label,
+        url: menuDef.route,
+        icon,
+        ...(permKey === 'crm' && newLeadsCount > 0 ? { badge: newLeadsCount } : {}),
+      };
+      
+      if (!extraMenusByCategory[config.category]) {
+        extraMenusByCategory[config.category] = [];
+      }
+      extraMenusByCategory[config.category].push(item);
+    }
+    
+    for (const [catLabel, items] of Object.entries(extraMenusByCategory)) {
+      const existing = categories.find(c => c.label === catLabel);
+      if (existing) {
+        existing.items.push(...items);
+      } else {
+        categories.push({ label: catLabel, items });
+      }
+    }
+  }
+
+  categories = categories.filter(cat => cat.items.length > 0);
 
   const handleLinkClick = () => {
     onOpenChange(false);
