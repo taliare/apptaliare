@@ -1,94 +1,74 @@
 
-# Corrigir Logica de Acrescimo: Somar na Nota Original em vez de Criar Nova Nota
+
+# Corrigir Menus de Permissao que Nao Aparecem para Representantes
 
 ## Problema
 
-Quando o representante registra um acrescimo (joias adicionais), o sistema cria uma nota separada tipo "acrescimo" alem da nota original do kit. A revendedora fica com duas notas na agenda -- uma situacao incorreta. O correto e somar o valor do acrescimo na nota original do kit (campo `valor_previsto`), mantendo um unico pedido.
+O sistema de permissoes funciona assim:
+1. Admin atribui permissoes (ex: `garantias`) a um representante na tabela `user_menu_permissions`
+2. O sidebar filtra os menus baseado nas permissoes
 
-## Situacao Atual no Banco
+Porem, o `representanteCategories` e uma lista fixa com apenas os menus basicos (Dashboard, Agenda, Kits, Gestao). Menus como "Garantias", "CRM", "Fechamento Diario", etc. so existem no `adminCategories`. Quando o filtro de permissoes roda, ele filtra itens que JA ESTAO na lista -- nunca adiciona novos.
 
-Existem **13 notas tipo "acrescimo"** que nao deveriam existir. Em nenhum caso o valor do acrescimo foi somado na nota original (diferenca = 0 em todos).
+Resultado: mesmo com a permissao `garantias` atribuida no banco, o menu nao aparece porque nao esta no `representanteCategories`.
+
+**Usuarios afetados no banco:**
+- BLYNDSON SANTOS: permissoes `crm` e `garantias` -- nenhuma aparece
+- CELIA ARAGAO: permissao `garantias` -- nao aparece
+- JOSINALDO OLIVEIRA: permissao `garantias` -- nao aparece
 
 ## Solucao
 
-### 1. Alterar a funcao de banco `registrar_acrescimo_pedido`
+Modificar o `AppSidebar.tsx` e o `MobileDrawer.tsx` para que, apos montar as categorias base do representante, injete dinamicamente os menus atribuidos via permissao que nao estejam ja na lista.
 
-A funcao atual (steps 4-5) cria uma nova `cobrancas_agendadas` tipo "acrescimo" e vincula o `cobranca_id` do acrescimo a essa nova nota.
+### Logica
 
-**Nova logica:**
-- Em vez de criar nova `cobrancas_agendadas`, buscar a nota original tipo "kit" vinculada ao mesmo `kit_entregue_id`
-- Somar `p_valor` ao `valor_previsto` da nota original
-- Vincular o `acrescimo_pedido.cobranca_id` a nota original (tipo "kit")
-- Remover completamente a criacao de nota tipo "acrescimo"
+1. Manter o `representanteCategories` como esta (menus basicos)
+2. Apos o filtro de permissoes, verificar quais menus o representante tem permissao que NAO estao em nenhuma categoria base
+3. Para cada menu com permissao que esta faltando, buscar a definicao no `adminCategories` (titulo, icone, url) e adicionar numa nova categoria "EXTRAS" ou na categoria mais adequada
 
-### 2. Corrigir dados existentes (13 notas)
+### Implementacao tecnica
 
-Para cada nota tipo "acrescimo":
-- Somar o `valor_previsto` dela na nota original tipo "kit" do mesmo `kit_entregue_id`
-- Atualizar o `cobranca_id` no `acrescimos_pedido` para apontar para a nota original
-- Deletar a nota tipo "acrescimo"
-
-### 3. Atualizar `ModalRegistrarAcrescimo.tsx`
-
-O componente nao precisa de mudancas significativas pois ja chama a RPC. Apenas ajustar as queries invalidadas (remover query de acrescimos se nao for mais necessaria).
-
-## Detalhes Tecnicos
-
-### Migration SQL - Alterar funcao `registrar_acrescimo_pedido`
-
-Substituir os steps 4 e 5 da funcao por:
+Criar um mapa de definicoes de menus (icone, titulo, categoria sugerida) em `menuPermissions.ts`, e usar isso para injetar menus extras:
 
 ```text
--- 4. Buscar cobranca original tipo 'kit' do mesmo kit_entregue_id
-SELECT id INTO v_cobranca_id
-FROM cobrancas_agendadas
-WHERE kit_entregue_id = p_kit_entregue_id
-  AND tipo = 'kit'
-LIMIT 1;
-
--- 5. Somar acrescimo ao valor_previsto da nota original
-IF v_cobranca_id IS NOT NULL THEN
-  UPDATE cobrancas_agendadas
-  SET valor_previsto = valor_previsto + p_valor
-  WHERE id = v_cobranca_id;
-END IF;
-
--- 6. Vincular acrescimo a nota original
-UPDATE acrescimos_pedido
-SET cobranca_id = v_cobranca_id
-WHERE id = v_acrescimo_id;
+// Em menuPermissions.ts - adicionar metadata dos menus
+export const MENU_DEFINITIONS: Record<MenuKey, { label: string; icon: string; category: string }> = {
+  garantias: { label: 'Garantias', icon: 'Shield', category: 'OPERACIONAL' },
+  crm: { label: 'CRM', icon: 'UserPlus', category: 'OPERACIONAL' },
+  fechamento_diario: { label: 'Fechamento Diário', icon: 'CalendarCheck', category: 'FINANCEIRO' },
+  // ... todos os menus atribuiveis
+};
 ```
-
-### Correcao de dados existentes (via insert tool)
 
 ```text
--- 1. Somar acrescimos nas notas originais
-UPDATE cobrancas_agendadas orig
-SET valor_previsto = orig.valor_previsto + acr.valor_previsto
-FROM cobrancas_agendadas acr
-WHERE acr.tipo = 'acrescimo'
-  AND orig.kit_entregue_id = acr.kit_entregue_id
-  AND orig.tipo = 'kit';
+// Em AppSidebar.tsx e MobileDrawer.tsx - apos montar categorias base:
 
--- 2. Atualizar cobranca_id dos acrescimos_pedido para apontar para nota original
-UPDATE acrescimos_pedido ap
-SET cobranca_id = orig.id
-FROM cobrancas_agendadas orig
-WHERE orig.kit_entregue_id = ap.kit_entregue_id
-  AND orig.tipo = 'kit';
+// 1. Coletar todas as URLs ja presentes nas categorias base
+const existingUrls = new Set(baseCategories.flatMap(c => c.items.map(i => i.url)));
 
--- 3. Deletar notas tipo acrescimo
-DELETE FROM cobrancas_agendadas WHERE tipo = 'acrescimo';
+// 2. Para cada permissao do representante, se a rota nao esta nas categorias base, adicionar
+const extraItems = permissions
+  .map(key => ASSIGNABLE_MENUS.find(m => m.key === key))
+  .filter(m => m && !existingUrls.has(m.route))
+  .map(m => ({ title: MENU_DEFINITIONS[m.key].label, url: m.route, icon: iconMap[m.key] }));
+
+// 3. Se ha extras, adicionar como nova categoria
+if (extraItems.length > 0) {
+  baseCategories.push({ label: 'EXTRAS', items: extraItems });
+}
 ```
 
-## Arquivos alterados
+### Arquivos a modificar
 
-- **Migration SQL**: Alterar funcao `registrar_acrescimo_pedido` para somar na nota original
-- **Dados**: Corrigir 13 notas existentes
+1. **`src/lib/menuPermissions.ts`** -- Adicionar mapa de icones/labels para cada menu atribuivel
+2. **`src/components/AppSidebar.tsx`** -- Injetar menus extras baseado em permissoes do representante
+3. **`src/components/MobileDrawer.tsx`** -- Mesma logica do sidebar para o drawer mobile
 
-## O que NAO muda
+### O que NAO muda
 
-- A tabela `acrescimos_pedido` continua existindo (registro individual de cada acrescimo)
-- O `ModalRegistrarAcrescimo.tsx` continua funcionando igual (chama a mesma RPC)
-- Fluxo de cobranca parcial e cancelamento
-- Visualizacao na agenda (agora mostra valor correto: kit + acrescimos)
+- Rotas no `AnimatedRoutes.tsx` ja estao corretas (todas usam `PermissionRoute`)
+- Tabela `user_menu_permissions` e dados existentes estao corretos
+- Hook `useMenuPermissions` funciona corretamente
+- Admin continua vendo tudo normalmente
+
