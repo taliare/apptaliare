@@ -1,29 +1,30 @@
 
-# Adicionar Botao "Encaminhar ao Juridico" na Agenda do Admin
 
-## Contexto
-Atualmente, apenas o representante pode encaminhar notas ao juridico pela tela de Cobranca (`Cobranca.tsx`). O admin, na tela Gerenciar Agenda (`GerenciarAgenda.tsx`), so consegue alterar o status para "juridico" editando a cobranca manualmente pelo dialog de edicao. Vamos adicionar um botao direto na tabela para agilizar esse processo.
+# Reorganizar Layout da Distribuicao de Kits
 
-## Alteracoes
+## Problema Atual
+As colunas (Estoque + Representantes) usam um grid com `grid-cols-4` no desktop, fazendo com que ao ter mais de 3 representantes, as colunas extras caiam para baixo, quebrando o visual.
 
-### Arquivo: `src/pages/GerenciarAgenda.tsx`
+## Solucao
 
-1. **Importar icone `Scale`** (ja usado em outras partes do projeto para representar "Juridico")
+### 1. Layout Horizontal com Scroll
+Trocar o grid por um layout horizontal com scroll (`flex` + `overflow-x-auto`), onde todas as colunas ficam lado a lado independente da quantidade de representantes. Cada coluna tera uma largura fixa minima (~280px) para garantir legibilidade.
 
-2. **Criar mutation `juridicoMutation`** que atualiza o status da cobranca para `'juridico'` e preenche `data_encaminhado_juridico` com a data/hora atual (mesmo comportamento da tela do representante)
-
-3. **Adicionar botao na coluna de acoes da tabela** (ao lado do botao de editar existente):
-   - Botao com icone `Scale` e tooltip "Encaminhar ao Juridico"
-   - Visivel apenas para cobrancas com status `pendente`, `parcial` ou `reagendado`
-   - Cor roxa para manter consistencia visual com o tema "juridico" do sistema
-
-4. **Adicionar dialog de confirmacao** para evitar cliques acidentais:
-   - Exibe nome da revendedora, codigo da nota e valor
-   - Botoes "Cancelar" e "Confirmar Encaminhamento"
+### 2. Funcao de Zoom
+Adicionar um controle de zoom (slider ou botoes +/-) no topo da pagina que permite ampliar ou reduzir a visualizacao das colunas. O zoom vai escalar o tamanho das colunas (largura minima) para que o usuario consiga ver mais ou menos colunas de uma vez.
 
 ## Detalhes Tecnicos
 
-- A mutation usa o mesmo padrao do `Cobranca.tsx`: `status: 'juridico'` + `data_encaminhado_juridico: new Date().toISOString()`
-- Invalida a query `todas-cobrancas-admin` apos sucesso
-- Nenhuma alteracao de banco de dados necessaria (o campo `data_encaminhado_juridico` e o status `juridico` ja existem)
-- Nenhuma alteracao de layout ou outras paginas
+### Arquivo: `src/pages/DistribuicaoKits.tsx`
+
+1. **Adicionar estado de zoom**: `const [zoom, setZoom] = useState(100)` (porcentagem, 50% a 150%)
+
+2. **Adicionar controle de zoom na barra de acoes**: Botoes ZoomOut (-) e ZoomIn (+) com exibicao da porcentagem atual, usando icones do Lucide (`ZoomIn`, `ZoomOut`)
+
+3. **Substituir o grid por flex horizontal com scroll**:
+   - De: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4`
+   - Para: `flex gap-4 overflow-x-auto pb-4` (com scrollbar visivel)
+   - Cada coluna tera `min-w-[280px]` escalado pelo zoom (ex: a 120% = 336px, a 80% = 224px)
+   - Usar `flex-shrink-0` para evitar que as colunas encolham
+
+4. **Estilizar scrollbar**: Adicionar classes para scrollbar mais visivel e amigavel
