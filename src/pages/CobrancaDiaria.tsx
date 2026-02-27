@@ -22,7 +22,7 @@ import { cn, formatarValor, formatarNumero, getLocalDateString } from '@/lib/uti
 import { sanitizeString } from '@/lib/validations';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
 import { ModalRegistrarAcrescimo } from '@/components/cobranca/ModalRegistrarAcrescimo';
-import { RevendedoraAutocomplete } from '@/components/RevendedoraAutocomplete';
+import { RevendedoraSearchSelect } from '@/components/RevendedoraSearchSelect';
 import type { Database } from '@/integrations/supabase/types';
 
 interface NotaPromissoria {
@@ -1567,15 +1567,11 @@ export default function CobrancaDiaria() {
 
                     <div>
                       <Label>Nome da Revendedora *</Label>
-                      <RevendedoraAutocomplete
+                      <RevendedoraSearchSelect
+                        representanteId={user?.id || ''}
                         value={revendedoraKit}
-                        onChange={setRevendedoraKit}
-                        revendedoras={revendedorasUnicas}
-                        placeholder="Digite o nome da revendedora"
+                        onSelect={(nome) => setRevendedoraKit(nome)}
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Sugestões aparecem ao digitar. Caso seja nova, apenas digite o nome completo.
-                      </p>
                     </div>
 
                     <div className="flex items-center gap-2">
