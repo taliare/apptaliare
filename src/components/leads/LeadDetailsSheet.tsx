@@ -247,6 +247,14 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
 
           {/* Informações detalhadas */}
           <div className="space-y-3">
+            {lead.idade && (
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Idade
+                </Label>
+                <p className="text-sm">{lead.idade}</p>
+              </div>
+            )}
             {lead.experiencia_vendas && (
               <div>
                 <Label className="text-xs text-muted-foreground">

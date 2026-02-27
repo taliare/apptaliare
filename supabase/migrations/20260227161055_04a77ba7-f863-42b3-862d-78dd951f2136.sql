@@ -1,0 +1,1 @@
+ALTER TABLE leads_revendedoras ADD COLUMN idade text NULL;

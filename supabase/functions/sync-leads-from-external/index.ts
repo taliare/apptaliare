@@ -168,6 +168,7 @@ Deno.serve(async (req) => {
       utm_source: lead.utm_source,
       utm_medium: lead.utm_medium,
       utm_campaign: lead.utm_campaign,
+      idade: lead.idade || null,
       created_at: lead.created_at,
       responsavel_id: null,
       responsavel_nome: null,
