@@ -1,63 +1,54 @@
 
+# Busca de Revendedoras no Banco de Dados ao Registrar Entrega
 
-# Importar 83 Revendedoras Faltantes e Tratar Duplicata
+## Objetivo
+Substituir o campo de texto livre por um componente de busca que consulta a tabela `revendedoras` no banco de dados, permitindo selecionar uma revendedora existente ou cadastrar uma nova caso nao exista.
 
-## Situacao Atual
-- A tabela `revendedoras` tem 494 registros, todos unicos (sem duplicatas internas)
-- Existem 83 revendedoras que aparecem em `cobrancas_agendadas` mas nao estao na tabela centralizada
-- Ha 1 caso de variacao de nome por casing ("vanessa lopes de oliveira" / "Vanessa Lopes de Oliveira")
+## Fluxo do Usuario
 
-## Plano de Acao
+1. Representante clica em "Registrar Entrega de Kit"
+2. Ao digitar no campo "Revendedora", o sistema busca na tabela `revendedoras` por nome OU WhatsApp (filtrado pelo `representante_id` do usuario logado)
+3. Se encontrar resultados, exibe lista para selecao
+4. Se nao encontrar, exibe botao "Cadastrar Nova Revendedora"
+5. Ao clicar em "Cadastrar", abre um mini-formulario inline com campos: Nome Completo e WhatsApp
+6. Ao salvar, insere na tabela `revendedoras` e ja seleciona automaticamente
+7. O nome salvo na `revendedoras` e usado na entrega (sem digitacao livre)
 
-### 1. Tratar a duplicata de casing
-Normalizar o nome "vanessa lopes de oliveira" nas cobrancas para a forma padrao antes da importacao.
+## Alteracoes
 
-### 2. Importar as 83 revendedoras faltantes
-Executar um INSERT que:
-- Busca todos os nomes distintos (UPPER+TRIM) de `cobrancas_agendadas` que nao existem em `revendedoras`
-- Insere cada nome com o `representante_id` correspondente
-- Define `ativo` baseado na existencia de cobrancas pendentes (se tem cobranca pendente/parcial = ativa, senao = inativa)
-- Usa o formato de nome mais recente (ultima cobranca) como nome oficial
+### 1. Novo componente: `src/components/RevendedoraSearchSelect.tsx`
+Componente reutilizavel que:
+- Recebe `representanteId` como prop
+- Busca revendedoras da tabela `revendedoras` filtrando por `representante_id`
+- Pesquisa por nome OU WhatsApp em tempo real (debounce de 300ms)
+- Exibe resultados com nome e WhatsApp
+- Tem botao "Cadastrar Nova Revendedora" quando nao encontra
+- Formulario inline de cadastro (nome + WhatsApp) com validacao de duplicatas via `UPPER(TRIM(nome))`
+- Retorna o nome da revendedora selecionada/cadastrada via `onSelect(nome: string)`
 
-### 3. Verificacao pos-importacao
-Consultar a tabela para confirmar que todos os registros foram importados corretamente.
+### 2. Atualizar `src/pages/Kits.tsx` (linhas 321-328)
+- Substituir o `<Input>` de "Nome da Revendedora" pelo novo `<RevendedoraSearchSelect>`
+- Passar `representanteId={user.id}` e `onSelect={(nome) => setRevendedoraKit(nome)}`
+
+### 3. Atualizar `src/pages/CobrancaDiaria.tsx` (linhas 1568-1578)
+- Substituir o `<RevendedoraAutocomplete>` pelo novo `<RevendedoraSearchSelect>`
+- Mesma logica: passar representante_id e receber o nome selecionado
+
+### 4. Manter `RevendedoraAutocomplete.tsx`
+- Pode ser removido depois se nao for mais usado em nenhum lugar, mas por seguranca sera mantido nesta etapa
 
 ## Detalhes Tecnicos
 
-Serao executados 2 comandos SQL via ferramenta de dados:
+- A busca usa `supabase.from('revendedoras').select('id, nome, whatsapp').eq('representante_id', userId).or(\`nome.ilike.%${term}%,whatsapp.ilike.%${term}%\`).limit(10)`
+- Ao cadastrar nova revendedora, faz INSERT na tabela `revendedoras` com `representante_id`, `nome`, `whatsapp`, `ativo: true`
+- Validacao pre-insert: verifica se ja existe registro com mesmo `UPPER(TRIM(nome))` e `representante_id` para evitar duplicatas
+- A constraint UNIQUE(nome, representante_id) ja existente no banco protege contra duplicatas no nivel do banco
+- RLS ja permite representante ver suas revendedoras (SELECT) e admin gerenciar todas; sera necessario adicionar policy para representante poder INSERT suas proprias revendedoras
 
-**Passo 1** - Normalizar casing da duplicata:
+### Migracao necessaria
+Adicionar RLS policy para permitir representantes criarem revendedoras:
 ```sql
-UPDATE cobrancas_agendadas
-SET revendedora = 'Vanessa Lopes de Oliveira'
-WHERE UPPER(TRIM(revendedora)) = 'VANESSA LOPES DE OLIVEIRA'
-  AND representante_id = 'e082d4f6-c9be-4050-8aca-b05e6b9bd76c';
+CREATE POLICY "Representante pode cadastrar suas revendedoras"
+ON revendedoras FOR INSERT
+WITH CHECK (representante_id = auth.uid());
 ```
-
-**Passo 2** - Inserir as revendedoras faltantes:
-```sql
-INSERT INTO revendedoras (nome, representante_id, ativo, ultima_atividade)
-SELECT DISTINCT ON (UPPER(TRIM(ca.revendedora)), ca.representante_id)
-  ca.revendedora as nome,
-  ca.representante_id,
-  EXISTS (
-    SELECT 1 FROM cobrancas_agendadas c2
-    WHERE UPPER(TRIM(c2.revendedora)) = UPPER(TRIM(ca.revendedora))
-      AND c2.representante_id = ca.representante_id
-      AND c2.status IN ('pendente','parcial','reagendado')
-  ) as ativo,
-  (SELECT MAX(c3.data_agendada) FROM cobrancas_agendadas c3
-   WHERE UPPER(TRIM(c3.revendedora)) = UPPER(TRIM(ca.revendedora))
-     AND c3.representante_id = ca.representante_id
-  ) as ultima_atividade
-FROM cobrancas_agendadas ca
-WHERE NOT EXISTS (
-  SELECT 1 FROM revendedoras r
-  WHERE UPPER(TRIM(r.nome)) = UPPER(TRIM(ca.revendedora))
-    AND r.representante_id = ca.representante_id
-)
-ORDER BY UPPER(TRIM(ca.revendedora)), ca.representante_id, ca.criado_em DESC;
-```
-
-Nenhuma alteracao de codigo ou schema necessaria -- apenas operacoes de dados.
-
