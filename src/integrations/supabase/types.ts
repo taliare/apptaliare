@@ -594,6 +594,7 @@ export type Database = {
           experiencia_vendas: string | null
           external_id: string | null
           id: string
+          idade: string | null
           instagram: string | null
           motivacao: string | null
           nome: string
@@ -615,6 +616,7 @@ export type Database = {
           experiencia_vendas?: string | null
           external_id?: string | null
           id?: string
+          idade?: string | null
           instagram?: string | null
           motivacao?: string | null
           nome: string
@@ -636,6 +638,7 @@ export type Database = {
           experiencia_vendas?: string | null
           external_id?: string | null
           id?: string
+          idade?: string | null
           instagram?: string | null
           motivacao?: string | null
           nome?: string

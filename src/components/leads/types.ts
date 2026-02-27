@@ -17,6 +17,7 @@ export interface LeadRevendedora {
   observacao: string | null;
   responsavel_id: string | null;
   responsavel_nome: string | null;
+  idade: string | null;
 }
 
 export interface LeadStatusHistorico {
