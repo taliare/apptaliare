@@ -1,30 +1,63 @@
 
 
-# Reorganizar Layout da Distribuicao de Kits
+# Importar 83 Revendedoras Faltantes e Tratar Duplicata
 
-## Problema Atual
-As colunas (Estoque + Representantes) usam um grid com `grid-cols-4` no desktop, fazendo com que ao ter mais de 3 representantes, as colunas extras caiam para baixo, quebrando o visual.
+## Situacao Atual
+- A tabela `revendedoras` tem 494 registros, todos unicos (sem duplicatas internas)
+- Existem 83 revendedoras que aparecem em `cobrancas_agendadas` mas nao estao na tabela centralizada
+- Ha 1 caso de variacao de nome por casing ("vanessa lopes de oliveira" / "Vanessa Lopes de Oliveira")
 
-## Solucao
+## Plano de Acao
 
-### 1. Layout Horizontal com Scroll
-Trocar o grid por um layout horizontal com scroll (`flex` + `overflow-x-auto`), onde todas as colunas ficam lado a lado independente da quantidade de representantes. Cada coluna tera uma largura fixa minima (~280px) para garantir legibilidade.
+### 1. Tratar a duplicata de casing
+Normalizar o nome "vanessa lopes de oliveira" nas cobrancas para a forma padrao antes da importacao.
 
-### 2. Funcao de Zoom
-Adicionar um controle de zoom (slider ou botoes +/-) no topo da pagina que permite ampliar ou reduzir a visualizacao das colunas. O zoom vai escalar o tamanho das colunas (largura minima) para que o usuario consiga ver mais ou menos colunas de uma vez.
+### 2. Importar as 83 revendedoras faltantes
+Executar um INSERT que:
+- Busca todos os nomes distintos (UPPER+TRIM) de `cobrancas_agendadas` que nao existem em `revendedoras`
+- Insere cada nome com o `representante_id` correspondente
+- Define `ativo` baseado na existencia de cobrancas pendentes (se tem cobranca pendente/parcial = ativa, senao = inativa)
+- Usa o formato de nome mais recente (ultima cobranca) como nome oficial
+
+### 3. Verificacao pos-importacao
+Consultar a tabela para confirmar que todos os registros foram importados corretamente.
 
 ## Detalhes Tecnicos
 
-### Arquivo: `src/pages/DistribuicaoKits.tsx`
+Serao executados 2 comandos SQL via ferramenta de dados:
 
-1. **Adicionar estado de zoom**: `const [zoom, setZoom] = useState(100)` (porcentagem, 50% a 150%)
+**Passo 1** - Normalizar casing da duplicata:
+```sql
+UPDATE cobrancas_agendadas
+SET revendedora = 'Vanessa Lopes de Oliveira'
+WHERE UPPER(TRIM(revendedora)) = 'VANESSA LOPES DE OLIVEIRA'
+  AND representante_id = 'e082d4f6-c9be-4050-8aca-b05e6b9bd76c';
+```
 
-2. **Adicionar controle de zoom na barra de acoes**: Botoes ZoomOut (-) e ZoomIn (+) com exibicao da porcentagem atual, usando icones do Lucide (`ZoomIn`, `ZoomOut`)
+**Passo 2** - Inserir as revendedoras faltantes:
+```sql
+INSERT INTO revendedoras (nome, representante_id, ativo, ultima_atividade)
+SELECT DISTINCT ON (UPPER(TRIM(ca.revendedora)), ca.representante_id)
+  ca.revendedora as nome,
+  ca.representante_id,
+  EXISTS (
+    SELECT 1 FROM cobrancas_agendadas c2
+    WHERE UPPER(TRIM(c2.revendedora)) = UPPER(TRIM(ca.revendedora))
+      AND c2.representante_id = ca.representante_id
+      AND c2.status IN ('pendente','parcial','reagendado')
+  ) as ativo,
+  (SELECT MAX(c3.data_agendada) FROM cobrancas_agendadas c3
+   WHERE UPPER(TRIM(c3.revendedora)) = UPPER(TRIM(ca.revendedora))
+     AND c3.representante_id = ca.representante_id
+  ) as ultima_atividade
+FROM cobrancas_agendadas ca
+WHERE NOT EXISTS (
+  SELECT 1 FROM revendedoras r
+  WHERE UPPER(TRIM(r.nome)) = UPPER(TRIM(ca.revendedora))
+    AND r.representante_id = ca.representante_id
+)
+ORDER BY UPPER(TRIM(ca.revendedora)), ca.representante_id, ca.criado_em DESC;
+```
 
-3. **Substituir o grid por flex horizontal com scroll**:
-   - De: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4`
-   - Para: `flex gap-4 overflow-x-auto pb-4` (com scrollbar visivel)
-   - Cada coluna tera `min-w-[280px]` escalado pelo zoom (ex: a 120% = 336px, a 80% = 224px)
-   - Usar `flex-shrink-0` para evitar que as colunas encolham
+Nenhuma alteracao de codigo ou schema necessaria -- apenas operacoes de dados.
 
-4. **Estilizar scrollbar**: Adicionar classes para scrollbar mais visivel e amigavel
