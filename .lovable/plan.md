@@ -1,59 +1,29 @@
 
+# Adicionar Botao "Encaminhar ao Juridico" na Agenda do Admin
 
-# Varredura de Seguranca - Correcoes Necessarias
+## Contexto
+Atualmente, apenas o representante pode encaminhar notas ao juridico pela tela de Cobranca (`Cobranca.tsx`). O admin, na tela Gerenciar Agenda (`GerenciarAgenda.tsx`), so consegue alterar o status para "juridico" editando a cobranca manualmente pelo dialog de edicao. Vamos adicionar um botao direto na tabela para agilizar esse processo.
 
-## 1. Aviso "Site Nao Seguro" no Navegador
+## Alteracoes
 
-Este aviso aparece quando o certificado SSL do dominio personalizado nao esta configurado corretamente. Isso NAO e um problema no codigo -- e uma configuracao de infraestrutura.
+### Arquivo: `src/pages/GerenciarAgenda.tsx`
 
-**Acao necessaria (do usuario):** Ir em Settings > Custom Domain no Lovable e verificar se o SSL esta ativo para `taliare.com.br`. Se necessario, remover e re-adicionar o dominio para forcar a renovacao do certificado.
+1. **Importar icone `Scale`** (ja usado em outras partes do projeto para representar "Juridico")
 
-## 2. Meta Tags Apontando para Lovable (CORRIGIR)
+2. **Criar mutation `juridicoMutation`** que atualiza o status da cobranca para `'juridico'` e preenche `data_encaminhado_juridico` com a data/hora atual (mesmo comportamento da tela do representante)
 
-O `index.html` ainda possui meta tags Open Graph e Twitter apontando para o Lovable:
+3. **Adicionar botao na coluna de acoes da tabela** (ao lado do botao de editar existente):
+   - Botao com icone `Scale` e tooltip "Encaminhar ao Juridico"
+   - Visivel apenas para cobrancas com status `pendente`, `parcial` ou `reagendado`
+   - Cor roxa para manter consistencia visual com o tema "juridico" do sistema
 
-```text
-<meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:site" content="@Lovable" />
-<meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-```
+4. **Adicionar dialog de confirmacao** para evitar cliques acidentais:
+   - Exibe nome da revendedora, codigo da nota e valor
+   - Botoes "Cancelar" e "Confirmar Encaminhamento"
 
-**Correcao:** Substituir as imagens OG por uma imagem da TALIARE e remover referencia ao @Lovable:
-- Usar `/icons/icon-512x512.png` como imagem OG (ou criar uma imagem propria)
-- Alterar `twitter:site` para a conta da TALIARE ou remover
-- Atualizar og:image e twitter:image para apontar para `https://taliare.com.br/icons/icon-512x512.png`
+## Detalhes Tecnicos
 
-## 3. Leaked Password Protection Desabilitada (CORRIGIR)
-
-O sistema nao verifica se as senhas dos usuarios foram vazadas em breaches conhecidos. Isso e uma configuracao do backend de autenticacao.
-
-**Correcao:** Nao e possivel alterar essa configuracao via codigo -- e uma opcao do painel do backend. Sera documentado como recomendacao.
-
-## 4. Security Definer View - profiles_limited (JA TRATADO)
-
-A view `profiles_limited` usa SECURITY DEFINER propositalmente para expor apenas campos nao sensiveis (nome, avatar). Isso ja foi analisado e esta correto conforme a arquitetura do projeto.
-
-## 5. Politicas RLS - Analise (JA CORRETAS)
-
-Todas as tabelas usam politicas **RESTRICTIVE** (negam por padrao). O scanner reporta falsos positivos porque nao detecta que politicas RESTRICTIVE ja bloqueiam acesso anonimo. As tabelas criticas estao protegidas:
-- `profiles`: Apenas admin ou proprio usuario
-- `cobrancas_agendadas`: Apenas admin ou representante dono
-- `leads_revendedoras`: Apenas admin
-- `messages`: Apenas remetente/destinatario
-- Todas as demais: Devidamente protegidas
-
-## Resumo das Acoes
-
-| Item | Severidade | Acao |
-|------|-----------|------|
-| Meta tags OG/Twitter com Lovable | Media | Corrigir no index.html |
-| Aviso SSL "nao seguro" | Alta | Usuario verificar configuracao do dominio |
-| Leaked password protection | Baixa | Recomendacao (configuracao do backend) |
-| RLS policies | OK | Ja estao corretas |
-| SECURITY DEFINER functions | OK | Ja revisadas e seguras |
-
-## Arquivos a Modificar
-
-- **`index.html`**: Atualizar meta tags og:image, twitter:image e twitter:site para usar assets da TALIARE em vez do Lovable
-
+- A mutation usa o mesmo padrao do `Cobranca.tsx`: `status: 'juridico'` + `data_encaminhado_juridico: new Date().toISOString()`
+- Invalida a query `todas-cobrancas-admin` apos sucesso
+- Nenhuma alteracao de banco de dados necessaria (o campo `data_encaminhado_juridico` e o status `juridico` ja existem)
+- Nenhuma alteracao de layout ou outras paginas
