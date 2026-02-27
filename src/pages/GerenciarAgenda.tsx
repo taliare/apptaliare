@@ -15,7 +15,8 @@ import { profilesLimited } from '@/lib/profilesLimited';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDate, getDay, startOfMonth, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Edit, Search, Plus, Trash2, CheckSquare, ChevronRight } from 'lucide-react';
+import { Edit, Search, Plus, Trash2, CheckSquare, ChevronRight, Scale } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, formatDateBR, parseLocalDate, getLocalDateString } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -48,6 +49,9 @@ export default function GerenciarAgenda() {
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkStatusOpen, setIsBulkStatusOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<StatusCobranca>('pendente');
+  
+  // Jurídico
+  const [juridicoCobranca, setJuridicoCobranca] = useState<Cobranca | null>(null);
   
   // Filtros
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
@@ -253,6 +257,28 @@ export default function GerenciarAgenda() {
     },
     onError: () => {
       toast({ title: 'Erro ao alterar status', variant: 'destructive' });
+    },
+  });
+
+  // Mutation para encaminhar ao jurídico
+  const juridicoMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('cobrancas_agendadas')
+        .update({ 
+          status: 'juridico' as StatusCobranca, 
+          data_encaminhado_juridico: new Date().toISOString() 
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
+      toast({ title: 'Cobrança encaminhada ao jurídico com sucesso!' });
+      setJuridicoCobranca(null);
+    },
+    onError: () => {
+      toast({ title: 'Erro ao encaminhar ao jurídico', variant: 'destructive' });
     },
   });
 
@@ -681,13 +707,32 @@ export default function GerenciarAgenda() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEdit(cobranca)}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
+                                  <div className="flex items-center justify-end gap-1">
+                                    {['pendente', 'parcial', 'reagendado'].includes(cobranca.status) && (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="text-purple-600 hover:text-purple-700 hover:bg-purple-500/10"
+                                              onClick={() => setJuridicoCobranca(cobranca)}
+                                            >
+                                              <Scale className="h-4 w-4" />
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>Encaminhar ao Jurídico</TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEdit(cobranca)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -989,6 +1034,34 @@ export default function GerenciarAgenda() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Confirmação - Encaminhar ao Jurídico */}
+      <AlertDialog open={!!juridicoCobranca} onOpenChange={(open) => !open && setJuridicoCobranca(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encaminhar ao Jurídico</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja encaminhar esta cobrança ao jurídico?
+              {juridicoCobranca && (
+                <div className="mt-3 space-y-1 text-sm">
+                  <p><strong>Revendedora:</strong> {juridicoCobranca.revendedora}</p>
+                  <p><strong>Código da Nota:</strong> {juridicoCobranca.codigo_nota || '-'}</p>
+                  <p><strong>Valor:</strong> {formatarValor(juridicoCobranca.valor_previsto)}</p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-purple-600 hover:bg-purple-700"
+              onClick={() => juridicoCobranca && juridicoMutation.mutate(juridicoCobranca.id)}
+            >
+              Confirmar Encaminhamento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
