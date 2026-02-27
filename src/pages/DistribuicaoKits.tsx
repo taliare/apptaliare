@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { profilesLimited } from "@/lib/profilesLimited";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Package, Trash2, Search, Pencil, CheckSquare, Square, Send } from "lucide-react";
+import { Package, Trash2, Search, Pencil, CheckSquare, Square, Send, ZoomIn, ZoomOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
@@ -237,6 +237,7 @@ export default function DistribuicaoKits() {
   const [kitToEdit, setKitToEdit] = useState<Kit | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [zoom, setZoom] = useState(100);
 
   // Estado do formulário de edição
   const [editCodigo, setEditCodigo] = useState("");
@@ -628,7 +629,7 @@ export default function DistribuicaoKits() {
                 : "Arraste os kits entre estoque e representantes"}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {selectionMode ? (
               <>
                 <Button 
@@ -675,6 +676,25 @@ export default function DistribuicaoKits() {
                 Selecionar em lote
               </Button>
             )}
+            <div className="flex items-center gap-1 border rounded-lg px-2 py-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setZoom((z) => Math.max(50, z - 10))}
+                disabled={zoom <= 50}
+              >
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+              <span className="text-xs font-medium w-10 text-center">{zoom}%</span>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setZoom((z) => Math.min(150, z + 10))}
+                disabled={zoom >= 150}
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+            </div>
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -687,9 +707,16 @@ export default function DistribuicaoKits() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div 
+          className="flex gap-4 overflow-x-auto pb-4"
+          style={{ scrollbarColor: 'hsl(var(--border)) transparent' }}
+        >
           {/* Coluna Estoque - com opções de excluir e editar */}
-          <div onDrop={(e) => handleDrop(e, "estoque")}>
+          <div 
+            onDrop={(e) => handleDrop(e, "estoque")}
+            className="flex-shrink-0"
+            style={{ minWidth: `${280 * zoom / 100}px` }}
+          >
             <DroppableColumn
               id="estoque"
               title="Estoque"
@@ -705,7 +732,12 @@ export default function DistribuicaoKits() {
 
           {/* Colunas dos Representantes - sem opções de excluir/editar */}
           {representantes.map((rep) => (
-            <div key={rep.id} onDrop={(e) => handleDrop(e, rep.id)}>
+            <div 
+              key={rep.id} 
+              onDrop={(e) => handleDrop(e, rep.id)}
+              className="flex-shrink-0"
+              style={{ minWidth: `${280 * zoom / 100}px` }}
+            >
               <DroppableColumn id={rep.id} title={rep.nome} kits={getRepKits(rep.id)} onDragOver={handleDragOver} />
             </div>
           ))}
