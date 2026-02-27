@@ -17,6 +17,7 @@ import { ptBR } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, formatarValor, getLocalDateString } from '@/lib/utils';
+import { RevendedoraSearchSelect } from '@/components/RevendedoraSearchSelect';
 
 interface Vendedora {
   id: string;
@@ -320,10 +321,10 @@ export default function Kits() {
 
             <div>
               <Label>Nome da Revendedora *</Label>
-              <Input
+              <RevendedoraSearchSelect
+                representanteId={user?.id || ''}
                 value={revendedoraKit}
-                onChange={(e) => setRevendedoraKit(e.target.value)}
-                placeholder="Ex: Maria Silva"
+                onSelect={(nome) => setRevendedoraKit(nome)}
               />
             </div>
 
