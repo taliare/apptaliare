@@ -993,6 +993,7 @@ export default function CobrancaDiaria() {
       .insert({
         representante_id: user.id,
         codigo_nota: codigoNota,
+        cobranca_id: cobranca.id,
         data: dados.dataNota,
         valor_total: dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
         forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
@@ -1004,13 +1005,18 @@ export default function CobrancaDiaria() {
 
     if (notaError) throw notaError;
 
-    // 3. Atualizar cobrança: status pago + novas colunas
+    // 3. Atualizar cobrança: status pago + acumulado correto
+    const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
+    const valorAdiantado = cobranca.valor_adiantado || 0;
+    const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
+    const saldoAberto = cobranca.valor_previsto - novoAcumulado - valorAdiantado;
+    
     const { error: updateError } = await supabase
       .from('cobrancas_agendadas')
       .update({ 
-        status: 'pago' as any,
-        valor_pago_acumulado: dados.valor_devido_empresa,
-        data_quitacao: dados.dataNota
+        status: (saldoAberto <= 0 ? 'pago' : 'parcial') as any,
+        valor_pago_acumulado: novoAcumulado,
+        data_quitacao: saldoAberto <= 0 ? dados.dataNota : null
       })
       .eq('id', cobranca.id);
 
@@ -1046,6 +1052,7 @@ export default function CobrancaDiaria() {
     const notaData: any = {
       representante_id: user.id,
       codigo_nota: codigoNota,
+      cobranca_id: cobranca.id,
       data: dados.dataNota,
       valor_total: dados.valor_recebido,
       forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',

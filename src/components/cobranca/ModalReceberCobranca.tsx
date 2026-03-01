@@ -409,7 +409,7 @@ export function ModalReceberCobranca({
 
         <div className="space-y-4">
           {/* Info de pagamentos anteriores */}
-          {valor_pago_acumulado > 0 && (
+          {(valor_pago_acumulado > 0 || (cobranca.valor_adiantado || 0) > 0) && (
             <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg text-sm space-y-1">
               <div className="flex justify-between text-blue-700 dark:text-blue-300">
                 <span>Valor total da nota:</span>
