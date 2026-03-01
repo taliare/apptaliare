@@ -676,6 +676,7 @@ export function AdminDayActions({
         <ModalReceberCobranca
           open={!!cobrancaParaPagar}
           onOpenChange={(open) => { if (!open) setCobrancaParaPagar(null); }}
+          isAdmin={true}
           cobranca={{
             id: cobrancaParaPagar.id,
             revendedora: cobrancaParaPagar.revendedora,
