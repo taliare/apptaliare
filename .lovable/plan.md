@@ -1,37 +1,79 @@
 
-# Adicionar campo "idade" ao CRM de Leads
+# Melhorias no Fechamento Diario - Autoridade Admin e Restricao Representante
 
-## Objetivo
-O formulario do site externo coleta a idade da candidata, mas esse campo nao esta sendo sincronizado nem exibido no CRM.
+## Resumo
+Tres frentes de alteracao: (1) dar autoridade total ao admin no Fechamento Diario, (2) adicionar resumo de observacoes no filtro por periodo, (3) bloquear representantes de finalizar dias futuros.
 
-## Alteracoes
+---
 
-### 1. Migracap de banco de dados
-Adicionar coluna `idade` na tabela `leads_revendedoras`:
-```sql
-ALTER TABLE leads_revendedoras ADD COLUMN idade text NULL;
-```
+## 1. Autoridade Total do Admin no Fechamento Diario (`FechamentoDiario.tsx`)
 
-### 2. Atualizar Edge Function `sync-leads-from-external`
-No mapeamento de campos (linhas 156-175), adicionar:
-```
-idade: lead.idade || null,
-```
+O admin ja pode reabrir e finalizar o dia. Faltam as seguintes acoes:
 
-### 3. Atualizar tipo TypeScript `LeadRevendedora`
-Em `src/components/leads/types.ts`, adicionar:
-```
-idade: string | null;
-```
+### 1.1 Adicionar/Editar Observacoes do Dia
+- Adicionar campo de textarea para o admin inserir/editar observacoes quando o dia nao estiver finalizado
+- Quando finalizado, permitir editar observacoes via botao "Editar Observacao"
+- Mutation para salvar observacoes no campo `observacoes` da tabela `cobrancas_diarias`
 
-### 4. Exibir idade no `LeadDetailsSheet`
-Adicionar campo "Idade" na secao de informacoes detalhadas, junto com experiencia_vendas, tempo_disponivel, etc.
+### 1.2 Adicionar Notas do Dia pelo Representante
+- Adicionar botao "Buscar Nota" no painel admin (similar ao existente em CobrancaDiaria)
+- Admin busca uma nota da agenda do representante selecionado e registra a cobranca
+- A nota e inserida em `notas_promissorias` com o `representante_id` do representante selecionado
+- Necessita RLS policy para admin inserir em `notas_promissorias` (atualmente so representante pode inserir)
 
-### 5. (Opcional) Exibir idade no `LeadCard`
-Mostrar idade no card expandido do Kanban, se disponivel.
+### 1.3 Permitir Alterar a Data da Cobranca
+- Adicionar opcao no painel admin para alterar a data de uma nota existente (mover nota de um dia para outro)
+- Util para correcoes de dias passados
+- Mutation que atualiza o campo `data` em `notas_promissorias`
+
+### 1.4 Adicionar Entrega de Kit pelo Representante
+- Adicionar botao "Entregar Kit" no painel admin
+- Admin seleciona um kit do estoque do representante selecionado, informa revendedora e data de vencimento
+- Usa a mesma funcao RPC `entregar_kit_para_revendedora` passando o `representante_id` do selecionado
+- Necessita que a funcao RPC aceite chamadas de admin (ja e SECURITY DEFINER, entao funciona)
+
+---
+
+## 2. Resumo de Observacoes no Filtro por Periodo (`FechamentoPeriodoView.tsx`)
+
+- Adicionar novo Card "Observacoes do Periodo" abaixo da tabela de representantes
+- Listar todas as `cobrancas_diarias` do periodo que possuem `observacoes` nao nulas
+- Exibir: data, nome do representante, texto da observacao
+- Ordenar por data (mais recente primeiro)
+- Os dados ja estao sendo buscados na query existente (`cobrancasPeriodo`), basta filtrar e exibir
+
+---
+
+## 3. Bloquear Representante de Finalizar Dias Futuros (`CobrancaDiaria.tsx`)
+
+- Adicionar validacao no botao "Confirmar Fechamento do Dia"
+- Regra: representante so pode finalizar o dia atual (`today`) ou o dia anterior (`yesterday`)
+- Se a data selecionada for posterior a hoje ou anterior a ontem, desabilitar o botao e mostrar mensagem
+- A validacao e feita comparando `dateStr` com `getLocalDateString(new Date())` e o dia anterior
+
+---
 
 ## Detalhes Tecnicos
-- A coluna `idade` e do tipo `text` porque o formulario externo pode retornar valores como "25 anos" ou faixas etarias
-- A migracao e nao-destrutiva (ADD COLUMN com NULL default)
-- Leads ja sincronizados ficarao com `idade = null` ate nova sincronizacao (nao retroativo)
-- A Edge Function precisa ser re-deployada apos a alteracao
+
+### Migracoes de Banco Necessarias
+1. **RLS para admin inserir em `notas_promissorias`**:
+```sql
+CREATE POLICY "Admin pode inserir notas" ON notas_promissorias
+FOR INSERT WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+```
+
+2. **RLS para admin atualizar notas** (alterar data):
+```sql
+CREATE POLICY "Admin pode atualizar notas" ON notas_promissorias
+FOR UPDATE USING (has_role(auth.uid(), 'admin'::app_role));
+```
+
+### Arquivos Modificados
+- `src/pages/FechamentoDiario.tsx` - Adicionar acoes do admin (observacoes, buscar nota, alterar data, entregar kit)
+- `src/components/fechamento/FechamentoPeriodoView.tsx` - Adicionar secao de observacoes do periodo
+- `src/pages/CobrancaDiaria.tsx` - Adicionar restricao de data para finalizacao pelo representante
+
+### Complexidade
+- FechamentoDiario: alta (adicionar 4 funcionalidades novas com mutations e UI)
+- FechamentoPeriodoView: baixa (filtrar dados ja existentes e exibir)
+- CobrancaDiaria: baixa (uma condicao de validacao)
