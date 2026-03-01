@@ -25,6 +25,7 @@ interface PagamentoForm {
 interface ModalReceberCobrancaProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isAdmin?: boolean;
   cobranca: {
     id: string;
     revendedora: string;
@@ -59,6 +60,7 @@ interface ModalReceberCobrancaProps {
 export function ModalReceberCobranca({
   open,
   onOpenChange,
+  isAdmin = false,
   cobranca,
   valor_pago_acumulado = 0,
   diasNaoFinalizados = [],
@@ -520,6 +522,7 @@ export function ModalReceberCobranca({
                   selected={dataNota}
                   onSelect={(date) => date && setDataNota(date)}
                   disabled={(date) => {
+                    if (isAdmin) return false;
                     const hoje = new Date();
                     hoje.setHours(0, 0, 0, 0);
                     const checkDate = new Date(date);
