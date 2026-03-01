@@ -306,13 +306,18 @@ export function AdminDayActions({
         });
       if (notaError) throw notaError;
 
-      // 3. Atualizar cobrança
+      // 3. Atualizar cobrança - acumulado correto
+      const acumuladoAtual = cobranca.valor_pago_acumulado || 0;
+      const valorAdiantado = cobranca.valor_adiantado || 0;
+      const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
+      const saldoAberto = cobranca.valor_previsto - novoAcumulado - valorAdiantado;
+      
       const { error: updateError } = await supabase
         .from('cobrancas_agendadas')
         .update({
-          status: 'pago' as any,
-          valor_pago_acumulado: dados.valor_devido_empresa,
-          data_quitacao: dados.dataNota,
+          status: (saldoAberto <= 0 ? 'pago' : 'parcial') as any,
+          valor_pago_acumulado: novoAcumulado,
+          data_quitacao: saldoAberto <= 0 ? dados.dataNota : null,
         })
         .eq('id', cobranca.id);
       if (updateError) throw updateError;
