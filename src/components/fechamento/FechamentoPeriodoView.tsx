@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, CreditCard, Banknote, Wallet, TrendingDown, TrendingUp, CalendarDays, BarChart3 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { DollarSign, CreditCard, Banknote, Wallet, TrendingDown, TrendingUp, CalendarDays, BarChart3, MessageSquare } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatarValor } from '@/lib/utils';
@@ -129,6 +130,17 @@ export function FechamentoPeriodoView({
       { total_cobrado: 0, total_pix: 0, total_dinheiro: 0, total_cartao: 0, despesas: 0, saldo: 0, dias: 0 }
     );
   }, [resumoPorRepresentante]);
+
+  const observacoesDoPeriodo = useMemo(() => {
+    return cobrancasPeriodo
+      .filter((c) => c.observacoes && c.observacoes.trim())
+      .map((c) => ({
+        data: c.data,
+        nome: representantesMap[c.representante_id] || 'Desconhecido',
+        observacoes: c.observacoes!,
+      }))
+      .sort((a, b) => b.data.localeCompare(a.data));
+  }, [cobrancasPeriodo, representantesMap]);
 
   if (!hasValidRange) {
     return (
@@ -322,6 +334,33 @@ export function FechamentoPeriodoView({
           </div>
         </CardContent>
       </Card>
+
+      {/* Observações do Período */}
+      {observacoesDoPeriodo.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              Observações do Período ({observacoesDoPeriodo.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {observacoesDoPeriodo.map((obs, idx) => (
+                <div key={idx} className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="outline" className="text-xs">
+                      {new Date(obs.data + 'T12:00:00').toLocaleDateString('pt-BR')}
+                    </Badge>
+                    <span className="text-sm font-medium">{obs.nome}</span>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap">{obs.observacoes}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
