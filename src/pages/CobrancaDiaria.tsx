@@ -1768,30 +1768,43 @@ export default function CobrancaDiaria() {
       )}
 
       {/* Botão grande de confirmar fechamento */}
-      {!isDiaFinalizado && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button size="lg" className="w-full h-14 text-lg">
-              <CheckCircle2 className="h-5 w-5 mr-2" />
-              Confirmar Fechamento do Dia
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
-              <AlertDialogDescription>
-                Tem certeza que deseja finalizar o dia? Após finalizar, não será possível editar.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleFinalizarDia}>
-                Confirmar Finalização
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+      {!isDiaFinalizado && (() => {
+        const hoje = getLocalDateString(new Date());
+        const ontem = getLocalDateString(new Date(new Date().setDate(new Date().getDate() - 1)));
+        const podeFinalizar = dateStr === hoje || dateStr === ontem;
+        
+        return podeFinalizar ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="lg" className="w-full h-14 text-lg">
+                <CheckCircle2 className="h-5 w-5 mr-2" />
+                Confirmar Fechamento do Dia
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja finalizar o dia? Após finalizar, não será possível editar.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleFinalizarDia}>
+                  Confirmar Finalização
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <Card className="p-4 text-center border-yellow-500/50 bg-yellow-500/5">
+            <p className="text-sm text-muted-foreground">
+              <Lock className="h-4 w-4 inline mr-1" />
+              Você só pode finalizar o dia atual ou o dia anterior. Para corrigir dias passados, solicite ao administrador.
+            </p>
+          </Card>
+        );
+      })()}
 
       {/* Modal de Receber Cobrança */}
       {cobrancaParaPagar && (

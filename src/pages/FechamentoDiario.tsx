@@ -19,6 +19,7 @@ import { registrarLog } from '@/lib/logOperacional';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn, formatarValor, getLocalDateString } from '@/lib/utils';
 import { FechamentoPeriodoView } from '@/components/fechamento/FechamentoPeriodoView';
+import { AdminDayActions } from '@/components/fechamento/AdminDayActions';
 
 interface Profile {
   id: string;
@@ -823,64 +824,79 @@ export default function FechamentoDiario() {
               <CardTitle className="text-base">Ações do Administrador</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!isDiaFinalizado ? (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button disabled={notas.length === 0 || finalizarDiaMutation.isPending}>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Finalizar Dia pelo Representante
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
-                        <br /><br />
-                        <strong>Total Cobrado: {formatarValor(totais.total)}</strong>
-                        {despesaCobranca && (
-                          <>
-                            <br />
-                            Despesa: {formatarValor(parseValor(despesaCobranca))}
-                          </>
-                        )}
-                        <br />
-                        <strong>Entregas de Kits: {kitsEntreguesDoDia.length} ({formatarValor(totalKits)})</strong>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => finalizarDiaMutation.mutate()}>
-                        Confirmar Fechamento
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              ) : (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={reabrirDiaMutation.isPending}>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Reabrir Dia
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Reabrir Dia</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tem certeza que deseja reabrir o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}?
-                        Isso permitirá que novas notas sejam adicionadas.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => reabrirDiaMutation.mutate()}>
-                        Confirmar Reabertura
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              )}
+              <AdminDayActions
+                selectedRepresentante={selectedRepresentante}
+                representanteNome={representanteSelecionado?.nome || ''}
+                dateStr={dateStr}
+                selectedDate={selectedDate}
+                cobrancaDiariaId={cobrancaDiaria?.id || null}
+                isDiaFinalizado={isDiaFinalizado}
+                observacoesDia={cobrancaDiaria?.observacoes || null}
+                notas={notas}
+                userId={user!.id}
+                userNome={profile?.nome || ''}
+              />
+
+              <div className="border-t pt-4 flex flex-wrap gap-2">
+                {!isDiaFinalizado ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button disabled={notas.length === 0 || finalizarDiaMutation.isPending}>
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Finalizar Dia pelo Representante
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
+                          <br /><br />
+                          <strong>Total Cobrado: {formatarValor(totais.total)}</strong>
+                          {despesaCobranca && (
+                            <>
+                              <br />
+                              Despesa: {formatarValor(parseValor(despesaCobranca))}
+                            </>
+                          )}
+                          <br />
+                          <strong>Entregas de Kits: {kitsEntreguesDoDia.length} ({formatarValor(totalKits)})</strong>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => finalizarDiaMutation.mutate()}>
+                          Confirmar Fechamento
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" disabled={reabrirDiaMutation.isPending}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Reabrir Dia
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Reabrir Dia</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja reabrir o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}?
+                          Isso permitirá que novas notas sejam adicionadas.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => reabrirDiaMutation.mutate()}>
+                          Confirmar Reabertura
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             </CardContent>
           </Card>
         </>
