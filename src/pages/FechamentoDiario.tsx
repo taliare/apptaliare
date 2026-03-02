@@ -841,7 +841,7 @@ export default function FechamentoDiario() {
                 {!isDiaFinalizado ? (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button disabled={notas.length === 0 || finalizarDiaMutation.isPending}>
+                      <Button disabled={finalizarDiaMutation.isPending}>
                         <CheckCircle2 className="h-4 w-4 mr-2" />
                         Finalizar Dia pelo Representante
                       </Button>
