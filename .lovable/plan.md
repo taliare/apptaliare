@@ -1,31 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Permitir Admin Finalizar Dia por Representante em Dias Anteriores
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Problema Identificado
-A tabela `cobrancas_diarias` nao possui politica RLS de INSERT para admins. Quando o admin tenta finalizar um dia que ainda nao tem registro (o representante esqueceu), o sistema tenta fazer um INSERT com `representante_id` diferente de `auth.uid()`, e o RLS bloqueia a operacao.
-
-Politicas atuais:
-- Admin pode SELECT, UPDATE, DELETE -- OK
-- Admin **NAO pode INSERT** -- PROBLEMA
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
 ## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-### 1. Migracao de banco de dados
-Adicionar politica RLS de INSERT para admin na tabela `cobrancas_diarias`:
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-```sql
-CREATE POLICY "Admin pode inserir cobranças diárias"
-ON public.cobrancas_diarias
-FOR INSERT
-TO authenticated
-WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
 ```
 
-### 2. Nenhuma alteracao de codigo necessaria
-O botao "Finalizar Dia pelo Representante" ja existe no `FechamentoDiario.tsx` (linha 844) e funciona para qualquer data selecionada. A mutation `finalizarDiaMutation` (linha 308) ja faz INSERT ou UPDATE conforme necessario. O unico bloqueio era a falta da politica RLS de INSERT para admin.
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-## Resumo
-- 1 migracao SQL (adicionar politica INSERT para admin em `cobrancas_diarias`)
-- 0 arquivos de codigo alterados
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
