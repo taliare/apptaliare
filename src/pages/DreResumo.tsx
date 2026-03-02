@@ -83,7 +83,8 @@ export default function DreResumo() {
     queryKey: ["dre-cobrancas-diarias", anoMes],
     queryFn: async () => {
       const inicioMes = `${anoMes}-01`;
-      const fimMes = `${anoMes}-31`;
+      const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+      const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
       
       const { data, error } = await supabase
         .from("cobrancas_diarias")
