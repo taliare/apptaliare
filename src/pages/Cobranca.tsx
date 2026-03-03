@@ -1225,7 +1225,7 @@ export default function Cobranca() {
             setCobrancaParaPagar(null);
           }
         }}
-        cobranca={cobrancaParaPagar || { id: '', revendedora: '', valor_previsto: 0, tipo: null }}
+        cobranca={cobrancaParaPagar || { id: '', revendedora: '', valor_previsto: 0, tipo: null, status: null }}
         valor_pago_acumulado={(cobrancaParaPagar as any)?.valor_pago_acumulado || 0}
         diasNaoFinalizados={diasNaoFinalizados}
         onPagamentoCompleto={async (dados) => {
