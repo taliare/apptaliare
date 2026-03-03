@@ -74,7 +74,7 @@ export function ModalReceberCobranca({
   const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
   
   // Modo subsequente: nota já tem pagamentos anteriores (não pedir valor da venda/comissão novamente)
-  const isSubsequente = valor_pago_acumulado > 0 || cobranca.status === 'parcial';
+  const isSubsequente = valor_pago_acumulado > 0 || cobranca.status === 'parcial' || isRepasse;
   const saldoAberto = Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0));
   
   // Para KIT: valor da venda (precisa preencher)
@@ -113,9 +113,6 @@ export function ModalReceberCobranca({
         // Modo subsequente: saldo já calculado, não pedir valor da venda
         setValorVenda('0');
         setValorAReceber(saldoAberto);
-      } else if (isRepasse) {
-        setValorVenda(cobranca.valor_previsto.toString().replace('.', ','));
-        setValorAReceber(cobranca.valor_previsto);
       } else {
         setValorVenda('');
         setValorAReceber(0);
@@ -136,14 +133,6 @@ export function ModalReceberCobranca({
   }, [open, isRepasse, isSubsequente, cobranca.valor_previsto, saldoAberto]);
 
   const calcularComissao = (valor: number, percentualForced?: number) => {
-    if (isRepasse) {
-      const descontoValor = parseFloat(desconto.replace(',', '.')) || 0;
-      setComissaoPercentual(0);
-      setComissaoValor(0);
-      setValorAReceber(valor - descontoValor);
-      return;
-    }
-    
     if (percentualForced !== undefined) {
       const comissao = valor * (percentualForced / 100);
       setComissaoPercentual(percentualForced);
