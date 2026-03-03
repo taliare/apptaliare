@@ -698,22 +698,11 @@ export default function CobrancaDiaria() {
 
         // Se novoAcumulado == 0, restaurar valor_previsto para o valor original do kit
         if (novoAcumulado === 0 && cobrancaOriginal.kit_entregue_id) {
-          const { data: kitEntregue } = await supabase
-            .from('kits_entregues')
-            .select('kit_estoque_id')
-            .eq('id', cobrancaOriginal.kit_entregue_id)
-            .single();
+          const { data: valorOriginal } = await supabase
+            .rpc('get_valor_original_kit', { p_kit_entregue_id: cobrancaOriginal.kit_entregue_id });
           
-          if (kitEntregue?.kit_estoque_id) {
-            const { data: kitEstoque } = await supabase
-              .from('kits_estoque')
-              .select('valor')
-              .eq('id', kitEntregue.kit_estoque_id)
-              .single();
-            
-            if (kitEstoque?.valor) {
-              updateData.valor_previsto = kitEstoque.valor;
-            }
+          if (valorOriginal) {
+            updateData.valor_previsto = valorOriginal;
           }
         }
 
@@ -724,12 +713,21 @@ export default function CobrancaDiaria() {
 
         if (updateError) throw updateError;
 
-        // Deletar prestacoes_contas vinculadas a essa cobrança + data
-        await supabase
-          .from('prestacoes_contas')
-          .delete()
-          .eq('cobranca_id', cobrancaOriginal.id)
-          .eq('data_execucao', dateStr);
+        // Deletar prestação vinculada a esta nota específica
+        if (nota.codigo_nota) {
+          await supabase
+            .from('prestacoes_contas')
+            .delete()
+            .eq('cobranca_id', cobrancaOriginal.id)
+            .eq('codigo_nota_referencia', nota.codigo_nota);
+        } else {
+          // Fallback: deletar por data se não tem codigo_nota
+          await supabase
+            .from('prestacoes_contas')
+            .delete()
+            .eq('cobranca_id', cobrancaOriginal.id)
+            .eq('data_execucao', dateStr);
+        }
       } else {
         // Sem cobrança original - criar uma nova (raro, só para notas órfãs)
         let revendedora = revendedoraMap[nota.codigo_nota];
