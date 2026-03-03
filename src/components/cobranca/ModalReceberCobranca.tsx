@@ -72,6 +72,10 @@ export function ModalReceberCobranca({
   
   const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
   
+  // Modo subsequente: nota já tem pagamentos anteriores (não pedir valor da venda/comissão novamente)
+  const isSubsequente = valor_pago_acumulado > 0;
+  const saldoAberto = Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0));
+  
   // Para KIT: valor da venda (precisa preencher)
   // Para REPASSE: usa valor_previsto
   const [valorVenda, setValorVenda] = useState('');
@@ -104,7 +108,11 @@ export function ModalReceberCobranca({
   // Inicializa valores quando abre o modal
   useEffect(() => {
     if (open) {
-      if (isRepasse) {
+      if (isSubsequente) {
+        // Modo subsequente: saldo já calculado, não pedir valor da venda
+        setValorVenda('0');
+        setValorAReceber(saldoAberto);
+      } else if (isRepasse) {
         setValorVenda(cobranca.valor_previsto.toString().replace('.', ','));
         setValorAReceber(cobranca.valor_previsto);
       } else {
@@ -124,7 +132,7 @@ export function ModalReceberCobranca({
       setValorParcial('');
       setDataProximaCobranca(undefined);
     }
-  }, [open, isRepasse, cobranca.valor_previsto]);
+  }, [open, isRepasse, isSubsequente, cobranca.valor_previsto, saldoAberto]);
 
   const calcularComissao = (valor: number, percentualForced?: number) => {
     if (isRepasse) {
