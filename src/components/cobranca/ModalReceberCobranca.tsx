@@ -32,6 +32,7 @@ interface ModalReceberCobrancaProps {
     valor_previsto: number;
     tipo?: string | null;
     valor_adiantado?: number | null;
+    status?: string | null;
   };
   valor_pago_acumulado?: number;
   diasNaoFinalizados?: string[];
@@ -73,7 +74,7 @@ export function ModalReceberCobranca({
   const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
   
   // Modo subsequente: nota já tem pagamentos anteriores (não pedir valor da venda/comissão novamente)
-  const isSubsequente = valor_pago_acumulado > 0;
+  const isSubsequente = valor_pago_acumulado > 0 || cobranca.status === 'parcial';
   const saldoAberto = Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0));
   
   // Para KIT: valor da venda (precisa preencher)

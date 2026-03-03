@@ -1,36 +1,34 @@
 
-
-# Correção: Nota parcial pedindo valor da venda
+# Correcao do DRE - Fevereiro nao soma valores
 
 ## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-A condição `isSubsequente` no `ModalReceberCobranca.tsx` usa apenas `valor_pago_acumulado > 0`. Porém, existem 4 notas com `status = 'parcial'` onde `valor_pago_acumulado = 0` (a prestação registrou a venda/comissão mas o pagamento foi zero). Nesses casos, o modal pede valor da venda novamente, o que é incorreto.
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-**Notas afetadas**: 5349 (Maria de Fátima), 5314 (Jaqueline Lima), 5440 (Bruna Pereira), 5513 (Adriane Xavier).
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-## Solução
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-### 1. Passar `status` da cobrança para o modal
-
-Em `src/pages/Cobranca.tsx`, incluir o campo `status` no objeto `cobranca` passado ao `ModalReceberCobranca`.
-
-### 2. Atualizar a condição `isSubsequente`
-
-Em `src/components/cobranca/ModalReceberCobranca.tsx` (linha 76), mudar:
-
+**De:**
 ```typescript
-// De:
-const isSubsequente = valor_pago_acumulado > 0;
-
-// Para:
-const isSubsequente = valor_pago_acumulado > 0 || cobranca.status === 'parcial';
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
 ```
 
-Isso garante que qualquer nota já marcada como parcial (já teve prestação registrada) entre no modo subsequente, independentemente do valor acumulado.
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-### 3. Atualizar a interface `ModalReceberCobrancaProps`
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-Adicionar `status?: string` ao tipo do objeto `cobranca` na interface do componente.
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-Nenhuma alteração de banco de dados necessária.
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
