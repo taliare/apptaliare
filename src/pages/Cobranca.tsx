@@ -325,15 +325,32 @@ export default function Cobranca() {
       const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
       const valorAdiantado = cobranca?.valor_adiantado || 0;
       const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
-      const saldoAberto = (cobranca?.valor_previsto || 0) - novoAcumulado - valorAdiantado;
+      
+      // Se é devolução, zerar valor_previsto
+      // Se é primeira cobrança de kit (acumulado=0), atualizar valor_previsto para valor_devido_empresa
+      const updateData: any = {
+        valor_pago_acumulado: novoAcumulado,
+      };
+      
+      let valorPrevistoEfetivo = cobranca?.valor_previsto || 0;
+      
+      if (dados.tipo === 'devolucao') {
+        updateData.valor_previsto = 0;
+        valorPrevistoEfetivo = 0;
+      } else if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
+        // Primeira cobrança de kit: valor_previsto = valor_devido_empresa
+        updateData.valor_previsto = dados.valor_devido_empresa;
+        valorPrevistoEfetivo = dados.valor_devido_empresa;
+      }
+      
+      const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
+      
+      updateData.status = (saldoAberto <= 0 ? 'pago' : 'parcial') as any;
+      updateData.data_quitacao = saldoAberto <= 0 ? dataNota : null;
       
       const { error: updateError } = await supabase
         .from('cobrancas_agendadas')
-        .update({ 
-          status: (saldoAberto <= 0 ? 'pago' : 'parcial') as any,
-          valor_pago_acumulado: novoAcumulado,
-          data_quitacao: saldoAberto <= 0 ? dataNota : null
-        })
+        .update(updateData)
         .eq('id', cobrancaId);
 
       if (updateError) throw updateError;
@@ -439,8 +456,8 @@ export default function Cobranca() {
       };
       
       if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
-        // Primeira cobrança: valor_previsto passa a ser o total devido à empresa
-        valorPrevistoEfetivo = dados.valor_devido_empresa + dados.valor_recebido;
+        // Primeira cobrança: valor_previsto passa a ser o total devido à empresa (sem somar valor_recebido)
+        valorPrevistoEfetivo = dados.valor_devido_empresa;
         updateData.valor_previsto = valorPrevistoEfetivo;
       }
       
