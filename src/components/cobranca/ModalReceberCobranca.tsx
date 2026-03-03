@@ -447,8 +447,8 @@ export function ModalReceberCobranca({
             </div>
           )}
 
-          {/* Valor da Venda (só para KIT) */}
-          {!isRepasse && (
+          {/* Valor da Venda (só para KIT na primeira cobrança - não mostrar no modo subsequente) */}
+          {!isRepasse && !isSubsequente && (
             <div className="space-y-2">
               <Label>Valor da Venda <span className="text-destructive">*</span></Label>
               <Input
@@ -467,8 +467,8 @@ export function ModalReceberCobranca({
             </div>
           )}
 
-          {/* Info da comissão (só para KIT quando tem valor) */}
-          {!isRepasse && valorAReceber > 0 && (
+          {/* Info da comissão (só para KIT na primeira cobrança quando tem valor) */}
+          {!isRepasse && !isSubsequente && valorAReceber > 0 && (
             <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
               <div className="flex justify-between items-center">
                 <span>Comissão ({comissaoPercentual}%):</span>
