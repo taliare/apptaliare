@@ -1330,6 +1330,10 @@ export type Database = {
         }
         Returns: Json
       }
+      get_valor_original_kit: {
+        Args: { p_kit_entregue_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
