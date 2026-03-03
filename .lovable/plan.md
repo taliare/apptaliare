@@ -1,34 +1,47 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Unificar Notas de Repasse com o Fluxo de Parcial
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Situação Atual
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+Notas de tipo `repasse` têm um código separado no modal e nos handlers de pagamento. Na prática, um repasse é uma nota onde a primeira prestação de contas já foi feita - o `valor_previsto` já representa o saldo devedor real. Mas o modal trata `isRepasse` como um fluxo diferente de `isSubsequente`, com inicialização e cálculo de comissão distintos.
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## O que Funciona Hoje
 
-**De:**
+- O acúmulo de pagamentos (`valor_pago_acumulado`) já funciona para repasses
+- A quitação (status → `pago`) já funciona quando saldo chega a zero
+- Os handlers já não criam prestação de contas duplicada para repasses (check `!== 'repasse'`)
+
+## O que Precisa Mudar
+
+### 1. `ModalReceberCobranca.tsx` - Tratar repasse como subsequente
+
+Alterar a condição `isSubsequente` para incluir repasses:
 ```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
+const isSubsequente = valor_pago_acumulado > 0 || cobranca.status === 'parcial' || isRepasse;
 ```
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+Isso garante que repasses:
+- Não pedem "Valor da Venda" e comissão (já calculados na primeira prestação)
+- Usam `saldoAberto` como valor a receber (que para repasse fresco = `valor_previsto`)
+- Seguem exatamente o mesmo fluxo visual das notas parciais
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+### 2. `ModalReceberCobranca.tsx` - Simplificar inicialização
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+Remover o branch separado para `isRepasse` no `useEffect` (linhas 116-118), pois agora repasses caem no branch `isSubsequente`.
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+### 3. `ModalReceberCobranca.tsx` - Simplificar `calcularComissao`
+
+Remover o tratamento especial de `isRepasse` (linhas 139-144), pois repasses nunca mais entrarão nessa função (o campo de venda fica escondido no modo subsequente).
+
+### 4. Manter handlers de pagamento como estão
+
+Os checks `!== 'repasse'` em `Cobranca.tsx` e `CobrancaDiaria.tsx` continuam necessários para evitar:
+- Criação de prestação de contas duplicada
+- Sobrescrita do `valor_previsto` (que já está correto para repasses)
+
+### Arquivos alterados
+- `src/components/cobranca/ModalReceberCobranca.tsx` (3 alterações pontuais)
+
+Nenhuma alteração de banco de dados necessária.
+
