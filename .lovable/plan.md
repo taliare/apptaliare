@@ -1,61 +1,36 @@
 
 
-# Correção de Notas Parciais com `valor_previsto` Inflado
+# Correção: Nota parcial pedindo valor da venda
 
-## Diagnóstico
+## Problema
 
-Analisei todas as 20 notas com `status = 'parcial'`. Cruzando com `prestacoes_contas`, identifiquei 7 notas afetadas pelo bug antigo (que somava `valor_recebido` ao `valor_previsto` em vez de usar `valor_devido_empresa`):
+A condição `isSubsequente` no `ModalReceberCobranca.tsx` usa apenas `valor_pago_acumulado > 0`. Porém, existem 4 notas com `status = 'parcial'` onde `valor_pago_acumulado = 0` (a prestação registrou a venda/comissão mas o pagamento foi zero). Nesses casos, o modal pede valor da venda novamente, o que é incorreto.
 
-### Notas que continuam parciais (corrigir `valor_previsto`):
+**Notas afetadas**: 5349 (Maria de Fátima), 5314 (Jaqueline Lima), 5440 (Bruna Pereira), 5513 (Adriane Xavier).
 
-| Nota | Revendedora | Previsto Atual | Previsto Correto | Saldo Correto |
-|------|-------------|---------------|-----------------|--------------|
-| 5429 | SIGRID MOREIRA | 738 | 588 | 438 |
-| 5456 | TAIANA GISELE | 1015 | 678 | 341 |
-| 5500 | MARIA GUADALUPE | 884 | 684 | 484 |
-| 5504 | VERA LÚCIA | 1965 | 1065 | 165 |
+## Solução
 
-### Notas quitadas que devem sair da agenda (corrigir `valor_previsto` + marcar como `pago`):
+### 1. Passar `status` da cobrança para o modal
 
-| Nota | Revendedora | Previsto Atual | Previsto Correto | Saldo |
-|------|-------------|---------------|-----------------|-------|
-| 5490 | CRISTIANE LOPES | 5280 | 112 | 0 |
-| 5551 | ESTEFANE GOMES | 7070 | 924 | 0 |
+Em `src/pages/Cobranca.tsx`, incluir o campo `status` no objeto `cobranca` passado ao `ModalReceberCobranca`.
 
-### Caso especial - Nota 5450 (RUBIA MIRANDA):
-- `valor_previsto` = 7360 (completamente inflado)
-- Primeira prestação: `valor_devido_empresa` = 511, pagou 511
-- Segunda prestação (bug): registrou novo valor_venda, pagou 100
-- `valor_adiantado` = 500
-- **Correção**: `valor_previsto` = 511, `valor_pago_acumulado` = 611, saldo = 511 - 611 - 500 = -600 → **PAGO**
+### 2. Atualizar a condição `isSubsequente`
 
-### 13 notas sem problemas:
-- 4 notas com prestações mas `valor_previsto` já correto (5314, 5349, 5440, 5513)
-- 9 notas sem prestações registradas (dados anteriores ao sistema de prestação), mantêm valores atuais
+Em `src/components/cobranca/ModalReceberCobranca.tsx` (linha 76), mudar:
 
-## Implementação
+```typescript
+// De:
+const isSubsequente = valor_pago_acumulado > 0;
 
-Executar via SQL (insert tool) as seguintes correções:
-
-```sql
--- 1. Corrigir valor_previsto das 4 notas que continuam parciais
-UPDATE cobrancas_agendadas SET valor_previsto = 588 WHERE id = 'dd44945b-846f-4a31-9042-a015e8beac39';
-UPDATE cobrancas_agendadas SET valor_previsto = 678 WHERE id = '821d09b8-f3a3-4ae6-877e-a32aa9e32334';
-UPDATE cobrancas_agendadas SET valor_previsto = 684 WHERE id = 'a7af38fa-89df-4654-a9a2-c6253730c696';
-UPDATE cobrancas_agendadas SET valor_previsto = 1065 WHERE id = 'b886d00d-7560-40a1-933c-9a4c8de25352';
-
--- 2. Corrigir e quitar as 2 notas com saldo zero
-UPDATE cobrancas_agendadas SET valor_previsto = 112, status = 'pago', data_quitacao = CURRENT_DATE
-WHERE id = 'b828ba41-b086-41ba-98a8-d2e0850eb3ef';
-UPDATE cobrancas_agendadas SET valor_previsto = 924, status = 'pago', data_quitacao = CURRENT_DATE
-WHERE id = 'febff632-6562-4956-a6e1-0fd86075cc06';
-
--- 3. Caso especial 5450: corrigir valor_previsto, acumulado, e quitar
-UPDATE cobrancas_agendadas SET valor_previsto = 511, valor_pago_acumulado = 611, status = 'pago', data_quitacao = CURRENT_DATE
-WHERE id = 'feecc217-17dc-4e64-9662-df1cb5f37b8d';
+// Para:
+const isSubsequente = valor_pago_acumulado > 0 || cobranca.status === 'parcial';
 ```
 
-**Total: 7 notas corrigidas, sendo 3 que saem da agenda (quitadas).**
+Isso garante que qualquer nota já marcada como parcial (já teve prestação registrada) entre no modo subsequente, independentemente do valor acumulado.
 
-Nenhuma alteração de código necessária - apenas correção de dados.
+### 3. Atualizar a interface `ModalReceberCobrancaProps`
+
+Adicionar `status?: string` ao tipo do objeto `cobranca` na interface do componente.
+
+Nenhuma alteração de banco de dados necessária.
 
