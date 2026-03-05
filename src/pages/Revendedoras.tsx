@@ -40,6 +40,7 @@ export default function Revendedoras() {
   // Dialog para editar WhatsApp
   const [editingRevendedora, setEditingRevendedora] = useState<Revendedora | null>(null);
   const [whatsappValue, setWhatsappValue] = useState('');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // Query para buscar representantes (para o filtro)
   const { data: representantes = [] } = useQuery({
@@ -143,9 +144,15 @@ export default function Revendedoras() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Revendedoras</h1>
-        <p className="text-muted-foreground">Listagem geral de todas as revendedoras</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Revendedoras</h1>
+          <p className="text-muted-foreground">Listagem geral de todas as revendedoras</p>
+        </div>
+        <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
+          <Upload className="h-4 w-4" />
+          Importar WhatsApp
+        </Button>
       </div>
 
       {/* Filtros */}
