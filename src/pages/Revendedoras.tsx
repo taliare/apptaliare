@@ -336,6 +336,12 @@ export default function Revendedoras() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportWhatsAppDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['revendedoras-admin'] })}
+      />
     </div>
   );
 }
