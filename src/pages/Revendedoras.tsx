@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, Search, UserCheck, UserX, Phone, Edit2 } from 'lucide-react';
+import { Users, Search, UserCheck, UserX, Phone, Edit2, Upload } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
 import { toast } from 'sonner';
+import { ImportWhatsAppDialog } from '@/components/revendedoras/ImportWhatsAppDialog';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -39,6 +40,7 @@ export default function Revendedoras() {
   // Dialog para editar WhatsApp
   const [editingRevendedora, setEditingRevendedora] = useState<Revendedora | null>(null);
   const [whatsappValue, setWhatsappValue] = useState('');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // Query para buscar representantes (para o filtro)
   const { data: representantes = [] } = useQuery({
@@ -142,9 +144,15 @@ export default function Revendedoras() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Revendedoras</h1>
-        <p className="text-muted-foreground">Listagem geral de todas as revendedoras</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Revendedoras</h1>
+          <p className="text-muted-foreground">Listagem geral de todas as revendedoras</p>
+        </div>
+        <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
+          <Upload className="h-4 w-4" />
+          Importar WhatsApp
+        </Button>
       </div>
 
       {/* Filtros */}
@@ -328,6 +336,12 @@ export default function Revendedoras() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportWhatsAppDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['revendedoras-admin'] })}
+      />
     </div>
   );
 }

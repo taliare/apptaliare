@@ -1,38 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Importação em Massa de WhatsApp via Planilha Excel
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Abordagem
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-A maneira mais rápida é adicionar um botão "Importar WhatsApp" na página Revendedoras que aceita um arquivo Excel (.xlsx) com duas colunas: **Nome** e **WhatsApp**. O sistema faz match pelo nome (normalizado com UPPER+TRIM) e atualiza o campo `whatsapp` das revendedoras já cadastradas.
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-O projeto já usa a biblioteca `xlsx` (instalada) e tem padrão de importação em massa no CRM (BulkImportLeadsDialog). Vamos seguir o mesmo padrão.
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-## Fluxo
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-1. Admin clica em "Importar WhatsApp" na página Revendedoras
-2. Seleciona arquivo Excel com colunas Nome e WhatsApp
-3. Sistema faz preview mostrando: nome do arquivo, quantas linhas encontradas, quantas correspondências com revendedoras existentes
-4. Admin confirma → sistema atualiza o campo `whatsapp` das revendedoras correspondentes
-5. Exibe resultado: X atualizadas, Y não encontradas (com lista dos nomes não encontrados)
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-## Implementação
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-### 1. Criar componente `ImportWhatsAppDialog.tsx`
-- Dialog com input de arquivo `.xlsx`
-- Usa `xlsx` para ler a planilha
-- Normaliza nomes (UPPER + TRIM) para match com revendedoras existentes
-- Preview com tabela de correspondências antes de confirmar
-- Mutation que faz UPDATE em batch no campo `whatsapp` da tabela `revendedoras`
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-### 2. Atualizar `Revendedoras.tsx`
-- Adicionar botão "Importar WhatsApp" no header ou nos filtros
-- Importar e renderizar o novo dialog
-
-### Modelo da planilha esperada
-| Nome | WhatsApp |
-|------|----------|
-| Maria Silva | 11999998888 |
-
-Sem necessidade de migração SQL — apenas código frontend com updates diretos na tabela `revendedoras`.
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
