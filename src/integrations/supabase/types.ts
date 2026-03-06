@@ -1250,6 +1250,13 @@ export type Database = {
             referencedRelation: "t2_ciclos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "t2_adiantamentos_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "t2_vw_previsao_recebimentos"
+            referencedColumns: ["ciclo_id"]
+          },
         ]
       }
       t2_apuracoes: {
@@ -1302,6 +1309,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "t2_ciclos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "t2_apuracoes_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "t2_vw_previsao_recebimentos"
+            referencedColumns: ["ciclo_id"]
           },
         ]
       }
@@ -1637,6 +1651,51 @@ export type Database = {
           total_vendido: number | null
         }
         Relationships: []
+      }
+      t2_vw_previsao_recebimentos: {
+        Row: {
+          ciclo_id: string | null
+          cidade: string | null
+          data_vencimento: string | null
+          nome_revendedora: string | null
+          representante_id: string | null
+          revendedora_id: string | null
+          saldo_restante: number | null
+          status_ciclo: string | null
+          status_financeiro: string | null
+          valor_empresa: number | null
+          valor_pago: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "t2_ciclos_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
+            referencedRelation: "t2_revendedoras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "t2_ciclos_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
+            referencedRelation: "t2_vw_historico_revendedoras"
+            referencedColumns: ["revendedora_id"]
+          },
+          {
+            foreignKeyName: "t2_ciclos_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
+            referencedRelation: "t2_vw_radar_revendedoras"
+            referencedColumns: ["revendedora_id"]
+          },
+          {
+            foreignKeyName: "t2_ciclos_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
+            referencedRelation: "t2_vw_ranking_revendedoras"
+            referencedColumns: ["revendedora_id"]
+          },
+        ]
       }
       t2_vw_radar_revendedoras: {
         Row: {
