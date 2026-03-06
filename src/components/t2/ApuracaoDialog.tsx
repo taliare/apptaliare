@@ -47,7 +47,7 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
   const mutation = useMutation({
     mutationFn: async () => {
       if (isInvalid) throw new Error('Valor devolvido inválido');
-      const { error } = await supabase.from('t2_apuracoes').insert({
+      const { data, error } = await supabase.from('t2_apuracoes').insert({
         ciclo_id: ciclo.id,
         valor_kit: valorKit,
         valor_devolvido: devolvido,
@@ -57,8 +57,12 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
         valor_empresa: valorEmpresa,
         saldo_a_receber: saldoAReceber,
         apurado_por: user!.id,
-      });
-      if (error) throw error;
+      }).select();
+      if (error) {
+        console.error("APURACAO INSERT ERROR:", error);
+        throw error;
+      }
+      console.log("APURACAO INSERT OK:", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['t2-ciclos'] });
