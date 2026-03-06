@@ -1,34 +1,55 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# TALIARE 2.0 - Apurações e Pagamentos
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Resumo
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+Criar duas novas tabelas (`t2_apuracoes`, `t2_pagamentos`) e expandir a tela de Ciclos com fluxo de prestação de contas e registro de pagamentos. A comissão é calculada automaticamente por faixa de valor vendido. Quando o saldo zera, o ciclo encerra automaticamente.
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## 1. Migração SQL
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+### Tabela `t2_apuracoes`
+- `id`, `ciclo_id` (FK t2_ciclos), `valor_kit`, `valor_devolvido`, `valor_vendido`, `comissao_percentual`, `valor_comissao`, `valor_empresa`, `saldo_a_receber`, `data_apuracao` (default now()), `apurado_por`, `status` (default 'apurado')
+- RLS: Admin full access (RESTRICTIVE), representante acessa onde `apurado_por = auth.uid()`
+- Constraint: `valor_devolvido <= valor_kit` via validation trigger
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+### Tabela `t2_pagamentos`
+- `id`, `apuracao_id` (FK t2_apuracoes), `valor_pago`, `forma_pagamento`, `observacao`, `data_pagamento` (default now()), `registrado_por`
+- RLS: Admin full access, representante acessa onde `registrado_por = auth.uid()`
+- Trigger: após INSERT, reduz `saldo_a_receber` na apuração e, se zero, encerra o ciclo associado
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+### Trigger de auto-quitação
+- Função `t2_processar_pagamento()` (SECURITY DEFINER):
+  1. Atualiza `t2_apuracoes.saldo_a_receber -= NEW.valor_pago`
+  2. Se `saldo_a_receber <= 0`, atualiza `t2_ciclos.status = 'encerrado'`
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+## 2. Código Frontend
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+### Expandir `T2Ciclos.tsx`
+- Adicionar botão "Registrar Prestação de Contas" nos cards de ciclos ativos
+- Dialog de apuração:
+  - Mostra `valor_kit` do ciclo
+  - Input: `valor_devolvido` (validado: não pode ser > valor_kit)
+  - Cálculos automáticos em tempo real:
+    - `valor_vendido = valor_kit - valor_devolvido`
+    - Categoria/comissão por faixa (0-299→20%, 300-999→30%, 1000-1999→40%, 2000+→50%)
+    - `valor_comissao`, `valor_empresa`
+  - Botão confirmar → insere em `t2_apuracoes`
+
+- Seção de apurações no card do ciclo (ou expansível):
+  - Lista apurações existentes com saldo
+  - Botão "Registrar Pagamento" por apuração
+  - Dialog pagamento: `valor_pago` (validado: <= saldo_a_receber), `forma_pagamento`, `observacao`
+  - Histórico de pagamentos da apuração
+
+### Atualizar types.ts
+- Será atualizado automaticamente após migração
+
+## 3. Menu
+- Não precisa de novas rotas/menus - tudo fica dentro de Ciclos T2
+
+## Validações client-side
+- `valor_devolvido > valor_kit` → bloqueia
+- `valor_pago > saldo_a_receber` → bloqueia
+- Ambos com mensagens de erro claras
+
