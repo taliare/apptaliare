@@ -1,34 +1,43 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# TALIARE 2.0 - Performance e Ranking de Representantes
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## 1. Migração SQL
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+### View `t2_vw_performance_representantes`
+Agrega dados por `representante_id` a partir de `t2_revendedoras`, `t2_ciclos`, `t2_apuracoes`, e `t2_vw_radar_revendedoras`:
+- `representante_id`, `total_revendedoras`, `revendedoras_ativas` (ciclo ativo), `revendedoras_em_risco` (radar RISCO), `revendedoras_atencao` (radar ATENCAO), `total_ciclos`, `total_vendido` (sum apurações), `ticket_medio`, `total_recebido_empresa` (sum valor_pago dos ciclos), `inadimplencia_total` (sum saldo_a_receber onde status=inadimplente)
+- `security_invoker = on`
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+### View `t2_vw_ranking_representantes`
+Subconjunto da view de performance ordenado por `total_vendido DESC`:
+- `representante_id`, `total_vendido`, `total_ciclos`, `ticket_medio`, `revendedoras_ativas`, `inadimplencia_total`
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+## 2. Frontend
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+### Nova página `src/pages/T2RepresentantesPerformance.tsx` (rota existente `/t2-revendedoras` não — precisa nova rota)
+- Verificando: já existe menu "Revendedoras T2" em `/t2-revendedoras`. A nova tela de representantes precisa de rota separada.
+- Rota: reutilizar a existente... Na verdade, o plano pede um novo menu "Representantes" em TALIARE 2.0. Criarei uma nova rota.
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+### Rota: `/t2-representantes-performance`
+- **Dashboard cards**: total vendido por representante, ranking de vendas, ranking de crescimento da rede, ranking de menor inadimplência
+- **Tabela**: nome, total_revendedoras, revendedoras_ativas, revendedoras_atencao, revendedoras_em_risco, total_vendido, ticket_medio, inadimplencia_total
+- **Indicador visual de inadimplência**: VERDE (<5%), AMARELO (5-10%), VERMELHO (>10%) — calculado como inadimplencia_total / total_recebido_empresa
+- **Filtros**: por período (não aplicável diretamente na view — filtraremos client-side ou faremos query separada), por cidade, por categoria de revendedoras
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+### Navegação
+- Novo menu "Performance Reps" na categoria TALIARE 2.0 em `AppSidebar.tsx` e `MobileDrawer.tsx`
+- Nova rota em `AnimatedRoutes.tsx` com `PermissionRoute`
+- Nova chave `t2_representantes` em `menuPermissions.ts`
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+## 3. Resumo de Arquivos
+
+| Ação | Arquivo |
+|------|---------|
+| SQL | Views `t2_vw_performance_representantes` + `t2_vw_ranking_representantes` |
+| Criar | `src/pages/T2RepresentantesPerformance.tsx` |
+| Editar | `src/components/AnimatedRoutes.tsx` (nova rota) |
+| Editar | `src/components/AppSidebar.tsx` (menu) |
+| Editar | `src/components/MobileDrawer.tsx` (menu) |
+| Editar | `src/lib/menuPermissions.ts` (nova chave) |
+
