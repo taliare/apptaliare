@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -20,12 +20,27 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
   const queryClient = useQueryClient();
   const [valorDevolvido, setValorDevolvido] = useState('');
 
+  // Buscar total de adiantamentos do ciclo
+  const { data: totalAdiantamentos = 0 } = useQuery({
+    queryKey: ['t2-adiantamentos-total', ciclo?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('t2_adiantamentos')
+        .select('valor')
+        .eq('ciclo_id', ciclo.id);
+      if (error) throw error;
+      return data.reduce((sum: number, a: any) => sum + Number(a.valor), 0);
+    },
+    enabled: !!ciclo?.id && open,
+  });
+
   const valorKit = Number(ciclo?.valor_kit || 0);
   const devolvido = Number(valorDevolvido) || 0;
   const valorVendido = Math.max(0, valorKit - devolvido);
   const { percentual, categoria } = getComissaoFaixa(valorVendido);
   const valorComissao = valorVendido * (percentual / 100);
   const valorEmpresa = valorVendido - valorComissao;
+  const saldoAReceber = Math.max(0, valorEmpresa - totalAdiantamentos);
 
   const isInvalid = devolvido > valorKit || devolvido < 0;
 
@@ -40,7 +55,7 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
         comissao_percentual: percentual,
         valor_comissao: valorComissao,
         valor_empresa: valorEmpresa,
-        saldo_a_receber: valorEmpresa,
+        saldo_a_receber: saldoAReceber,
         apurado_por: user!.id,
       });
       if (error) throw error;
@@ -70,6 +85,14 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
             <Label>Valor do Kit</Label>
             <p className="text-lg font-bold text-foreground">R$ {fmt(valorKit)}</p>
           </div>
+
+          {totalAdiantamentos > 0 && (
+            <div className="flex justify-between text-sm rounded-md border border-border p-2 bg-muted/20">
+              <span className="text-muted-foreground">Adiantamentos Registrados:</span>
+              <span className="font-semibold text-primary">R$ {fmt(totalAdiantamentos)}</span>
+            </div>
+          )}
+
           <div>
             <Label>Valor Devolvido</Label>
             <Input
@@ -104,7 +127,17 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
               </div>
               <div className="flex justify-between text-sm border-t border-border pt-2">
                 <span className="text-muted-foreground font-medium">Valor Empresa:</span>
-                <span className="font-bold text-primary">R$ {fmt(valorEmpresa)}</span>
+                <span className="font-bold">R$ {fmt(valorEmpresa)}</span>
+              </div>
+              {totalAdiantamentos > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">(-) Adiantamentos:</span>
+                  <span className="font-semibold text-primary">R$ {fmt(totalAdiantamentos)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm border-t border-border pt-2">
+                <span className="text-muted-foreground font-medium">Saldo a Receber:</span>
+                <span className="font-bold text-primary">R$ {fmt(saldoAReceber)}</span>
               </div>
             </div>
           )}

@@ -36,6 +36,7 @@ import AuditoriaGeral from '@/pages/AuditoriaGeral';
 import T2Producao from '@/pages/T2Producao';
 import T2Revendedoras from '@/pages/T2Revendedoras';
 import T2Ciclos from '@/pages/T2Ciclos';
+import T2Inadimplencia from '@/pages/T2Inadimplencia';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -184,6 +185,11 @@ export function AnimatedRoutes() {
         <Route path="/t2-ciclos" element={
           <PermissionRoute menuKey="t2_ciclos">
             <T2Ciclos />
+          </PermissionRoute>
+        } />
+        <Route path="/t2-inadimplencia" element={
+          <PermissionRoute menuKey="t2_inadimplencia">
+            <T2Inadimplencia />
           </PermissionRoute>
         } />
         

@@ -1208,6 +1208,50 @@ export type Database = {
         }
         Relationships: []
       }
+      t2_adiantamentos: {
+        Row: {
+          ciclo_id: string
+          data_pagamento: string
+          forma_pagamento: string | null
+          id: string
+          observacao: string | null
+          registrado_por: string
+          representante_id: string
+          revendedora_id: string
+          valor: number
+        }
+        Insert: {
+          ciclo_id: string
+          data_pagamento?: string
+          forma_pagamento?: string | null
+          id?: string
+          observacao?: string | null
+          registrado_por: string
+          representante_id: string
+          revendedora_id: string
+          valor: number
+        }
+        Update: {
+          ciclo_id?: string
+          data_pagamento?: string
+          forma_pagamento?: string | null
+          id?: string
+          observacao?: string | null
+          registrado_por?: string
+          representante_id?: string
+          revendedora_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "t2_adiantamentos_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "t2_ciclos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       t2_apuracoes: {
         Row: {
           apurado_por: string

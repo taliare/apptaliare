@@ -10,11 +10,25 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, ClipboardList } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { Plus, RefreshCw, ClipboardList, DollarSign } from 'lucide-react';
+import { format, addDays, differenceInDays } from 'date-fns';
 import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
 import { ApuracaoDialog } from '@/components/t2/ApuracaoDialog';
 import { ApuracoesSection } from '@/components/t2/ApuracoesSection';
+import { AdiantamentoDialog } from '@/components/t2/AdiantamentoDialog';
+
+function getCicloIndicator(ciclo: any) {
+  if (ciclo.status === 'inadimplente') return { color: 'border-l-4 border-l-destructive', label: '' };
+  if (ciclo.status !== 'ativo') return { color: '', label: '' };
+  
+  const hoje = new Date();
+  const venc = new Date(ciclo.data_vencimento);
+  const diasRestantes = differenceInDays(venc, hoje);
+  
+  if (diasRestantes < 0) return { color: 'border-l-4 border-l-destructive', label: '' };
+  if (diasRestantes <= 5) return { color: 'border-l-4 border-l-yellow-500', label: '' };
+  return { color: 'border-l-4 border-l-green-500', label: '' };
+}
 
 export default function T2Ciclos() {
   const { user } = useAuth();
@@ -25,6 +39,7 @@ export default function T2Ciclos() {
   const [comissao, setComissao] = useState('10');
   const [dataVencimento, setDataVencimento] = useState(format(addDays(new Date(), 45), 'yyyy-MM-dd'));
   const [apuracaoCiclo, setApuracaoCiclo] = useState<any>(null);
+  const [adiantamentoCiclo, setAdiantamentoCiclo] = useState<any>(null);
 
   const { data: ciclos = [], isLoading } = useQuery({
     queryKey: ['t2-ciclos'],
@@ -86,17 +101,6 @@ export default function T2Ciclos() {
       }
 
       await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', selectedPedido);
-
-      const defaultDate = format(addDays(new Date(), 45), 'yyyy-MM-dd');
-      if (dataVencimento !== defaultDate) {
-        await supabase.from('logs_operacionais').insert({
-          usuario_id: user!.id,
-          nome_usuario: 'Sistema',
-          papel: 'sistema',
-          tipo_acao: 't2_prazo_alterado',
-          descricao: `Prazo do ciclo alterado de ${defaultDate} para ${dataVencimento}`,
-        });
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['t2-ciclos'] });
@@ -180,40 +184,53 @@ export default function T2Ciclos() {
         <Card><CardContent className="py-12 text-center text-muted-foreground"><RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-40" /><p>Nenhum ciclo encontrado</p></CardContent></Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {ciclos.map((c: any) => (
-            <Card key={c.id} className="border border-border">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold">
-                    {c.t2_revendedoras?.nome_exibicao || c.t2_revendedoras?.nome_completo || 'Revendedora'}
-                  </CardTitle>
-                  <Badge className={STATUS_COLORS[c.status] || ''}>{STATUS_LABELS[c.status] || c.status}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm">
-                <p className="text-muted-foreground">Pedido: <strong>{c.t2_pedidos?.codigo_pedido}</strong></p>
-                <p>Kit: <strong>R$ {fmt(c.valor_kit)}</strong></p>
-                <p>Pago: <strong>R$ {fmt(c.valor_pago)}</strong></p>
-                <p>Restante: <strong>R$ {fmt(c.valor_restante)}</strong></p>
-                <p className="text-xs text-muted-foreground">
-                  Início: {new Date(c.data_inicio).toLocaleDateString('pt-BR')} · Venc: {new Date(c.data_vencimento).toLocaleDateString('pt-BR')}
-                </p>
+          {ciclos.map((c: any) => {
+            const indicator = getCicloIndicator(c);
+            return (
+              <Card key={c.id} className={`border border-border ${indicator.color}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-semibold">
+                      {c.t2_revendedoras?.nome_exibicao || c.t2_revendedoras?.nome_completo || 'Revendedora'}
+                    </CardTitle>
+                    <Badge className={STATUS_COLORS[c.status] || ''}>{STATUS_LABELS[c.status] || c.status}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1 text-sm">
+                  <p className="text-muted-foreground">Pedido: <strong>{c.t2_pedidos?.codigo_pedido}</strong></p>
+                  <p>Kit: <strong>R$ {fmt(c.valor_kit)}</strong></p>
+                  <p>Pago: <strong>R$ {fmt(c.valor_pago)}</strong></p>
+                  <p>Restante: <strong>R$ {fmt(c.valor_restante)}</strong></p>
+                  <p className="text-xs text-muted-foreground">
+                    Início: {new Date(c.data_inicio).toLocaleDateString('pt-BR')} · Venc: {new Date(c.data_vencimento).toLocaleDateString('pt-BR')}
+                  </p>
 
-                {c.status === 'ativo' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full mt-2 text-xs"
-                    onClick={() => setApuracaoCiclo(c)}
-                  >
-                    <ClipboardList className="h-3 w-3 mr-1" /> Registrar Prestação de Contas
-                  </Button>
-                )}
+                  {c.status === 'ativo' && (
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs"
+                        onClick={() => setApuracaoCiclo(c)}
+                      >
+                        <ClipboardList className="h-3 w-3 mr-1" /> Prestação
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs"
+                        onClick={() => setAdiantamentoCiclo(c)}
+                      >
+                        <DollarSign className="h-3 w-3 mr-1" /> Adiantamento
+                      </Button>
+                    </div>
+                  )}
 
-                <ApuracoesSection cicloId={c.id} />
-              </CardContent>
-            </Card>
-          ))}
+                  <ApuracoesSection cicloId={c.id} />
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -222,6 +239,14 @@ export default function T2Ciclos() {
           open={!!apuracaoCiclo}
           onOpenChange={(o) => !o && setApuracaoCiclo(null)}
           ciclo={apuracaoCiclo}
+        />
+      )}
+
+      {adiantamentoCiclo && (
+        <AdiantamentoDialog
+          open={!!adiantamentoCiclo}
+          onOpenChange={(o) => !o && setAdiantamentoCiclo(null)}
+          ciclo={adiantamentoCiclo}
         />
       )}
     </div>
