@@ -44,9 +44,11 @@ export function ApuracoesSection({ cicloId }: ApuracoesSectionProps) {
     enabled: apuracoes.length > 0,
   });
 
-  if (apuracoes.length === 0) return null;
-
   const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+  if (apuracoes.length === 0) {
+    return <div className="mt-2" />;
+  }
   const formaLabel = (v: string) => FORMAS_PAGAMENTO.find(f => f.value === v)?.label || v;
 
   return (
