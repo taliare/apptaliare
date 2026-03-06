@@ -1208,6 +1208,59 @@ export type Database = {
         }
         Relationships: []
       }
+      t2_apuracoes: {
+        Row: {
+          apurado_por: string
+          ciclo_id: string
+          comissao_percentual: number
+          data_apuracao: string
+          id: string
+          saldo_a_receber: number
+          status: string
+          valor_comissao: number
+          valor_devolvido: number
+          valor_empresa: number
+          valor_kit: number
+          valor_vendido: number
+        }
+        Insert: {
+          apurado_por: string
+          ciclo_id: string
+          comissao_percentual: number
+          data_apuracao?: string
+          id?: string
+          saldo_a_receber: number
+          status?: string
+          valor_comissao: number
+          valor_devolvido: number
+          valor_empresa: number
+          valor_kit: number
+          valor_vendido: number
+        }
+        Update: {
+          apurado_por?: string
+          ciclo_id?: string
+          comissao_percentual?: number
+          data_apuracao?: string
+          id?: string
+          saldo_a_receber?: number
+          status?: string
+          valor_comissao?: number
+          valor_devolvido?: number
+          valor_empresa?: number
+          valor_kit?: number
+          valor_vendido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "t2_apuracoes_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "t2_ciclos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       t2_ciclos: {
         Row: {
           comissao_percentual: number | null
@@ -1267,6 +1320,44 @@ export type Database = {
             columns: ["revendedora_id"]
             isOneToOne: false
             referencedRelation: "t2_revendedoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      t2_pagamentos: {
+        Row: {
+          apuracao_id: string
+          data_pagamento: string
+          forma_pagamento: string | null
+          id: string
+          observacao: string | null
+          registrado_por: string
+          valor_pago: number
+        }
+        Insert: {
+          apuracao_id: string
+          data_pagamento?: string
+          forma_pagamento?: string | null
+          id?: string
+          observacao?: string | null
+          registrado_por: string
+          valor_pago: number
+        }
+        Update: {
+          apuracao_id?: string
+          data_pagamento?: string
+          forma_pagamento?: string | null
+          id?: string
+          observacao?: string | null
+          registrado_por?: string
+          valor_pago?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "t2_pagamentos_apuracao_id_fkey"
+            columns: ["apuracao_id"]
+            isOneToOne: false
+            referencedRelation: "t2_apuracoes"
             referencedColumns: ["id"]
           },
         ]
