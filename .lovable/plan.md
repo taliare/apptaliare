@@ -1,34 +1,46 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# TALIARE 2.0 - Financeiro (Previsão de Recebimentos)
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## 1. Migração SQL
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+### View `t2_vw_previsao_recebimentos`
+Calculada a partir de `t2_ciclos` + `t2_apuracoes` + `t2_revendedoras`:
+- `ciclo_id`, `revendedora_id`, `nome_revendedora`, `representante_id`, `cidade`, `valor_empresa`, `valor_pago`, `saldo_restante` (valor_empresa - valor_pago), `data_vencimento`, `status_ciclo`
+- `status_financeiro` (CASE):
+  - `RECEBIDO` → saldo_restante <= 0
+  - `INADIMPLENTE` → data_vencimento < now() AND saldo_restante > 0
+  - `EM_RISCO` → saldo_restante > 0 AND data_vencimento entre now() e now()+5 dias
+  - `A_RECEBER` → saldo_restante > 0 AND data_vencimento >= now()+5 dias
+- `security_invoker = on`
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## 2. Frontend
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+### Nova página `src/pages/T2Financeiro.tsx` (rota `/t2-financeiro`)
+- **Dashboard cards**: Total Recebido (verde), Total A Receber (azul), Total Em Risco (amarelo), Total Inadimplente (vermelho)
+- **Card Previsão 30 dias**: soma de saldo_restante onde data_vencimento nos próximos 30 dias
+- **Tabela por representante**: nome, valor recebido, valor a receber, valor em risco, inadimplência
+- **Gráfico de caixa** (Recharts BarChart): eixo X = datas de vencimento (agrupadas por semana/mês), eixo Y = valor previsto
+- **Tabela detalhada** com todos os ciclos e seus status financeiros
+- **Filtros**: representante (Select), cidade (Input), período (DateRange), status financeiro (Select)
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+### Atualizar `constants.ts`
+- Adicionar `FINANCEIRO_LABELS` e `FINANCEIRO_COLORS` (RECEBIDO→verde, A_RECEBER→azul, EM_RISCO→amarelo, INADIMPLENTE→vermelho)
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+### Navegação
+- Rota `/t2-financeiro` em `AnimatedRoutes.tsx` com `PermissionRoute menuKey="t2_financeiro"`
+- Menu "Financeiro T2" na categoria TALIARE 2.0 em `AppSidebar.tsx` e `MobileDrawer.tsx`
+- Nova chave `t2_financeiro` em `menuPermissions.ts`
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+## 3. Resumo de Arquivos
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+| Ação | Arquivo |
+|------|---------|
+| SQL | View `t2_vw_previsao_recebimentos` |
+| Criar | `src/pages/T2Financeiro.tsx` |
+| Editar | `src/components/t2/constants.ts` |
+| Editar | `src/components/AnimatedRoutes.tsx` |
+| Editar | `src/components/AppSidebar.tsx` |
+| Editar | `src/components/MobileDrawer.tsx` |
+| Editar | `src/lib/menuPermissions.ts` |
+
