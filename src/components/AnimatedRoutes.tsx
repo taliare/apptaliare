@@ -33,6 +33,9 @@ import DreCategorias from '@/pages/DreCategorias';
 import AnaliseComercial from '@/pages/AnaliseComercial';
 import HistoricoAcoes from '@/pages/HistoricoAcoes';
 import AuditoriaGeral from '@/pages/AuditoriaGeral';
+import T2Producao from '@/pages/T2Producao';
+import T2Revendedoras from '@/pages/T2Revendedoras';
+import T2Ciclos from '@/pages/T2Ciclos';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -164,6 +167,23 @@ export function AnimatedRoutes() {
         <Route path="/auditoria-geral" element={
           <PermissionRoute menuKey="auditoria_geral">
             <AuditoriaGeral />
+          </PermissionRoute>
+        } />
+        
+        {/* TALIARE 2.0 routes */}
+        <Route path="/t2-producao" element={
+          <PermissionRoute menuKey="t2_producao">
+            <T2Producao />
+          </PermissionRoute>
+        } />
+        <Route path="/t2-revendedoras" element={
+          <PermissionRoute menuKey="t2_revendedoras">
+            <T2Revendedoras />
+          </PermissionRoute>
+        } />
+        <Route path="/t2-ciclos" element={
+          <PermissionRoute menuKey="t2_ciclos">
+            <T2Ciclos />
           </PermissionRoute>
         } />
         
