@@ -1,64 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# TALIARE 2.0 - Histórico, Classificação, Ranking e Dashboard
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Decisão Técnica
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-Continuando com tabelas `t2_` no schema `public` (mesmo padrão já estabelecido). Views não são diretamente queryáveis pelo Supabase JS client da mesma forma — usaremos queries agregadas no frontend ou criaremos database views acessíveis via Supabase.
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-## 1. Migração SQL
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-### Database Views
-- **`t2_vw_historico_revendedoras`**: View agregando dados de `t2_ciclos` + `t2_apuracoes` por revendedora (total_ciclos, total_vendido, ticket_medio, total_pago_empresa, data_primeiro_ciclo, data_ultimo_ciclo). Join com `t2_revendedoras` para nome e cidade.
-- **`t2_vw_ranking_revendedoras`**: View ordenada por total_vendido DESC com categoria_atual.
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-### Trigger para classificação automática
-- Função `t2_atualizar_categoria_revendedora()` executada AFTER INSERT em `t2_apuracoes`
-- Atualiza `t2_revendedoras.categoria_atual` baseado no `valor_vendido` da apuração: INICIAL (0-299), ATIVA (300-999), DESTAQUE (1000-1999), ELITE (2000+)
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-### Trigger para score
-- Função `t2_atualizar_score()` executada em UPDATE de `t2_ciclos` quando status muda
-- `encerrado` → +10 pontos no score da revendedora
-- `inadimplente` → -20 pontos
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-### RLS nas views
-- Views com `SECURITY DEFINER` para acesso controlado, ou RLS policies adequadas
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-## 2. Frontend
-
-### Atualizar `constants.ts`
-- Adicionar categorias INICIAL, ATIVA, DESTAQUE, ELITE com cores
-
-### Expandir `T2Revendedoras.tsx` - Perfil da Revendedora
-- Ao clicar na revendedora, abrir Sheet/Dialog com:
-  - Dados cadastrais, categoria, score
-  - Histórico agregado (total vendido, ticket médio, ciclos)
-  - Lista de ciclos com status
-  - Histórico de pagamentos
-
-### Nova página `T2Ranking.tsx` (rota `/t2-ranking`)
-- Tabela ordenada por total_vendido
-- Filtros: representante, cidade, período
-- Badges de categoria
-
-### Expandir `T2Revendedoras.tsx` ou criar seção Dashboard
-- Cards: total revendedoras ativas, por categoria (INICIAL/ATIVA/DESTAQUE/ELITE), ticket médio, volume vendido
-
-## 3. Navegação
-- Adicionar rota `/t2-ranking` em `AnimatedRoutes.tsx`
-- Menu "Ranking" na categoria TALIARE 2.0 em `AppSidebar.tsx` e `MobileDrawer.tsx`
-- Nova chave `t2_ranking` em `menuPermissions.ts`
-
-## 4. Resumo de Arquivos
-
-| Ação | Arquivo |
-|------|---------|
-| SQL | Migração: views + triggers classificação/score |
-| Editar | `src/components/t2/constants.ts` (categorias) |
-| Editar | `src/pages/T2Revendedoras.tsx` (perfil + dashboard) |
-| Criar | `src/pages/T2Ranking.tsx` |  
-| Editar | `src/components/AnimatedRoutes.tsx` (rota) |
-| Editar | `src/components/AppSidebar.tsx` (menu) |
-| Editar | `src/components/MobileDrawer.tsx` (menu) |
-| Editar | `src/lib/menuPermissions.ts` (chave) |
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria

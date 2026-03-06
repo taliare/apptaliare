@@ -1366,6 +1366,20 @@ export type Database = {
             referencedRelation: "t2_revendedoras"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "t2_ciclos_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
+            referencedRelation: "t2_vw_historico_revendedoras"
+            referencedColumns: ["revendedora_id"]
+          },
+          {
+            foreignKeyName: "t2_ciclos_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
+            referencedRelation: "t2_vw_ranking_revendedoras"
+            referencedColumns: ["revendedora_id"]
+          },
         ]
       }
       t2_pagamentos: {
@@ -1582,6 +1596,36 @@ export type Database = {
           idioma?: string | null
           nome?: string | null
           tema?: string | null
+        }
+        Relationships: []
+      }
+      t2_vw_historico_revendedoras: {
+        Row: {
+          categoria_atual: string | null
+          cidade: string | null
+          data_primeiro_ciclo: string | null
+          data_ultimo_ciclo: string | null
+          nome_revendedora: string | null
+          representante_id: string | null
+          revendedora_id: string | null
+          score: number | null
+          ticket_medio: number | null
+          total_ciclos: number | null
+          total_pago_empresa: number | null
+          total_vendido: number | null
+        }
+        Relationships: []
+      }
+      t2_vw_ranking_revendedoras: {
+        Row: {
+          categoria_atual: string | null
+          cidade: string | null
+          nome_revendedora: string | null
+          representante_id: string | null
+          revendedora_id: string | null
+          score: number | null
+          total_ciclos: number | null
+          total_vendido: number | null
         }
         Relationships: []
       }
