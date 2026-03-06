@@ -161,6 +161,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         { title: 'Ciclos T2', url: '/t2-ciclos', icon: Target },
         { title: 'Ranking T2', url: '/t2-ranking', icon: TrendingUp },
         { title: 'Radar da Rede', url: '/t2-radar', icon: BarChart3 },
+        { title: 'Performance Reps', url: '/t2-representantes-performance', icon: LineChart },
         { title: 'Inadimplência', url: '/t2-inadimplencia', icon: AlertTriangle },
       ],
     },

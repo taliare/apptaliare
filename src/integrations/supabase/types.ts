@@ -1623,6 +1623,21 @@ export type Database = {
         }
         Relationships: []
       }
+      t2_vw_performance_representantes: {
+        Row: {
+          inadimplencia_total: number | null
+          representante_id: string | null
+          revendedoras_atencao: number | null
+          revendedoras_ativas: number | null
+          revendedoras_em_risco: number | null
+          ticket_medio: number | null
+          total_ciclos: number | null
+          total_recebido_empresa: number | null
+          total_revendedoras: number | null
+          total_vendido: number | null
+        }
+        Relationships: []
+      }
       t2_vw_radar_revendedoras: {
         Row: {
           categoria_atual: string | null
@@ -1636,6 +1651,17 @@ export type Database = {
           total_ciclos: number | null
           total_vendido: number | null
           ultimo_ciclo_data: string | null
+        }
+        Relationships: []
+      }
+      t2_vw_ranking_representantes: {
+        Row: {
+          inadimplencia_total: number | null
+          representante_id: string | null
+          revendedoras_ativas: number | null
+          ticket_medio: number | null
+          total_ciclos: number | null
+          total_vendido: number | null
         }
         Relationships: []
       }
