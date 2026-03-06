@@ -1,34 +1,68 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# TALIARE 2.0 - Adiantamentos, Inadimplência e Indicadores Visuais
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## 1. Migração SQL
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+### Tabela `t2_adiantamentos`
+- `id`, `ciclo_id` (FK t2_ciclos), `revendedora_id`, `representante_id`, `valor`, `forma_pagamento`, `observacao`, `data_pagamento` (default now()), `registrado_por`
+- RLS: Admin full access (RESTRICTIVE), representante acessa onde `registrado_por = auth.uid()`
+- Validation trigger: não permitir `valor > valor_kit` do ciclo associado, e só permitir INSERT se ciclo estiver com status `ativo`
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+### Atualizar `ApuracaoDialog` para deduzir adiantamentos
+- Na apuração, consultar soma de adiantamentos do ciclo
+- `saldo_a_receber = MAX(0, valor_empresa - soma_adiantamentos)`
+- Salvar no registro de apuração já com saldo ajustado
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+## 2. Edge Function: auto-close-t2-inadimplencia
+- Cron diário que verifica ciclos onde `data_vencimento < now()` AND `status = 'ativo'`
+- Atualiza para `status = 'inadimplente'`
+- Pode ser adicionado à edge function existente `auto-close-daily` ou criar nova
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+## 3. Frontend
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+### Componente `AdiantamentoDialog.tsx`
+- Dialog para registrar adiantamento em ciclo ativo
+- Campos: valor, forma_pagamento, observacao
+- Validação: valor <= valor_kit do ciclo
+- Botão "Registrar Adiantamento" no card do ciclo ativo (ao lado do botão de prestação de contas)
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+### Atualizar `ApuracaoDialog.tsx`
+- Buscar adiantamentos do ciclo ao abrir
+- Mostrar na tela: valor_kit, adiantamentos registrados, valor_devolvido, valor_vendido, comissão, valor_empresa, saldo_a_receber (já deduzido)
+- Fórmula: `saldo_a_receber = max(0, valor_empresa - total_adiantamentos)`
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+### Atualizar `T2Ciclos.tsx`
+- Indicadores visuais nos cards:
+  - Verde: ciclo ativo dentro do prazo
+  - Amarelo: faltam menos de 5 dias para vencer
+  - Vermelho: ciclo inadimplente
+- Botão "Registrar Adiantamento" nos ciclos ativos
+- Mostrar seção de adiantamentos existentes no card
+
+### Nova página `T2Inadimplencia.tsx`
+- Lista ciclos com status `inadimplente`
+- Mostrar: revendedora, representante, valor_devido, dias_em_atraso, data_vencimento
+- Filtros: por representante, por cidade, por dias de atraso
+- Join com `t2_revendedoras` para nome e cidade, `profiles_limited` para nome do representante
+
+### Navegação
+- Adicionar rota `/t2-inadimplencia` em `AnimatedRoutes.tsx`
+- Adicionar menu "Inadimplência" na categoria "TALIARE 2.0" em `AppSidebar.tsx` e `MobileDrawer.tsx`
+- Adicionar `t2_inadimplencia` em `menuPermissions.ts`
+
+## 4. Resumo de Arquivos
+
+| Ação | Arquivo |
+|------|---------|
+| Criar | `src/components/t2/AdiantamentoDialog.tsx` |
+| Criar | `src/pages/T2Inadimplencia.tsx` |
+| Editar | `src/components/t2/ApuracaoDialog.tsx` (deduzir adiantamentos) |
+| Editar | `src/pages/T2Ciclos.tsx` (indicadores visuais + botão adiantamento) |
+| Editar | `src/components/AppSidebar.tsx` (menu Inadimplência) |
+| Editar | `src/components/MobileDrawer.tsx` (menu Inadimplência) |
+| Editar | `src/components/AnimatedRoutes.tsx` (rota) |
+| Editar | `src/lib/menuPermissions.ts` (nova chave) |
+| SQL | Migração: tabela `t2_adiantamentos` + trigger validação |
+| Edge fn | Cron para marcar ciclos como inadimplentes |
+
