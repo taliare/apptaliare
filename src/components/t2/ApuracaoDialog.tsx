@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from '@/hooks/use-toast';
-import { getComissaoFaixa } from './constants';
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
+import { getComissaoFaixa } from "./constants";
 
 interface ApuracaoDialogProps {
   open: boolean;
@@ -18,16 +18,13 @@ interface ApuracaoDialogProps {
 export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [valorDevolvido, setValorDevolvido] = useState('');
+  const [valorDevolvido, setValorDevolvido] = useState("");
 
   // Buscar total de adiantamentos do ciclo
   const { data: totalAdiantamentos = 0 } = useQuery({
-    queryKey: ['t2-adiantamentos-total', ciclo?.id],
+    queryKey: ["t2-adiantamentos-total", ciclo?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('t2_adiantamentos')
-        .select('valor')
-        .eq('ciclo_id', ciclo.id);
+      const { data, error } = await supabase.from("t2_adiantamentos").select("valor").eq("ciclo_id", ciclo.id);
       if (error) throw error;
       return data.reduce((sum: number, a: any) => sum + Number(a.valor), 0);
     },
@@ -46,37 +43,33 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (isInvalid) throw new Error('Valor devolvido inválido');
-      const { data, error } = await supabase.from('t2_apuracoes').insert({
+      if (isInvalid) throw new Error("Valor devolvido inválido");
+      const { error } = await supabase.from("t2_apuracoes").insert({
         ciclo_id: ciclo.id,
         valor_kit: valorKit,
         valor_devolvido: devolvido,
         valor_vendido: valorVendido,
-        comissao_percentual: percentual,
+        percentual_comissao: percentual,
         valor_comissao: valorComissao,
         valor_empresa: valorEmpresa,
         saldo_a_receber: saldoAReceber,
         apurado_por: user!.id,
-      }).select();
-      if (error) {
-        console.error("APURACAO INSERT ERROR:", error);
-        throw error;
-      }
-      console.log("APURACAO INSERT OK:", data);
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['t2-ciclos'] });
-      queryClient.invalidateQueries({ queryKey: ['t2-apuracoes'] });
+      queryClient.invalidateQueries({ queryKey: ["t2-ciclos"] });
+      queryClient.invalidateQueries({ queryKey: ["t2-apuracoes"] });
       onOpenChange(false);
-      setValorDevolvido('');
-      toast({ title: 'Apuração registrada com sucesso!' });
+      setValorDevolvido("");
+      toast({ title: "Apuração registrada com sucesso!" });
     },
     onError: (err: any) => {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
     },
   });
 
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,7 +98,7 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
               min="0"
               max={valorKit}
               value={valorDevolvido}
-              onChange={e => setValorDevolvido(e.target.value)}
+              onChange={(e) => setValorDevolvido(e.target.value)}
               placeholder="0.00"
             />
             {isInvalid && (
@@ -115,7 +108,7 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
             )}
           </div>
 
-          {valorDevolvido !== '' && !isInvalid && (
+          {valorDevolvido !== "" && !isInvalid && (
             <div className="space-y-2 rounded-lg border border-border p-3 bg-muted/30">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Valor Vendido:</span>
@@ -151,7 +144,7 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
             disabled={!valorDevolvido || isInvalid || mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? 'Registrando...' : 'Confirmar Apuração'}
+            {mutation.isPending ? "Registrando..." : "Confirmar Apuração"}
           </Button>
         </div>
       </DialogContent>
