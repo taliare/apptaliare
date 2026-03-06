@@ -10,22 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { Plus, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw, ClipboardList } from 'lucide-react';
 import { format, addDays } from 'date-fns';
-
-const STATUS_LABELS: Record<string, string> = {
-  ativo: 'Ativo',
-  encerrado: 'Encerrado',
-  inadimplente: 'Inadimplente',
-  desistencia: 'Desistência',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  ativo: 'bg-green-500/20 text-green-700 dark:text-green-400',
-  encerrado: 'bg-muted text-muted-foreground',
-  inadimplente: 'bg-red-500/20 text-red-700 dark:text-red-400',
-  desistencia: 'bg-orange-500/20 text-orange-700 dark:text-orange-400',
-};
+import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
+import { ApuracaoDialog } from '@/components/t2/ApuracaoDialog';
+import { ApuracoesSection } from '@/components/t2/ApuracoesSection';
 
 export default function T2Ciclos() {
   const { user } = useAuth();
@@ -35,6 +24,7 @@ export default function T2Ciclos() {
   const [selectedPedido, setSelectedPedido] = useState('');
   const [comissao, setComissao] = useState('10');
   const [dataVencimento, setDataVencimento] = useState(format(addDays(new Date(), 45), 'yyyy-MM-dd'));
+  const [apuracaoCiclo, setApuracaoCiclo] = useState<any>(null);
 
   const { data: ciclos = [], isLoading } = useQuery({
     queryKey: ['t2-ciclos'],
@@ -95,10 +85,8 @@ export default function T2Ciclos() {
         throw cicloError;
       }
 
-      // Atualizar status do pedido
       await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', selectedPedido);
 
-      // Log se prazo foi alterado do padrão de 45 dias
       const defaultDate = format(addDays(new Date(), 45), 'yyyy-MM-dd');
       if (dataVencimento !== defaultDate) {
         await supabase.from('logs_operacionais').insert({
@@ -125,6 +113,8 @@ export default function T2Ciclos() {
       toast({ title: 'Erro ao criar ciclo', description: err.message, variant: 'destructive' });
     },
   });
+
+  const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -158,14 +148,14 @@ export default function T2Ciclos() {
                   <SelectContent>
                     {pedidosDisponiveis.map((p: any) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.codigo_pedido} — R$ {Number(p.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        {p.codigo_pedido} — R$ {fmt(p.valor_total)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               {pedidoSelecionado && (
-                <p className="text-sm text-muted-foreground">Valor do kit: <strong>R$ {Number(pedidoSelecionado.valor_total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></p>
+                <p className="text-sm text-muted-foreground">Valor do kit: <strong>R$ {fmt(pedidoSelecionado.valor_total)}</strong></p>
               )}
               <div>
                 <Label>Comissão (%)</Label>
@@ -202,16 +192,37 @@ export default function T2Ciclos() {
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
                 <p className="text-muted-foreground">Pedido: <strong>{c.t2_pedidos?.codigo_pedido}</strong></p>
-                <p>Kit: <strong>R$ {Number(c.valor_kit).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></p>
-                <p>Pago: <strong>R$ {Number(c.valor_pago).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></p>
-                <p>Restante: <strong>R$ {Number(c.valor_restante).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></p>
+                <p>Kit: <strong>R$ {fmt(c.valor_kit)}</strong></p>
+                <p>Pago: <strong>R$ {fmt(c.valor_pago)}</strong></p>
+                <p>Restante: <strong>R$ {fmt(c.valor_restante)}</strong></p>
                 <p className="text-xs text-muted-foreground">
                   Início: {new Date(c.data_inicio).toLocaleDateString('pt-BR')} · Venc: {new Date(c.data_vencimento).toLocaleDateString('pt-BR')}
                 </p>
+
+                {c.status === 'ativo' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full mt-2 text-xs"
+                    onClick={() => setApuracaoCiclo(c)}
+                  >
+                    <ClipboardList className="h-3 w-3 mr-1" /> Registrar Prestação de Contas
+                  </Button>
+                )}
+
+                <ApuracoesSection cicloId={c.id} />
               </CardContent>
             </Card>
           ))}
         </div>
+      )}
+
+      {apuracaoCiclo && (
+        <ApuracaoDialog
+          open={!!apuracaoCiclo}
+          onOpenChange={(o) => !o && setApuracaoCiclo(null)}
+          ciclo={apuracaoCiclo}
+        />
       )}
     </div>
   );
