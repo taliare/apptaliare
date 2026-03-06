@@ -1,34 +1,27 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Fix: t2_apuracoes RLS Insert Failure
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Root Cause
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+All RLS policies on `t2_apuracoes` are set as **RESTRICTIVE**. In PostgreSQL, RESTRICTIVE policies can only narrow access already granted by a PERMISSIVE policy. Since there are **no PERMISSIVE policies**, no inserts can succeed — even for admins or representantes.
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+Current policies (all RESTRICTIVE, all broken):
+- `Admin full access t2_apuracoes` (ALL) — RESTRICTIVE
+- `Representante pode criar t2_apuracoes` (INSERT) — RESTRICTIVE  
+- `Representante pode ver suas t2_apuracoes` (SELECT) — RESTRICTIVE
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+## Fix
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+Drop all existing policies and recreate them as **PERMISSIVE** (the PostgreSQL default). The logic stays the same — only the policy type changes.
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+### SQL Migration
+1. Drop the 3 existing RESTRICTIVE policies
+2. Recreate them as PERMISSIVE:
+   - Admin ALL: `has_role(auth.uid(), 'admin')`
+   - Representante INSERT: `apurado_por = auth.uid()`
+   - Representante SELECT: `apurado_por = auth.uid()`
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+### No frontend changes needed
+The insert logic in `ApuracaoDialog.tsx` is correct — `apurado_por: user!.id` matches the policy check.
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
