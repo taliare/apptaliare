@@ -1,34 +1,40 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# TALIARE 2.0 - Radar da Rede
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## 1. Migração SQL
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+### View `t2_vw_radar_revendedoras`
+View calculada a partir de `t2_revendedoras` + `t2_ciclos`, com campos:
+- `revendedora_id`, `nome_revendedora`, `representante_id`, `cidade`, `categoria_atual`, `score`, `total_vendido` (sum de apurações), `total_ciclos`, `ultimo_ciclo_data` (max data_inicio), `dias_sem_vender` (current_date - ultimo_ciclo_data), `status_radar` (CASE: <=45 → 'ATIVA', 46-90 → 'ATENCAO', >90 → 'RISCO', NULL → 'RISCO')
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+Nenhuma tabela nova — apenas uma view.
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+## 2. Frontend
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+### Nova página `T2RadarRede.tsx` (rota `/t2-radar`)
+- Dashboard de saúde com 4 cards: Ativas (verde), Atenção (amarelo), Risco (vermelho), % Rede Ativa
+- Tabela com: revendedora, representante, cidade, categoria, dias sem vender, status radar (badges coloridos)
+- Filtros: representante (Select), cidade (Input), categoria (Select), status radar (Select)
+- Consulta da view `t2_vw_radar_revendedoras`
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+### Atualizar `constants.ts`
+- Adicionar `RADAR_LABELS` e `RADAR_COLORS` (ATIVA→verde, ATENCAO→amarelo, RISCO→vermelho)
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+### Navegação
+- Rota `/t2-radar` em `AnimatedRoutes.tsx` com `PermissionRoute menuKey="t2_radar"`
+- Menu "Radar da Rede" na categoria TALIARE 2.0 em `AppSidebar.tsx` e `MobileDrawer.tsx`
+- Nova chave `t2_radar` + route `/t2-radar` em `menuPermissions.ts`
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+## 3. Resumo de Arquivos
+
+| Ação | Arquivo |
+|------|---------|
+| SQL | View `t2_vw_radar_revendedoras` |
+| Criar | `src/pages/T2RadarRede.tsx` |
+| Editar | `src/components/t2/constants.ts` |
+| Editar | `src/components/AnimatedRoutes.tsx` |
+| Editar | `src/components/AppSidebar.tsx` |
+| Editar | `src/components/MobileDrawer.tsx` |
+| Editar | `src/lib/menuPermissions.ts` |
+
