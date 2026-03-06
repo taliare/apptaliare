@@ -23,6 +23,7 @@ export const ASSIGNABLE_MENUS = [
   { key: 't2_revendedoras', label: 'T2 Revendedoras', route: '/t2-revendedoras' },
   { key: 't2_ciclos', label: 'T2 Ciclos', route: '/t2-ciclos' },
   { key: 't2_ranking', label: 'Ranking T2', route: '/t2-ranking' },
+  { key: 't2_radar', label: 'Radar da Rede', route: '/t2-radar' },
   { key: 't2_inadimplencia', label: 'Inadimplência T2', route: '/t2-inadimplencia' },
 ] as const;
 
@@ -53,6 +54,7 @@ export const MENU_EXTRA_CONFIG: Record<string, { iconName: string; category: str
   t2_revendedoras: { iconName: 'Users', category: 'TALIARE 2.0' },
   t2_ciclos: { iconName: 'Target', category: 'TALIARE 2.0' },
   t2_ranking: { iconName: 'TrendingUp', category: 'TALIARE 2.0' },
+  t2_radar: { iconName: 'BarChart3', category: 'TALIARE 2.0' },
   t2_inadimplencia: { iconName: 'AlertTriangle', category: 'TALIARE 2.0' },
 };
 

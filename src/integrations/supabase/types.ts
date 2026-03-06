@@ -1377,6 +1377,13 @@ export type Database = {
             foreignKeyName: "t2_ciclos_revendedora_id_fkey"
             columns: ["revendedora_id"]
             isOneToOne: false
+            referencedRelation: "t2_vw_radar_revendedoras"
+            referencedColumns: ["revendedora_id"]
+          },
+          {
+            foreignKeyName: "t2_ciclos_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
             referencedRelation: "t2_vw_ranking_revendedoras"
             referencedColumns: ["revendedora_id"]
           },
@@ -1613,6 +1620,22 @@ export type Database = {
           total_ciclos: number | null
           total_pago_empresa: number | null
           total_vendido: number | null
+        }
+        Relationships: []
+      }
+      t2_vw_radar_revendedoras: {
+        Row: {
+          categoria_atual: string | null
+          cidade: string | null
+          dias_sem_vender: number | null
+          nome_revendedora: string | null
+          representante_id: string | null
+          revendedora_id: string | null
+          score: number | null
+          status_radar: string | null
+          total_ciclos: number | null
+          total_vendido: number | null
+          ultimo_ciclo_data: string | null
         }
         Relationships: []
       }
