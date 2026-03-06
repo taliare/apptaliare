@@ -38,6 +38,7 @@ import T2Revendedoras from '@/pages/T2Revendedoras';
 import T2Ciclos from '@/pages/T2Ciclos';
 import T2Ranking from '@/pages/T2Ranking';
 import T2Inadimplencia from '@/pages/T2Inadimplencia';
+import T2RadarRede from '@/pages/T2RadarRede';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -191,6 +192,11 @@ export function AnimatedRoutes() {
         <Route path="/t2-ranking" element={
           <PermissionRoute menuKey="t2_ranking">
             <T2Ranking />
+          </PermissionRoute>
+        } />
+        <Route path="/t2-radar" element={
+          <PermissionRoute menuKey="t2_radar">
+            <T2RadarRede />
           </PermissionRoute>
         } />
         <Route path="/t2-inadimplencia" element={

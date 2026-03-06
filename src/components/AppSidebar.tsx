@@ -167,6 +167,7 @@ export function AppSidebar() {
         { title: "Revendedoras T2", url: "/t2-revendedoras", icon: Users },
         { title: "Ciclos T2", url: "/t2-ciclos", icon: Target },
         { title: "Ranking T2", url: "/t2-ranking", icon: TrendingUp },
+        { title: "Radar da Rede", url: "/t2-radar", icon: BarChart3 },
         { title: "Inadimplência", url: "/t2-inadimplencia", icon: AlertTriangle },
       ],
     },

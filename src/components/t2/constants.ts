@@ -39,3 +39,15 @@ export const CATEGORIA_COLORS: Record<string, string> = {
   DESTAQUE: 'bg-purple-500/20 text-purple-700 dark:text-purple-400',
   ELITE: 'bg-amber-500/20 text-amber-700 dark:text-amber-400',
 };
+
+export const RADAR_LABELS: Record<string, string> = {
+  ATIVA: 'Ativa',
+  ATENCAO: 'Atenção',
+  RISCO: 'Risco',
+};
+
+export const RADAR_COLORS: Record<string, string> = {
+  ATIVA: 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30',
+  ATENCAO: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/30',
+  RISCO: 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30',
+};
