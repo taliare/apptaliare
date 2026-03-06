@@ -1,0 +1,27 @@
+export const STATUS_LABELS: Record<string, string> = {
+  ativo: 'Ativo',
+  encerrado: 'Encerrado',
+  inadimplente: 'Inadimplente',
+  desistencia: 'Desistência',
+};
+
+export const STATUS_COLORS: Record<string, string> = {
+  ativo: 'bg-green-500/20 text-green-700 dark:text-green-400',
+  encerrado: 'bg-muted text-muted-foreground',
+  inadimplente: 'bg-red-500/20 text-red-700 dark:text-red-400',
+  desistencia: 'bg-orange-500/20 text-orange-700 dark:text-orange-400',
+};
+
+export function getComissaoFaixa(valorVendido: number): { percentual: number; categoria: string } {
+  if (valorVendido >= 2000) return { percentual: 50, categoria: 'Diamante' };
+  if (valorVendido >= 1000) return { percentual: 40, categoria: 'Ouro' };
+  if (valorVendido >= 300) return { percentual: 30, categoria: 'Prata' };
+  return { percentual: 20, categoria: 'Bronze' };
+}
+
+export const FORMAS_PAGAMENTO = [
+  { value: 'pix', label: 'PIX' },
+  { value: 'dinheiro', label: 'Dinheiro' },
+  { value: 'cartao', label: 'Cartão' },
+  { value: 'transferencia', label: 'Transferência' },
+];
