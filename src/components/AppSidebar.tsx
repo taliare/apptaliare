@@ -21,6 +21,7 @@ import {
   LineChart,
   ClipboardList,
   AlertTriangle,
+  Wallet,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,7 +44,7 @@ import { Badge } from "@/components/ui/badge";
 // Mapa de ícones para resolver string -> componente
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   UserPlus, Users, Shield, Package, CalendarCheck, Target, Calendar, Scale,
-  TrendingUp, Receipt, FolderOpen, BarChart3, LineChart, Upload, FileText, ClipboardList, AlertTriangle,
+  TrendingUp, Receipt, FolderOpen, BarChart3, LineChart, Upload, FileText, ClipboardList, AlertTriangle, Wallet,
 };
 
 interface MenuCategory {
@@ -169,6 +170,7 @@ export function AppSidebar() {
         { title: "Ranking T2", url: "/t2-ranking", icon: TrendingUp },
         { title: "Radar da Rede", url: "/t2-radar", icon: BarChart3 },
         { title: "Performance Reps", url: "/t2-representantes-performance", icon: LineChart },
+        { title: "Financeiro T2", url: "/t2-financeiro", icon: Wallet },
         { title: "Inadimplência", url: "/t2-inadimplencia", icon: AlertTriangle },
       ],
     },
