@@ -25,3 +25,17 @@ export const FORMAS_PAGAMENTO = [
   { value: 'cartao', label: 'Cartão' },
   { value: 'transferencia', label: 'Transferência' },
 ];
+
+export const CATEGORIA_LABELS: Record<string, string> = {
+  INICIAL: 'Inicial',
+  ATIVA: 'Ativa',
+  DESTAQUE: 'Destaque',
+  ELITE: 'Elite',
+};
+
+export const CATEGORIA_COLORS: Record<string, string> = {
+  INICIAL: 'bg-muted text-muted-foreground',
+  ATIVA: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
+  DESTAQUE: 'bg-purple-500/20 text-purple-700 dark:text-purple-400',
+  ELITE: 'bg-amber-500/20 text-amber-700 dark:text-amber-400',
+};
