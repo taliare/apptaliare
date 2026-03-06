@@ -1208,6 +1208,144 @@ export type Database = {
         }
         Relationships: []
       }
+      t2_ciclos: {
+        Row: {
+          comissao_percentual: number | null
+          data_inicio: string
+          data_vencimento: string
+          id: string
+          pedido_id: string
+          representante_id: string
+          revendedora_id: string
+          status: string
+          valor_empresa: number | null
+          valor_kit: number
+          valor_pago: number
+          valor_restante: number | null
+          valor_vendido: number | null
+        }
+        Insert: {
+          comissao_percentual?: number | null
+          data_inicio?: string
+          data_vencimento: string
+          id?: string
+          pedido_id: string
+          representante_id: string
+          revendedora_id: string
+          status?: string
+          valor_empresa?: number | null
+          valor_kit: number
+          valor_pago?: number
+          valor_restante?: number | null
+          valor_vendido?: number | null
+        }
+        Update: {
+          comissao_percentual?: number | null
+          data_inicio?: string
+          data_vencimento?: string
+          id?: string
+          pedido_id?: string
+          representante_id?: string
+          revendedora_id?: string
+          status?: string
+          valor_empresa?: number | null
+          valor_kit?: number
+          valor_pago?: number
+          valor_restante?: number | null
+          valor_vendido?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "t2_ciclos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "t2_pedidos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "t2_ciclos_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
+            referencedRelation: "t2_revendedoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      t2_pedidos: {
+        Row: {
+          codigo_pedido: string
+          data_criacao: string
+          id: string
+          observacao: string | null
+          representante_id: string | null
+          status: string
+          valor_total: number
+        }
+        Insert: {
+          codigo_pedido: string
+          data_criacao?: string
+          id?: string
+          observacao?: string | null
+          representante_id?: string | null
+          status?: string
+          valor_total: number
+        }
+        Update: {
+          codigo_pedido?: string
+          data_criacao?: string
+          id?: string
+          observacao?: string | null
+          representante_id?: string | null
+          status?: string
+          valor_total?: number
+        }
+        Relationships: []
+      }
+      t2_revendedoras: {
+        Row: {
+          categoria_atual: string | null
+          cidade: string | null
+          cpf: string
+          data_cadastro: string
+          id: string
+          instagram: string | null
+          nome_completo: string
+          nome_exibicao: string | null
+          representante_id: string | null
+          score: number
+          status: string
+          telefone: string
+        }
+        Insert: {
+          categoria_atual?: string | null
+          cidade?: string | null
+          cpf: string
+          data_cadastro?: string
+          id?: string
+          instagram?: string | null
+          nome_completo: string
+          nome_exibicao?: string | null
+          representante_id?: string | null
+          score?: number
+          status?: string
+          telefone: string
+        }
+        Update: {
+          categoria_atual?: string | null
+          cidade?: string | null
+          cpf?: string
+          data_cadastro?: string
+          id?: string
+          instagram?: string | null
+          nome_completo?: string
+          nome_exibicao?: string | null
+          representante_id?: string | null
+          score?: number
+          status?: string
+          telefone?: string
+        }
+        Relationships: []
+      }
       user_menu_permissions: {
         Row: {
           created_at: string | null
