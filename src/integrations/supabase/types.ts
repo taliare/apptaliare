@@ -1654,6 +1654,17 @@ export type Database = {
         }
         Relationships: []
       }
+      t2_vw_ranking_representantes: {
+        Row: {
+          inadimplencia_total: number | null
+          representante_id: string | null
+          revendedoras_ativas: number | null
+          ticket_medio: number | null
+          total_ciclos: number | null
+          total_vendido: number | null
+        }
+        Relationships: []
+      }
       t2_vw_ranking_revendedoras: {
         Row: {
           categoria_atual: string | null
