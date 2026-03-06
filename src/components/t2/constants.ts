@@ -51,3 +51,17 @@ export const RADAR_COLORS: Record<string, string> = {
   ATENCAO: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/30',
   RISCO: 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30',
 };
+
+export const FINANCEIRO_LABELS: Record<string, string> = {
+  RECEBIDO: 'Recebido',
+  A_RECEBER: 'A Receber',
+  EM_RISCO: 'Em Risco',
+  INADIMPLENTE: 'Inadimplente',
+};
+
+export const FINANCEIRO_COLORS: Record<string, string> = {
+  RECEBIDO: 'bg-green-500/20 text-green-700 dark:text-green-400',
+  A_RECEBER: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
+  EM_RISCO: 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400',
+  INADIMPLENTE: 'bg-red-500/20 text-red-700 dark:text-red-400',
+};

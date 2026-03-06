@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus, Shield, TrendingUp, Receipt, FolderOpen, LineChart, ClipboardList, AlertTriangle } from 'lucide-react';
+import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus, Shield, TrendingUp, Receipt, FolderOpen, LineChart, ClipboardList, AlertTriangle, Wallet } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,7 +23,7 @@ import { useNewLeadsCount } from '@/hooks/useNewLeadsCount';
 // Mapa de ícones para resolver string -> componente
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   UserPlus, Users, Shield, Package, CalendarCheck, Target, Calendar, Scale,
-  TrendingUp, Receipt, FolderOpen, BarChart3, LineChart, Upload, FileText, ClipboardList, AlertTriangle,
+  TrendingUp, Receipt, FolderOpen, BarChart3, LineChart, Upload, FileText, ClipboardList, AlertTriangle, Wallet,
 };
 
 interface MenuCategory {
@@ -162,6 +162,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         { title: 'Ranking T2', url: '/t2-ranking', icon: TrendingUp },
         { title: 'Radar da Rede', url: '/t2-radar', icon: BarChart3 },
         { title: 'Performance Reps', url: '/t2-representantes-performance', icon: LineChart },
+        { title: 'Financeiro T2', url: '/t2-financeiro', icon: Wallet },
         { title: 'Inadimplência', url: '/t2-inadimplencia', icon: AlertTriangle },
       ],
     },
