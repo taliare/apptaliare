@@ -37,6 +37,7 @@ export default function T2Ciclos() {
   const [dataVencimento, setDataVencimento] = useState(format(addDays(new Date(), 45), 'yyyy-MM-dd'));
   const [apuracaoCiclo, setApuracaoCiclo] = useState<any>(null);
   const [adiantamentoCiclo, setAdiantamentoCiclo] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('todos');
 
   const { data: ciclos = [], isLoading } = useQuery({
     queryKey: ['t2-ciclos'],
@@ -44,12 +45,15 @@ export default function T2Ciclos() {
       const { data, error } = await supabase
         .from('t2_ciclos')
         .select('*, t2_revendedoras(nome_completo, nome_exibicao), t2_pedidos(codigo_pedido)')
-        .in('status', ['ativo', 'apurado'])
         .order('data_cobranca' as any, { ascending: true });
       if (error) throw error;
       return data;
     },
   });
+
+  const filteredCiclos = statusFilter === 'todos'
+    ? ciclos
+    : ciclos.filter((c: any) => c.status === statusFilter);
 
   // Query apurações with valor_empresa per ciclo
   const { data: apuracoes = [] } = useQuery({
