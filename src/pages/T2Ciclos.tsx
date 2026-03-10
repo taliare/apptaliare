@@ -202,7 +202,7 @@ export default function T2Ciclos() {
                 <Label>Revendedora</Label>
                 <Select value={selectedRevendedora} onValueChange={setSelectedRevendedora}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent position="popper" className="z-[9999]" ref={(ref) => { if (ref) ref.ontouchstart = (e) => e.stopPropagation(); }}>
+                  <SelectContent>
                     {revendedoras.map((r: any) => (
                       <SelectItem key={r.id} value={r.id}>{r.nome_exibicao || r.nome_completo}</SelectItem>
                     ))}
