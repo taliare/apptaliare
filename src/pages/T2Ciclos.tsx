@@ -145,7 +145,7 @@ export default function T2Ciclos() {
         valor_restante: valorKit,
         data_vencimento: new Date(dataVencimento).toISOString(),
         data_cobranca: dataVencimento,
-      }).select();
+      } as any).select();
       if (cicloError) {
         console.error("t2_ciclos INSERT ERROR:", cicloError);
         if (cicloError.message?.includes('t2_ciclos_revendedora_ativo_unique')) {
