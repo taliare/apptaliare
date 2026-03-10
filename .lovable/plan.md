@@ -1,59 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Investigation Results & Fix Plan
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Findings
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-### Frontend code is correct
-All 6 insert points were inspected:
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-| Table | File | Insert Format | Mutation | Error Handling |
-|-------|------|--------------|----------|----------------|
-| t2_revendedoras | T2Revendedoras.tsx:74 | `.insert({...})` ✅ | useMutation ✅ | throw error ✅ |
-| t2_ciclos | T2Ciclos.tsx:86 | `.insert({...})` ✅ | useMutation ✅ | throw error ✅ |
-| t2_pedidos | T2Producao.tsx:67 | `.insert({...})` ✅ | useMutation ✅ | throw error ✅ |
-| t2_apuracoes | ApuracaoDialog.tsx:47 | `.insert({...})` ✅ | useMutation ✅ | throw error ✅ |
-| t2_pagamentos | PagamentoDialog.tsx:34 | `.insert({...})` ✅ | useMutation ✅ | throw error ✅ |
-| t2_adiantamentos | AdiantamentoDialog.tsx:48 | `.insert({...})` ✅ | useMutation ✅ | throw error ✅ |
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-- All imports use `@/integrations/supabase/client` ✅
-- All mutations are properly wired to buttons/forms ✅
-- No state-only updates without Supabase calls ✅
-- `.insert({...})` single-object format is valid in Supabase JS v2 ✅
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-### Root cause: RLS policies are ALL RESTRICTIVE
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-Despite the user stating "RLS está desativado," the database schema shows RLS **is enabled** on all t2_* tables, and **every single policy is RESTRICTIVE** (`Permissive: No`).
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-In PostgreSQL, RESTRICTIVE policies can only *narrow* access already granted by a PERMISSIVE policy. With **zero PERMISSIVE policies**, no data operations succeed — inserts silently fail (Supabase returns empty data, no error thrown in some cases).
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-This affects **all 6 tables**: `t2_revendedoras`, `t2_ciclos`, `t2_apuracoes`, `t2_pagamentos`, `t2_adiantamentos`. The `t2_pedidos` table likely has the same issue. Additionally, the `repasses` table has the same pattern.
-
-Note: We previously fixed `t2_apuracoes` but the schema still shows RESTRICTIVE — the migration may not have applied correctly.
-
-## Fix
-
-### 1. Database Migration
-Drop and recreate ALL RLS policies on the 6 t2_* tables as **PERMISSIVE** (default). The policy logic stays identical — only the restrictive/permissive flag changes.
-
-Tables to fix:
-- `t2_revendedoras` (3 policies)
-- `t2_ciclos` (4 policies)
-- `t2_apuracoes` (3 policies)
-- `t2_pagamentos` (3 policies)
-- `t2_adiantamentos` (3 policies)
-
-For `t2_pedidos` — will check if it has the same issue and include it.
-
-### 2. Frontend: Add `.select()` and logging to all insert mutations
-For better diagnostics (per project standard), add `.select()` and `console.log`/`console.error` to all 6 insert points:
-- `T2Revendedoras.tsx`
-- `T2Ciclos.tsx`
-- `T2Producao.tsx`
-- `ApuracaoDialog.tsx` (already partially done)
-- `PagamentoDialog.tsx`
-- `AdiantamentoDialog.tsx`
-
-### No other frontend changes needed
-The insert format, mutations, error handling, and Supabase client import are all correct.
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria

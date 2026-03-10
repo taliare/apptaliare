@@ -29,7 +29,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function T2Producao() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = profile?.role === 'admin';
   const [createOpen, setCreateOpen] = useState(false);
@@ -64,12 +64,14 @@ export default function T2Producao() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('t2_pedidos').insert({
+      const { data, error } = await supabase.from('t2_pedidos').insert({
         codigo_pedido: form.codigo_pedido.trim(),
         valor_total: parseFloat(form.valor_total),
         observacao: form.observacao || null,
-      });
-      if (error) throw error;
+        representante_id: user?.id,
+      }).select();
+      if (error) { console.error("t2_pedidos INSERT ERROR:", error); throw error; }
+      console.log("t2_pedidos INSERT OK:", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['t2-pedidos'] });

@@ -31,14 +31,15 @@ export function PagamentoDialog({ open, onOpenChange, apuracao }: PagamentoDialo
   const mutation = useMutation({
     mutationFn: async () => {
       if (isInvalid) throw new Error('Valor inválido');
-      const { error } = await supabase.from('t2_pagamentos').insert({
+      const { data, error } = await supabase.from('t2_pagamentos').insert({
         apuracao_id: apuracao.id,
         valor_pago: pago,
         forma_pagamento: formaPagamento || null,
         observacao: observacao.trim() || null,
         registrado_por: user!.id,
-      });
-      if (error) throw error;
+      }).select();
+      if (error) { console.error("t2_pagamentos INSERT ERROR:", error); throw error; }
+      console.log("t2_pagamentos INSERT OK:", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['t2-apuracoes'] });
