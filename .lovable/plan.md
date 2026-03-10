@@ -1,34 +1,39 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Classificação Automática de Revendedoras — Alinhamento de Nomes
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Análise
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+O sistema **já implementa** toda a lógica solicitada:
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+- `getComissaoFaixa()` em `constants.ts` já aplica as faixas corretas (20%/30%/40%/50%) com os mesmos thresholds
+- O trigger `t2_atualizar_categoria_revendedora` já atualiza `t2_revendedoras.categoria_atual` automaticamente ao inserir apuração
+- `ApuracaoDialog.tsx` já usa `getComissaoFaixa()` para calcular comissão e exibir a categoria
+- As telas de revendedoras, ranking e radar já exibem `categoria_atual` com badges coloridos
 
-**De:**
+## Única Alteração Necessária
+
+Os nomes das categorias em `getComissaoFaixa()` estão desalinhados com o padrão `CATEGORIA_LABELS`:
+
+| Atual | Esperado |
+|-------|----------|
+| Bronze | Inicial |
+| Prata | Ativa |
+| Ouro | Destaque |
+| Diamante | Elite |
+
+### constants.ts
+
+Atualizar `getComissaoFaixa()` para retornar os nomes corretos:
+
 ```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
+export function getComissaoFaixa(valorVendido: number) {
+  if (valorVendido >= 2000) return { percentual: 50, categoria: 'Elite' };
+  if (valorVendido >= 1000) return { percentual: 40, categoria: 'Destaque' };
+  if (valorVendido >= 300) return { percentual: 30, categoria: 'Ativa' };
+  return { percentual: 20, categoria: 'Inicial' };
+}
 ```
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+Nenhuma alteração de banco de dados, lógica financeira ou outros arquivos necessária. A categorização, cálculo de comissão e exibição na tela da revendedora já funcionam corretamente.
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
-
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
-
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
