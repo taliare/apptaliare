@@ -267,11 +267,11 @@ export default function T2Ciclos() {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
-      ) : ciclos.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground"><RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-40" /><p>Nenhum ciclo ativo</p></CardContent></Card>
+      ) : filteredCiclos.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground"><RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-40" /><p>Nenhum ciclo encontrado</p></CardContent></Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {ciclos.map((c: any) => {
+          {filteredCiclos.map((c: any) => {
             const highlight = getCicloHighlight(c);
             const hasApuracao = apuracoesCicloIds.includes(c.id);
             const saldoInfo = getSaldoCiclo(c.id);
