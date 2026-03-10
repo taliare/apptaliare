@@ -51,17 +51,62 @@ export default function T2Ciclos() {
     },
   });
 
-  // Query to check which ciclos already have apuração
-  const { data: apuracoesCicloIds = [] } = useQuery({
-    queryKey: ['t2-apuracoes-ciclo-ids'],
+  // Query apurações with valor_empresa per ciclo
+  const { data: apuracoes = [] } = useQuery({
+    queryKey: ['t2-apuracoes-for-ciclos'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('t2_apuracoes')
-        .select('ciclo_id');
+        .select('id, ciclo_id, valor_empresa');
       if (error) throw error;
-      return data.map((a: any) => a.ciclo_id);
+      return data;
     },
   });
+
+  const apuracoesCicloIds = apuracoes.map((a: any) => a.ciclo_id);
+
+  // Query all pagamentos linked to apurações
+  const { data: allPagamentos = [] } = useQuery({
+    queryKey: ['t2-pagamentos-all', apuracoes.length],
+    queryFn: async () => {
+      if (apuracoes.length === 0) return [];
+      const ids = apuracoes.map((a: any) => a.id);
+      const { data, error } = await supabase
+        .from('t2_pagamentos')
+        .select('apuracao_id, valor_pago')
+        .in('apuracao_id', ids);
+      if (error) throw error;
+      return data;
+    },
+    enabled: apuracoes.length > 0,
+  });
+
+  // Query all adiantamentos for active ciclos
+  const { data: allAdiantamentos = [] } = useQuery({
+    queryKey: ['t2-adiantamentos-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('t2_adiantamentos')
+        .select('ciclo_id, valor');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Helper: compute saldo for a ciclo
+  const getSaldoCiclo = (cicloId: string): { hasApuracao: boolean; saldo: number } => {
+    const apuracao = apuracoes.find((a: any) => a.ciclo_id === cicloId);
+    if (!apuracao) return { hasApuracao: false, saldo: 0 };
+
+    const totalPag = allPagamentos
+      .filter((p: any) => p.apuracao_id === apuracao.id)
+      .reduce((sum: number, p: any) => sum + Number(p.valor_pago), 0);
+    const totalAdiant = allAdiantamentos
+      .filter((a: any) => a.ciclo_id === cicloId)
+      .reduce((sum: number, a: any) => sum + Number(a.valor), 0);
+
+    return { hasApuracao: true, saldo: Number(apuracao.valor_empresa) - totalPag - totalAdiant };
+  };
 
   const { data: revendedoras = [] } = useQuery({
     queryKey: ['t2-revendedoras-para-ciclo'],
