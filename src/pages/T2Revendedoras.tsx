@@ -67,6 +67,59 @@ export default function T2Revendedoras() {
     enabled: !!selectedId,
   });
 
+  const cicloIds = ciclosRevendedora.map((c: any) => c.id);
+
+  const { data: apuracoes = [] } = useQuery({
+    queryKey: ['t2-apuracoes-rev', selectedId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('t2_apuracoes')
+        .select('*')
+        .in('ciclo_id', cicloIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: cicloIds.length > 0,
+  });
+
+  const apuracaoIds = apuracoes.map((a: any) => a.id);
+
+  const { data: pagamentos = [] } = useQuery({
+    queryKey: ['t2-pagamentos-rev', selectedId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('t2_pagamentos')
+        .select('*')
+        .in('apuracao_id', apuracaoIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: apuracaoIds.length > 0,
+  });
+
+  const { data: adiantamentos = [] } = useQuery({
+    queryKey: ['t2-adiantamentos-rev', selectedId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('t2_adiantamentos')
+        .select('*')
+        .in('ciclo_id', cicloIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: cicloIds.length > 0,
+  });
+
+  // Helper maps for cycle details
+  const getApuracao = (cicloId: string) => apuracoes.find((a: any) => a.ciclo_id === cicloId);
+  const getTotalPagamentos = (cicloId: string) => {
+    const ap = getApuracao(cicloId);
+    if (!ap) return 0;
+    return pagamentos.filter((p: any) => p.apuracao_id === ap.id).reduce((s: number, p: any) => s + Number(p.valor_pago), 0);
+  };
+  const getTotalAdiantamentos = (cicloId: string) =>
+    adiantamentos.filter((a: any) => a.ciclo_id === cicloId).reduce((s: number, a: any) => s + Number(a.valor), 0);
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const cpfClean = form.cpf.replace(/\D/g, '');
