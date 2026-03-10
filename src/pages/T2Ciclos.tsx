@@ -202,7 +202,7 @@ export default function T2Ciclos() {
                 <Label>Revendedora</Label>
                 <Select value={selectedRevendedora} onValueChange={setSelectedRevendedora}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent container={null}>
                     {revendedoras.map((r: any) => (
                       <SelectItem key={r.id} value={r.id}>{r.nome_exibicao || r.nome_completo}</SelectItem>
                     ))}
@@ -213,7 +213,7 @@ export default function T2Ciclos() {
                 <Label>Pedido Disponível</Label>
                 <Select value={selectedPedido} onValueChange={setSelectedPedido}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent container={null}>
                     {pedidosDisponiveis.map((p: any) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.codigo_pedido} — R$ {fmt(p.valor_total)}
