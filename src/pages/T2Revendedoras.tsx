@@ -317,21 +317,61 @@ export default function T2Revendedoras() {
                 {ciclosRevendedora.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nenhum ciclo registrado</p>
                 ) : (
-                  <div className="space-y-2">
-                    {ciclosRevendedora.map((c: any) => (
-                      <div key={c.id} className="rounded-lg border border-border p-3 space-y-1 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{c.t2_pedidos?.codigo_pedido}</span>
-                          <Badge className={STATUS_COLORS[c.status] || ''}>{STATUS_LABELS[c.status] || c.status}</Badge>
+                  <div className="space-y-3">
+                    {ciclosRevendedora.map((c: any) => {
+                      const ap = getApuracao(c.id);
+                      const totalPag = getTotalPagamentos(c.id);
+                      const totalAdiant = getTotalAdiantamentos(c.id);
+                      const totalPago = totalPag + totalAdiant;
+                      const valorEmpresa = ap ? Number(ap.valor_empresa) : null;
+                      const saldoRestante = valorEmpresa !== null ? valorEmpresa - totalPago : null;
+
+                      return (
+                        <div key={c.id} className="rounded-lg border border-border p-3 space-y-3 text-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{c.t2_pedidos?.codigo_pedido || 'Sem pedido'}</span>
+                            <Badge className={STATUS_COLORS[c.status] || ''}>{STATUS_LABELS[c.status] || c.status}</Badge>
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">
+                            Entrega: {new Date(c.data_inicio).toLocaleDateString('pt-BR')} → Vencimento: {new Date(c.data_vencimento).toLocaleDateString('pt-BR')}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Valor do Kit:</span>
+                              <span className="font-medium">R$ {fmt(c.valor_kit)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Valor Vendido:</span>
+                              <span className="font-medium">{ap ? `R$ ${fmt(ap.valor_vendido)}` : '—'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Comissão:</span>
+                              <span className="font-medium">{ap ? `${ap.comissao_percentual}% (R$ ${fmt(ap.valor_comissao)})` : '—'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Valor Empresa:</span>
+                              <span className="font-medium">{valorEmpresa !== null ? `R$ ${fmt(valorEmpresa)}` : '—'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total Pago:</span>
+                              <span className="font-medium text-green-600 dark:text-green-400">R$ {fmt(totalPago)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Saldo Restante:</span>
+                              {saldoRestante !== null ? (
+                                <span className={`font-semibold ${saldoRestante > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                                  R$ {fmt(saldoRestante)}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground italic">Aguardando apuração</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-muted-foreground">
-                          Kit: R$ {fmt(c.valor_kit)} · Pago: R$ {fmt(c.valor_pago)}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(c.data_inicio).toLocaleDateString('pt-BR')} → {new Date(c.data_vencimento).toLocaleDateString('pt-BR')}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
