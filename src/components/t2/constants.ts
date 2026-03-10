@@ -15,10 +15,10 @@ export const STATUS_COLORS: Record<string, string> = {
 };
 
 export function getComissaoFaixa(valorVendido: number): { percentual: number; categoria: string } {
-  if (valorVendido >= 2000) return { percentual: 50, categoria: 'Diamante' };
-  if (valorVendido >= 1000) return { percentual: 40, categoria: 'Ouro' };
-  if (valorVendido >= 300) return { percentual: 30, categoria: 'Prata' };
-  return { percentual: 20, categoria: 'Bronze' };
+  if (valorVendido >= 2000) return { percentual: 50, categoria: 'Elite' };
+  if (valorVendido >= 1000) return { percentual: 40, categoria: 'Destaque' };
+  if (valorVendido >= 300) return { percentual: 30, categoria: 'Ativa' };
+  return { percentual: 20, categoria: 'Inicial' };
 }
 
 export const FORMAS_PAGAMENTO = [
