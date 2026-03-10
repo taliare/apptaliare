@@ -87,7 +87,7 @@ export default function T2Ciclos() {
         .from('t2_ciclos')
         .select('*, t2_revendedoras(nome_completo, nome_exibicao), t2_pedidos(codigo_pedido)')
         .eq('status', 'ativo')
-        .order('data_cobranca', { ascending: true });
+        .order('data_cobranca' as any, { ascending: true });
       if (error) throw error;
       return data;
     },
