@@ -1,47 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Regras de Integridade TALIARE 2.0
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Current State
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-- UNIQUE constraint on `t2_apuracoes(ciclo_id)` already exists (migration `20260310005250`)
-- DB trigger `t2_processar_pagamento` already handles: updating saldo, updating valor_pago on ciclo, and setting `status = 'encerrado'` when saldo reaches zero
-- DB trigger `t2_validar_pagamento` already blocks payments exceeding `saldo_a_receber`
-- DB trigger `t2_validar_adiantamento` already validates adiantamentos against valor_kit
-- Frontend already has guards for duplicate apuração in T2Ciclos.tsx
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-## What's Missing
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-1. **Payments require apuração first** — no DB or frontend guard exists
-2. **Payment validation uses `saldo_a_receber` from apuração only** — doesn't account for adiantamentos (adiantamentos are already subtracted during apuração creation, so this is actually correct)
-3. **Status flow enforcement** — no guard preventing status regression (encerrado → ativo)
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-## Plan
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-### Database Migration
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-1. **Add trigger to block payments without apuração**: Before insert on `t2_pagamentos`, verify that the `apuracao_id` references an apuração whose `ciclo_id` has status `'ativo'` and the apuração exists.
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-2. **Add trigger to enforce status flow**: Before update on `t2_ciclos`, if `status` is being changed, ensure it only moves forward: `ativo → encerrado` (or `ativo → inadimplente`). Block any regression.
-
-### Frontend Changes
-
-#### PagamentoDialog.tsx
-- No changes needed — payments already go through `apuracao_id`, so they inherently require an apuração to exist. The "Registrar Pagamento" button only appears inside `ApuracoesSection` when an apuração exists.
-
-#### T2Ciclos.tsx  
-- The "Prestação" button already checks `hasApuracao` and is disabled accordingly. No changes needed.
-
-#### ApuracoesSection.tsx
-- Already only shows payment button when `saldo_a_receber > 0`. No changes needed.
-
-### Summary
-
-| Change | Where |
-|--------|-------|
-| Trigger: block t2_pagamentos insert if ciclo has no apuração | DB migration |
-| Trigger: enforce status flow on t2_ciclos (no regression) | DB migration |
-| No frontend changes needed | — |
-
-The existing triggers and frontend guards already handle most rules. We only need 2 new DB triggers for server-side enforcement.
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
