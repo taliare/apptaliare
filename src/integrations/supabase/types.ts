@@ -1306,14 +1306,14 @@ export type Database = {
           {
             foreignKeyName: "t2_apuracoes_ciclo_id_fkey"
             columns: ["ciclo_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "t2_ciclos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "t2_apuracoes_ciclo_id_fkey"
             columns: ["ciclo_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "t2_vw_previsao_recebimentos"
             referencedColumns: ["ciclo_id"]
           },
