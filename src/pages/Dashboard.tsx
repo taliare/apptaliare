@@ -97,20 +97,6 @@ const getFraseMotivacional = () => {
 };
 
 export default function Dashboard() {
-  const testeInsert = async () => {
-    const { data, error } = await supabase
-      .from("t2_revendedoras")
-      .insert([
-        {
-          nome: "Teste Sistema",
-          telefone: "999999999",
-        },
-      ])
-      .select();
-
-    console.log("DATA:", data);
-    console.log("ERROR:", error);
-  };
 
   const { profile, user } = useAuth();
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
