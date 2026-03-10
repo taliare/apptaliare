@@ -1,34 +1,77 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Integração Multi-Pedidos aos Ciclos
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Análise do Estado Atual
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+- `t2_ciclos` tem `pedido_id` (FK obrigatória, 1:1 com pedido)
+- Ao criar ciclo, seleciona-se 1 pedido e o valor do kit vem dele
+- Pedidos com `status = 'disponivel'` aparecem para seleção; após vincular, mudam para `em_ciclo`
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## Alterações Necessárias
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
+### 1. Banco de Dados (Migration)
+
+Criar tabela junction `t2_ciclo_pedidos`:
+
+```sql
+CREATE TABLE public.t2_ciclo_pedidos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ciclo_id uuid NOT NULL REFERENCES t2_ciclos(id) ON DELETE CASCADE,
+  pedido_id uuid NOT NULL REFERENCES t2_pedidos(id),
+  criado_em timestamptz DEFAULT now(),
+  UNIQUE(pedido_id) -- garante que pedido não é vinculado a mais de um ciclo
+);
+
+ALTER TABLE public.t2_ciclo_pedidos ENABLE ROW LEVEL SECURITY;
+
+-- RLS: mesmas regras do ciclo (representante vê seus, admin vê todos)
+CREATE POLICY "Representante pode ver seus t2_ciclo_pedidos" ON public.t2_ciclo_pedidos
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM t2_ciclos WHERE t2_ciclos.id = t2_ciclo_pedidos.ciclo_id AND t2_ciclos.representante_id = auth.uid()));
+
+CREATE POLICY "Representante pode criar t2_ciclo_pedidos" ON public.t2_ciclo_pedidos
+  FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM t2_ciclos WHERE t2_ciclos.id = t2_ciclo_pedidos.ciclo_id AND t2_ciclos.representante_id = auth.uid()));
+
+CREATE POLICY "Admin full access t2_ciclo_pedidos" ON public.t2_ciclo_pedidos
+  FOR ALL TO authenticated
+  USING (has_role(auth.uid(), 'admin'))
+  WITH CHECK (has_role(auth.uid(), 'admin'));
 ```
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+Tornar `pedido_id` no `t2_ciclos` nullable (manter por compatibilidade com ciclos existentes):
+
+```sql
+ALTER TABLE public.t2_ciclos ALTER COLUMN pedido_id DROP NOT NULL;
 ```
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+### 2. Frontend — T2Ciclos.tsx
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+**Seleção de pedidos**: Trocar o `Select` single por multi-select com checkboxes (lista de pedidos disponíveis com checkbox, mostrando código e valor).
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+**Cálculo automático do valor**: `valor_kit = SUM(pedidos selecionados)`. Exibir o total calculado no dialog.
+
+**Criação do ciclo**: 
+- Inserir ciclo com `pedido_id: null` e `valor_kit` = soma
+- Inserir registros em `t2_ciclo_pedidos` para cada pedido selecionado
+- Atualizar status de todos pedidos selecionados para `em_ciclo`
+
+**Exibição nos cards**: Buscar pedidos vinculados via `t2_ciclo_pedidos` e mostrar os códigos no card do ciclo.
+
+### 3. Query de pedidos disponíveis
+
+Manter a query filtrando `status = 'disponivel'`. O UNIQUE constraint em `t2_ciclo_pedidos(pedido_id)` garante no banco que não haverá duplicação.
+
+### Resumo
+
+| Alteração | Local |
+|-----------|-------|
+| Criar tabela `t2_ciclo_pedidos` com RLS | Migration |
+| Tornar `pedido_id` nullable em `t2_ciclos` | Migration |
+| Multi-select de pedidos no dialog de criação | `T2Ciclos.tsx` |
+| Valor do kit calculado automaticamente | `T2Ciclos.tsx` |
+| Exibir códigos dos pedidos nos cards | `T2Ciclos.tsx` |
+
+Nenhuma alteração em lógica financeira (apuração, pagamentos, adiantamentos).
+
