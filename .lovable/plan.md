@@ -1,34 +1,29 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Validação de Saldo Restante no Pagamento
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## O que existe hoje
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+- Trigger `t2_validar_pagamento` verifica `valor_pago > saldo_a_receber` da apuração
+- O `saldo_a_receber` já desconta adiantamentos (feito na criação da apuração) e é decrementado a cada pagamento pelo trigger `t2_processar_pagamento`
+- Frontend (PagamentoDialog) já bloqueia valores maiores que `saldo_a_receber`
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## O que será alterado
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
+**Atualizar o trigger `t2_validar_pagamento`** para calcular o saldo restante real a partir dos dados brutos:
+
+```
+saldo_restante = valor_empresa - soma(t2_pagamentos.valor_pago) - soma(t2_adiantamentos.valor)
 ```
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+Se `NEW.valor_pago > saldo_restante`, bloquear com a mensagem: "Valor maior que o saldo restante do ciclo."
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+Isso garante integridade independentemente do valor armazenado em `saldo_a_receber`.
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+## Resumo
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+| Alteração | Onde |
+|-----------|------|
+| Atualizar função `t2_validar_pagamento()` para calcular saldo real | Migration SQL |
+| Nenhuma alteração no frontend | — |
+
