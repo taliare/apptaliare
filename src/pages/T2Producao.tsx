@@ -29,7 +29,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function T2Producao() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = profile?.role === 'admin';
   const [createOpen, setCreateOpen] = useState(false);
