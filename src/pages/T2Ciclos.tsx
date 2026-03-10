@@ -9,8 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, ClipboardList, DollarSign } from 'lucide-react';
+import { Plus, RefreshCw, ClipboardList, DollarSign, Package } from 'lucide-react';
 import { format, addDays, startOfDay, isBefore, isEqual } from 'date-fns';
 import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
 import { ApuracaoDialog } from '@/components/t2/ApuracaoDialog';
@@ -32,7 +33,7 @@ export default function T2Ciclos() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedRevendedora, setSelectedRevendedora] = useState('');
-  const [selectedPedido, setSelectedPedido] = useState('');
+  const [selectedPedidoIds, setSelectedPedidoIds] = useState<string[]>([]);
   const [comissao, setComissao] = useState('10');
   const [dataVencimento, setDataVencimento] = useState(format(addDays(new Date(), 45), 'yyyy-MM-dd'));
   const [apuracaoCiclo, setApuracaoCiclo] = useState<any>(null);
@@ -54,6 +55,18 @@ export default function T2Ciclos() {
   const filteredCiclos = statusFilter === 'todos'
     ? ciclos
     : ciclos.filter((c: any) => c.status === statusFilter);
+
+  // Query ciclo_pedidos junction to show linked pedidos per ciclo
+  const { data: cicloPedidos = [] } = useQuery({
+    queryKey: ['t2-ciclo-pedidos'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('t2_ciclo_pedidos' as any)
+        .select('ciclo_id, pedido_id, t2_pedidos(codigo_pedido, valor_total)');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Query apurações with valor_empresa per ciclo
   const { data: apuracoes = [] } = useQuery({
@@ -112,6 +125,11 @@ export default function T2Ciclos() {
     return { hasApuracao: true, saldo: Number(apuracao.valor_empresa) - totalPag - totalAdiant };
   };
 
+  // Helper: get pedidos linked to a ciclo
+  const getPedidosCiclo = (cicloId: string) => {
+    return (cicloPedidos as any[]).filter((cp: any) => cp.ciclo_id === cicloId);
+  };
+
   const { data: revendedoras = [] } = useQuery({
     queryKey: ['t2-revendedoras-para-ciclo'],
     queryFn: async () => {
@@ -130,20 +148,31 @@ export default function T2Ciclos() {
     },
   });
 
-  const pedidoSelecionado = pedidosDisponiveis.find((p: any) => p.id === selectedPedido);
+  // Calculate total from selected pedidos
+  const valorTotalSelecionado = selectedPedidoIds.reduce((sum, id) => {
+    const p = pedidosDisponiveis.find((pd: any) => pd.id === id);
+    return sum + (p ? Number(p.valor_total) : 0);
+  }, 0);
+
+  const togglePedido = (pedidoId: string) => {
+    setSelectedPedidoIds(prev =>
+      prev.includes(pedidoId)
+        ? prev.filter(id => id !== pedidoId)
+        : [...prev, pedidoId]
+    );
+  };
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedRevendedora || !selectedPedido) throw new Error('Selecione revendedora e pedido');
-      const pedido = pedidosDisponiveis.find((p: any) => p.id === selectedPedido);
-      if (!pedido) throw new Error('Pedido não encontrado');
+      if (!selectedRevendedora || selectedPedidoIds.length === 0) throw new Error('Selecione revendedora e pelo menos um pedido');
 
-      const valorKit = Number(pedido.valor_total);
+      const valorKit = valorTotalSelecionado;
       const comissaoPerc = Number(comissao);
       const valorEmpresa = valorKit * (1 - comissaoPerc / 100);
 
+      // Create ciclo without pedido_id (using junction table instead)
       const { data: cicloData, error: cicloError } = await supabase.from('t2_ciclos').insert({
-        pedido_id: selectedPedido,
+        pedido_id: selectedPedidoIds[0], // keep first for backward compat
         revendedora_id: selectedRevendedora,
         representante_id: user?.id,
         valor_kit: valorKit,
@@ -162,15 +191,34 @@ export default function T2Ciclos() {
       }
       console.log("t2_ciclos INSERT OK:", cicloData);
 
-      await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', selectedPedido);
+      const cicloId = cicloData[0].id;
+
+      // Insert junction records for all selected pedidos
+      const junctionRows = selectedPedidoIds.map(pid => ({
+        ciclo_id: cicloId,
+        pedido_id: pid,
+      }));
+      const { error: junctionError } = await supabase
+        .from('t2_ciclo_pedidos' as any)
+        .insert(junctionRows);
+      if (junctionError) {
+        console.error("t2_ciclo_pedidos INSERT ERROR:", junctionError);
+        throw junctionError;
+      }
+
+      // Update all selected pedidos to em_ciclo
+      for (const pid of selectedPedidoIds) {
+        await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', pid);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['t2-ciclos'] });
       queryClient.invalidateQueries({ queryKey: ['t2-pedidos-disponiveis'] });
       queryClient.invalidateQueries({ queryKey: ['t2-pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-ciclo-pedidos'] });
       setCreateOpen(false);
       setSelectedRevendedora('');
-      setSelectedPedido('');
+      setSelectedPedidoIds([]);
       setComissao('10');
       setDataVencimento(format(addDays(new Date(), 45), 'yyyy-MM-dd'));
       toast({ title: 'Ciclo criado com sucesso!' });
@@ -213,7 +261,13 @@ export default function T2Ciclos() {
               {f.label}
             </Button>
           ))}
-          <Dialog open={createOpen} onOpenChange={setCreateOpen} modal={false}>
+          <Dialog open={createOpen} onOpenChange={(open) => {
+            setCreateOpen(open);
+            if (!open) {
+              setSelectedPedidoIds([]);
+              setSelectedRevendedora('');
+            }
+          }} modal={false}>
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-2" />Novo Ciclo</Button>
             </DialogTrigger>
@@ -232,21 +286,34 @@ export default function T2Ciclos() {
                 </Select>
               </div>
               <div>
-                <Label>Pedido Disponível</Label>
-                <Select value={selectedPedido} onValueChange={setSelectedPedido}>
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
-                    {pedidosDisponiveis.map((p: any) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.codigo_pedido} — R$ {fmt(p.valor_total)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>Pedidos Disponíveis</Label>
+                <div className="border border-input rounded-md max-h-48 overflow-y-auto mt-1">
+                  {pedidosDisponiveis.length === 0 ? (
+                    <p className="p-3 text-sm text-muted-foreground text-center">Nenhum pedido disponível</p>
+                  ) : (
+                    pedidosDisponiveis.map((p: any) => (
+                      <label
+                        key={p.id}
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-accent/50 cursor-pointer border-b border-border last:border-b-0"
+                      >
+                        <Checkbox
+                          checked={selectedPedidoIds.includes(p.id)}
+                          onCheckedChange={() => togglePedido(p.id)}
+                        />
+                        <span className="text-sm flex-1">
+                          <strong>{p.codigo_pedido}</strong>
+                          <span className="text-muted-foreground"> — R$ {fmt(p.valor_total)}</span>
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                {selectedPedidoIds.length > 0 && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {selectedPedidoIds.length} pedido(s) selecionado(s) · Valor total: <strong className="text-foreground">R$ {fmt(valorTotalSelecionado)}</strong>
+                  </p>
+                )}
               </div>
-              {pedidoSelecionado && (
-                <p className="text-sm text-muted-foreground">Valor do kit: <strong>R$ {fmt(pedidoSelecionado.valor_total)}</strong></p>
-              )}
               <div>
                 <Label>Comissão (%)</Label>
                 <Input type="number" value={comissao} onChange={e => setComissao(e.target.value)} />
@@ -256,7 +323,7 @@ export default function T2Ciclos() {
                 <Input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} />
                 <p className="text-xs text-muted-foreground mt-1">Padrão: 45 dias a partir de hoje</p>
               </div>
-              <Button className="w-full" disabled={!selectedRevendedora || !selectedPedido || createMutation.isPending} onClick={() => createMutation.mutate()}>
+              <Button className="w-full" disabled={!selectedRevendedora || selectedPedidoIds.length === 0 || createMutation.isPending} onClick={() => createMutation.mutate()}>
                 {createMutation.isPending ? 'Criando...' : 'Iniciar Ciclo'}
               </Button>
             </div>
@@ -274,6 +341,7 @@ export default function T2Ciclos() {
             const highlight = getCicloHighlight(c);
             const hasApuracao = apuracoesCicloIds.includes(c.id);
             const saldoInfo = getSaldoCiclo(c.id);
+            const pedidosVinculados = getPedidosCiclo(c.id);
             return (
               <Card key={c.id} className={`border border-border ${highlight}`}>
                 <CardHeader className="pb-2">
@@ -285,6 +353,22 @@ export default function T2Ciclos() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-1 text-sm">
+                  {pedidosVinculados.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Package className="h-3 w-3 text-muted-foreground" />
+                      {pedidosVinculados.map((cp: any) => (
+                        <Badge key={cp.pedido_id} variant="secondary" className="text-xs">
+                          {cp.t2_pedidos?.codigo_pedido || '—'}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {pedidosVinculados.length === 0 && c.t2_pedidos?.codigo_pedido && (
+                    <div className="flex items-center gap-1">
+                      <Package className="h-3 w-3 text-muted-foreground" />
+                      <Badge variant="secondary" className="text-xs">{c.t2_pedidos.codigo_pedido}</Badge>
+                    </div>
+                  )}
                   <p className="text-muted-foreground">Entrega: <strong>{c.data_inicio ? formatDateBR(c.data_inicio) : '—'}</strong></p>
                   <p className="text-muted-foreground">Prev. Acerto: <strong>{c.data_cobranca ? formatDateBR(c.data_cobranca) : '—'}</strong></p>
                   <p>Kit: <strong>R$ {fmt(c.valor_kit)}</strong></p>
