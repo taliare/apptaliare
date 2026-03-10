@@ -259,8 +259,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in overflow-x-hidden">
-
-    <div className="space-y-4 md:space-y-6 animate-fade-in overflow-x-hidden">
       {/* Hero Section - Saudação */}
       <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background border border-primary/20 p-4 md:p-8">
         <div className="absolute top-0 right-0 w-32 md:w-64 h-32 md:h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
