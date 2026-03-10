@@ -48,7 +48,7 @@ export function PagamentoDialog({ open, onOpenChange, apuracao }: PagamentoDialo
       if (isPartial && novaDataCobranca) {
         const { error: updateError } = await supabase
           .from('t2_ciclos')
-          .update({ data_cobranca: novaDataCobranca })
+          .update({ data_cobranca: novaDataCobranca } as any)
           .eq('id', apuracao.ciclo_id);
         if (updateError) {
           console.error("t2_ciclos UPDATE data_cobranca ERROR:", updateError);
