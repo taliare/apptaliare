@@ -27,6 +27,7 @@ export const ASSIGNABLE_MENUS = [
   { key: 't2_inadimplencia', label: 'Inadimplência T2', route: '/t2-inadimplencia' },
   { key: 't2_representantes_performance', label: 'Performance Reps', route: '/t2-representantes-performance' },
   { key: 't2_financeiro', label: 'Financeiro T2', route: '/t2-financeiro' },
+  { key: 't2_painel_rede', label: 'Painel da Rede', route: '/t2-painel-rede' },
 ] as const;
 
 export type MenuKey = typeof ASSIGNABLE_MENUS[number]['key'];
