@@ -559,6 +559,5 @@ export default function Dashboard() {
         </Card>
       </Collapsible>
     </div>
-    </div>
   );
 }
