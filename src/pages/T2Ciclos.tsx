@@ -83,7 +83,7 @@ export default function T2Ciclos() {
       const comissaoPerc = Number(comissao);
       const valorEmpresa = valorKit * (1 - comissaoPerc / 100);
 
-      const { error: cicloError } = await supabase.from('t2_ciclos').insert({
+      const { data: cicloData, error: cicloError } = await supabase.from('t2_ciclos').insert({
         pedido_id: selectedPedido,
         revendedora_id: selectedRevendedora,
         representante_id: user?.id,
@@ -92,8 +92,9 @@ export default function T2Ciclos() {
         valor_empresa: valorEmpresa,
         valor_restante: valorKit,
         data_vencimento: new Date(dataVencimento).toISOString(),
-      });
+      }).select();
       if (cicloError) {
+        console.error("t2_ciclos INSERT ERROR:", cicloError);
         if (cicloError.message?.includes('t2_ciclos_revendedora_ativo_unique')) {
           throw new Error('Esta revendedora já possui um ciclo ativo.');
         }

@@ -71,7 +71,7 @@ export default function T2Revendedoras() {
     mutationFn: async () => {
       const cpfClean = form.cpf.replace(/\D/g, '');
       if (cpfClean.length !== 11) throw new Error('CPF deve ter 11 dígitos');
-      const { error } = await supabase.from('t2_revendedoras').insert({
+      const { data, error } = await supabase.from('t2_revendedoras').insert({
         nome_completo: form.nome_completo.trim(),
         nome_exibicao: form.nome_exibicao.trim() || null,
         cpf: cpfClean,
@@ -79,8 +79,9 @@ export default function T2Revendedoras() {
         cidade: form.cidade.trim() || null,
         instagram: form.instagram.trim() || null,
         representante_id: isAdmin ? null : user?.id,
-      });
-      if (error) throw error;
+      }).select();
+      if (error) { console.error("t2_revendedoras INSERT ERROR:", error); throw error; }
+      console.log("t2_revendedoras INSERT OK:", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['t2-revendedoras'] });

@@ -45,7 +45,7 @@ export function AdiantamentoDialog({ open, onOpenChange, ciclo }: AdiantamentoDi
   const mutation = useMutation({
     mutationFn: async () => {
       if (isInvalid) throw new Error('Valor inválido');
-      const { error } = await supabase.from('t2_adiantamentos').insert({
+      const { data, error } = await supabase.from('t2_adiantamentos').insert({
         ciclo_id: ciclo.id,
         revendedora_id: ciclo.revendedora_id,
         representante_id: ciclo.representante_id,
@@ -53,8 +53,9 @@ export function AdiantamentoDialog({ open, onOpenChange, ciclo }: AdiantamentoDi
         forma_pagamento: formaPagamento,
         observacao: observacao || null,
         registrado_por: user!.id,
-      });
-      if (error) throw error;
+      }).select();
+      if (error) { console.error("t2_adiantamentos INSERT ERROR:", error); throw error; }
+      console.log("t2_adiantamentos INSERT OK:", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['t2-adiantamentos'] });
