@@ -1,30 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Encerramento Automático de Ciclo por Saldo Zero
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## O que existe hoje
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-O trigger `t2_processar_pagamento` (AFTER INSERT on `t2_pagamentos`) já faz:
-- Decrementa `saldo_a_receber` na apuração
-- Incrementa `valor_pago` no ciclo
-- Encerra ciclo se `saldo_a_receber <= 0`
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-Porém, ele usa o campo armazenado `saldo_a_receber` para decidir o encerramento.
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-## O que será alterado
-
-Atualizar o trigger `t2_processar_pagamento` para, após processar o pagamento, calcular o saldo real a partir dos dados brutos:
-
-```
-saldo_restante = valor_empresa - SUM(t2_pagamentos.valor_pago) - SUM(t2_adiantamentos.valor)
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
 ```
 
-Se `saldo_restante <= 0`, atualizar `t2_ciclos.status = 'encerrado'`.
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-## Resumo
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-| Alteração | Onde |
-|-----------|------|
-| Atualizar função `t2_processar_pagamento()` para calcular saldo real e encerrar ciclo automaticamente | Migration SQL |
-| Nenhuma alteração no frontend | -- |
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
