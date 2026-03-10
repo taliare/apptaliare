@@ -1322,6 +1322,7 @@ export type Database = {
       t2_ciclos: {
         Row: {
           comissao_percentual: number | null
+          data_cobranca: string | null
           data_inicio: string
           data_vencimento: string
           id: string
@@ -1337,6 +1338,7 @@ export type Database = {
         }
         Insert: {
           comissao_percentual?: number | null
+          data_cobranca?: string | null
           data_inicio?: string
           data_vencimento: string
           id?: string
@@ -1352,6 +1354,7 @@ export type Database = {
         }
         Update: {
           comissao_percentual?: number | null
+          data_cobranca?: string | null
           data_inicio?: string
           data_vencimento?: string
           id?: string
