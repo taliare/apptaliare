@@ -192,14 +192,31 @@ export default function T2Ciclos() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Agenda de Cobranças</h1>
           <p className="text-sm text-muted-foreground">Ciclos TALIARE 2.0 organizados por data de cobrança</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen} modal={false}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Novo Ciclo</Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { value: 'todos', label: 'Todos' },
+            { value: 'ativo', label: 'Ativos' },
+            { value: 'apurado', label: 'Apurados' },
+            { value: 'encerrado', label: 'Encerrados' },
+          ].map((f) => (
+            <Button
+              key={f.value}
+              size="sm"
+              variant={statusFilter === f.value ? 'default' : 'outline'}
+              onClick={() => setStatusFilter(f.value)}
+            >
+              {f.label}
+            </Button>
+          ))}
+          <Dialog open={createOpen} onOpenChange={setCreateOpen} modal={false}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-2" />Novo Ciclo</Button>
+            </DialogTrigger>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Iniciar Ciclo</DialogTitle></DialogHeader>
