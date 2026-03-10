@@ -213,7 +213,7 @@ export default function T2Ciclos() {
                 <Label>Pedido Disponível</Label>
                 <Select value={selectedPedido} onValueChange={setSelectedPedido}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent container={null}>
                     {pedidosDisponiveis.map((p: any) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.codigo_pedido} — R$ {fmt(p.valor_total)}
