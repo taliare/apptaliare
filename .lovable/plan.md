@@ -1,34 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Saldo Atual Calculado na Lista de Ciclos
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## O que será feito
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-Substituir o campo `valor_restante` (armazenado no banco) por um saldo calculado dinamicamente a partir dos dados reais: `valor_empresa - pagamentos - adiantamentos`.
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-## Alterações
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-### T2Ciclos.tsx
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-1. **Adicionar query para buscar pagamentos por ciclo**: Buscar `t2_pagamentos` (via `t2_apuracoes`) e `t2_adiantamentos` para todos os ciclos ativos/apurados.
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-2. **Calcular saldo dinamicamente**: Para cada ciclo:
-   - Se não tem apuração (`hasApuracao = false`), exibir "Aguardando apuração"
-   - Se tem apuração, calcular: `valor_empresa - SUM(pagamentos) - SUM(adiantamentos)`
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-3. **Substituir a linha de Saldo no card**: Trocar `valor_restante` pelo valor calculado, com formatação condicional (verde se zero, laranja se pendente).
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-### Dados necessários (novas queries)
-
-- `t2_pagamentos` com `apuracao_id` vinculado aos ciclos exibidos (já existe query em `ApuracoesSection`, mas precisamos no nível do componente pai)
-- `t2_adiantamentos` filtrado por `ciclo_id` dos ciclos exibidos
-
-### Resumo
-
-| Alteração | Arquivo |
-|-----------|---------|
-| Queries para pagamentos e adiantamentos por ciclo | `T2Ciclos.tsx` |
-| Cálculo dinâmico do saldo e exibição condicional | `T2Ciclos.tsx` |
-
-Nenhuma alteração de banco de dados ou lógica financeira.
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
