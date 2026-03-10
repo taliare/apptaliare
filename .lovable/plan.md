@@ -1,33 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Reorganização da Lista de Ciclos
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Mapeamento de campos
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-O usuário menciona `data_prevista_acerto` e `data_entrega`. Na tabela `t2_ciclos`:
-- **Data de entrega** = `data_inicio` (quando o ciclo foi criado/kit entregue)
-- **Data prevista de acerto** = `data_cobranca` (data de cobrança, já usada como referência)
-- **Saldo atual** = `valor_restante`
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-Não será necessário criar colunas novas.
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-## Alterações
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-### T2Ciclos.tsx — Simplificar para lista ordenada
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-- Remover o agrupamento por seções (Atrasados, Hoje, Amanhã, etc.)
-- Remover as funções `groupCiclosByAgenda` e `getCicloIndicator`
-- Ordenar ciclos por `data_cobranca` ascendente (já vem do banco)
-- Cada card mostra: Revendedora, Data de entrega, Data prevista de acerto, Valor do kit, Saldo atual, Status
-- Destaque visual: borda vermelha para atrasados (`data_cobranca < hoje` e status ≠ encerrado), borda primária para vencendo hoje
-- Manter botões de Prestação e Adiantamento
-- Manter dialogs existentes sem alteração
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-### Resumo
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-| Alteração | Arquivo |
-|-----------|---------|
-| Simplificar lista, remover agrupamento por seções, adicionar destaques visuais | `T2Ciclos.tsx` |
-
-Nenhuma alteração de lógica financeira ou banco de dados.
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
