@@ -253,6 +253,7 @@ export default function T2Ciclos() {
           {ciclos.map((c: any) => {
             const highlight = getCicloHighlight(c);
             const hasApuracao = apuracoesCicloIds.includes(c.id);
+            const saldoInfo = getSaldoCiclo(c.id);
             return (
               <Card key={c.id} className={`border border-border ${highlight}`}>
                 <CardHeader className="pb-2">
@@ -267,7 +268,13 @@ export default function T2Ciclos() {
                   <p className="text-muted-foreground">Entrega: <strong>{c.data_inicio ? formatDateBR(c.data_inicio) : '—'}</strong></p>
                   <p className="text-muted-foreground">Prev. Acerto: <strong>{c.data_cobranca ? formatDateBR(c.data_cobranca) : '—'}</strong></p>
                   <p>Kit: <strong>R$ {fmt(c.valor_kit)}</strong></p>
-                  <p>Saldo: <strong>R$ {fmt(c.valor_restante)}</strong></p>
+                  <p>Saldo: {saldoInfo.hasApuracao ? (
+                    <strong className={saldoInfo.saldo <= 0 ? 'text-green-600' : 'text-orange-600'}>
+                      R$ {fmt(saldoInfo.saldo)}
+                    </strong>
+                  ) : (
+                    <span className="text-muted-foreground italic">Aguardando apuração</span>
+                  )}</p>
 
                   <div className="flex gap-2 mt-2">
                     <Button
