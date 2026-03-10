@@ -1,5 +1,6 @@
 export const STATUS_LABELS: Record<string, string> = {
   ativo: 'Ativo',
+  apurado: 'Apurado',
   encerrado: 'Encerrado',
   inadimplente: 'Inadimplente',
   desistencia: 'Desistência',
@@ -7,6 +8,7 @@ export const STATUS_LABELS: Record<string, string> = {
 
 export const STATUS_COLORS: Record<string, string> = {
   ativo: 'bg-green-500/20 text-green-700 dark:text-green-400',
+  apurado: 'bg-blue-500/20 text-blue-700 dark:text-blue-400',
   encerrado: 'bg-muted text-muted-foreground',
   inadimplente: 'bg-red-500/20 text-red-700 dark:text-red-400',
   desistencia: 'bg-orange-500/20 text-orange-700 dark:text-orange-400',

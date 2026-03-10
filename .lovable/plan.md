@@ -1,58 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Fluxo de Status: ativo → apurado → encerrado
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Situação Atual
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-- Status possíveis: `ativo`, `encerrado`, `inadimplente`
-- Trigger `t2_validar_status_ciclo` permite: `ativo → encerrado` ou `ativo → inadimplente`
-- Apuração não altera o status do ciclo (permanece `ativo`)
-- Encerramento automático ocorre quando saldo zera (trigger `t2_processar_pagamento`)
-- Frontend filtra ciclos por `status = 'ativo'`
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-## Alterações Necessárias
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-### 1. Database Migration
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-**Atualizar trigger `t2_validar_status_ciclo`** para novo fluxo:
-- `ativo → apurado` (quando apuração é registrada)
-- `apurado → encerrado` (quando saldo zera)
-- Bloquear qualquer outra transição
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-**Criar trigger `t2_apuracao_set_status`** (AFTER INSERT on `t2_apuracoes`):
-- Ao criar apuração, atualizar `t2_ciclos.status = 'apurado'`
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-**Atualizar trigger `t2_processar_pagamento`**:
-- Mudar encerramento: verificar que ciclo está `apurado` antes de encerrar
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-**Atualizar trigger `t2_validar_pagamento_ciclo`**:
-- Permitir pagamentos em ciclos com status `apurado` (não mais `ativo`)
-
-**Atualizar `STATUS_LABELS` e `STATUS_COLORS`** no frontend para incluir `apurado`
-
-### 2. Frontend — constants.ts
-
-Adicionar `apurado` em `STATUS_LABELS` e `STATUS_COLORS`
-
-### 3. Frontend — T2Ciclos.tsx
-
-- Alterar query para buscar ciclos com status `ativo` **ou** `apurado`
-- O botão "Prestação" já está correto (desabilita se `hasApuracao`)
-- O botão "Adiantamento" deve ser desabilitado se ciclo está `encerrado`
-
-### 4. Frontend — PagamentoDialog.tsx
-
-- Atualizar `data_cobranca` apenas se ciclo está `apurado` (não `encerrado`)
-- Já funciona corretamente pois o trigger bloqueia pagamentos em ciclos encerrados
-
-### Resumo
-
-| Alteração | Onde |
-|-----------|------|
-| Novo fluxo de status: ativo → apurado → encerrado | Trigger `t2_validar_status_ciclo` |
-| Apuração muda status para `apurado` | Novo trigger AFTER INSERT on `t2_apuracoes` |
-| Pagamentos permitidos em status `apurado` | Trigger `t2_validar_pagamento_ciclo` |
-| Encerramento automático verifica status `apurado` | Trigger `t2_processar_pagamento` |
-| Adicionar label/cor para `apurado` | `constants.ts` |
-| Listar ciclos `ativo` e `apurado` na agenda | `T2Ciclos.tsx` |
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
