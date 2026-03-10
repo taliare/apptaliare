@@ -10,63 +10,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, ClipboardList, DollarSign, AlertTriangle, CalendarDays, CalendarClock } from 'lucide-react';
-import { format, addDays, isToday, isTomorrow, isBefore, isAfter, startOfDay, endOfDay, addWeeks } from 'date-fns';
+import { Plus, RefreshCw, ClipboardList, DollarSign } from 'lucide-react';
+import { format, addDays, startOfDay, isBefore, isEqual } from 'date-fns';
 import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
 import { ApuracaoDialog } from '@/components/t2/ApuracaoDialog';
 import { ApuracoesSection } from '@/components/t2/ApuracoesSection';
 import { AdiantamentoDialog } from '@/components/t2/AdiantamentoDialog';
+import { formatDateBR } from '@/lib/utils';
 
-interface AgendaSection {
-  key: string;
-  label: string;
-  icon: React.ReactNode;
-  accent: string;
-  ciclos: any[];
-}
-
-function groupCiclosByAgenda(ciclos: any[]): AgendaSection[] {
+function getCicloHighlight(ciclo: any): string {
+  if (ciclo.status === 'encerrado') return '';
   const hoje = startOfDay(new Date());
-  const amanha = addDays(hoje, 1);
-  const fimSemana = endOfDay(addWeeks(hoje, 1));
-
-  const atrasados: any[] = [];
-  const hojeLista: any[] = [];
-  const amanhaLista: any[] = [];
-  const semanaLista: any[] = [];
-  const proximosLista: any[] = [];
-
-  for (const c of ciclos) {
-    const dataCobranca = startOfDay(new Date(c.data_cobranca));
-    if (isBefore(dataCobranca, hoje)) {
-      atrasados.push(c);
-    } else if (isToday(dataCobranca)) {
-      hojeLista.push(c);
-    } else if (isTomorrow(dataCobranca)) {
-      amanhaLista.push(c);
-    } else if (isBefore(dataCobranca, fimSemana) || dataCobranca.getTime() === fimSemana.getTime()) {
-      semanaLista.push(c);
-    } else {
-      proximosLista.push(c);
-    }
-  }
-
-  return [
-    { key: 'atrasados', label: 'Atrasados', icon: <AlertTriangle className="h-4 w-4" />, accent: 'text-destructive', ciclos: atrasados },
-    { key: 'hoje', label: 'Hoje', icon: <CalendarDays className="h-4 w-4" />, accent: 'text-primary', ciclos: hojeLista },
-    { key: 'amanha', label: 'Amanhã', icon: <CalendarClock className="h-4 w-4" />, accent: 'text-foreground', ciclos: amanhaLista },
-    { key: 'semana', label: 'Esta Semana', icon: <CalendarDays className="h-4 w-4" />, accent: 'text-muted-foreground', ciclos: semanaLista },
-    { key: 'proximos', label: 'Próximos', icon: <CalendarClock className="h-4 w-4" />, accent: 'text-muted-foreground', ciclos: proximosLista },
-  ].filter(s => s.ciclos.length > 0);
-}
-
-function getCicloIndicator(ciclo: any) {
-  const hoje = startOfDay(new Date());
-  const dataCobranca = startOfDay(new Date(ciclo.data_cobranca));
+  const dataCobranca = startOfDay(new Date(ciclo.data_cobranca + 'T00:00:00'));
   if (isBefore(dataCobranca, hoje)) return 'border-l-4 border-l-destructive';
-  if (isToday(dataCobranca)) return 'border-l-4 border-l-primary';
-  if (isTomorrow(dataCobranca)) return 'border-l-4 border-l-yellow-500';
-  return 'border-l-4 border-l-green-500';
+  if (isEqual(dataCobranca, hoje)) return 'border-l-4 border-l-primary';
+  return '';
 }
 
 export default function T2Ciclos() {
