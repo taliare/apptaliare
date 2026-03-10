@@ -201,69 +201,54 @@ export default function T2Ciclos() {
 
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
-      ) : sections.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground"><RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-40" /><p>Nenhum ciclo ativo na agenda</p></CardContent></Card>
+      ) : ciclos.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground"><RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-40" /><p>Nenhum ciclo ativo</p></CardContent></Card>
       ) : (
-        <div className="space-y-6">
-          {sections.map(section => (
-            <div key={section.key}>
-              <div className={`flex items-center gap-2 mb-3 ${section.accent}`}>
-                {section.icon}
-                <h2 className="text-lg font-semibold">{section.label}</h2>
-                <Badge variant="secondary" className="text-xs">{section.ciclos.length}</Badge>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {section.ciclos.map((c: any) => {
-                  const indicator = getCicloIndicator(c);
-                  const hasApuracao = apuracoesCicloIds.includes(c.id);
-                  return (
-                    <Card key={c.id} className={`border border-border ${indicator}`}>
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-base font-semibold">
-                            {c.t2_revendedoras?.nome_exibicao || c.t2_revendedoras?.nome_completo || 'Revendedora'}
-                          </CardTitle>
-                          <Badge className={STATUS_COLORS[c.status] || ''}>{STATUS_LABELS[c.status] || c.status}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-1 text-sm">
-                        <p className="text-muted-foreground">Pedido: <strong>{c.t2_pedidos?.codigo_pedido}</strong></p>
-                        <p>Kit: <strong>R$ {fmt(c.valor_kit)}</strong></p>
-                        <p>Pago: <strong>R$ {fmt(c.valor_pago)}</strong></p>
-                        <p>Restante: <strong>R$ {fmt(c.valor_restante)}</strong></p>
-                        <p className="text-xs text-muted-foreground">
-                          Cobrança: <strong>{c.data_cobranca ? new Date(c.data_cobranca + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</strong>
-                          {' · '}Venc: {new Date(c.data_vencimento).toLocaleDateString('pt-BR')}
-                        </p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {ciclos.map((c: any) => {
+            const highlight = getCicloHighlight(c);
+            const hasApuracao = apuracoesCicloIds.includes(c.id);
+            return (
+              <Card key={c.id} className={`border border-border ${highlight}`}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-semibold">
+                      {c.t2_revendedoras?.nome_exibicao || c.t2_revendedoras?.nome_completo || 'Revendedora'}
+                    </CardTitle>
+                    <Badge className={STATUS_COLORS[c.status] || ''}>{STATUS_LABELS[c.status] || c.status}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1 text-sm">
+                  <p className="text-muted-foreground">Entrega: <strong>{c.data_inicio ? formatDateBR(c.data_inicio) : '—'}</strong></p>
+                  <p className="text-muted-foreground">Prev. Acerto: <strong>{c.data_cobranca ? formatDateBR(c.data_cobranca) : '—'}</strong></p>
+                  <p>Kit: <strong>R$ {fmt(c.valor_kit)}</strong></p>
+                  <p>Saldo: <strong>R$ {fmt(c.valor_restante)}</strong></p>
 
-                        <div className="flex gap-2 mt-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 text-xs"
-                            onClick={() => handleOpenApuracao(c)}
-                            disabled={hasApuracao}
-                          >
-                            <ClipboardList className="h-3 w-3 mr-1" /> {hasApuracao ? 'Apurado' : 'Prestação'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 text-xs"
-                            onClick={() => setAdiantamentoCiclo(c)}
-                          >
-                            <DollarSign className="h-3 w-3 mr-1" /> Adiantamento
-                          </Button>
-                        </div>
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs"
+                      onClick={() => handleOpenApuracao(c)}
+                      disabled={hasApuracao}
+                    >
+                      <ClipboardList className="h-3 w-3 mr-1" /> {hasApuracao ? 'Apurado' : 'Prestação'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-xs"
+                      onClick={() => setAdiantamentoCiclo(c)}
+                    >
+                      <DollarSign className="h-3 w-3 mr-1" /> Adiantamento
+                    </Button>
+                  </div>
 
-                        <ApuracoesSection cicloId={c.id} />
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+                  <ApuracoesSection cicloId={c.id} />
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
