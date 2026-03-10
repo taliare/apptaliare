@@ -1319,6 +1319,49 @@ export type Database = {
           },
         ]
       }
+      t2_ciclo_pedidos: {
+        Row: {
+          ciclo_id: string
+          criado_em: string | null
+          id: string
+          pedido_id: string
+        }
+        Insert: {
+          ciclo_id: string
+          criado_em?: string | null
+          id?: string
+          pedido_id: string
+        }
+        Update: {
+          ciclo_id?: string
+          criado_em?: string | null
+          id?: string
+          pedido_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "t2_ciclo_pedidos_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "t2_ciclos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "t2_ciclo_pedidos_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "t2_vw_previsao_recebimentos"
+            referencedColumns: ["ciclo_id"]
+          },
+          {
+            foreignKeyName: "t2_ciclo_pedidos_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: true
+            referencedRelation: "t2_pedidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       t2_ciclos: {
         Row: {
           comissao_percentual: number | null
@@ -1326,7 +1369,7 @@ export type Database = {
           data_inicio: string
           data_vencimento: string
           id: string
-          pedido_id: string
+          pedido_id: string | null
           representante_id: string
           revendedora_id: string
           status: string
@@ -1342,7 +1385,7 @@ export type Database = {
           data_inicio?: string
           data_vencimento: string
           id?: string
-          pedido_id: string
+          pedido_id?: string | null
           representante_id: string
           revendedora_id: string
           status?: string
@@ -1358,7 +1401,7 @@ export type Database = {
           data_inicio?: string
           data_vencimento?: string
           id?: string
-          pedido_id?: string
+          pedido_id?: string | null
           representante_id?: string
           revendedora_id?: string
           status?: string
