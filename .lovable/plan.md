@@ -1,41 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Controle de Inadimplência T2 — Refatoração
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Problema Atual
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-A página `T2Inadimplencia.tsx` filtra apenas por `status = 'inadimplente'`, que depende de um trigger/edge function externo. O pedido é usar critérios dinâmicos:
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-- `data_cobranca < hoje`
-- `status != 'encerrado'`
-- `saldo_restante > 0` (calculado: valor_empresa - pagamentos - adiantamentos)
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-## Alteração — T2Inadimplencia.tsx
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-1. **Query principal**: Buscar ciclos onde `status != 'encerrado'` com join em `t2_revendedoras`, sem filtrar por `status = 'inadimplente'`
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-2. **Queries auxiliares**: Buscar `t2_apuracoes`, `t2_pagamentos` e `t2_adiantamentos` para os ciclos retornados, para calcular saldo real
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-3. **Filtro client-side**: Aplicar os critérios de inadimplência:
-   - `data_cobranca` existe e é anterior a hoje
-   - Saldo calculado (valor_empresa - pagamentos - adiantamentos) > 0
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-4. **Exibir `data_cobranca`** em vez de `data_vencimento` na coluna de data e no cálculo de dias em atraso
-
-5. **Ordenar** do maior atraso para o menor (desc por dias)
-
-6. **Coluna "Saldo Restante"**: Calculado dinamicamente (não usar `valor_restante` do ciclo)
-
-| Campo Exibido | Fonte |
-|---|---|
-| Nome da revendedora | `t2_revendedoras.nome_exibicao / nome_completo` |
-| Data de cobrança | `t2_ciclos.data_cobranca` |
-| Dias em atraso | `differenceInDays(hoje, data_cobranca)` |
-| Saldo restante | `valor_empresa - sum(pagamentos) - sum(adiantamentos)` |
-
-Mantém filtros existentes (representante, cidade, faixa de atraso). Nenhuma alteração de banco ou lógica financeira.
-
-| Arquivo | Alteração |
-|---|---|
-| `src/pages/T2Inadimplencia.tsx` | Refatorar query e cálculo de saldo dinâmico |
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
