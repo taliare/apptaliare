@@ -140,7 +140,6 @@ export default function T2Ciclos() {
   };
 
   const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-  const sections = groupCiclosByAgenda(ciclos);
 
   return (
     <div className="p-4 md:p-6 space-y-6">
