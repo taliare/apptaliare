@@ -100,6 +100,7 @@ export default function T2Ciclos() {
         }
         throw cicloError;
       }
+      console.log("t2_ciclos INSERT OK:", cicloData);
 
       await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', selectedPedido);
     },
