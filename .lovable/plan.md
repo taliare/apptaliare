@@ -1,34 +1,29 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Ranking de Revendedoras — Já Implementado
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Análise
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+O ranking solicitado **já está completamente implementado** e funcionando:
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+### View `t2_vw_ranking_revendedoras`
+- Soma `t2_apuracoes.valor_vendido` por revendedora (exatamente como solicitado)
+- Ordena do maior para o menor valor vendido
+- Inclui: nome, categoria_atual, total_vendido, total_ciclos, score, cidade
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+### Página `T2Ranking.tsx`
+Já exibe todos os campos solicitados:
+- **Posição no ranking** (com medalhas 🥇🥈🥉 para top 3)
+- **Nome da revendedora**
+- **Total vendido** (formatado em R$)
+- **Categoria atual** (com badges coloridos)
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+Além disso, já inclui:
+- Dashboard com cards de resumo (total revendedoras, volume vendido, ticket médio, por categoria)
+- Filtros por nome e cidade
+- Colunas extras: cidade, representante (admin), ciclos, score
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+## Conclusão
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+Nenhuma alteração necessária. O ranking já funciona conforme especificado.
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
