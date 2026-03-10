@@ -37,6 +37,7 @@ export default function T2Ciclos() {
   const [dataVencimento, setDataVencimento] = useState(format(addDays(new Date(), 45), 'yyyy-MM-dd'));
   const [apuracaoCiclo, setApuracaoCiclo] = useState<any>(null);
   const [adiantamentoCiclo, setAdiantamentoCiclo] = useState<any>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('todos');
 
   const { data: ciclos = [], isLoading } = useQuery({
     queryKey: ['t2-ciclos'],
@@ -44,12 +45,15 @@ export default function T2Ciclos() {
       const { data, error } = await supabase
         .from('t2_ciclos')
         .select('*, t2_revendedoras(nome_completo, nome_exibicao), t2_pedidos(codigo_pedido)')
-        .in('status', ['ativo', 'apurado'])
         .order('data_cobranca' as any, { ascending: true });
       if (error) throw error;
       return data;
     },
   });
+
+  const filteredCiclos = statusFilter === 'todos'
+    ? ciclos
+    : ciclos.filter((c: any) => c.status === statusFilter);
 
   // Query apurações with valor_empresa per ciclo
   const { data: apuracoes = [] } = useQuery({
@@ -188,15 +192,31 @@ export default function T2Ciclos() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Agenda de Cobranças</h1>
           <p className="text-sm text-muted-foreground">Ciclos TALIARE 2.0 organizados por data de cobrança</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen} modal={false}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Novo Ciclo</Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { value: 'todos', label: 'Todos' },
+            { value: 'ativo', label: 'Ativos' },
+            { value: 'apurado', label: 'Apurados' },
+            { value: 'encerrado', label: 'Encerrados' },
+          ].map((f) => (
+            <Button
+              key={f.value}
+              size="sm"
+              variant={statusFilter === f.value ? 'default' : 'outline'}
+              onClick={() => setStatusFilter(f.value)}
+            >
+              {f.label}
+            </Button>
+          ))}
+          <Dialog open={createOpen} onOpenChange={setCreateOpen} modal={false}>
+            <DialogTrigger asChild>
+              <Button size="sm"><Plus className="h-4 w-4 mr-2" />Novo Ciclo</Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Iniciar Ciclo</DialogTitle></DialogHeader>
             <div className="space-y-4">
@@ -241,16 +261,16 @@ export default function T2Ciclos() {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
-
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
-      ) : ciclos.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground"><RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-40" /><p>Nenhum ciclo ativo</p></CardContent></Card>
+      ) : filteredCiclos.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground"><RefreshCw className="h-12 w-12 mx-auto mb-4 opacity-40" /><p>Nenhum ciclo encontrado</p></CardContent></Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {ciclos.map((c: any) => {
+          {filteredCiclos.map((c: any) => {
             const highlight = getCicloHighlight(c);
             const hasApuracao = apuracoesCicloIds.includes(c.id);
             const saldoInfo = getSaldoCiclo(c.id);
