@@ -191,7 +191,7 @@ export default function T2Ciclos() {
           <h1 className="text-2xl font-bold text-foreground">Agenda de Cobranças</h1>
           <p className="text-sm text-muted-foreground">Ciclos TALIARE 2.0 organizados por data de cobrança</p>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen} modal={false}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Novo Ciclo</Button>
           </DialogTrigger>
