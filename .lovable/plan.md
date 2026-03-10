@@ -1,34 +1,44 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Painel de Performance da Rede — T2
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Análise
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+O sistema já possui páginas T2 para ranking, radar, financeiro, inadimplência, etc. O pedido é criar um **painel simples de métricas gerais** da operação. Não existe uma página dedicada a isso atualmente.
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## Plano
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+### 1. Criar página `src/pages/T2PainelRede.tsx`
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+Página com 4 cards de métricas:
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+| Métrica | Cálculo |
+|---|---|
+| Revendedoras Ativas | Distinct `revendedora_id` de `t2_ciclos` onde `status` in ('ativo', 'apurado') |
+| Ciclos Ativos | Count de `t2_ciclos` onde `status` in ('ativo', 'apurado') |
+| Total Vendido | Sum de `t2_apuracoes.valor_vendido` |
+| Total a Receber | Para ciclos não encerrados: `valor_empresa` (da apuração) - sum(pagamentos) - sum(adiantamentos) |
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+Queries usando `supabase` client diretamente nas tabelas `t2_ciclos`, `t2_apuracoes`, `t2_pagamentos`, `t2_adiantamentos`.
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+Layout: 4 cards em grid responsivo (2 cols mobile, 4 cols desktop), seguindo o padrão visual das outras páginas T2.
+
+### 2. Registrar rota em `AnimatedRoutes.tsx`
+
+Adicionar rota `/t2-painel-rede` com `PermissionRoute` usando menuKey `t2_painel_rede`.
+
+### 3. Adicionar ao menu em `AppSidebar.tsx` e `MobileDrawer.tsx`
+
+Adicionar item "Painel da Rede" no grupo TALIARE 2.0 dos dois menus.
+
+### Arquivos alterados
+
+| Arquivo | Alteração |
+|---|---|
+| `src/pages/T2PainelRede.tsx` | **Novo** — página com 4 cards de métricas |
+| `src/components/AnimatedRoutes.tsx` | Adicionar rota `/t2-painel-rede` |
+| `src/components/AppSidebar.tsx` | Adicionar item no menu T2 |
+| `src/components/MobileDrawer.tsx` | Adicionar item no menu T2 mobile |
+
+Nenhuma alteração de banco de dados ou lógica financeira.
+
