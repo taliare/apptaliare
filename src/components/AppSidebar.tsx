@@ -164,6 +164,7 @@ export function AppSidebar() {
     {
       label: "TALIARE 2.0",
       items: [
+        { title: "Painel da Rede", url: "/t2-painel-rede", icon: Home },
         { title: "Produção T2", url: "/t2-producao", icon: Package },
         { title: "Revendedoras T2", url: "/t2-revendedoras", icon: Users },
         { title: "Ciclos T2", url: "/t2-ciclos", icon: Target },
