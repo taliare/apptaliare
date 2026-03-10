@@ -1,26 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Fix: RLS Policies Still RESTRICTIVE — Blocking All Inserts
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Root Cause
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-The previous migration to convert RESTRICTIVE → PERMISSIVE policies **did not apply successfully**. All 6 `t2_*` tables still have `Permissive: No` on every policy. PostgreSQL requires at least one PERMISSIVE policy to grant access — RESTRICTIVE policies can only narrow existing access. With zero PERMISSIVE policies, **all operations are silently blocked**.
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-The console shows "INSERT OK" because Supabase JS returns the constructed row, but the database rejects it at the RLS layer and the data never persists.
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-## Fix
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-**Single database migration** that:
-1. Drops ALL existing RLS policies on all 6 `t2_*` tables
-2. Recreates them with identical logic but as **PERMISSIVE** (PostgreSQL default)
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-Tables affected:
-- `t2_revendedoras` (4 policies)
-- `t2_ciclos` (4 policies)
-- `t2_apuracoes` (3 policies)
-- `t2_pagamentos` (3 policies)
-- `t2_adiantamentos` (3 policies)
-- `t2_pedidos` (needs verification — will include if same issue)
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-No frontend changes needed — the code is correct.
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
