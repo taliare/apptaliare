@@ -177,6 +177,11 @@ export function AnimatedRoutes() {
         } />
         
         {/* TALIARE 2.0 routes */}
+        <Route path="/t2-painel-rede" element={
+          <PermissionRoute menuKey="t2_painel_rede">
+            <T2PainelRede />
+          </PermissionRoute>
+        } />
         <Route path="/t2-producao" element={
           <PermissionRoute menuKey="t2_producao">
             <T2Producao />
