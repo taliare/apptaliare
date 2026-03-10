@@ -1,34 +1,34 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Histórico Detalhado de Ciclos na Tela da Revendedora
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## O que será feito
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+Expandir a seção "Histórico de Ciclos" no Sheet da revendedora para mostrar dados completos de cada ciclo, incluindo valores de apuração, pagamentos e adiantamentos, com saldo calculado dinamicamente.
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## Alteração — T2Revendedoras.tsx
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+1. **Ampliar a query `t2-ciclos-rev`**: Além dos dados do ciclo, buscar `t2_apuracoes` (via `ciclo_id`), e separadamente buscar `t2_pagamentos` e `t2_adiantamentos` para os ciclos da revendedora.
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+2. **Adicionar duas queries auxiliares** (habilitadas quando `selectedId` existe):
+   - `t2_apuracoes` filtrado pelos ciclos da revendedora
+   - `t2_pagamentos` (via apuracoes) e `t2_adiantamentos` (via ciclo_id)
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+3. **Calcular saldo por ciclo**: `valor_empresa - pagamentos - adiantamentos`. Se não tem apuração, mostrar "Aguardando apuração".
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+4. **Redesenhar os cards de ciclo** para exibir:
+   - Data de entrega (data_inicio)
+   - Valor do kit, Valor vendido, Comissão, Valor empresa (da apuração)
+   - Total pago (soma pagamentos + adiantamentos)
+   - Saldo restante (calculado)
+   - Status com badge colorido
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+Layout: grid 2 colunas dentro de cada card de ciclo para os valores, com destaque visual para saldo.
+
+| Alteração | Arquivo |
+|-----------|---------|
+| Queries para apurações, pagamentos e adiantamentos por revendedora | `T2Revendedoras.tsx` |
+| Cards de ciclo expandidos com todos os campos solicitados | `T2Revendedoras.tsx` |
+
+Nenhuma alteração de banco de dados ou lógica financeira.
+
