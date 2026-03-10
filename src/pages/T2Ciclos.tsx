@@ -217,7 +217,6 @@ export default function T2Ciclos() {
             <DialogTrigger asChild>
               <Button size="sm"><Plus className="h-4 w-4 mr-2" />Novo Ciclo</Button>
             </DialogTrigger>
-          </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Iniciar Ciclo</DialogTitle></DialogHeader>
             <div className="space-y-4">
