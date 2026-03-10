@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { FORMAS_PAGAMENTO } from './constants';
+import { format, addDays } from 'date-fns';
 
 interface PagamentoDialogProps {
   open: boolean;
@@ -23,9 +24,11 @@ export function PagamentoDialog({ open, onOpenChange, apuracao }: PagamentoDialo
   const [valorPago, setValorPago] = useState('');
   const [formaPagamento, setFormaPagamento] = useState('');
   const [observacao, setObservacao] = useState('');
+  const [novaDataCobranca, setNovaDataCobranca] = useState(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
 
   const saldo = Number(apuracao?.saldo_a_receber || 0);
   const pago = Number(valorPago) || 0;
+  const isPartial = pago > 0 && pago < saldo;
   const isInvalid = pago > saldo || pago <= 0;
 
   const mutation = useMutation({
@@ -40,6 +43,17 @@ export function PagamentoDialog({ open, onOpenChange, apuracao }: PagamentoDialo
       }).select();
       if (error) { console.error("t2_pagamentos INSERT ERROR:", error); throw error; }
       console.log("t2_pagamentos INSERT OK:", data);
+
+      // If partial payment, update data_cobranca on the ciclo
+      if (isPartial && novaDataCobranca) {
+        const { error: updateError } = await supabase
+          .from('t2_ciclos')
+          .update({ data_cobranca: novaDataCobranca })
+          .eq('id', apuracao.ciclo_id);
+        if (updateError) {
+          console.error("t2_ciclos UPDATE data_cobranca ERROR:", updateError);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['t2-apuracoes'] });
@@ -49,6 +63,7 @@ export function PagamentoDialog({ open, onOpenChange, apuracao }: PagamentoDialo
       setValorPago('');
       setFormaPagamento('');
       setObservacao('');
+      setNovaDataCobranca(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
       toast({ title: 'Pagamento registrado!' });
     },
     onError: (err: any) => {
@@ -96,13 +111,30 @@ export function PagamentoDialog({ open, onOpenChange, apuracao }: PagamentoDialo
               </SelectContent>
             </Select>
           </div>
+
+          {isPartial && (
+            <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-2">
+              <p className="text-xs text-muted-foreground font-medium">
+                Pagamento parcial — defina a próxima data de cobrança:
+              </p>
+              <div>
+                <Label>Próxima Data de Cobrança</Label>
+                <Input
+                  type="date"
+                  value={novaDataCobranca}
+                  onChange={e => setNovaDataCobranca(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <Label>Observação</Label>
             <Textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={2} />
           </div>
           <Button
             className="w-full"
-            disabled={isInvalid || mutation.isPending}
+            disabled={isInvalid || mutation.isPending || (isPartial && !novaDataCobranca)}
             onClick={() => mutation.mutate()}
           >
             {mutation.isPending ? 'Registrando...' : 'Confirmar Pagamento'}
