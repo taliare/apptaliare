@@ -272,6 +272,12 @@ export default function Dashboard() {
   ];
 
   return (
+    <div className="space-y-6">
+
+    <Button onClick={testeInsert}>
+      TESTE INSERT SUPABASE
+    </Button>
+
     <div className="space-y-4 md:space-y-6 animate-fade-in overflow-x-hidden">
       {/* Hero Section - Saudação */}
       <div className="relative overflow-hidden rounded-xl md:rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-background border border-primary/20 p-4 md:p-8">
