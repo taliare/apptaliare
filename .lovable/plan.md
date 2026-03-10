@@ -1,34 +1,48 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Ciclos T2 — Agenda de Cobrança
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Database Changes (Migration)
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+1. **Add `data_cobranca` column** to `t2_ciclos`:
+   - `data_cobranca DATE` nullable (for existing rows), default calculated on insert
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+2. **Add UNIQUE constraint** on `t2_apuracoes(ciclo_id)` to enforce one apuração per ciclo
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+3. **Backfill existing rows**: set `data_cobranca = (data_inicio + 45 days)::date` for existing ciclos
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+## Frontend Changes
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+### T2Ciclos.tsx — Full rewrite of the listing
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+- Query filters to `status = 'ativo'`, ordered by `data_cobranca ASC`
+- Group ciclos into 4 sections based on `data_cobranca` vs today:
+  - **Atrasados** (data_cobranca < hoje) — red accent
+  - **Hoje** (data_cobranca = hoje) — highlighted
+  - **Amanhã** (data_cobranca = hoje+1)
+  - **Esta Semana** (data_cobranca within next 7 days)
+  - Remaining active ciclos shown in a "Próximos" section
+- Each section has a header with count
+- Keep the existing card layout with indicator colors, but base them on `data_cobranca` instead of `data_vencimento`
+- Keep "Novo Ciclo" dialog — on insert, set `data_cobranca` = `data_vencimento` (which is already defaulted to +45 days)
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+### PagamentoDialog.tsx — Ask for next `data_cobranca` on partial payment
+
+- After entering payment amount, if `pago < saldo` (partial), show a date input "Próxima data de cobrança"
+- On submit, after inserting `t2_pagamentos`, also update `t2_ciclos.data_cobranca` with the new date
+- The existing trigger `t2_processar_pagamento` already handles setting `status = 'encerrado'` when saldo reaches zero, so encerrado ciclos will automatically disappear from the agenda query
+
+### ApuracaoDialog.tsx — Minor guard
+
+- Before opening, check if ciclo already has an apuração (the UNIQUE constraint will also enforce this server-side)
+- Show a toast if already has apuração instead of opening the dialog
+
+## Summary of changes
+
+| Area | What |
+|------|------|
+| Migration | Add `data_cobranca DATE` to `t2_ciclos`, UNIQUE on `t2_apuracoes(ciclo_id)`, backfill |
+| T2Ciclos.tsx | Filter active only, order by `data_cobranca`, group into agenda sections |
+| PagamentoDialog.tsx | Add "nova data de cobrança" field for partial payments, update ciclo |
+| ApuracaoDialog.tsx | Guard against duplicate apuração |
+
