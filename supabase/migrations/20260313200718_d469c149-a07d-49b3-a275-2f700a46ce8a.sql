@@ -1,0 +1,15 @@
+ALTER TABLE leads_revendedoras
+  ADD COLUMN IF NOT EXISTS ultimo_envio timestamptz,
+  ADD COLUMN IF NOT EXISTS tentativas integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS data_nascimento text,
+  ADD COLUMN IF NOT EXISTS cpf text,
+  ADD COLUMN IF NOT EXISTS estado_civil text,
+  ADD COLUMN IF NOT EXISTS profissao text,
+  ADD COLUMN IF NOT EXISTS telefone_alternativo text,
+  ADD COLUMN IF NOT EXISTS email text,
+  ADD COLUMN IF NOT EXISTS cep text,
+  ADD COLUMN IF NOT EXISTS endereco text,
+  ADD COLUMN IF NOT EXISTS bairro text,
+  ADD COLUMN IF NOT EXISTS restricao_serasa text,
+  ADD COLUMN IF NOT EXISTS possui_veiculo text,
+  ADD COLUMN IF NOT EXISTS expectativa_venda text;

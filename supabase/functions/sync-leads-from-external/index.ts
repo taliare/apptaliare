@@ -173,6 +173,20 @@ Deno.serve(async (req) => {
       responsavel_id: null,
       responsavel_nome: null,
       observacao: null,
+      ultimo_envio: lead.ultimo_envio || null,
+      tentativas: lead.tentativas || 0,
+      data_nascimento: lead.data_nascimento || null,
+      cpf: lead.cpf || null,
+      estado_civil: lead.estado_civil || null,
+      profissao: lead.profissao || null,
+      telefone_alternativo: lead.telefone_alternativo || null,
+      email: lead.email || null,
+      cep: lead.cep || null,
+      endereco: lead.endereco || null,
+      bairro: lead.bairro || null,
+      restricao_serasa: lead.restricao_serasa || null,
+      possui_veiculo: lead.possui_veiculo || null,
+      expectativa_venda: lead.expectativa_venda || null,
     }));
 
     // 5. Inserir novos leads em batch

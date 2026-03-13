@@ -35,6 +35,14 @@ import {
   User,
   Trash2,
   AlertTriangle,
+  Mail,
+  Briefcase,
+  Car,
+  Home,
+  FileText,
+  ShieldAlert,
+  Target,
+  Heart,
 } from "lucide-react";
 import { LeadRevendedora, KANBAN_COLUMNS, COLUMN_COLORS } from "./types";
 import { LeadStatusHistory } from "./LeadStatusHistory";
