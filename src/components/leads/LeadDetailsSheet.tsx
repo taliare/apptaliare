@@ -253,21 +253,116 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
 
           <Separator />
 
-          {/* Informações detalhadas */}
+          {/* Dados Pessoais */}
           <div className="space-y-3">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Dados Pessoais
+            </Label>
             {lead.idade && (
               <div>
-                <Label className="text-xs text-muted-foreground">
-                  Idade
-                </Label>
+                <Label className="text-xs text-muted-foreground">Idade</Label>
                 <p className="text-sm">{lead.idade}</p>
               </div>
             )}
+            {lead.data_nascimento && (
+              <div className="flex items-start gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Data de Nascimento</Label>
+                  <p className="text-sm">{lead.data_nascimento}</p>
+                </div>
+              </div>
+            )}
+            {lead.cpf && (
+              <div className="flex items-start gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">CPF</Label>
+                  <p className="text-sm">{lead.cpf}</p>
+                </div>
+              </div>
+            )}
+            {lead.estado_civil && (
+              <div className="flex items-start gap-2">
+                <Heart className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Estado Civil</Label>
+                  <p className="text-sm">{lead.estado_civil}</p>
+                </div>
+              </div>
+            )}
+            {lead.profissao && (
+              <div className="flex items-start gap-2">
+                <Briefcase className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Profissão</Label>
+                  <p className="text-sm">{lead.profissao}</p>
+                </div>
+              </div>
+            )}
+            {lead.email && (
+              <div className="flex items-start gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">E-mail</Label>
+                  <p className="text-sm">{lead.email}</p>
+                </div>
+              </div>
+            )}
+            {lead.telefone_alternativo && (
+              <div className="flex items-start gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Telefone Alternativo</Label>
+                  <p className="text-sm">{lead.telefone_alternativo}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Endereço */}
+          {(lead.cep || lead.endereco || lead.bairro) && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Endereço
+                </Label>
+                {lead.endereco && (
+                  <div className="flex items-start gap-2">
+                    <Home className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Endereço</Label>
+                      <p className="text-sm">{lead.endereco}</p>
+                    </div>
+                  </div>
+                )}
+                {lead.bairro && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Bairro</Label>
+                    <p className="text-sm">{lead.bairro}</p>
+                  </div>
+                )}
+                {lead.cep && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">CEP</Label>
+                    <p className="text-sm">{lead.cep}</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          <Separator />
+
+          {/* Perfil Comercial */}
+          <div className="space-y-3">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Perfil Comercial
+            </Label>
             {lead.experiencia_vendas && (
               <div>
-                <Label className="text-xs text-muted-foreground">
-                  Experiência em vendas
-                </Label>
+                <Label className="text-xs text-muted-foreground">Experiência em vendas</Label>
                 <p className="text-sm">{lead.experiencia_vendas}</p>
               </div>
             )}
@@ -275,9 +370,7 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
               <div className="flex items-start gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <div>
-                  <Label className="text-xs text-muted-foreground">
-                    Tempo disponível
-                  </Label>
+                  <Label className="text-xs text-muted-foreground">Tempo disponível</Label>
                   <p className="text-sm">{lead.tempo_disponivel}</p>
                 </div>
               </div>
@@ -286,10 +379,35 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
               <div className="flex items-start gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <div>
-                  <Label className="text-xs text-muted-foreground">
-                    Capital inicial
-                  </Label>
+                  <Label className="text-xs text-muted-foreground">Capital inicial</Label>
                   <p className="text-sm">{lead.capital_inicial}</p>
+                </div>
+              </div>
+            )}
+            {lead.expectativa_venda && (
+              <div className="flex items-start gap-2">
+                <Target className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Expectativa de venda</Label>
+                  <p className="text-sm">{lead.expectativa_venda}</p>
+                </div>
+              </div>
+            )}
+            {lead.restricao_serasa && (
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Restrição Serasa</Label>
+                  <p className="text-sm">{lead.restricao_serasa}</p>
+                </div>
+              </div>
+            )}
+            {lead.possui_veiculo && (
+              <div className="flex items-start gap-2">
+                <Car className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <Label className="text-xs text-muted-foreground">Possui veículo</Label>
+                  <p className="text-sm">{lead.possui_veiculo}</p>
                 </div>
               </div>
             )}
@@ -297,9 +415,7 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
               <div className="flex items-start gap-2">
                 <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <div>
-                  <Label className="text-xs text-muted-foreground">
-                    Motivação
-                  </Label>
+                  <Label className="text-xs text-muted-foreground">Motivação</Label>
                   <p className="text-sm">{lead.motivacao}</p>
                 </div>
               </div>
