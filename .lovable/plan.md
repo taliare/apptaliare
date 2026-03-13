@@ -1,34 +1,76 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
+
+# Exibir Todos os Campos do Lead no CRM
 
 ## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+O formulário externo possui 20 campos, mas o banco interno e o CRM só armazenam/exibem 12 deles. Faltam **14 campos** que o SDR precisa ver para avaliar o lead.
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+## Campos faltantes (a adicionar)
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+| Campo externo | Existe no interno? |
+|---|---|
+| ultimo_envio | Não |
+| tentativas | Não |
+| data_nascimento | Não |
+| cpf | Não |
+| estado_civil | Não |
+| profissao | Não |
+| telefone_alternativo | Não |
+| email | Não |
+| cep | Não |
+| endereco | Não |
+| bairro | Não |
+| restricao_serasa | Não |
+| possui_veiculo | Não |
+| expectativa_venda | Não |
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
+Campos que existem no interno mas não no externo (`capital_inicial`, `tempo_disponivel`, `idade`) serão mantidos para compatibilidade com leads antigos.
+
+## Alterações
+
+### 1. Migração de banco — adicionar 14 colunas
+
+```sql
+ALTER TABLE leads_revendedoras
+  ADD COLUMN IF NOT EXISTS ultimo_envio timestamptz,
+  ADD COLUMN IF NOT EXISTS tentativas integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS data_nascimento text,
+  ADD COLUMN IF NOT EXISTS cpf text,
+  ADD COLUMN IF NOT EXISTS estado_civil text,
+  ADD COLUMN IF NOT EXISTS profissao text,
+  ADD COLUMN IF NOT EXISTS telefone_alternativo text,
+  ADD COLUMN IF NOT EXISTS email text,
+  ADD COLUMN IF NOT EXISTS cep text,
+  ADD COLUMN IF NOT EXISTS endereco text,
+  ADD COLUMN IF NOT EXISTS bairro text,
+  ADD COLUMN IF NOT EXISTS restricao_serasa text,
+  ADD COLUMN IF NOT EXISTS possui_veiculo text,
+  ADD COLUMN IF NOT EXISTS expectativa_venda text;
 ```
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+### 2. Edge Function `sync-leads-from-external/index.ts`
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+Adicionar os 14 novos campos no mapeamento `leadsToInsert`, copiando do lead externo.
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+### 3. Interface `LeadRevendedora` em `types.ts`
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+Adicionar os 14 campos como `string | null` (e `tentativas` como `number | null`).
+
+### 4. `LeadDetailsSheet.tsx` — exibir todos os campos
+
+Adicionar seção "Dados Pessoais" (data_nascimento, cpf, estado_civil, profissao, email, telefone_alternativo) e "Endereço" (cep, endereco, bairro) e "Perfil Comercial" (restricao_serasa, possui_veiculo, expectativa_venda) com ícones e labels legíveis.
+
+### 5. `LeadCard.tsx` — sem alteração visual
+
+Os cards do Kanban continuam compactos. Os novos campos são visíveis apenas ao abrir o detalhe do lead.
+
+### Arquivos alterados
+
+| Arquivo | Tipo |
+|---|---|
+| Migração SQL | Novo — 14 colunas |
+| `supabase/functions/sync-leads-from-external/index.ts` | Editar — mapear novos campos |
+| `src/components/leads/types.ts` | Editar — interface LeadRevendedora |
+| `src/components/leads/LeadDetailsSheet.tsx` | Editar — exibir todos os campos |
+
