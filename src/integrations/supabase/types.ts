@@ -588,9 +588,17 @@ export type Database = {
       }
       leads_revendedoras: {
         Row: {
+          bairro: string | null
           capital_inicial: string | null
+          cep: string | null
           cidade: string | null
+          cpf: string | null
           created_at: string
+          data_nascimento: string | null
+          email: string | null
+          endereco: string | null
+          estado_civil: string | null
+          expectativa_venda: string | null
           experiencia_vendas: string | null
           external_id: string | null
           id: string
@@ -600,19 +608,33 @@ export type Database = {
           nome: string
           observacao: string | null
           origem: string | null
+          possui_veiculo: string | null
+          profissao: string | null
           responsavel_id: string | null
           responsavel_nome: string | null
+          restricao_serasa: string | null
           status: string
+          telefone_alternativo: string | null
           tempo_disponivel: string | null
+          tentativas: number | null
+          ultimo_envio: string | null
           utm_campaign: string | null
           utm_medium: string | null
           utm_source: string | null
           whatsapp: string
         }
         Insert: {
+          bairro?: string | null
           capital_inicial?: string | null
+          cep?: string | null
           cidade?: string | null
+          cpf?: string | null
           created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado_civil?: string | null
+          expectativa_venda?: string | null
           experiencia_vendas?: string | null
           external_id?: string | null
           id?: string
@@ -622,19 +644,33 @@ export type Database = {
           nome: string
           observacao?: string | null
           origem?: string | null
+          possui_veiculo?: string | null
+          profissao?: string | null
           responsavel_id?: string | null
           responsavel_nome?: string | null
+          restricao_serasa?: string | null
           status?: string
+          telefone_alternativo?: string | null
           tempo_disponivel?: string | null
+          tentativas?: number | null
+          ultimo_envio?: string | null
           utm_campaign?: string | null
           utm_medium?: string | null
           utm_source?: string | null
           whatsapp: string
         }
         Update: {
+          bairro?: string | null
           capital_inicial?: string | null
+          cep?: string | null
           cidade?: string | null
+          cpf?: string | null
           created_at?: string
+          data_nascimento?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado_civil?: string | null
+          expectativa_venda?: string | null
           experiencia_vendas?: string | null
           external_id?: string | null
           id?: string
@@ -644,10 +680,16 @@ export type Database = {
           nome?: string
           observacao?: string | null
           origem?: string | null
+          possui_veiculo?: string | null
+          profissao?: string | null
           responsavel_id?: string | null
           responsavel_nome?: string | null
+          restricao_serasa?: string | null
           status?: string
+          telefone_alternativo?: string | null
           tempo_disponivel?: string | null
+          tentativas?: number | null
+          ultimo_envio?: string | null
           utm_campaign?: string | null
           utm_medium?: string | null
           utm_source?: string | null

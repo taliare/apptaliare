@@ -18,6 +18,20 @@ export interface LeadRevendedora {
   responsavel_id: string | null;
   responsavel_nome: string | null;
   idade: string | null;
+  ultimo_envio: string | null;
+  tentativas: number | null;
+  data_nascimento: string | null;
+  cpf: string | null;
+  estado_civil: string | null;
+  profissao: string | null;
+  telefone_alternativo: string | null;
+  email: string | null;
+  cep: string | null;
+  endereco: string | null;
+  bairro: string | null;
+  restricao_serasa: string | null;
+  possui_veiculo: string | null;
+  expectativa_venda: string | null;
 }
 
 export interface LeadStatusHistorico {
