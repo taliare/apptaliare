@@ -15,6 +15,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { ZoomIn, ZoomOut } from "lucide-react";
 import { KanbanColumn } from "./KanbanColumn";
 import { LeadCard } from "./LeadCard";
 import { LeadDetailsSheet } from "./LeadDetailsSheet";
@@ -29,6 +32,7 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
   const { profile } = useAuth();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<LeadRevendedora | null>(null);
+  const [zoom, setZoom] = useState(0.8);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -139,6 +143,37 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
 
   return (
     <>
+      {/* Zoom controls */}
+      <div className="flex items-center gap-3 mb-3 px-1">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={() => setZoom((z) => Math.max(0.5, z - 0.05))}
+          disabled={zoom <= 0.5}
+        >
+          <ZoomOut className="h-4 w-4" />
+        </Button>
+        <Slider
+          value={[zoom]}
+          onValueChange={([v]) => setZoom(v)}
+          min={0.5}
+          max={1}
+          step={0.05}
+          className="w-28"
+        />
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={() => setZoom((z) => Math.min(1, z + 0.05))}
+          disabled={zoom >= 1}
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+        <span className="text-xs text-muted-foreground font-medium min-w-[3ch] text-center">
+          {Math.round(zoom * 100)}%
+        </span>
+      </div>
+
       <DndContext
         sensors={sensors}
         collisionDetection={pointerWithin}
@@ -146,7 +181,14 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
         onDragEnd={handleDragEnd}
       >
         <ScrollArea className="w-full">
-          <div className="flex gap-3 pb-4 min-h-[calc(100vh-200px)] items-stretch">
+          <div
+            className="flex gap-3 pb-4 min-h-[calc(100vh-200px)] items-stretch"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "top left",
+              width: `${100 / zoom}%`,
+            }}
+          >
             {KANBAN_COLUMNS.map((column) => (
               <KanbanColumn
                 key={column.id}
