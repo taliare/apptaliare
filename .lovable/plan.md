@@ -1,34 +1,25 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Adicionar Controle de Zoom ao CRM Kanban
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## O que será feito
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+Adicionar uma barra de controle de zoom acima do Kanban com botões de **zoom in (+)**, **zoom out (-)** e um **slider** para ajuste fino. O zoom será aplicado via CSS `transform: scale()` no container das colunas, variando de 50% a 100% (padrão 80% para caber tudo na tela).
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## Alterações
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+### `src/components/leads/LeadsKanban.tsx`
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+- Adicionar estado `zoom` (padrão: 0.8, range: 0.5 a 1.0)
+- Renderizar barra de controle com:
+  - Botão **ZoomOut** (-) 
+  - Componente **Slider** para ajuste contínuo
+  - Botão **ZoomIn** (+)
+  - Label com porcentagem atual (ex: "80%")
+- Aplicar `transform: scale(zoom)` + `transform-origin: top left` no container flex das colunas
+- Ajustar largura do container com `width: ${100/zoom}%` para compensar o scale e manter o scroll correto
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+| Arquivo | Mudança |
+|---|---|
+| `src/components/leads/LeadsKanban.tsx` | Adicionar estado de zoom, barra de controle e CSS transform no container |
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
-
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
