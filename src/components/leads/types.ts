@@ -54,10 +54,11 @@ export interface KanbanColumnConfig {
 export const KANBAN_COLUMNS: KanbanColumnConfig[] = [
   { id: 'leads_novos', label: 'Leads Novos', color: 'blue' },
   { id: 'em_analise', label: 'Em Análise', color: 'yellow' },
-  { id: 'aprovada', label: 'Aprovada', color: 'purple' },
-  { id: 'entrevista_agendada', label: 'Entrevista Agendada', color: 'orange' },
-  { id: 'ativada', label: 'Ativada', color: 'green', final: true },
-  { id: 'reprovada', label: 'Reprovada', color: 'red', final: true },
+  { id: 'pre_aprovada', label: 'Pré-aprovadas', color: 'purple' },
+  { id: 'aguardando_entrevista', label: 'Aguardando Entrevista', color: 'orange' },
+  { id: 'para_entregar', label: 'Para Entregar', color: 'cyan' },
+  { id: 'ativa', label: 'Ativas', color: 'green', final: true },
+  { id: 'reprovada', label: 'Reprovadas', color: 'red', final: true },
 ];
 
 export const COLUMN_COLORS: Record<string, string> = {
