@@ -1,37 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Atualizar Filas do CRM Kanban
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Novo funil (7 colunas)
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-```text
-Leads Novos → Em Análise → Pré-aprovadas → Aguardando Entrevista → Para Entregar → Ativas ✓ / Reprovadas ✗
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
 ```
 
-## Alterações
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-### 1. `src/components/leads/types.ts` — Novo KANBAN_COLUMNS
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-| id | label | color | final |
-|---|---|---|---|
-| leads_novos | Leads Novos | blue | — |
-| em_analise | Em Análise | yellow | — |
-| pre_aprovada | Pré-aprovadas | purple | — |
-| aguardando_entrevista | Aguardando Entrevista | orange | — |
-| para_entregar | Para Entregar | cyan | — |
-| ativa | Ativas | green | sim |
-| reprovada | Reprovadas | red | sim |
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-### 2. Migração SQL — Remapear status existentes
-
-- `aprovada` → `pre_aprovada`
-- `entrevista_agendada` → `aguardando_entrevista`
-- `ativada` → `ativa`
-
-### Arquivos alterados
-
-| Arquivo | Mudança |
-|---|---|
-| `src/components/leads/types.ts` | Novas 7 colunas |
-| Migração SQL | Remapear 3 status |
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
