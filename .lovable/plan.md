@@ -1,46 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Atualizar Colunas do Kanban de Leads
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Novo funil
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-```text
-Leads Novos → Em Análise → Aprovada → Entrevista Agendada → Ativada ✓ / Reprovada ✗
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
 ```
 
-## Alterações
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-### 1. `src/components/leads/types.ts` — Substituir KANBAN_COLUMNS
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-Trocar as 7 colunas atuais por 6:
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-| id | label | color | final |
-|---|---|---|---|
-| leads_novos | Leads Novos | blue | — |
-| em_analise | Em Análise | yellow | — |
-| aprovada | Aprovada | purple | — |
-| entrevista_agendada | Entrevista Agendada | orange | — |
-| ativada | Ativada | green | sim |
-| reprovada | Reprovada | red | sim |
-
-### 2. Migração SQL — Mapear leads antigos para novos status
-
-Leads existentes com status removidos precisam ser remapeados:
-
-- `contato_realizado` → `em_analise`
-- `follow_up` → `em_analise`
-- `interessada` → `aprovada`
-- `aguardando_kit` → `entrevista_agendada`
-- `perdida` → `reprovada`
-
-### 3. `src/pages/LeadsRevendedoras.tsx` — Filtro de status
-
-O filtro de status usa `KANBAN_COLUMNS` dinamicamente, então se ajusta automaticamente. Nenhuma alteração necessária.
-
-### Arquivos alterados
-
-| Arquivo | Mudança |
-|---|---|
-| `src/components/leads/types.ts` | Novas colunas do Kanban |
-| Migração SQL | Remapear status antigos |
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
