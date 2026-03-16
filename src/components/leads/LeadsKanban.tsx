@@ -32,6 +32,7 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
   const { profile } = useAuth();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<LeadRevendedora | null>(null);
+  const [zoom, setZoom] = useState(0.8);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
