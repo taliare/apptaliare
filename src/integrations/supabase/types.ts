@@ -1873,6 +1873,7 @@ export type Database = {
         Args: { p_kit_entregue_id: string; p_user_id: string }
         Returns: Json
       }
+      t2_cancelar_apuracao: { Args: { p_ciclo_id: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "representante" | "producao"
