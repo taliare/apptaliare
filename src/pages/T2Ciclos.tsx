@@ -423,6 +423,36 @@ export default function T2Ciclos() {
                     </Button>
                   </div>
 
+                  {isAdmin && hasApuracao && c.status === 'apurado' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="w-full text-xs mt-1"
+                          disabled={cancelApuracaoMutation.isPending}
+                        >
+                          <Undo2 className="h-3 w-3 mr-1" />
+                          {cancelApuracaoMutation.isPending ? 'Cancelando...' : 'Cancelar Apuração'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancelar Apuração</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação irá remover todos os pagamentos registrados neste ciclo e retornar o status para <strong>ativo</strong>. Deseja continuar?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Não</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => cancelApuracaoMutation.mutate(c.id)}>
+                            Sim, cancelar apuração
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+
                   <ApuracoesSection cicloId={c.id} />
                 </CardContent>
               </Card>
