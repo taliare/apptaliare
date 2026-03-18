@@ -1,34 +1,46 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Endereço completo + WhatsApp no T2
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## O que será feito
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+1. Adicionar campos de endereço à tabela `t2_revendedoras` (rua, número, complemento, bairro, cep, estado)
+2. Atualizar o formulário de cadastro em `T2Revendedoras.tsx` com os novos campos
+3. Atualizar o perfil/sheet da revendedora para mostrar endereço completo
+4. No `T2Ciclos.tsx`, tornar o nome da revendedora clicável — ao clicar, exibir um Popover/Dialog com dados de endereço e botão de WhatsApp
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## Alterações
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+### 1. Migração SQL — Novos campos na `t2_revendedoras`
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+Adicionar colunas:
+- `endereco_rua` text
+- `endereco_numero` text
+- `endereco_complemento` text
+- `endereco_bairro` text
+- `endereco_cep` text
+- `endereco_estado` text
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+(A coluna `cidade` já existe)
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+### 2. `src/pages/T2Revendedoras.tsx`
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+- Adicionar campos de endereço no formulário de cadastro (rua, número, complemento, bairro, CEP, estado)
+- Exibir endereço completo na sheet de detalhes da revendedora
+- Adicionar botão WhatsApp na sheet
+
+### 3. `src/pages/T2Ciclos.tsx`
+
+- Alterar o select de `t2_revendedoras` para incluir os novos campos de endereço + telefone
+- Tornar o nome da revendedora no card clicável
+- Ao clicar, abrir um Dialog com:
+  - Endereço completo
+  - Telefone
+  - Botão "WhatsApp" que abre `https://wa.me/55{telefone}`
+
+| Arquivo | Mudança |
+|---|---|
+| Migração SQL | 6 colunas de endereço em `t2_revendedoras` |
+| `src/pages/T2Revendedoras.tsx` | Formulário + sheet com endereço e WhatsApp |
+| `src/pages/T2Ciclos.tsx` | Nome clicável → dialog com endereço + WhatsApp |
+
