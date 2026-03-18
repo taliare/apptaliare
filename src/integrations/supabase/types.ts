@@ -1565,6 +1565,12 @@ export type Database = {
           cidade: string | null
           cpf: string
           data_cadastro: string
+          endereco_bairro: string | null
+          endereco_cep: string | null
+          endereco_complemento: string | null
+          endereco_estado: string | null
+          endereco_numero: string | null
+          endereco_rua: string | null
           id: string
           instagram: string | null
           nome_completo: string
@@ -1579,6 +1585,12 @@ export type Database = {
           cidade?: string | null
           cpf: string
           data_cadastro?: string
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_complemento?: string | null
+          endereco_estado?: string | null
+          endereco_numero?: string | null
+          endereco_rua?: string | null
           id?: string
           instagram?: string | null
           nome_completo: string
@@ -1593,6 +1605,12 @@ export type Database = {
           cidade?: string | null
           cpf?: string
           data_cadastro?: string
+          endereco_bairro?: string | null
+          endereco_cep?: string | null
+          endereco_complemento?: string | null
+          endereco_estado?: string | null
+          endereco_numero?: string | null
+          endereco_rua?: string | null
           id?: string
           instagram?: string | null
           nome_completo?: string

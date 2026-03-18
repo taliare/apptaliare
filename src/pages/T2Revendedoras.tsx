@@ -11,8 +11,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Users, Search, Star, TrendingUp, DollarSign, BarChart3 } from 'lucide-react';
+import { Plus, Users, Search, Star, TrendingUp, DollarSign, BarChart3, MessageCircle, MapPin } from 'lucide-react';
 import { CATEGORIA_COLORS, CATEGORIA_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/t2/constants';
+
+const EMPTY_FORM = {
+  nome_completo: '', nome_exibicao: '', cpf: '', telefone: '', cidade: '', instagram: '',
+  endereco_rua: '', endereco_numero: '', endereco_complemento: '', endereco_bairro: '',
+  endereco_cep: '', endereco_estado: '',
+};
 
 export default function T2Revendedoras() {
   const { user, profile } = useAuth();
@@ -21,10 +27,7 @@ export default function T2Revendedoras() {
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const [form, setForm] = useState({
-    nome_completo: '', nome_exibicao: '', cpf: '', telefone: '', cidade: '', instagram: '',
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const { data: revendedoras = [], isLoading } = useQuery({
     queryKey: ['t2-revendedoras'],
@@ -38,7 +41,6 @@ export default function T2Revendedoras() {
     },
   });
 
-  // Historico da revendedora selecionada
   const { data: historico } = useQuery({
     queryKey: ['t2-historico', selectedId],
     queryFn: async () => {
@@ -110,7 +112,6 @@ export default function T2Revendedoras() {
     enabled: cicloIds.length > 0,
   });
 
-  // Helper maps for cycle details
   const getApuracao = (cicloId: string) => apuracoes.find((a: any) => a.ciclo_id === cicloId);
   const getTotalPagamentos = (cicloId: string) => {
     const ap = getApuracao(cicloId);
@@ -131,14 +132,19 @@ export default function T2Revendedoras() {
         telefone: form.telefone.trim(),
         cidade: form.cidade.trim() || null,
         instagram: form.instagram.trim() || null,
+        endereco_rua: form.endereco_rua.trim() || null,
+        endereco_numero: form.endereco_numero.trim() || null,
+        endereco_complemento: form.endereco_complemento.trim() || null,
+        endereco_bairro: form.endereco_bairro.trim() || null,
+        endereco_cep: form.endereco_cep.trim() || null,
+        endereco_estado: form.endereco_estado.trim() || null,
         representante_id: isAdmin ? null : user?.id,
-      }).select();
+      } as any).select();
       if (error) { console.error("t2_revendedoras INSERT ERROR:", error); throw error; }
-      console.log("t2_revendedoras INSERT OK:", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['t2-revendedoras'] });
-      setForm({ nome_completo: '', nome_exibicao: '', cpf: '', telefone: '', cidade: '', instagram: '' });
+      setForm(EMPTY_FORM);
       setCreateOpen(false);
       toast({ title: 'Revendedora cadastrada!' });
     },
@@ -163,13 +169,31 @@ export default function T2Revendedoras() {
   const fmt = (v: number) => Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
   const selected = revendedoras.find((r: any) => r.id === selectedId);
 
-  // Dashboard stats
   const totalAtivas = revendedoras.filter((r: any) => r.status !== 'inativa').length;
   const categoryCounts = revendedoras.reduce((acc: Record<string, number>, r: any) => {
     const cat = r.categoria_atual || 'SEM CATEGORIA';
     acc[cat] = (acc[cat] || 0) + 1;
     return acc;
   }, {});
+
+  const openWhatsApp = (telefone: string) => {
+    const clean = telefone.replace(/\D/g, '');
+    const num = clean.startsWith('55') ? clean : `55${clean}`;
+    window.open(`https://wa.me/${num}`, '_blank');
+  };
+
+  const formatEndereco = (r: any) => {
+    const parts = [
+      r.endereco_rua,
+      r.endereco_numero ? `nº ${r.endereco_numero}` : null,
+      r.endereco_complemento,
+      r.endereco_bairro,
+      r.cidade,
+      r.endereco_estado,
+      r.endereco_cep ? `CEP: ${r.endereco_cep}` : null,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : null;
+  };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -182,16 +206,47 @@ export default function T2Revendedoras() {
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Nova Revendedora</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Cadastrar Revendedora</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div><Label>Nome Completo *</Label><Input value={form.nome_completo} onChange={e => setForm(f => ({ ...f, nome_completo: e.target.value }))} /></div>
               <div><Label>Nome de Exibição</Label><Input placeholder="Opcional" value={form.nome_exibicao} onChange={e => setForm(f => ({ ...f, nome_exibicao: e.target.value }))} /></div>
-              <div><Label>CPF *</Label><Input placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))} /></div>
-              <div><Label>Telefone *</Label><Input placeholder="(00) 00000-0000" value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} /></div>
-              <div><Label>Cidade</Label><Input value={form.cidade} onChange={e => setForm(f => ({ ...f, cidade: e.target.value }))} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>CPF *</Label><Input placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))} /></div>
+                <div><Label>Telefone *</Label><Input placeholder="(00) 00000-0000" value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} /></div>
+              </div>
               <div><Label>Instagram</Label><Input placeholder="@usuario" value={form.instagram} onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))} /></div>
-              <Button className="w-full" disabled={!form.nome_completo || !form.cpf || !form.telefone || createMutation.isPending} onClick={() => createMutation.mutate()}>
+
+              <div className="border-t border-border pt-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" /> Endereço
+                </h3>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2"><Label>Rua *</Label><Input value={form.endereco_rua} onChange={e => setForm(f => ({ ...f, endereco_rua: e.target.value }))} /></div>
+                    <div><Label>Número</Label><Input value={form.endereco_numero} onChange={e => setForm(f => ({ ...f, endereco_numero: e.target.value }))} /></div>
+                  </div>
+                  <div><Label>Complemento</Label><Input placeholder="Apto, bloco, etc." value={form.endereco_complemento} onChange={e => setForm(f => ({ ...f, endereco_complemento: e.target.value }))} /></div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label>Bairro *</Label><Input value={form.endereco_bairro} onChange={e => setForm(f => ({ ...f, endereco_bairro: e.target.value }))} /></div>
+                    <div><Label>CEP</Label><Input placeholder="00000-000" value={form.endereco_cep} onChange={e => setForm(f => ({ ...f, endereco_cep: e.target.value }))} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div><Label>Cidade *</Label><Input value={form.cidade} onChange={e => setForm(f => ({ ...f, cidade: e.target.value }))} /></div>
+                    <div><Label>Estado *</Label><Input placeholder="UF" maxLength={2} value={form.endereco_estado} onChange={e => setForm(f => ({ ...f, endereco_estado: e.target.value.toUpperCase() }))} /></div>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                className="w-full"
+                disabled={
+                  !form.nome_completo || !form.cpf || !form.telefone ||
+                  !form.endereco_rua || !form.endereco_bairro || !form.cidade || !form.endereco_estado ||
+                  createMutation.isPending
+                }
+                onClick={() => createMutation.mutate()}
+              >
                 {createMutation.isPending ? 'Salvando...' : 'Cadastrar'}
               </Button>
             </div>
@@ -275,7 +330,6 @@ export default function T2Revendedoras() {
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-muted-foreground">CPF:</span> <span className="font-medium">{formatCpf(selected.cpf)}</span></div>
                   <div><span className="text-muted-foreground">Telefone:</span> <span className="font-medium">{selected.telefone}</span></div>
-                  <div><span className="text-muted-foreground">Cidade:</span> <span className="font-medium">{selected.cidade || '—'}</span></div>
                   <div><span className="text-muted-foreground">Instagram:</span> <span className="font-medium">{selected.instagram || '—'}</span></div>
                 </div>
                 <div className="flex gap-2 mt-2">
@@ -284,6 +338,26 @@ export default function T2Revendedoras() {
                   </Badge>
                   <Badge variant="outline" className="gap-1"><Star className="h-3 w-3" />{selected.score} pts</Badge>
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 gap-1"
+                  onClick={() => openWhatsApp(selected.telefone)}
+                >
+                  <MessageCircle className="h-4 w-4" /> WhatsApp
+                </Button>
+              </div>
+
+              {/* Endereço */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" /> Endereço
+                </h3>
+                {formatEndereco(selected) ? (
+                  <p className="text-sm">{formatEndereco(selected)}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Endereço não cadastrado</p>
+                )}
               </div>
 
               {/* Histórico agregado */}
@@ -332,11 +406,9 @@ export default function T2Revendedoras() {
                             <span className="font-medium">{c.t2_pedidos?.codigo_pedido || 'Sem pedido'}</span>
                             <Badge className={STATUS_COLORS[c.status] || ''}>{STATUS_LABELS[c.status] || c.status}</Badge>
                           </div>
-
                           <div className="text-xs text-muted-foreground">
                             Entrega: {new Date(c.data_inicio).toLocaleDateString('pt-BR')} → Vencimento: {new Date(c.data_vencimento).toLocaleDateString('pt-BR')}
                           </div>
-
                           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Valor do Kit:</span>
