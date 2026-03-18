@@ -1,23 +1,34 @@
 
-
-# Corrigir Erro "permission denied: system trigger"
+# Correcao do DRE - Fevereiro nao soma valores
 
 ## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-A função `t2_cancelar_apuracao` usa `ALTER TABLE t2_ciclos DISABLE TRIGGER ALL`, que requer privilégios de superusuário — não disponível em Cloud.
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-## Solução
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-Em vez de desabilitar triggers, atualizar o trigger `t2_validar_status_ciclo` para permitir a transição `apurado → ativo` (reversão). Depois, remover os comandos `DISABLE/ENABLE TRIGGER` da função.
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-## Alterações
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-### Migração SQL
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-1. **Atualizar `t2_validar_status_ciclo`** — adicionar a transição `apurado → ativo` como permitida
-2. **Atualizar `t2_cancelar_apuracao`** — remover `ALTER TABLE ... DISABLE/ENABLE TRIGGER ALL`
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-| Arquivo | Mudança |
-|---|---|
-| Migração SQL | Corrigir ambas as funções |
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria
