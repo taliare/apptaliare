@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, ClipboardList, DollarSign, Package } from 'lucide-react';
+import { Plus, RefreshCw, ClipboardList, DollarSign, Package, Undo2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, addDays, startOfDay, isBefore, isEqual } from 'date-fns';
 import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
 import { ApuracaoDialog } from '@/components/t2/ApuracaoDialog';
