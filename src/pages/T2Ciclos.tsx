@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, ClipboardList, DollarSign, Package, Undo2 } from 'lucide-react';
+import { Plus, RefreshCw, ClipboardList, DollarSign, Package, Undo2, MapPin, MessageCircle } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, addDays, startOfDay, isBefore, isEqual } from 'date-fns';
 import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
@@ -40,13 +40,14 @@ export default function T2Ciclos() {
   const [apuracaoCiclo, setApuracaoCiclo] = useState<any>(null);
   const [adiantamentoCiclo, setAdiantamentoCiclo] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState<string>('todos');
+  const [revendedoraInfoId, setRevendedoraInfoId] = useState<string | null>(null);
 
   const { data: ciclos = [], isLoading } = useQuery({
     queryKey: ['t2-ciclos'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('t2_ciclos')
-        .select('*, t2_revendedoras(nome_completo, nome_exibicao), t2_pedidos(codigo_pedido)')
+        .select('*, t2_revendedoras(id, nome_completo, nome_exibicao, telefone, cidade, endereco_rua, endereco_numero, endereco_complemento, endereco_bairro, endereco_cep, endereco_estado), t2_pedidos(codigo_pedido)')
         .order('data_cobranca' as any, { ascending: true });
       if (error) throw error;
       return data;
@@ -57,7 +58,6 @@ export default function T2Ciclos() {
     ? ciclos
     : ciclos.filter((c: any) => c.status === statusFilter);
 
-  // Query ciclo_pedidos junction to show linked pedidos per ciclo
   const { data: cicloPedidos = [] } = useQuery({
     queryKey: ['t2-ciclo-pedidos'],
     queryFn: async () => {
@@ -69,7 +69,6 @@ export default function T2Ciclos() {
     },
   });
 
-  // Query apurações with valor_empresa per ciclo
   const { data: apuracoes = [] } = useQuery({
     queryKey: ['t2-apuracoes-for-ciclos'],
     queryFn: async () => {
@@ -83,7 +82,6 @@ export default function T2Ciclos() {
 
   const apuracoesCicloIds = apuracoes.map((a: any) => a.ciclo_id);
 
-  // Query all pagamentos linked to apurações
   const { data: allPagamentos = [] } = useQuery({
     queryKey: ['t2-pagamentos-all', apuracoes.length],
     queryFn: async () => {
@@ -99,7 +97,6 @@ export default function T2Ciclos() {
     enabled: apuracoes.length > 0,
   });
 
-  // Query all adiantamentos for active ciclos
   const { data: allAdiantamentos = [] } = useQuery({
     queryKey: ['t2-adiantamentos-all'],
     queryFn: async () => {
@@ -111,22 +108,18 @@ export default function T2Ciclos() {
     },
   });
 
-  // Helper: compute saldo for a ciclo
   const getSaldoCiclo = (cicloId: string): { hasApuracao: boolean; saldo: number } => {
     const apuracao = apuracoes.find((a: any) => a.ciclo_id === cicloId);
     if (!apuracao) return { hasApuracao: false, saldo: 0 };
-
     const totalPag = allPagamentos
       .filter((p: any) => p.apuracao_id === apuracao.id)
       .reduce((sum: number, p: any) => sum + Number(p.valor_pago), 0);
     const totalAdiant = allAdiantamentos
       .filter((a: any) => a.ciclo_id === cicloId)
       .reduce((sum: number, a: any) => sum + Number(a.valor), 0);
-
     return { hasApuracao: true, saldo: Number(apuracao.valor_empresa) - totalPag - totalAdiant };
   };
 
-  // Helper: get pedidos linked to a ciclo
   const getPedidosCiclo = (cicloId: string) => {
     return (cicloPedidos as any[]).filter((cp: any) => cp.ciclo_id === cicloId);
   };
@@ -149,7 +142,6 @@ export default function T2Ciclos() {
     },
   });
 
-  // Calculate total from selected pedidos
   const valorTotalSelecionado = selectedPedidoIds.reduce((sum, id) => {
     const p = pedidosDisponiveis.find((pd: any) => pd.id === id);
     return sum + (p ? Number(p.valor_total) : 0);
@@ -166,14 +158,11 @@ export default function T2Ciclos() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!selectedRevendedora || selectedPedidoIds.length === 0) throw new Error('Selecione revendedora e pelo menos um pedido');
-
       const valorKit = valorTotalSelecionado;
       const comissaoPerc = Number(comissao);
       const valorEmpresa = valorKit * (1 - comissaoPerc / 100);
-
-      // Create ciclo without pedido_id (using junction table instead)
       const { data: cicloData, error: cicloError } = await supabase.from('t2_ciclos').insert({
-        pedido_id: selectedPedidoIds[0], // keep first for backward compat
+        pedido_id: selectedPedidoIds[0],
         revendedora_id: selectedRevendedora,
         representante_id: user?.id,
         valor_kit: valorKit,
@@ -184,30 +173,15 @@ export default function T2Ciclos() {
         data_cobranca: dataVencimento,
       } as any).select();
       if (cicloError) {
-        console.error("t2_ciclos INSERT ERROR:", cicloError);
         if (cicloError.message?.includes('t2_ciclos_revendedora_ativo_unique')) {
           throw new Error('Esta revendedora já possui um ciclo ativo.');
         }
         throw cicloError;
       }
-      console.log("t2_ciclos INSERT OK:", cicloData);
-
       const cicloId = cicloData[0].id;
-
-      // Insert junction records for all selected pedidos
-      const junctionRows = selectedPedidoIds.map(pid => ({
-        ciclo_id: cicloId,
-        pedido_id: pid,
-      }));
-      const { error: junctionError } = await supabase
-        .from('t2_ciclo_pedidos' as any)
-        .insert(junctionRows);
-      if (junctionError) {
-        console.error("t2_ciclo_pedidos INSERT ERROR:", junctionError);
-        throw junctionError;
-      }
-
-      // Update all selected pedidos to em_ciclo
+      const junctionRows = selectedPedidoIds.map(pid => ({ ciclo_id: cicloId, pedido_id: pid }));
+      const { error: junctionError } = await supabase.from('t2_ciclo_pedidos' as any).insert(junctionRows);
+      if (junctionError) throw junctionError;
       for (const pid of selectedPedidoIds) {
         await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', pid);
       }
@@ -260,6 +234,30 @@ export default function T2Ciclos() {
   };
 
   const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+  const openWhatsApp = (telefone: string) => {
+    const clean = telefone.replace(/\D/g, '');
+    const num = clean.startsWith('55') ? clean : `55${clean}`;
+    window.open(`https://wa.me/${num}`, '_blank');
+  };
+
+  const formatEndereco = (r: any) => {
+    const parts = [
+      r.endereco_rua,
+      r.endereco_numero ? `nº ${r.endereco_numero}` : null,
+      r.endereco_complemento,
+      r.endereco_bairro,
+      r.cidade,
+      r.endereco_estado,
+      r.endereco_cep ? `CEP: ${r.endereco_cep}` : null,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : null;
+  };
+
+  // Find the revendedora info for the dialog
+  const revendedoraInfo = revendedoraInfoId
+    ? ciclos.find((c: any) => c.t2_revendedoras?.id === revendedoraInfoId)?.t2_revendedoras
+    : null;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -370,7 +368,16 @@ export default function T2Ciclos() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base font-semibold">
-                      {c.t2_revendedoras?.nome_exibicao || c.t2_revendedoras?.nome_completo || 'Revendedora'}
+                      <button
+                        type="button"
+                        className="text-left hover:text-primary underline-offset-2 hover:underline transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRevendedoraInfoId(c.t2_revendedoras?.id || null);
+                        }}
+                      >
+                        {c.t2_revendedoras?.nome_exibicao || c.t2_revendedoras?.nome_completo || 'Revendedora'}
+                      </button>
                     </CardTitle>
                     <Badge className={STATUS_COLORS[c.status] || ''}>{STATUS_LABELS[c.status] || c.status}</Badge>
                   </div>
@@ -460,6 +467,40 @@ export default function T2Ciclos() {
           })}
         </div>
       )}
+
+      {/* Revendedora Info Dialog */}
+      <Dialog open={!!revendedoraInfoId} onOpenChange={(o) => !o && setRevendedoraInfoId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              {revendedoraInfo?.nome_exibicao || revendedoraInfo?.nome_completo || 'Revendedora'}
+            </DialogTitle>
+          </DialogHeader>
+          {revendedoraInfo && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Endereço</h4>
+                {formatEndereco(revendedoraInfo) ? (
+                  <p className="text-sm">{formatEndereco(revendedoraInfo)}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Endereço não cadastrado</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Telefone</h4>
+                <p className="text-sm font-medium">{revendedoraInfo.telefone}</p>
+              </div>
+              <Button
+                className="w-full gap-2"
+                onClick={() => openWhatsApp(revendedoraInfo.telefone)}
+              >
+                <MessageCircle className="h-4 w-4" /> Abrir WhatsApp
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {apuracaoCiclo && (
         <ApuracaoDialog
