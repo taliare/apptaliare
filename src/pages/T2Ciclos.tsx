@@ -229,6 +229,28 @@ export default function T2Ciclos() {
     },
   });
 
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+
+  const cancelApuracaoMutation = useMutation({
+    mutationFn: async (cicloId: string) => {
+      const { data, error } = await supabase.rpc('t2_cancelar_apuracao', { p_ciclo_id: cicloId } as any);
+      if (error) throw error;
+      const result = data as any;
+      if (!result.success) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['t2-ciclos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-apuracoes-for-ciclos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-pagamentos-all'] });
+      toast({ title: 'Apuração cancelada', description: `${data.pagamentos_removidos} pagamento(s) removido(s). Ciclo reativado.` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao cancelar apuração', description: err.message, variant: 'destructive' });
+    },
+  });
+
   const handleOpenApuracao = (ciclo: any) => {
     if (apuracoesCicloIds.includes(ciclo.id)) {
       toast({ title: 'Este ciclo já possui uma prestação de contas registrada.', variant: 'destructive' });
