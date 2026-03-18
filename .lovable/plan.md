@@ -1,34 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Cancelar Apuração — Botão Admin no Menu Ciclos
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## O que será feito
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-Adicionar um botão "Cancelar Apuração" nos cards de ciclos apurados, visível apenas para admins. Ao confirmar, o sistema reverte toda a apuração: remove pagamentos, remove a apuração e retorna o ciclo ao status "ativo".
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-## Alterações
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-### 1. Migração SQL — Função `t2_cancelar_apuracao`
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-Criar uma função SECURITY DEFINER que executa atomicamente:
-1. Deleta todos os `t2_pagamentos` vinculados à apuração do ciclo
-2. Deleta o registro em `t2_apuracoes`
-3. Atualiza `t2_ciclos` → `status = 'ativo'`, `valor_pago = 0`
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-Precisa ser SECURITY DEFINER para contornar o trigger `t2_validar_status_ciclo` que bloqueia transição `apurado → ativo`.
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-### 2. `src/pages/T2Ciclos.tsx` — Botão no card
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-- Adicionar botão "Cancelar Apuração" (ícone `Undo2`) nos cards com status `apurado`
-- Visível apenas quando `profile?.role === 'admin'`
-- Ao clicar, exibir `AlertDialog` de confirmação
-- Chamar `supabase.rpc('t2_cancelar_apuracao', { p_ciclo_id })` 
-- Invalidar queries relevantes após sucesso
-
-### Arquivos alterados
-
-| Arquivo | Mudança |
-|---|---|
-| Migração SQL | Função `t2_cancelar_apuracao` |
-| `src/pages/T2Ciclos.tsx` | Botão admin + dialog de confirmação |
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria

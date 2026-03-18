@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, ClipboardList, DollarSign, Package } from 'lucide-react';
+import { Plus, RefreshCw, ClipboardList, DollarSign, Package, Undo2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, addDays, startOfDay, isBefore, isEqual } from 'date-fns';
 import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
 import { ApuracaoDialog } from '@/components/t2/ApuracaoDialog';
@@ -228,6 +229,28 @@ export default function T2Ciclos() {
     },
   });
 
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+
+  const cancelApuracaoMutation = useMutation({
+    mutationFn: async (cicloId: string) => {
+      const { data, error } = await supabase.rpc('t2_cancelar_apuracao', { p_ciclo_id: cicloId } as any);
+      if (error) throw error;
+      const result = data as any;
+      if (!result.success) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['t2-ciclos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-apuracoes-for-ciclos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-pagamentos-all'] });
+      toast({ title: 'Apuração cancelada', description: `${data.pagamentos_removidos} pagamento(s) removido(s). Ciclo reativado.` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao cancelar apuração', description: err.message, variant: 'destructive' });
+    },
+  });
+
   const handleOpenApuracao = (ciclo: any) => {
     if (apuracoesCicloIds.includes(ciclo.id)) {
       toast({ title: 'Este ciclo já possui uma prestação de contas registrada.', variant: 'destructive' });
@@ -399,6 +422,36 @@ export default function T2Ciclos() {
                       <DollarSign className="h-3 w-3 mr-1" /> Adiantamento
                     </Button>
                   </div>
+
+                  {isAdmin && hasApuracao && c.status === 'apurado' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="w-full text-xs mt-1"
+                          disabled={cancelApuracaoMutation.isPending}
+                        >
+                          <Undo2 className="h-3 w-3 mr-1" />
+                          {cancelApuracaoMutation.isPending ? 'Cancelando...' : 'Cancelar Apuração'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancelar Apuração</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação irá remover todos os pagamentos registrados neste ciclo e retornar o status para <strong>ativo</strong>. Deseja continuar?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Não</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => cancelApuracaoMutation.mutate(c.id)}>
+                            Sim, cancelar apuração
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
 
                   <ApuracoesSection cicloId={c.id} />
                 </CardContent>
