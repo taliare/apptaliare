@@ -101,7 +101,6 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
 
   useEffect(() => {
     if (lead) {
-      setObservacaoEdit(lead.observacao || "");
       setResponsavelId(lead.responsavel_id);
       setShowDeleteConfirm(false);
     }
