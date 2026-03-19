@@ -49,8 +49,29 @@ export default function T2MeusKits() {
     },
   });
 
-  const filteredPedidos = pedidos.filter((p: any) => p.status === statusFilter);
-  const pedidosDisponiveis = pedidos.filter((p: any) => p.status === 'disponivel');
+  const { data: pedidosEmCicloAtivoIds = [] } = useQuery({
+    queryKey: ['t2-pedidos-em-ciclo-ativo', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('t2_ciclo_pedidos' as any)
+        .select('pedido_id, t2_ciclos!inner(status, representante_id)')
+        .eq('t2_ciclos.representante_id', user?.id)
+        .eq('t2_ciclos.status', 'ativo');
+      if (error) throw error;
+      return [...new Set((data ?? []).map((row: any) => row.pedido_id))] as string[];
+    },
+    enabled: !!user?.id,
+  });
+
+  const pedidosEmCicloAtivoSet = new Set(pedidosEmCicloAtivoIds);
+  const isPedidoEntregue = (pedido: any) => pedido.status === 'em_ciclo' || pedidosEmCicloAtivoSet.has(pedido.id);
+
+  const filteredPedidos = pedidos.filter((p: any) =>
+    statusFilter === 'disponivel'
+      ? p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id)
+      : isPedidoEntregue(p)
+  );
+  const pedidosDisponiveis = pedidos.filter((p: any) => p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id));
 
   const valorTotalSelecionado = selectedPedidoIds.reduce((sum, id) => {
     const p = pedidosDisponiveis.find((pd: any) => pd.id === id);
