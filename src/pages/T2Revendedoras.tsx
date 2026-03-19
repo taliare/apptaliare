@@ -18,7 +18,7 @@ import { CATEGORIA_COLORS, CATEGORIA_LABELS, STATUS_COLORS, STATUS_LABELS } from
 const EMPTY_FORM = {
   nome_completo: '', nome_exibicao: '', cpf: '', telefone: '', cidade: '', instagram: '',
   endereco_rua: '', endereco_numero: '', endereco_complemento: '', endereco_bairro: '',
-  endereco_cep: '', endereco_estado: '',
+  endereco_cep: '', endereco_estado: '', representante_id: '',
 };
 
 export default function T2Revendedoras() {
@@ -29,6 +29,20 @@ export default function T2Revendedoras() {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+
+  // Buscar representantes para o seletor (admin only)
+  const { data: representantes = [] } = useQuery({
+    queryKey: ['t2-representantes-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles_limited')
+        .select('id, nome')
+        .eq('ativo', true);
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAdmin,
+  });
 
   const { data: revendedoras = [], isLoading } = useQuery({
     queryKey: ['t2-revendedoras'],
