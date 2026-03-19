@@ -265,11 +265,6 @@ export default function T2MeusKits() {
             </div>
 
             <div>
-              <Label>Comissão (%)</Label>
-              <Input type="number" value={comissao} onChange={e => setComissao(e.target.value)} />
-            </div>
-
-            <div>
               <Label>Data de Vencimento / Cobrança</Label>
               <Input type="date" value={dataVencimento} onChange={e => setDataVencimento(e.target.value)} />
               <p className="text-xs text-muted-foreground mt-1">Padrão: 45 dias a partir de hoje</p>
