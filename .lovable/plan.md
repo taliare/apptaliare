@@ -1,23 +1,34 @@
 
-
-# Corrigir Usabilidade do Dialog de Usuários
+# Correcao do DRE - Fevereiro nao soma valores
 
 ## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-O `DialogContent` tem altura fixa e o conteúdo (formulário + permissões de menu) ultrapassa a tela, impedindo o scroll até o botão "Salvar".
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-## Solução
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-Tornar o conteúdo do dialog scrollável, mantendo header e footer fixos.
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-## Alteração
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
+```
 
-### `src/pages/Usuarios.tsx`
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-1. Adicionar `max-h-[80vh]` e `flex flex-col` ao `DialogContent` (linha 735)
-2. Envolver o conteúdo do formulário (div `space-y-4 py-4`, linha 748) com `overflow-y-auto` e limitar sua altura
-3. Remover o `max-h-48` da grid de permissões (linha 880) — o scroll será gerenciado pelo container pai
-4. Manter `DialogHeader` e `DialogFooter` fora da área scrollável
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-Resultado: o dialog ficará com scroll interno no corpo do formulário, e os botões "Cancelar" / "Salvar" sempre visíveis no rodapé.
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria

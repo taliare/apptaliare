@@ -732,8 +732,8 @@ export default function Usuarios() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <form onSubmit={handleSubmit}>
+        <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
+          <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
             <DialogHeader>
               <DialogTitle>
                 {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
@@ -745,7 +745,7 @@ export default function Usuarios() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 overflow-y-auto flex-1 pr-1">
               <div className="space-y-2">
                 <Label htmlFor="nome">Nome Completo *</Label>
                 <Input
@@ -877,7 +877,7 @@ export default function Usuarios() {
                   <p className="text-xs text-muted-foreground">
                     Selecione os menus que este usuário pode acessar
                   </p>
-                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
+                  <div className="grid grid-cols-2 gap-2 pr-1">
                     {ASSIGNABLE_MENUS.map(menu => (
                       <div key={menu.key} className="flex items-center gap-2">
                         <Checkbox
