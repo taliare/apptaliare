@@ -138,7 +138,7 @@ export default function T2Revendedoras() {
         endereco_bairro: form.endereco_bairro.trim() || null,
         endereco_cep: form.endereco_cep.trim() || null,
         endereco_estado: form.endereco_estado.trim() || null,
-        representante_id: isAdmin ? null : user?.id,
+        representante_id: isAdmin ? (form as any).representante_id || user?.id : user?.id,
       } as any).select();
       if (error) { console.error("t2_revendedoras INSERT ERROR:", error); throw error; }
     },

@@ -97,6 +97,14 @@ export function AppSidebar() {
         { title: "Histórico de Ações", url: "/historico-acoes", icon: ClipboardList },
       ],
     },
+    {
+      label: "TALIARE 2.0",
+      items: [
+        { title: "Revendedoras T2", url: "/t2-revendedoras", icon: Users },
+        { title: "Ciclos T2", url: "/t2-ciclos", icon: Target },
+        { title: "Produção T2", url: "/t2-producao", icon: Package },
+      ],
+    },
   ];
 
   const producaoCategories: MenuCategory[] = [
