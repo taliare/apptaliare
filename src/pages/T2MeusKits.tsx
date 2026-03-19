@@ -216,7 +216,7 @@ export default function T2MeusKits() {
                 {p.observacao && (
                   <p className="text-muted-foreground text-xs">{p.observacao}</p>
                 )}
-                {p.status === 'disponivel' && (
+                {p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id) && (
                   <Button
                     size="sm"
                     className="w-full mt-2"
