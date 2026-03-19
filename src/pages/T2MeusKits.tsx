@@ -121,7 +121,6 @@ export default function T2MeusKits() {
     setEntregaOpen(false);
     setSelectedPedidoIds([]);
     setSelectedRevendedora('');
-    setComissao('10');
     setDataVencimento(format(addDays(new Date(), 45), 'yyyy-MM-dd'));
   };
 
