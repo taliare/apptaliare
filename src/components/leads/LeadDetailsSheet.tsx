@@ -145,10 +145,6 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     },
   });
 
-  const handleSalvarObservacao = () => {
-    updateLead.mutate({ observacao: observacaoEdit });
-  };
-
   const handleResponsavelChange = (value: string) => {
     const newResponsavelId = value === "none" ? null : value;
     const admin = admins.find((a) => a.id === newResponsavelId);
