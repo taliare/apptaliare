@@ -142,7 +142,7 @@ export default function T2Revendedoras() {
       if (cpfClean.length !== 11) throw new Error('CPF deve ter 11 dígitos');
       const { data, error } = await supabase.from('t2_revendedoras').insert({
         nome_completo: form.nome_completo.trim(),
-        nome_exibicao: form.nome_exibicao.trim() || null,
+        nome_exibicao: form.nome_completo.trim(),
         cpf: cpfClean,
         telefone: form.telefone.trim(),
         cidade: form.cidade.trim() || null,
