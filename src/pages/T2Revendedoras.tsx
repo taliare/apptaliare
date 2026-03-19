@@ -225,7 +225,7 @@ export default function T2Revendedoras() {
             <DialogHeader><DialogTitle>Cadastrar Revendedora</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div><Label>Nome Completo *</Label><Input value={form.nome_completo} onChange={e => setForm(f => ({ ...f, nome_completo: e.target.value }))} /></div>
-              <div><Label>Nome de Exibição</Label><Input placeholder="Opcional" value={form.nome_exibicao} onChange={e => setForm(f => ({ ...f, nome_exibicao: e.target.value }))} /></div>
+              
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>CPF *</Label><Input placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))} /></div>
                 <div><Label>Telefone *</Label><Input placeholder="(00) 00000-0000" value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} /></div>
