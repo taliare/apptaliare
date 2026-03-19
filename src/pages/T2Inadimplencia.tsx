@@ -232,7 +232,7 @@ export default function T2Inadimplencia() {
               <tr className="border-b border-border text-left">
                 <th className="py-3 px-2 font-medium text-muted-foreground">Revendedora</th>
                 <th className="py-3 px-2 font-medium text-muted-foreground">Cidade</th>
-                <th className="py-3 px-2 font-medium text-muted-foreground">Representante</th>
+                {isAdmin && <th className="py-3 px-2 font-medium text-muted-foreground">Representante</th>}
                 <th className="py-3 px-2 font-medium text-muted-foreground text-right">Saldo Restante</th>
                 <th className="py-3 px-2 font-medium text-muted-foreground text-center">Data Cobrança</th>
                 <th className="py-3 px-2 font-medium text-muted-foreground text-center">Dias em Atraso</th>
@@ -245,7 +245,7 @@ export default function T2Inadimplencia() {
                     {c.t2_revendedoras?.nome_exibicao || c.t2_revendedoras?.nome_completo || 'N/A'}
                   </td>
                   <td className="py-3 px-2 text-muted-foreground">{c.t2_revendedoras?.cidade || '-'}</td>
-                  <td className="py-3 px-2">{getRepName(c.representante_id)}</td>
+                  {isAdmin && <td className="py-3 px-2">{getRepName(c.representante_id)}</td>}
                   <td className="py-3 px-2 text-right font-semibold text-destructive">
                     {formatarValor(c.saldoRestante)}
                   </td>
