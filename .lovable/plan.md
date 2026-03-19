@@ -1,34 +1,51 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Controle de Kits do Representante - "Meus Kits" T2
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Visão Geral
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+Criar uma nova tela "Meus Kits" no TALIARE 2.0 para representantes, que mostra os pedidos recebidos da produção agrupados como kits e permite entregá-los diretamente a uma revendedora, criando automaticamente um ciclo.
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## Abordagem
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+Em vez de criar uma nova tabela, vamos usar a tabela `t2_pedidos` existente como base. Os pedidos com `status = 'disponivel'` e `representante_id` do usuário logado são os "kits disponíveis". Pedidos com `status = 'em_ciclo'` são "kits entregues". A tela "Meus Kits" é essencialmente uma visão centrada no representante dos seus pedidos.
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+A ação "Entregar para revendedora" reproduz a mesma lógica de criação de ciclo já existente em T2Ciclos (criar ciclo, vincular pedidos via `t2_ciclo_pedidos`, atualizar status dos pedidos para `em_ciclo`).
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+## Banco de Dados
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+Nenhuma alteração de schema necessária. A estrutura de `t2_pedidos` já suporta o fluxo:
+- `status = 'disponivel'` → kit disponível
+- `status = 'em_ciclo'` → kit entregue
+- `representante_id` → dono do kit
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+## Alterações no Frontend
+
+### 1. Nova página: `src/pages/T2MeusKits.tsx`
+
+- Lista pedidos do representante logado (`t2_pedidos` where `representante_id = user.id`)
+- Duas seções ou filtro: "Disponíveis" / "Entregues"
+- Para cada pedido disponível: código, valor, data, botão "Entregar para Revendedora"
+- Modal de entrega com:
+  - Select de revendedora (`t2_revendedoras`)
+  - Seleção de pedidos disponíveis (checkbox, pré-selecionado o kit clicado)
+  - Campo comissão (%) — padrão 10%
+  - Data de vencimento — padrão 45 dias
+- Ao confirmar: cria ciclo + vincula pedidos + atualiza status (mesma lógica de `T2Ciclos.createMutation`)
+
+### 2. Rota: `src/components/AnimatedRoutes.tsx`
+
+- Adicionar rota `/t2-meus-kits` apontando para `T2MeusKits`
+
+### 3. Menu lateral: `src/components/AppSidebar.tsx`
+
+- Adicionar "Meus Kits" na categoria "TALIARE 2.0" do representante (entre Revendedoras T2 e Ciclos T2)
+
+### 4. Menu mobile: `src/components/MobileDrawer.tsx`
+
+- Adicionar "Meus Kits" na seção T2
+
+### 5. Permissões: `src/lib/menuPermissions.ts`
+
+- Adicionar `t2_meus_kits` ao `ASSIGNABLE_MENUS` e `MENU_EXTRA_CONFIG`
+
