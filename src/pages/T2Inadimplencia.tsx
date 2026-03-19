@@ -11,6 +11,8 @@ import { differenceInDays, isBefore, startOfDay } from 'date-fns';
 import { formatarValor } from '@/lib/utils';
 
 export default function T2Inadimplencia() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [filtroRepresentante, setFiltroRepresentante] = useState('todos');
   const [filtroCidade, setFiltroCidade] = useState('');
   const [filtroAtraso, setFiltroAtraso] = useState('todos');
