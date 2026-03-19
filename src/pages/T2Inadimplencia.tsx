@@ -187,6 +187,17 @@ export default function T2Inadimplencia() {
 
       {/* Filtros */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+        {isAdmin && (
+          <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
+            <SelectTrigger><SelectValue placeholder="Representante" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os representantes</SelectItem>
+              {representantes.map((r: any) => (
+                <SelectItem key={r.id} value={r.id!}>{r.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Input
           placeholder="Filtrar por cidade..."
           value={filtroCidade}
