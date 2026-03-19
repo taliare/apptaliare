@@ -187,7 +187,8 @@ export default function T2Ciclos() {
       const { error: junctionError } = await supabase.from('t2_ciclo_pedidos' as any).insert(junctionRows);
       if (junctionError) throw junctionError;
       for (const pid of selectedPedidoIds) {
-        await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', pid);
+        const { error: updateError } = await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', pid);
+        if (updateError) throw updateError;
       }
     },
     onSuccess: () => {
