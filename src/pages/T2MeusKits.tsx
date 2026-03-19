@@ -201,8 +201,8 @@ export default function T2MeusKits() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold">{p.codigo_pedido}</CardTitle>
-                  <Badge variant={p.status === 'disponivel' ? 'default' : 'secondary'}>
-                    {p.status === 'disponivel' ? 'Disponível' : 'Entregue'}
+                  <Badge variant={p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id) ? 'default' : 'secondary'}>
+                    {p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id) ? 'Disponível' : 'Entregue'}
                   </Badge>
                 </div>
               </CardHeader>
