@@ -877,7 +877,7 @@ export default function Usuarios() {
                   <p className="text-xs text-muted-foreground">
                     Selecione os menus que este usuário pode acessar
                   </p>
-                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2">
+                  <div className="grid grid-cols-2 gap-2 pr-1">
                     {ASSIGNABLE_MENUS.map(menu => (
                       <div key={menu.key} className="flex items-center gap-2">
                         <Checkbox
