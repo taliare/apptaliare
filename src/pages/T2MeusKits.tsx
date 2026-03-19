@@ -11,9 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Package, PackageCheck, Send, RefreshCw } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { Package, PackageCheck, Send, RefreshCw, AlertTriangle } from 'lucide-react';
+import { format, addDays, differenceInDays } from 'date-fns';
 import { formatDateBR } from '@/lib/utils';
+
+function getKitAlertLevel(dataCriacao: string) {
+  const dias = differenceInDays(new Date(), new Date(dataCriacao));
+  if (dias > 15) return { level: 'critico' as const, dias, label: 'Crítico' };
+  if (dias > 7) return { level: 'atencao' as const, dias, label: 'Atenção' };
+  return { level: 'normal' as const, dias, label: null };
+}
 
 export default function T2MeusKits() {
   const { user } = useAuth();
@@ -196,14 +203,31 @@ export default function T2MeusKits() {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredPedidos.map((p: any) => (
-            <Card key={p.id} className="border border-border">
+          {filteredPedidos.map((p: any) => {
+            const isDisponivel = p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id);
+            const alert = isDisponivel ? getKitAlertLevel(p.data_criacao) : { level: 'normal' as const, dias: 0, label: null };
+            const borderClass = alert.level === 'critico'
+              ? 'border-destructive/60 shadow-[0_0_12px_hsl(var(--destructive)/0.15)]'
+              : alert.level === 'atencao'
+                ? 'border-warning/60 shadow-[0_0_12px_hsl(var(--warning)/0.15)]'
+                : 'border-border';
+
+            return (
+            <Card key={p.id} className={`border ${borderClass}`}>
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-base font-semibold">{p.codigo_pedido}</CardTitle>
-                  <Badge variant={p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id) ? 'default' : 'secondary'}>
-                    {p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id) ? 'Disponível' : 'Entregue'}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    {alert.label && (
+                      <Badge variant={alert.level === 'critico' ? 'destructive' : 'warning'} className="text-[10px] px-1.5 py-0">
+                        <AlertTriangle className="h-3 w-3 mr-0.5" />
+                        {alert.label}
+                      </Badge>
+                    )}
+                    <Badge variant={isDisponivel ? 'default' : 'secondary'}>
+                      {isDisponivel ? 'Disponível' : 'Entregue'}
+                    </Badge>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
@@ -213,10 +237,15 @@ export default function T2MeusKits() {
                 <p className="text-muted-foreground">
                   Recebido em: <strong className="text-foreground">{formatDateBR(p.data_criacao)}</strong>
                 </p>
+                {alert.label && (
+                  <p className={`text-xs font-medium ${alert.level === 'critico' ? 'text-destructive' : 'text-warning'}`}>
+                    ⏱ {alert.dias} dias parado
+                  </p>
+                )}
                 {p.observacao && (
                   <p className="text-muted-foreground text-xs">{p.observacao}</p>
                 )}
-                {p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id) && (
+                {isDisponivel && (
                   <Button
                     size="sm"
                     className="w-full mt-2"
@@ -227,7 +256,8 @@ export default function T2MeusKits() {
                 )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
