@@ -101,7 +101,8 @@ export default function T2MeusKits() {
       if (junctionError) throw junctionError;
 
       for (const pid of selectedPedidoIds) {
-        await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', pid);
+        const { error: updateError } = await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', pid);
+        if (updateError) throw updateError;
       }
     },
     onSuccess: () => {
