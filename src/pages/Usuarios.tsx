@@ -732,8 +732,8 @@ export default function Usuarios() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <form onSubmit={handleSubmit}>
+        <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col">
+          <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
             <DialogHeader>
               <DialogTitle>
                 {editingUser ? 'Editar Usuário' : 'Novo Usuário'}
