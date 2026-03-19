@@ -71,8 +71,6 @@ export default function T2MeusKits() {
         throw new Error('Selecione revendedora e pelo menos um pedido');
       }
       const valorKit = valorTotalSelecionado;
-      const comissaoPerc = Number(comissao);
-      const valorEmpresa = valorKit * (1 - comissaoPerc / 100);
 
       const { data: cicloData, error: cicloError } = await supabase
         .from('t2_ciclos')
@@ -81,8 +79,8 @@ export default function T2MeusKits() {
           revendedora_id: selectedRevendedora,
           representante_id: user?.id,
           valor_kit: valorKit,
-          comissao_percentual: comissaoPerc,
-          valor_empresa: valorEmpresa,
+          comissao_percentual: 0,
+          valor_empresa: valorKit,
           valor_restante: valorKit,
           data_vencimento: new Date(dataVencimento).toISOString(),
           data_cobranca: dataVencimento,
