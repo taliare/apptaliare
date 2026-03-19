@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { LeadRevendedora, KANBAN_COLUMNS, COLUMN_COLORS } from "./types";
 import { LeadStatusHistory } from "./LeadStatusHistory";
+import { LeadObservacoes } from "./LeadObservacoes";
 
 interface LeadDetailsSheetProps {
   lead: LeadRevendedora | null;
