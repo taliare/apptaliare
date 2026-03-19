@@ -42,6 +42,7 @@ import T2RadarRede from '@/pages/T2RadarRede';
 import T2RepresentantesPerformance from '@/pages/T2RepresentantesPerformance';
 import T2Financeiro from '@/pages/T2Financeiro';
 import T2PainelRede from '@/pages/T2PainelRede';
+import T2MeusKits from '@/pages/T2MeusKits';
 
 export function AnimatedRoutes() {
   const location = useLocation();
