@@ -349,7 +349,7 @@ export default function T2Revendedoras() {
       <Sheet open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>
         <SheetContent className="sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{selected?.nome_exibicao || selected?.nome_completo}</SheetTitle>
+            <SheetTitle>{selected?.nome_completo}</SheetTitle>
           </SheetHeader>
           {selected && (
             <div className="space-y-6 mt-4">
