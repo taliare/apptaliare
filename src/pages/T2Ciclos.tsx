@@ -43,6 +43,8 @@ export default function T2Ciclos() {
   const [adiantamentoCiclo, setAdiantamentoCiclo] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [revendedoraInfoId, setRevendedoraInfoId] = useState<string | null>(null);
+  const [pagamentoCiclo, setPagamentoCiclo] = useState<any>(null);
+  const [interacaoCiclo, setInteracaoCiclo] = useState<any>(null);
 
   const { data: ciclos = [], isLoading } = useQuery({
     queryKey: ['t2-ciclos'],
