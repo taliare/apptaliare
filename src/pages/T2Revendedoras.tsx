@@ -16,7 +16,7 @@ import { Plus, Users, Search, Star, TrendingUp, DollarSign, BarChart3, MessageCi
 import { CATEGORIA_COLORS, CATEGORIA_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/t2/constants';
 
 const EMPTY_FORM = {
-  nome_completo: '', nome_exibicao: '', cpf: '', telefone: '', cidade: '', instagram: '',
+  nome_completo: '', cpf: '', telefone: '', cidade: '', instagram: '',
   endereco_rua: '', endereco_numero: '', endereco_complemento: '', endereco_bairro: '',
   endereco_cep: '', endereco_estado: '', representante_id: '',
 };
