@@ -16,7 +16,7 @@ import { Plus, Users, Search, Star, TrendingUp, DollarSign, BarChart3, MessageCi
 import { CATEGORIA_COLORS, CATEGORIA_LABELS, STATUS_COLORS, STATUS_LABELS } from '@/components/t2/constants';
 
 const EMPTY_FORM = {
-  nome_completo: '', nome_exibicao: '', cpf: '', telefone: '', cidade: '', instagram: '',
+  nome_completo: '', cpf: '', telefone: '', cidade: '', instagram: '',
   endereco_rua: '', endereco_numero: '', endereco_complemento: '', endereco_bairro: '',
   endereco_cep: '', endereco_estado: '', representante_id: '',
 };
@@ -142,7 +142,7 @@ export default function T2Revendedoras() {
       if (cpfClean.length !== 11) throw new Error('CPF deve ter 11 dígitos');
       const { data, error } = await supabase.from('t2_revendedoras').insert({
         nome_completo: form.nome_completo.trim(),
-        nome_exibicao: form.nome_exibicao.trim() || null,
+        nome_exibicao: form.nome_completo.trim(),
         cpf: cpfClean,
         telefone: form.telefone.trim(),
         cidade: form.cidade.trim() || null,
@@ -225,7 +225,7 @@ export default function T2Revendedoras() {
             <DialogHeader><DialogTitle>Cadastrar Revendedora</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <div><Label>Nome Completo *</Label><Input value={form.nome_completo} onChange={e => setForm(f => ({ ...f, nome_completo: e.target.value }))} /></div>
-              <div><Label>Nome de Exibição</Label><Input placeholder="Opcional" value={form.nome_exibicao} onChange={e => setForm(f => ({ ...f, nome_exibicao: e.target.value }))} /></div>
+              
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>CPF *</Label><Input placeholder="000.000.000-00" value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))} /></div>
                 <div><Label>Telefone *</Label><Input placeholder="(00) 00000-0000" value={form.telefone} onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} /></div>
@@ -327,7 +327,7 @@ export default function T2Revendedoras() {
             <TableBody>
               {filtered.map((r: any) => (
                 <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelectedId(r.id)}>
-                  <TableCell className="font-medium">{r.nome_exibicao || r.nome_completo}</TableCell>
+                  <TableCell className="font-medium">{r.nome_completo}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">{formatCpf(r.cpf)}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">{r.telefone}</TableCell>
                   <TableCell className="hidden lg:table-cell text-muted-foreground">{r.cidade || '-'}</TableCell>
@@ -349,7 +349,7 @@ export default function T2Revendedoras() {
       <Sheet open={!!selectedId} onOpenChange={(o) => !o && setSelectedId(null)}>
         <SheetContent className="sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{selected?.nome_exibicao || selected?.nome_completo}</SheetTitle>
+            <SheetTitle>{selected?.nome_completo}</SheetTitle>
           </SheetHeader>
           {selected && (
             <div className="space-y-6 mt-4">
