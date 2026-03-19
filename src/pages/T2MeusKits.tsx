@@ -22,7 +22,6 @@ export default function T2MeusKits() {
   const [entregaOpen, setEntregaOpen] = useState(false);
   const [selectedPedidoIds, setSelectedPedidoIds] = useState<string[]>([]);
   const [selectedRevendedora, setSelectedRevendedora] = useState('');
-  const [comissao, setComissao] = useState('10');
   const [dataVencimento, setDataVencimento] = useState(format(addDays(new Date(), 45), 'yyyy-MM-dd'));
 
   const { data: pedidos = [], isLoading } = useQuery({
