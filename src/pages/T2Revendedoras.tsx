@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
@@ -17,7 +18,7 @@ import { CATEGORIA_COLORS, CATEGORIA_LABELS, STATUS_COLORS, STATUS_LABELS } from
 const EMPTY_FORM = {
   nome_completo: '', nome_exibicao: '', cpf: '', telefone: '', cidade: '', instagram: '',
   endereco_rua: '', endereco_numero: '', endereco_complemento: '', endereco_bairro: '',
-  endereco_cep: '', endereco_estado: '',
+  endereco_cep: '', endereco_estado: '', representante_id: '',
 };
 
 export default function T2Revendedoras() {
@@ -28,6 +29,20 @@ export default function T2Revendedoras() {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+
+  // Buscar representantes para o seletor (admin only)
+  const { data: representantes = [] } = useQuery({
+    queryKey: ['t2-representantes-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles_limited')
+        .select('id, nome')
+        .eq('ativo', true);
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAdmin,
+  });
 
   const { data: revendedoras = [], isLoading } = useQuery({
     queryKey: ['t2-revendedoras'],
@@ -138,7 +153,7 @@ export default function T2Revendedoras() {
         endereco_bairro: form.endereco_bairro.trim() || null,
         endereco_cep: form.endereco_cep.trim() || null,
         endereco_estado: form.endereco_estado.trim() || null,
-        representante_id: isAdmin ? null : user?.id,
+        representante_id: isAdmin ? (form as any).representante_id || user?.id : user?.id,
       } as any).select();
       if (error) { console.error("t2_revendedoras INSERT ERROR:", error); throw error; }
     },
@@ -237,12 +252,26 @@ export default function T2Revendedoras() {
                   </div>
                 </div>
               </div>
+              {isAdmin && (
+                <div className="border-t border-border pt-3">
+                  <Label>Representante Responsável *</Label>
+                  <Select value={form.representante_id} onValueChange={v => setForm(f => ({ ...f, representante_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o representante..." /></SelectTrigger>
+                    <SelectContent>
+                      {representantes.map((r: any) => (
+                        <SelectItem key={r.id} value={r.id!}>{r.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <Button
                 className="w-full"
                 disabled={
                   !form.nome_completo || !form.cpf || !form.telefone ||
                   !form.endereco_rua || !form.endereco_bairro || !form.cidade || !form.endereco_estado ||
+                  (isAdmin && !form.representante_id) ||
                   createMutation.isPending
                 }
                 onClick={() => createMutation.mutate()}

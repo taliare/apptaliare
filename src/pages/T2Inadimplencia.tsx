@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,8 @@ import { differenceInDays, isBefore, startOfDay } from 'date-fns';
 import { formatarValor } from '@/lib/utils';
 
 export default function T2Inadimplencia() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [filtroRepresentante, setFiltroRepresentante] = useState('todos');
   const [filtroCidade, setFiltroCidade] = useState('');
   const [filtroAtraso, setFiltroAtraso] = useState('todos');
@@ -184,15 +187,17 @@ export default function T2Inadimplencia() {
 
       {/* Filtros */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-        <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
-          <SelectTrigger><SelectValue placeholder="Representante" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os representantes</SelectItem>
-            {representantes.map((r: any) => (
-              <SelectItem key={r.id} value={r.id!}>{r.nome}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {isAdmin && (
+          <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
+            <SelectTrigger><SelectValue placeholder="Representante" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os representantes</SelectItem>
+              {representantes.map((r: any) => (
+                <SelectItem key={r.id} value={r.id!}>{r.nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Input
           placeholder="Filtrar por cidade..."
           value={filtroCidade}
@@ -227,7 +232,7 @@ export default function T2Inadimplencia() {
               <tr className="border-b border-border text-left">
                 <th className="py-3 px-2 font-medium text-muted-foreground">Revendedora</th>
                 <th className="py-3 px-2 font-medium text-muted-foreground">Cidade</th>
-                <th className="py-3 px-2 font-medium text-muted-foreground">Representante</th>
+                {isAdmin && <th className="py-3 px-2 font-medium text-muted-foreground">Representante</th>}
                 <th className="py-3 px-2 font-medium text-muted-foreground text-right">Saldo Restante</th>
                 <th className="py-3 px-2 font-medium text-muted-foreground text-center">Data Cobrança</th>
                 <th className="py-3 px-2 font-medium text-muted-foreground text-center">Dias em Atraso</th>
@@ -240,7 +245,7 @@ export default function T2Inadimplencia() {
                     {c.t2_revendedoras?.nome_exibicao || c.t2_revendedoras?.nome_completo || 'N/A'}
                   </td>
                   <td className="py-3 px-2 text-muted-foreground">{c.t2_revendedoras?.cidade || '-'}</td>
-                  <td className="py-3 px-2">{getRepName(c.representante_id)}</td>
+                  {isAdmin && <td className="py-3 px-2">{getRepName(c.representante_id)}</td>}
                   <td className="py-3 px-2 text-right font-semibold text-destructive">
                     {formatarValor(c.saldoRestante)}
                   </td>
