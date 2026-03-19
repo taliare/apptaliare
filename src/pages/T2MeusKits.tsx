@@ -153,8 +153,8 @@ export default function T2MeusKits() {
 
   const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
-  const totalDisponivel = pedidos.filter((p: any) => p.status === 'disponivel').length;
-  const totalEntregue = pedidos.filter((p: any) => p.status === 'em_ciclo').length;
+  const totalDisponivel = pedidosDisponiveis.length;
+  const totalEntregue = pedidos.filter((p: any) => isPedidoEntregue(p)).length;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
