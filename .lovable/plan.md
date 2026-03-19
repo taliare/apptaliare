@@ -1,72 +1,34 @@
 
+# Correcao do DRE - Fevereiro nao soma valores
 
-# Ações Rápidas na Lista de Ciclos T2
+## Problema
+A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-## Contexto
+Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
 
-Atualmente os cards de ciclo têm botões "Prestação" e "Adiantamento". O pedido é adicionar "Registrar Pagamento" e "Registrar Interação" diretamente nos cards.
+## Solucao
+Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
 
-## Banco de Dados
+### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
 
-### Nova tabela: `t2_interacoes`
-
-Não existe tabela de interações. Criar:
-
-```sql
-CREATE TABLE public.t2_interacoes (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  ciclo_id uuid NOT NULL REFERENCES t2_ciclos(id) ON DELETE CASCADE,
-  observacao text NOT NULL,
-  registrado_por uuid NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
-
-ALTER TABLE public.t2_interacoes ENABLE ROW LEVEL SECURITY;
-
--- RLS: usuário autenticado pode inserir e ler suas interações
--- Admin vê tudo, representante vê apenas do seu ciclo
-CREATE POLICY "Users can insert interacoes"
-  ON public.t2_interacoes FOR INSERT TO authenticated
-  WITH CHECK (true);
-
-CREATE POLICY "Users can view interacoes"
-  ON public.t2_interacoes FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.t2_ciclos c
-      WHERE c.id = ciclo_id
-      AND (c.representante_id = auth.uid()
-           OR EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = auth.uid() AND role = 'admin'))
-      )
-  );
+**De:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const fimMes = `${anoMes}-31`;
 ```
 
-## Alterações no Frontend
+**Para:**
+```typescript
+const inicioMes = `${anoMes}-01`;
+const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
+const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+```
 
-### 1. Novo componente: `src/components/t2/InteracaoDialog.tsx`
+Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
 
-Dialog simples com:
-- Campo de texto (Textarea) para observação
-- Botão "Registrar"
-- Insert em `t2_interacoes` com `ciclo_id`, `observacao`, `registrado_por`
+**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
 
-### 2. Novo componente: `src/components/t2/QuickPagamentoDialog.tsx`
-
-Dialog simplificado (diferente do PagamentoDialog existente que precisa de `apuracao`):
-- Campos: valor, forma de pagamento
-- Busca a apuração do ciclo automaticamente
-- Se o ciclo não tiver apuração, mostra mensagem e desabilita
-- Reutiliza `FORMAS_PAGAMENTO` e a mesma lógica de insert em `t2_pagamentos`
-
-### 3. `src/pages/T2Ciclos.tsx`
-
-Adicionar dois novos botões em cada card de ciclo (na seção de ações, linhas 413-431):
-- **"Pagamento"** — abre `QuickPagamentoDialog` (só habilitado se ciclo tem apuração)
-- **"Interação"** — abre `InteracaoDialog`
-
-Adicionar states: `pagamentoCiclo` e `interacaoCiclo` para controlar qual ciclo está selecionado.
-
-### Layout dos botões no card
-
-Os 4 botões (Prestação, Adiantamento, Pagamento, Interação) serão dispostos em grid 2x2 para caber no card sem poluir.
-
+## Impacto
+- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
+- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
+- Nenhuma alteracao de banco de dados necessaria

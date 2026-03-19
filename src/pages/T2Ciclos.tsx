@@ -11,13 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, ClipboardList, DollarSign, Package, Undo2, MapPin, MessageCircle } from 'lucide-react';
+import { Plus, RefreshCw, ClipboardList, DollarSign, Package, Undo2, MapPin, MessageCircle, CreditCard, MessageSquarePlus } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, addDays, startOfDay, isBefore, isEqual } from 'date-fns';
 import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
 import { ApuracaoDialog } from '@/components/t2/ApuracaoDialog';
 import { ApuracoesSection } from '@/components/t2/ApuracoesSection';
 import { AdiantamentoDialog } from '@/components/t2/AdiantamentoDialog';
+import { QuickPagamentoDialog } from '@/components/t2/QuickPagamentoDialog';
+import { InteracaoDialog } from '@/components/t2/InteracaoDialog';
 import { formatDateBR } from '@/lib/utils';
 
 function getCicloHighlight(ciclo: any): string {
@@ -41,6 +43,8 @@ export default function T2Ciclos() {
   const [adiantamentoCiclo, setAdiantamentoCiclo] = useState<any>(null);
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [revendedoraInfoId, setRevendedoraInfoId] = useState<string | null>(null);
+  const [pagamentoCiclo, setPagamentoCiclo] = useState<any>(null);
+  const [interacaoCiclo, setInteracaoCiclo] = useState<any>(null);
 
   const { data: ciclos = [], isLoading } = useQuery({
     queryKey: ['t2-ciclos'],
@@ -410,11 +414,11 @@ export default function T2Ciclos() {
                     <span className="text-muted-foreground italic">Aguardando apuração</span>
                   )}</p>
 
-                  <div className="flex gap-2 mt-2">
+                  <div className="grid grid-cols-2 gap-2 mt-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 text-xs"
+                      className="text-xs"
                       onClick={() => handleOpenApuracao(c)}
                       disabled={hasApuracao}
                     >
@@ -423,10 +427,27 @@ export default function T2Ciclos() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 text-xs"
+                      className="text-xs"
                       onClick={() => setAdiantamentoCiclo(c)}
                     >
                       <DollarSign className="h-3 w-3 mr-1" /> Adiantamento
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                      onClick={() => setPagamentoCiclo(c)}
+                      disabled={!hasApuracao}
+                    >
+                      <CreditCard className="h-3 w-3 mr-1" /> Pagamento
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                      onClick={() => setInteracaoCiclo(c)}
+                    >
+                      <MessageSquarePlus className="h-3 w-3 mr-1" /> Interação
                     </Button>
                   </div>
 
@@ -517,6 +538,22 @@ export default function T2Ciclos() {
           open={!!adiantamentoCiclo}
           onOpenChange={(o) => !o && setAdiantamentoCiclo(null)}
           ciclo={adiantamentoCiclo}
+        />
+      )}
+
+      {pagamentoCiclo && (
+        <QuickPagamentoDialog
+          open={!!pagamentoCiclo}
+          onOpenChange={(o) => !o && setPagamentoCiclo(null)}
+          ciclo={pagamentoCiclo}
+        />
+      )}
+
+      {interacaoCiclo && (
+        <InteracaoDialog
+          open={!!interacaoCiclo}
+          onOpenChange={(o) => !o && setInteracaoCiclo(null)}
+          ciclo={interacaoCiclo}
         />
       )}
     </div>

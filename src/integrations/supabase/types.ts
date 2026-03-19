@@ -1491,6 +1491,45 @@ export type Database = {
           },
         ]
       }
+      t2_interacoes: {
+        Row: {
+          ciclo_id: string
+          created_at: string | null
+          id: string
+          observacao: string
+          registrado_por: string
+        }
+        Insert: {
+          ciclo_id: string
+          created_at?: string | null
+          id?: string
+          observacao: string
+          registrado_por: string
+        }
+        Update: {
+          ciclo_id?: string
+          created_at?: string | null
+          id?: string
+          observacao?: string
+          registrado_por?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "t2_interacoes_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "t2_ciclos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "t2_interacoes_ciclo_id_fkey"
+            columns: ["ciclo_id"]
+            isOneToOne: false
+            referencedRelation: "t2_vw_previsao_recebimentos"
+            referencedColumns: ["ciclo_id"]
+          },
+        ]
+      }
       t2_pagamentos: {
         Row: {
           apuracao_id: string
