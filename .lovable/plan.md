@@ -1,34 +1,50 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
 
-## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
+# Controle de Acesso T2 por Tipo de Usuário
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+## Situação Atual
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+A maior parte da infraestrutura já está implementada:
+- **RLS** no banco já filtra todas as tabelas T2 por `representante_id` (admin vê tudo, representante vê só o seu)
+- **Rotas** já usam `PermissionRoute` com menu keys
+- **Botões admin-only** (ex: Cancelar Apuração) já verificam `profile?.role === 'admin'`
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+## O que falta
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
-```
+### 1. Sidebar — Adicionar menus T2 para representantes
 
-**Para:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-```
+Atualmente os menus T2 só aparecem em `adminCategories`. Representantes não conseguem navegar para nenhuma página T2.
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+**Ação:** Adicionar categoria "TALIARE 2.0" no `representanteCategories` do `AppSidebar.tsx` com os menus relevantes:
+- Revendedoras T2
+- Ciclos T2
+- Produção T2 (para criar pedidos)
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
+### 2. `T2Revendedoras.tsx` — Corrigir insert com `representante_id: null`
 
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
+Quando admin cadastra revendedora, o código faz `representante_id: isAdmin ? null : user?.id`. Isso cria registros sem dono. Admin deveria poder selecionar o representante responsável ou, no mínimo, atribuir a si mesmo.
+
+**Ação:** Para admin, adicionar um seletor de representante no formulário. Para representante, manter o `user?.id` automático.
+
+### 3. `T2Ciclos.tsx` — Esconder "Novo Ciclo" condicionalmente
+
+O botão "Novo Ciclo" deve permanecer visível para representantes (eles já definem `representante_id: user?.id`). Verificar que não há bloqueio.
+
+### 4. Esconder funcionalidades admin-only na interface
+
+Nas páginas T2 visíveis para representantes, garantir que elementos admin-only estejam condicionados:
+- Botão "Cancelar Apuração" → já feito ✅
+- Qualquer filtro por representante (como no `T2Inadimplencia`) → esconder para representantes
+
+## Alterações por arquivo
+
+| Arquivo | Mudança |
+|---|---|
+| `src/components/AppSidebar.tsx` | Adicionar categoria T2 ao `representanteCategories` |
+| `src/components/MobileDrawer.tsx` | Adicionar menus T2 para representante (se necessário) |
+| `src/pages/T2Revendedoras.tsx` | Admin: seletor de representante no cadastro; Rep: `user?.id` automático |
+| `src/pages/T2Ciclos.tsx` | Esconder seletor de representante (se existir) para não-admins |
+| `src/pages/T2Inadimplencia.tsx` | Esconder filtro de representante para não-admins |
+
+Nenhuma alteração de banco de dados necessária — as RLS policies já estão corretas.
+
