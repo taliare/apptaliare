@@ -1931,6 +1931,10 @@ export type Database = {
         Returns: Json
       }
       t2_cancelar_apuracao: { Args: { p_ciclo_id: string }; Returns: Json }
+      t2_reverter_ciclo_desistencia: {
+        Args: { p_ciclo_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "representante" | "producao"
