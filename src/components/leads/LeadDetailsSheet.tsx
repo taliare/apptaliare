@@ -30,10 +30,13 @@ import {
   User,
   Trash2,
   AlertTriangle,
+  FileDown,
+  Loader2,
 } from "lucide-react";
 import { LeadRevendedora, KANBAN_COLUMNS, COLUMN_COLORS } from "./types";
 import { LeadStatusHistory } from "./LeadStatusHistory";
 import { LeadObservacoes } from "./LeadObservacoes";
+import { generateLeadPdf } from "@/lib/generateLeadPdf";
 
 interface LeadDetailsSheetProps {
   lead: LeadRevendedora | null;
@@ -87,6 +90,7 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
   const queryClient = useQueryClient();
   const [responsavelId, setResponsavelId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: admins = [] } = useQuery({
     queryKey: ["admin-profiles"],
@@ -157,6 +161,32 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
 
   const formatarWhatsapp = (whatsapp: string) => whatsapp.replace(/\D/g, "");
 
+  const handleExportPdf = async () => {
+    if (!lead) return;
+    setIsExporting(true);
+    try {
+      const [obsRes, histRes] = await Promise.all([
+        supabase
+          .from("leads_observacoes")
+          .select("*")
+          .eq("lead_id", lead.id)
+          .order("criado_em", { ascending: true }),
+        supabase
+          .from("leads_status_historico")
+          .select("*")
+          .eq("lead_id", lead.id)
+          .order("criado_em", { ascending: true }),
+      ]);
+      await generateLeadPdf(lead, obsRes.data || [], histRes.data || []);
+      toast({ title: "PDF gerado com sucesso!" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      toast({ title: "Erro ao gerar PDF", description: message, variant: "destructive" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (!lead) return null;
 
   const currentColumn = KANBAN_COLUMNS.find((c) => c.id === lead.status);
@@ -186,10 +216,21 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     <Sheet open={!!lead} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2 flex-wrap">
-            {lead.nome}
-            <Badge className={colorClass}>{currentColumn?.label || lead.status}</Badge>
-          </SheetTitle>
+          <div className="flex items-center justify-between gap-2">
+            <SheetTitle className="flex items-center gap-2 flex-wrap">
+              {lead.nome}
+              <Badge className={colorClass}>{currentColumn?.label || lead.status}</Badge>
+            </SheetTitle>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={handleExportPdf}
+              disabled={isExporting}
+              title="Exportar Cadastro em PDF"
+            >
+              {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            </Button>
+          </div>
         </SheetHeader>
 
         <div className="mt-6 space-y-4">
