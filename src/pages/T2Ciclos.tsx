@@ -540,6 +540,22 @@ export default function T2Ciclos() {
           ciclo={adiantamentoCiclo}
         />
       )}
+
+      {pagamentoCiclo && (
+        <QuickPagamentoDialog
+          open={!!pagamentoCiclo}
+          onOpenChange={(o) => !o && setPagamentoCiclo(null)}
+          ciclo={pagamentoCiclo}
+        />
+      )}
+
+      {interacaoCiclo && (
+        <InteracaoDialog
+          open={!!interacaoCiclo}
+          onOpenChange={(o) => !o && setInteracaoCiclo(null)}
+          ciclo={interacaoCiclo}
+        />
+      )}
     </div>
   );
 }
