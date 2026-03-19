@@ -414,11 +414,11 @@ export default function T2Ciclos() {
                     <span className="text-muted-foreground italic">Aguardando apuração</span>
                   )}</p>
 
-                  <div className="flex gap-2 mt-2">
+                  <div className="grid grid-cols-2 gap-2 mt-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 text-xs"
+                      className="text-xs"
                       onClick={() => handleOpenApuracao(c)}
                       disabled={hasApuracao}
                     >
@@ -427,10 +427,27 @@ export default function T2Ciclos() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="flex-1 text-xs"
+                      className="text-xs"
                       onClick={() => setAdiantamentoCiclo(c)}
                     >
                       <DollarSign className="h-3 w-3 mr-1" /> Adiantamento
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                      onClick={() => setPagamentoCiclo(c)}
+                      disabled={!hasApuracao}
+                    >
+                      <CreditCard className="h-3 w-3 mr-1" /> Pagamento
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                      onClick={() => setInteracaoCiclo(c)}
+                    >
+                      <MessageSquarePlus className="h-3 w-3 mr-1" /> Interação
                     </Button>
                   </div>
 
