@@ -586,6 +586,41 @@ export type Database = {
         }
         Relationships: []
       }
+      leads_observacoes: {
+        Row: {
+          autor_id: string
+          autor_nome: string
+          conteudo: string
+          criado_em: string
+          id: string
+          lead_id: string
+        }
+        Insert: {
+          autor_id: string
+          autor_nome: string
+          conteudo: string
+          criado_em?: string
+          id?: string
+          lead_id: string
+        }
+        Update: {
+          autor_id?: string
+          autor_nome?: string
+          conteudo?: string
+          criado_em?: string
+          id?: string
+          lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_observacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads_revendedoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads_revendedoras: {
         Row: {
           bairro: string | null

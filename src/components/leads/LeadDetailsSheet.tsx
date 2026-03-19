@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -34,6 +33,7 @@ import {
 } from "lucide-react";
 import { LeadRevendedora, KANBAN_COLUMNS, COLUMN_COLORS } from "./types";
 import { LeadStatusHistory } from "./LeadStatusHistory";
+import { LeadObservacoes } from "./LeadObservacoes";
 
 interface LeadDetailsSheetProps {
   lead: LeadRevendedora | null;
@@ -85,7 +85,6 @@ function LeadFieldsTable({ fields }: { fields: FieldRow[] }) {
 
 export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
   const queryClient = useQueryClient();
-  const [observacaoEdit, setObservacaoEdit] = useState("");
   const [responsavelId, setResponsavelId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -102,7 +101,6 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
 
   useEffect(() => {
     if (lead) {
-      setObservacaoEdit(lead.observacao || "");
       setResponsavelId(lead.responsavel_id);
       setShowDeleteConfirm(false);
     }
@@ -146,10 +144,6 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
       setShowDeleteConfirm(false);
     },
   });
-
-  const handleSalvarObservacao = () => {
-    updateLead.mutate({ observacao: observacaoEdit });
-  };
 
   const handleResponsavelChange = (value: string) => {
     const newResponsavelId = value === "none" ? null : value;
@@ -272,26 +266,8 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
 
           <Separator />
 
-          {/* Observação */}
-          <div>
-            <Label className="text-xs text-muted-foreground">Observação</Label>
-            <Textarea
-              value={observacaoEdit}
-              onChange={(e) => setObservacaoEdit(e.target.value)}
-              className="mt-1"
-              rows={3}
-              placeholder="Adicione uma observação..."
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              onClick={handleSalvarObservacao}
-              disabled={updateLead.isPending}
-            >
-              Salvar Observação
-            </Button>
-          </div>
+          {/* Observações */}
+          <LeadObservacoes leadId={lead.id} />
 
           <Separator />
 
