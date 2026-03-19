@@ -30,10 +30,13 @@ import {
   User,
   Trash2,
   AlertTriangle,
+  FileDown,
+  Loader2,
 } from "lucide-react";
 import { LeadRevendedora, KANBAN_COLUMNS, COLUMN_COLORS } from "./types";
 import { LeadStatusHistory } from "./LeadStatusHistory";
 import { LeadObservacoes } from "./LeadObservacoes";
+import { generateLeadPdf } from "@/lib/generateLeadPdf";
 
 interface LeadDetailsSheetProps {
   lead: LeadRevendedora | null;
