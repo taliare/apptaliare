@@ -49,8 +49,29 @@ export default function T2MeusKits() {
     },
   });
 
-  const filteredPedidos = pedidos.filter((p: any) => p.status === statusFilter);
-  const pedidosDisponiveis = pedidos.filter((p: any) => p.status === 'disponivel');
+  const { data: pedidosEmCicloAtivoIds = [] } = useQuery({
+    queryKey: ['t2-pedidos-em-ciclo-ativo', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('t2_ciclo_pedidos' as any)
+        .select('pedido_id, t2_ciclos!inner(status, representante_id)')
+        .eq('t2_ciclos.representante_id', user?.id)
+        .eq('t2_ciclos.status', 'ativo');
+      if (error) throw error;
+      return [...new Set((data ?? []).map((row: any) => row.pedido_id))] as string[];
+    },
+    enabled: !!user?.id,
+  });
+
+  const pedidosEmCicloAtivoSet = new Set(pedidosEmCicloAtivoIds);
+  const isPedidoEntregue = (pedido: any) => pedido.status === 'em_ciclo' || pedidosEmCicloAtivoSet.has(pedido.id);
+
+  const filteredPedidos = pedidos.filter((p: any) =>
+    statusFilter === 'disponivel'
+      ? p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id)
+      : isPedidoEntregue(p)
+  );
+  const pedidosDisponiveis = pedidos.filter((p: any) => p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id));
 
   const valorTotalSelecionado = selectedPedidoIds.reduce((sum, id) => {
     const p = pedidosDisponiveis.find((pd: any) => pd.id === id);
@@ -132,8 +153,8 @@ export default function T2MeusKits() {
 
   const fmt = (v: number) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
-  const totalDisponivel = pedidos.filter((p: any) => p.status === 'disponivel').length;
-  const totalEntregue = pedidos.filter((p: any) => p.status === 'em_ciclo').length;
+  const totalDisponivel = pedidosDisponiveis.length;
+  const totalEntregue = pedidos.filter((p: any) => isPedidoEntregue(p)).length;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -180,8 +201,8 @@ export default function T2MeusKits() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-semibold">{p.codigo_pedido}</CardTitle>
-                  <Badge variant={p.status === 'disponivel' ? 'default' : 'secondary'}>
-                    {p.status === 'disponivel' ? 'Disponível' : 'Entregue'}
+                  <Badge variant={p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id) ? 'default' : 'secondary'}>
+                    {p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id) ? 'Disponível' : 'Entregue'}
                   </Badge>
                 </div>
               </CardHeader>
@@ -195,7 +216,7 @@ export default function T2MeusKits() {
                 {p.observacao && (
                   <p className="text-muted-foreground text-xs">{p.observacao}</p>
                 )}
-                {p.status === 'disponivel' && (
+                {p.status === 'disponivel' && !pedidosEmCicloAtivoSet.has(p.id) && (
                   <Button
                     size="sm"
                     className="w-full mt-2"

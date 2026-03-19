@@ -138,12 +138,26 @@ export default function T2Ciclos() {
   });
 
   const { data: pedidosDisponiveis = [] } = useQuery({
-    queryKey: ['t2-pedidos-disponiveis'],
+    queryKey: ['t2-pedidos-disponiveis', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from('t2_pedidos').select('id, codigo_pedido, valor_total').eq('status', 'disponivel');
+      const { data, error } = await supabase
+        .from('t2_pedidos')
+        .select('id, codigo_pedido, valor_total')
+        .eq('status', 'disponivel')
+        .eq('representante_id', user?.id);
       if (error) throw error;
-      return data;
+
+      const { data: pedidosEmCiclo, error: cicloPedidosError } = await supabase
+        .from('t2_ciclo_pedidos' as any)
+        .select('pedido_id, t2_ciclos!inner(status, representante_id)')
+        .eq('t2_ciclos.representante_id', user?.id)
+        .eq('t2_ciclos.status', 'ativo');
+      if (cicloPedidosError) throw cicloPedidosError;
+
+      const pedidosEmCicloSet = new Set((pedidosEmCiclo ?? []).map((row: any) => row.pedido_id));
+      return (data ?? []).filter((pedido: any) => !pedidosEmCicloSet.has(pedido.id));
     },
+    enabled: !!user?.id,
   });
 
   const valorTotalSelecionado = selectedPedidoIds.reduce((sum, id) => {
