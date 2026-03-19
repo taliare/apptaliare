@@ -11,9 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Package, PackageCheck, Send, RefreshCw } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { Package, PackageCheck, Send, RefreshCw, AlertTriangle } from 'lucide-react';
+import { format, addDays, differenceInDays } from 'date-fns';
 import { formatDateBR } from '@/lib/utils';
+
+function getKitAlertLevel(dataCriacao: string) {
+  const dias = differenceInDays(new Date(), new Date(dataCriacao));
+  if (dias > 15) return { level: 'critico' as const, dias, label: 'Crítico' };
+  if (dias > 7) return { level: 'atencao' as const, dias, label: 'Atenção' };
+  return { level: 'normal' as const, dias, label: null };
+}
 
 export default function T2MeusKits() {
   const { user } = useAuth();
