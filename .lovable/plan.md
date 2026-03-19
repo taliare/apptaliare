@@ -1,34 +1,37 @@
 
-# Correcao do DRE - Fevereiro nao soma valores
+
+# Correção: Kit entregue continua "disponível"
 
 ## Problema
-A consulta do DRE usa `fimMes = "${anoMes}-31"` como limite superior da data. Para fevereiro, isso gera a data invalida `2026-02-31`, que causa um erro no banco de dados. O resultado e que a query falha silenciosamente e retorna zero para Total Cobrado e Despesas de Cobranca.
 
-Os dados existem no banco (56 fechamentos em fevereiro, R$ 40.447,30 de total cobrado, R$ 4.008,44 de despesas), mas nao sao retornados por causa desse bug.
+A tabela `t2_pedidos` não possui política RLS de UPDATE para representantes. Quando o representante entrega um kit, o código tenta atualizar o status do pedido para `em_ciclo`, mas o banco rejeita silenciosamente a operação. O pedido permanece com status `disponivel`.
 
-## Solucao
-Alterar `src/pages/DreResumo.tsx` para calcular o ultimo dia real do mes selecionado em vez de usar dia 31 fixo.
+## Solução
 
-### Alteracao em `DreResumo.tsx` (query de cobrancas_diarias)
+### 1. Migração SQL — Adicionar política de UPDATE
 
-**De:**
-```typescript
-const inicioMes = `${anoMes}-01`;
-const fimMes = `${anoMes}-31`;
+Criar uma RLS policy que permita representantes atualizarem seus próprios pedidos:
+
+```sql
+CREATE POLICY "Representante pode atualizar seus t2_pedidos"
+  ON public.t2_pedidos FOR UPDATE TO authenticated
+  USING (representante_id = auth.uid())
+  WITH CHECK (representante_id = auth.uid());
 ```
 
-**Para:**
+### 2. Frontend — Tratar erros no update de status
+
+Em `T2MeusKits.tsx`, adicionar verificação de erro no loop de update (linhas 103-105) para que falhas não passem despercebidas:
+
 ```typescript
-const inicioMes = `${anoMes}-01`;
-const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
+for (const pid of selectedPedidoIds) {
+  const { error: updateError } = await supabase
+    .from('t2_pedidos')
+    .update({ status: 'em_ciclo' })
+    .eq('id', pid);
+  if (updateError) throw updateError;
+}
 ```
 
-Isso usa `new Date(ano, mes, 0)` que retorna o ultimo dia do mes corretamente (28/29 para fevereiro, 30 para abril/junho/setembro/novembro, 31 para os demais).
+Aplicar a mesma correção em `T2Ciclos.tsx` (linhas 189-191) que tem o mesmo padrão sem tratamento de erro.
 
-**Nota:** O `selectedAno` e `selectedMes` precisam ser acessiveis dentro da queryFn. Eles ja estao no escopo do componente, entao nao ha problema. Tambem serao adicionados ao `queryKey` (ja estao via `anoMes`).
-
-## Impacto
-- Apenas 1 arquivo alterado: `src/pages/DreResumo.tsx`
-- Corrige o problema para fevereiro e qualquer outro mes com menos de 31 dias (abril, junho, setembro, novembro)
-- Nenhuma alteracao de banco de dados necessaria
