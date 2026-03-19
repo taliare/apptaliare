@@ -524,6 +524,36 @@ export default function T2Ciclos() {
                     </AlertDialog>
                   )}
 
+                  {isAdmin && c.status === 'ativo' && !hasApuracao && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="w-full text-xs mt-1"
+                          disabled={desistenciaMutation.isPending}
+                        >
+                          <UserX className="h-3 w-3 mr-1" />
+                          {desistenciaMutation.isPending ? 'Processando...' : 'Desistência'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Registrar Desistência</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação irá <strong>encerrar o ciclo</strong>, remover adiantamentos e interações, e devolver os pedidos ao status <strong>disponível</strong> para nova entrega. Deseja continuar?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => desistenciaMutation.mutate(c)}>
+                            Sim, registrar desistência
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+
                   <ApuracoesSection cicloId={c.id} />
                 </CardContent>
               </Card>
