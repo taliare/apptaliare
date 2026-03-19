@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
-import { Plus, RefreshCw, ClipboardList, DollarSign, Package, Undo2, MapPin, MessageCircle, CreditCard, MessageSquarePlus } from 'lucide-react';
+import { Plus, RefreshCw, ClipboardList, DollarSign, Package, Undo2, MapPin, MessageCircle, CreditCard, MessageSquarePlus, UserX } from 'lucide-react';
+import { registrarLog } from '@/lib/logOperacional';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format, addDays, startOfDay, isBefore, isEqual } from 'date-fns';
 import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
@@ -241,6 +242,33 @@ export default function T2Ciclos() {
     },
     onError: (err: any) => {
       toast({ title: 'Erro ao cancelar apuração', description: err.message, variant: 'destructive' });
+    },
+  });
+
+  const desistenciaMutation = useMutation({
+    mutationFn: async (ciclo: any) => {
+      const { data, error } = await supabase.rpc('t2_reverter_ciclo_desistencia', { p_ciclo_id: ciclo.id } as any);
+      if (error) throw error;
+      const result = data as any;
+      if (!result.success) throw new Error(result.error);
+      await registrarLog({
+        tipo_acao: 'DESISTENCIA_KIT',
+        descricao: `Desistência de ciclo T2 — Revendedora: ${ciclo.t2_revendedoras?.nome_exibicao || ciclo.t2_revendedoras?.nome_completo || 'N/A'}, Kit: R$ ${fmt(ciclo.valor_kit)}. ${result.pedidos_revertidos} pedido(s) devolvido(s).`,
+        user: { id: user?.id || '', nome: profile?.nome || '', papel: profile?.role || '' },
+      });
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['t2-ciclos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-pedidos-disponiveis'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-meus-kits'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-ciclo-pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-adiantamentos-all'] });
+      toast({ title: 'Desistência registrada', description: `${data.pedidos_revertidos} pedido(s) devolvido(s) ao estoque.` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro na desistência', description: err.message, variant: 'destructive' });
     },
   });
 
@@ -490,6 +518,36 @@ export default function T2Ciclos() {
                           <AlertDialogCancel>Não</AlertDialogCancel>
                           <AlertDialogAction onClick={() => cancelApuracaoMutation.mutate(c.id)}>
                             Sim, cancelar apuração
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+
+                  {isAdmin && c.status === 'ativo' && !hasApuracao && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="w-full text-xs mt-1"
+                          disabled={desistenciaMutation.isPending}
+                        >
+                          <UserX className="h-3 w-3 mr-1" />
+                          {desistenciaMutation.isPending ? 'Processando...' : 'Desistência'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Registrar Desistência</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação irá <strong>encerrar o ciclo</strong>, remover adiantamentos e interações, e devolver os pedidos ao status <strong>disponível</strong> para nova entrega. Deseja continuar?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => desistenciaMutation.mutate(c)}>
+                            Sim, registrar desistência
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
