@@ -85,7 +85,6 @@ function LeadFieldsTable({ fields }: { fields: FieldRow[] }) {
 
 export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
   const queryClient = useQueryClient();
-  const [observacaoEdit, setObservacaoEdit] = useState("");
   const [responsavelId, setResponsavelId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
