@@ -63,6 +63,7 @@ export const MENU_EXTRA_CONFIG: Record<string, { iconName: string; category: str
   t2_representantes_performance: { iconName: 'LineChart', category: 'TALIARE 2.0' },
   t2_financeiro: { iconName: 'Wallet', category: 'TALIARE 2.0' },
   t2_painel_rede: { iconName: 'BarChart3', category: 'TALIARE 2.0' },
+  t2_meus_kits: { iconName: 'Package', category: 'TALIARE 2.0' },
 };
 
 // Função para obter a chave do menu a partir da rota

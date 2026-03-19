@@ -93,6 +93,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       label: "TALIARE 2.0",
       items: [
         { title: 'Revendedoras T2', url: '/t2-revendedoras', icon: Users },
+        { title: 'Meus Kits', url: '/t2-meus-kits', icon: Package },
         { title: 'Ciclos T2', url: '/t2-ciclos', icon: Target },
         { title: 'Produção T2', url: '/t2-producao', icon: Package },
       ],
