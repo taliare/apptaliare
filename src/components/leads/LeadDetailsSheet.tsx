@@ -161,6 +161,32 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
 
   const formatarWhatsapp = (whatsapp: string) => whatsapp.replace(/\D/g, "");
 
+  const handleExportPdf = async () => {
+    if (!lead) return;
+    setIsExporting(true);
+    try {
+      const [obsRes, histRes] = await Promise.all([
+        supabase
+          .from("leads_observacoes")
+          .select("*")
+          .eq("lead_id", lead.id)
+          .order("criado_em", { ascending: true }),
+        supabase
+          .from("leads_status_historico")
+          .select("*")
+          .eq("lead_id", lead.id)
+          .order("criado_em", { ascending: true }),
+      ]);
+      await generateLeadPdf(lead, obsRes.data || [], histRes.data || []);
+      toast({ title: "PDF gerado com sucesso!" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      toast({ title: "Erro ao gerar PDF", description: message, variant: "destructive" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (!lead) return null;
 
   const currentColumn = KANBAN_COLUMNS.find((c) => c.id === lead.status);
