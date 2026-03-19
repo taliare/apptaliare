@@ -252,12 +252,26 @@ export default function T2Revendedoras() {
                   </div>
                 </div>
               </div>
+              {isAdmin && (
+                <div className="border-t border-border pt-3">
+                  <Label>Representante Responsável *</Label>
+                  <Select value={form.representante_id} onValueChange={v => setForm(f => ({ ...f, representante_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o representante..." /></SelectTrigger>
+                    <SelectContent>
+                      {representantes.map((r: any) => (
+                        <SelectItem key={r.id} value={r.id!}>{r.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <Button
                 className="w-full"
                 disabled={
                   !form.nome_completo || !form.cpf || !form.telefone ||
                   !form.endereco_rua || !form.endereco_bairro || !form.cidade || !form.endereco_estado ||
+                  (isAdmin && !form.representante_id) ||
                   createMutation.isPending
                 }
                 onClick={() => createMutation.mutate()}
