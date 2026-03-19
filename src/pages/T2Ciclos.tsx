@@ -18,6 +18,8 @@ import { STATUS_LABELS, STATUS_COLORS } from '@/components/t2/constants';
 import { ApuracaoDialog } from '@/components/t2/ApuracaoDialog';
 import { ApuracoesSection } from '@/components/t2/ApuracoesSection';
 import { AdiantamentoDialog } from '@/components/t2/AdiantamentoDialog';
+import { QuickPagamentoDialog } from '@/components/t2/QuickPagamentoDialog';
+import { InteracaoDialog } from '@/components/t2/InteracaoDialog';
 import { formatDateBR } from '@/lib/utils';
 
 function getCicloHighlight(ciclo: any): string {
