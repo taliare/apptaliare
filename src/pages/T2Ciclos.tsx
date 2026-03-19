@@ -245,6 +245,33 @@ export default function T2Ciclos() {
     },
   });
 
+  const desistenciaMutation = useMutation({
+    mutationFn: async (ciclo: any) => {
+      const { data, error } = await supabase.rpc('t2_reverter_ciclo_desistencia', { p_ciclo_id: ciclo.id } as any);
+      if (error) throw error;
+      const result = data as any;
+      if (!result.success) throw new Error(result.error);
+      await registrarLog({
+        tipo_acao: 'DESISTENCIA_KIT',
+        descricao: `Desistência de ciclo T2 — Revendedora: ${ciclo.t2_revendedoras?.nome_exibicao || ciclo.t2_revendedoras?.nome_completo || 'N/A'}, Kit: R$ ${fmt(ciclo.valor_kit)}. ${result.pedidos_revertidos} pedido(s) devolvido(s).`,
+        user: { id: user?.id || '', nome: profile?.nome || '', papel: profile?.role || '' },
+      });
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['t2-ciclos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-pedidos-disponiveis'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-meus-kits'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-ciclo-pedidos'] });
+      queryClient.invalidateQueries({ queryKey: ['t2-adiantamentos-all'] });
+      toast({ title: 'Desistência registrada', description: `${data.pedidos_revertidos} pedido(s) devolvido(s) ao estoque.` });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro na desistência', description: err.message, variant: 'destructive' });
+    },
+  });
+
   const handleOpenApuracao = (ciclo: any) => {
     if (apuracoesCicloIds.includes(ciclo.id)) {
       toast({ title: 'Este ciclo já possui uma prestação de contas registrada.', variant: 'destructive' });
