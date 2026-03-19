@@ -272,26 +272,8 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
 
           <Separator />
 
-          {/* Observação */}
-          <div>
-            <Label className="text-xs text-muted-foreground">Observação</Label>
-            <Textarea
-              value={observacaoEdit}
-              onChange={(e) => setObservacaoEdit(e.target.value)}
-              className="mt-1"
-              rows={3}
-              placeholder="Adicione uma observação..."
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2"
-              onClick={handleSalvarObservacao}
-              disabled={updateLead.isPending}
-            >
-              Salvar Observação
-            </Button>
-          </div>
+          {/* Observações */}
+          <LeadObservacoes leadId={lead.id} />
 
           <Separator />
 
