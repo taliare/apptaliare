@@ -42,6 +42,7 @@ import T2RadarRede from '@/pages/T2RadarRede';
 import T2RepresentantesPerformance from '@/pages/T2RepresentantesPerformance';
 import T2Financeiro from '@/pages/T2Financeiro';
 import T2PainelRede from '@/pages/T2PainelRede';
+import T2MeusKits from '@/pages/T2MeusKits';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -177,6 +178,11 @@ export function AnimatedRoutes() {
         } />
         
         {/* TALIARE 2.0 routes */}
+        <Route path="/t2-meus-kits" element={
+          <PermissionRoute menuKey="t2_meus_kits">
+            <T2MeusKits />
+          </PermissionRoute>
+        } />
         <Route path="/t2-painel-rede" element={
           <PermissionRoute menuKey="t2_painel_rede">
             <T2PainelRede />

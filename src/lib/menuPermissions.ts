@@ -28,6 +28,7 @@ export const ASSIGNABLE_MENUS = [
   { key: 't2_representantes_performance', label: 'Performance Reps', route: '/t2-representantes-performance' },
   { key: 't2_financeiro', label: 'Financeiro T2', route: '/t2-financeiro' },
   { key: 't2_painel_rede', label: 'Painel da Rede', route: '/t2-painel-rede' },
+  { key: 't2_meus_kits', label: 'Meus Kits', route: '/t2-meus-kits' },
 ] as const;
 
 export type MenuKey = typeof ASSIGNABLE_MENUS[number]['key'];
@@ -62,6 +63,7 @@ export const MENU_EXTRA_CONFIG: Record<string, { iconName: string; category: str
   t2_representantes_performance: { iconName: 'LineChart', category: 'TALIARE 2.0' },
   t2_financeiro: { iconName: 'Wallet', category: 'TALIARE 2.0' },
   t2_painel_rede: { iconName: 'BarChart3', category: 'TALIARE 2.0' },
+  t2_meus_kits: { iconName: 'Package', category: 'TALIARE 2.0' },
 };
 
 // Função para obter a chave do menu a partir da rota
