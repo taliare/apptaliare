@@ -327,7 +327,7 @@ export default function T2Revendedoras() {
             <TableBody>
               {filtered.map((r: any) => (
                 <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelectedId(r.id)}>
-                  <TableCell className="font-medium">{r.nome_exibicao || r.nome_completo}</TableCell>
+                  <TableCell className="font-medium">{r.nome_completo}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">{formatCpf(r.cpf)}</TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">{r.telefone}</TableCell>
                   <TableCell className="hidden lg:table-cell text-muted-foreground">{r.cidade || '-'}</TableCell>
