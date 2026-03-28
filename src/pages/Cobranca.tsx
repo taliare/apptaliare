@@ -337,10 +337,9 @@ export default function Cobranca() {
       if (dados.tipo === 'devolucao') {
         updateData.valor_previsto = 0;
         valorPrevistoEfetivo = 0;
-      } else if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
-        // Primeira cobrança de kit: valor_previsto = valor_devido_empresa
-        updateData.valor_previsto = dados.valor_devido_empresa;
-        valorPrevistoEfetivo = dados.valor_devido_empresa;
+      } else if (cobranca?.tipo?.toLowerCase() !== 'repasse') {
+        updateData.valor_previsto = dados.valor_devido_empresa + acumuladoAtual;
+        valorPrevistoEfetivo = dados.valor_devido_empresa + acumuladoAtual;
       }
       
       const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
