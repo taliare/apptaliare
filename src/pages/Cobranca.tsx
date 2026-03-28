@@ -454,9 +454,8 @@ export default function Cobranca() {
         valor_pago_acumulado: acumuladoAtual + dados.valor_recebido,
       };
       
-      if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
-        // Primeira cobrança: valor_previsto passa a ser o total devido à empresa (sem somar valor_recebido)
-        valorPrevistoEfetivo = dados.valor_devido_empresa;
+      if (cobranca?.tipo?.toLowerCase() !== 'repasse') {
+        valorPrevistoEfetivo = dados.valor_devido_empresa + acumuladoAtual;
         updateData.valor_previsto = valorPrevistoEfetivo;
       }
       
