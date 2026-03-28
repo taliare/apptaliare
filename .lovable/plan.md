@@ -1,21 +1,35 @@
 
 
-# Tornar o botão de exportar PDF mais visível
+# Correção do cálculo de saldo em aberto — Cobrança de Kit
 
 ## Problema
-O botão de exportar PDF existe no código, mas está usando `size="icon-sm"` (apenas 28x28px) e `variant="outline"`, tornando-o difícil de encontrar visualmente no header do sheet.
+Quando um kit já tem pagamentos anteriores (`valor_pago_acumulado > 0`), o `valor_previsto` só é atualizado na primeira cobrança (quando `acumuladoAtual === 0`). Nas cobranças seguintes, ele mantém o valor antigo, gerando saldo errado.
 
-## Solução
-Substituir o pequeno botão de ícone por um botão mais visível e descritivo, posicionado abaixo do header ou como um botão completo com texto.
+## Correções
 
-### Alteração em `src/components/leads/LeadDetailsSheet.tsx`
-- Trocar o botão `icon-sm` por um botão com texto "Exportar PDF" e o ícone `FileDown`
-- Usar `size="sm"` e `variant="outline"` para que fique claro e clicável
-- Mover o botão para fora do `SheetTitle` (abaixo do header), para não competir com o nome do lead
+### Correção 1 — `handlePagamentoCompleto` (linhas 337-344)
+Remover a condição `acumuladoAtual === 0`, e calcular `valor_previsto = valor_devido_empresa + acumuladoAtual`:
 
-O botão ficará assim:
+```typescript
+if (dados.tipo === 'devolucao') {
+  updateData.valor_previsto = 0;
+  valorPrevistoEfetivo = 0;
+} else if (cobranca?.tipo?.toLowerCase() !== 'repasse') {
+  updateData.valor_previsto = dados.valor_devido_empresa + acumuladoAtual;
+  valorPrevistoEfetivo = dados.valor_devido_empresa + acumuladoAtual;
+}
 ```
-[📄 Exportar PDF]
+
+### Correção 2 — `handlePagamentoParcial` (linhas 458-462)
+Mesma lógica: remover condição `acumuladoAtual === 0`, usar fórmula corrigida:
+
+```typescript
+if (cobranca?.tipo?.toLowerCase() !== 'repasse') {
+  valorPrevistoEfetivo = dados.valor_devido_empresa + acumuladoAtual;
+  updateData.valor_previsto = valorPrevistoEfetivo;
+}
 ```
-Posicionado logo após o header, antes dos links de contato.
+
+### Arquivo afetado
+- `src/pages/Cobranca.tsx` — apenas 2 blocos substituídos, nenhuma outra alteração
 
