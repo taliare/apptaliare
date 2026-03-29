@@ -1522,119 +1522,116 @@ function CobrancaItem({
       style={{ animationDelay: `${animationDelay}s` }}
     >
       <CardContent className="p-3 sm:p-4">
-        {/* Linha principal: nome + valor + botão cobrar */}
-        <div className="flex items-center gap-3">
-          {/* Nome e badges */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-sm truncate">{cobranca.revendedora}</span>
-              <Badge className={cn("text-[10px] px-1.5 py-0", statusConfig[cobranca.status].color)}>
+        <div className="flex flex-col gap-2">
+          {/* Nome completo — linha própria */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+              <span className="font-semibold text-sm leading-tight">{cobranca.revendedora}</span>
+              <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", statusConfig[cobranca.status].color)}>
                 {statusConfig[cobranca.status].label}
               </Badge>
               {cobranca.tipo && (
                 <Badge variant="outline" className={cn(
-                  "text-[10px] px-1.5 py-0",
+                  "text-[10px] px-1.5 py-0 shrink-0",
                   cobranca.tipo === 'kit' ? 'border-primary/30 text-primary' : 'text-muted-foreground'
                 )}>
                   {cobranca.tipo === 'acrescimo' ? 'ACRÉSCIMO' : cobranca.tipo.toUpperCase()}
                 </Badge>
               )}
             </div>
-
-            {/* Linha secundária: código + data */}
-            <div className="flex items-center gap-3 mt-1">
-              {cobranca.codigo_nota && (
-                <span className="font-mono text-xs text-muted-foreground">{cobranca.codigo_nota}</span>
-              )}
-              <span className={cn(
-                "text-xs",
-                destacarVencida ? "text-destructive font-medium" : "text-muted-foreground"
-              )}>
-                {formatDateBR(cobranca.data_agendada)}
-              </span>
-            </div>
           </div>
 
-          {/* Valor + botão cobrar */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="text-right">
+          {/* Linha secundária: código + data */}
+          <div className="flex items-center gap-3">
+            {cobranca.codigo_nota && (
+              <span className="font-mono text-xs text-muted-foreground">{cobranca.codigo_nota}</span>
+            )}
+            <span className={cn(
+              "text-xs",
+              destacarVencida ? "text-destructive font-medium" : "text-muted-foreground"
+            )}>
+              {formatDateBR(cobranca.data_agendada)}
+            </span>
+          </div>
+
+          {/* Linha de valor + botões */}
+          <div className="flex items-center justify-between gap-2">
+            <div>
               {temPagamentos ? (
-                <>
-                  <p className="text-sm font-bold text-foreground">{formatarValor(saldo)}</p>
-                  <p className="text-[10px] text-muted-foreground">saldo</p>
-                </>
+                <div>
+                  <p className="text-base font-bold text-foreground">{formatarValor(saldo)}</p>
+                  <p className="text-[10px] text-muted-foreground">saldo em aberto</p>
+                </div>
               ) : (
-                <p className="text-sm font-bold text-foreground">
+                <p className="text-base font-bold text-foreground">
                   {formatarValor(temAcrescimos ? cobranca.valor_previsto + totalAcrescimos : cobranca.valor_previsto)}
                 </p>
               )}
             </div>
-            <Button
-              size="sm"
-              onClick={() => onPagar(cobranca)}
-              className="h-8 px-3 shrink-0"
-            >
-              Cobrar
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {profile?.role === 'admin' && (
-                  <DropdownMenuItem onClick={() => onEdit(cobranca)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
+            <div className="flex items-center gap-2 shrink-0">
+              <Button size="sm" onClick={() => onPagar(cobranca)} className="h-9 px-4">
+                Cobrar
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {profile?.role === 'admin' && (
+                    <DropdownMenuItem onClick={() => onEdit(cobranca)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => onReagendar(cobranca)}>
+                    <CalendarDays className="h-4 w-4 mr-2" />
+                    Reagendar
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={() => onReagendar(cobranca)}>
-                  <CalendarDays className="h-4 w-4 mr-2" />
-                  Reagendar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAdiantamento(cobranca)}>
-                  <TrendingDown className="h-4 w-4 mr-2" />
-                  Adiantamento
-                </DropdownMenuItem>
-                {bloqueadoAcrescimo ? (
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm text-muted-foreground opacity-50">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Joias adicionais
-                          <Info className="h-3.5 w-3.5 ml-auto" />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-[200px] text-xs">
-                        {razaoAcrescimo}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
-                  <DropdownMenuItem onClick={() => onAcrescimo(cobranca)} className="text-amber-600">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Joias adicionais
+                  <DropdownMenuItem onClick={() => onAdiantamento(cobranca)}>
+                    <TrendingDown className="h-4 w-4 mr-2" />
+                    Adiantamento
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={() => onJuridico(cobranca)} className="text-purple-600">
-                  <Scale className="h-4 w-4 mr-2" />
-                  Jurídico
-                </DropdownMenuItem>
-                {cobranca.kit_entregue_id &&
-                  tipo === 'kit' &&
-                  acumulado === 0 &&
-                  adiantado === 0 &&
-                  cobranca.status !== 'pago' &&
-                  cobranca.status !== ('cancelado' as any) && (
-                  <DropdownMenuItem onClick={() => onDesistencia(cobranca)} className="text-destructive">
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Desistência
+                  {bloqueadoAcrescimo ? (
+                    <TooltipProvider delayDuration={200}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm text-muted-foreground opacity-50">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Joias adicionais
+                            <Info className="h-3.5 w-3.5 ml-auto" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-[200px] text-xs">
+                          {razaoAcrescimo}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <DropdownMenuItem onClick={() => onAcrescimo(cobranca)} className="text-amber-600">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Joias adicionais
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => onJuridico(cobranca)} className="text-purple-600">
+                    <Scale className="h-4 w-4 mr-2" />
+                    Jurídico
                   </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {cobranca.kit_entregue_id &&
+                    tipo === 'kit' &&
+                    acumulado === 0 &&
+                    adiantado === 0 &&
+                    cobranca.status !== 'pago' &&
+                    cobranca.status !== ('cancelado' as any) && (
+                    <DropdownMenuItem onClick={() => onDesistencia(cobranca)} className="text-destructive">
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Desistência
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
