@@ -96,3 +96,22 @@ export function getLocalMonthString(date: Date = new Date()): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
 }
+
+/**
+ * Formata string digitada em input para formato monetário brasileiro (1.234,56)
+ * Aceita apenas dígitos, divide por 100 para centavos automáticos.
+ */
+export function formatarInputMoeda(valor: string): string {
+  const apenasNumeros = valor.replace(/\D/g, '');
+  if (!apenasNumeros) return '';
+  const numero = parseFloat(apenasNumeros) / 100;
+  return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Converte string formatada em pt-BR (1.234,56) para number
+ */
+export function parseInputMoeda(valor: string): number {
+  const limpo = valor.replace(/\./g, '').replace(',', '.');
+  return parseFloat(limpo) || 0;
+}

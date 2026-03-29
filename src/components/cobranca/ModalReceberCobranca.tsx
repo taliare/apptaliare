@@ -9,8 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-import { formatarValor } from '@/lib/utils';
+import { cn, formatarValor, formatarInputMoeda, parseInputMoeda } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { registrarLog } from '@/lib/logOperacional';
 import { useAuth } from '@/contexts/AuthContext';
@@ -150,10 +149,10 @@ export function ModalReceberCobranca({
   };
 
   const handleValorDevolvidoChange = (value: string) => {
-    const cleanValue = value.replace(/[^\d,]/g, '');
-    setValorDevolvido(cleanValue);
+    const formatado = formatarInputMoeda(value);
+    setValorDevolvido(formatado);
     
-    const valorDevolvidoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
+    const valorDevolvidoNum = parseInputMoeda(formatado);
     const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
     
     if (valorVendido > 0) {
@@ -166,16 +165,16 @@ export function ModalReceberCobranca({
   };
   
   const handleDescontoChange = (value: string) => {
-    const cleanValue = value.replace(/[^\d,]/g, '');
-    setDesconto(cleanValue);
+    const formatado = formatarInputMoeda(value);
+    setDesconto(formatado);
     
-    const descontoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
+    const descontoNum = parseInputMoeda(formatado);
     
     if (isRepasse) {
       setValorAReceber(cobranca.valor_previsto - descontoNum);
     } else {
-      const valorDevolvidoNum = parseFloat(valorDevolvido.replace(',', '.')) || 0;
-      const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
+      const valorVendaNum = parseInputMoeda(valorDevolvido);
+      const valorVendido = Math.max(0, cobranca.valor_previsto - valorVendaNum);
       const valorAposComissao = valorVendido - comissaoValor;
       setValorAReceber(valorAposComissao - descontoNum);
     }
@@ -221,14 +220,14 @@ export function ModalReceberCobranca({
   };
 
   const calcularTotalRecebido = () => {
-    const valor1 = parseFloat(pagamento1.valor.replace(',', '.')) || 0;
-    const valor2 = pagamento2 ? (parseFloat(pagamento2.valor.replace(',', '.')) || 0) : 0;
+    const valor1 = parseInputMoeda(pagamento1.valor);
+    const valor2 = pagamento2 ? parseInputMoeda(pagamento2.valor) : 0;
     return valor1 + valor2;
   };
 
   // Valor efetivo a receber (considera pagamento parcial)
   const valorEfetivoReceber = mostrarPagamentoParcial && valorParcial
-    ? parseFloat(valorParcial.replace(',', '.')) || 0
+    ? parseInputMoeda(valorParcial)
     : valorAReceber;
   
   const valorRestante = valorAReceber - valorEfetivoReceber;
@@ -268,18 +267,18 @@ export function ModalReceberCobranca({
       try {
         // Se valor efetivo a receber é zero, não precisa de pagamentos
         const pagamentos: Array<{ forma: FormaPagamento; valor: number }> = valorEfetivoReceber > 0 
-          ? [{ forma: pagamento1.forma as FormaPagamento, valor: parseFloat(pagamento1.valor.replace(',', '.')) }]
+          ? [{ forma: pagamento1.forma as FormaPagamento, valor: parseInputMoeda(pagamento1.valor) }]
           : [];
         
         if (valorEfetivoReceber > 0 && pagamento2) {
           pagamentos.push({
             forma: pagamento2.forma as FormaPagamento,
-            valor: parseFloat(pagamento2.valor.replace(',', '.'))
+            valor: parseInputMoeda(pagamento2.valor)
           });
         }
 
         await onPagamentoParcial({
-          valor_venda: Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)),
+          valor_venda: Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)),
           comissao_percentual: comissaoPercentual,
           comissao_valor: comissaoValor,
           valor_devido_empresa: valorAReceber,
@@ -321,19 +320,19 @@ export function ModalReceberCobranca({
       if (valorAReceber > 0 && pagamento1.forma) {
         pagamentos.push({ 
           forma: pagamento1.forma as FormaPagamento, 
-          valor: parseFloat(pagamento1.valor.replace(',', '.')) 
+          valor: parseInputMoeda(pagamento1.valor) 
         });
         
         if (pagamento2) {
           pagamentos.push({
             forma: pagamento2.forma as FormaPagamento,
-            valor: parseFloat(pagamento2.valor.replace(',', '.'))
+            valor: parseInputMoeda(pagamento2.valor)
           });
         }
       }
 
       await onPagamentoCompleto({
-        valor_venda: Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)),
+        valor_venda: Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)),
         comissao_percentual: comissaoPercentual,
         comissao_valor: comissaoValor,
         valor_devido_empresa: valorAReceber,
@@ -431,9 +430,9 @@ export function ModalReceberCobranca({
                   Informe o valor total das joias que a revendedora devolveu
                 </p>
               )}
-              {valorDevolvido && parseFloat(valorDevolvido.replace(',', '.')) >= 0 && (
+              {valorDevolvido && parseInputMoeda(valorDevolvido) >= 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Valor do kit: {formatarValor(cobranca.valor_previsto)} — Vendido: {formatarValor(Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)))}
+                  Valor do kit: {formatarValor(cobranca.valor_previsto)} — Vendido: {formatarValor(Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)))}
                 </p>
               )}
             </div>
@@ -540,7 +539,7 @@ export function ModalReceberCobranca({
                     className="h-8 w-24"
                   />
                   <span className="text-sm text-orange-600">
-                    {desconto && parseFloat(desconto.replace(',', '.')) > 0 && `-${formatarValor(parseFloat(desconto.replace(',', '.')))}`}
+                    {desconto && parseInputMoeda(desconto) > 0 && `-${formatarValor(parseInputMoeda(desconto))}`}
                   </span>
                   <Button
                     variant="ghost"
@@ -550,7 +549,7 @@ export function ModalReceberCobranca({
                       setDesconto('');
                       setMostrarDesconto(false);
                       // Recalcula valor a receber sem desconto
-                      const valorDevolvidoNum = parseFloat(valorDevolvido.replace(',', '.')) || 0;
+                      const valorDevolvidoNum = parseInputMoeda(valorDevolvido);
                       const valorBase = isRepasse 
                         ? cobranca.valor_previsto 
                         : Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
@@ -596,11 +595,10 @@ export function ModalReceberCobranca({
                     placeholder="0,00"
                     value={valorParcial}
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/[^\d,]/g, '');
-                      setValorParcial(clean);
-                      // Atualiza pagamento1
+                      const formatado = formatarInputMoeda(e.target.value);
+                      setValorParcial(formatado);
                       if (pagamento1.forma && !pagamento2) {
-                        setPagamento1({ ...pagamento1, valor: clean });
+                        setPagamento1({ ...pagamento1, valor: formatado });
                       }
                     }}
                     className="h-8"
@@ -707,7 +705,7 @@ export function ModalReceberCobranca({
                   type="text"
                   placeholder="Valor"
                   value={pagamento1.valor}
-                  onChange={(e) => setPagamento1({ ...pagamento1, valor: e.target.value.replace(/[^\d,]/g, '') })}
+                  onChange={(e) => setPagamento1({ ...pagamento1, valor: formatarInputMoeda(e.target.value) })}
                 />
               )}
             </div>
@@ -761,7 +759,7 @@ export function ModalReceberCobranca({
                     type="text"
                     placeholder="Valor"
                     value={pagamento2.valor}
-                    onChange={(e) => setPagamento2({ ...pagamento2, valor: e.target.value.replace(/[^\d,]/g, '') })}
+                    onChange={(e) => setPagamento2({ ...pagamento2, valor: formatarInputMoeda(e.target.value) })}
                   />
                 </div>
               )}
