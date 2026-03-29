@@ -550,13 +550,12 @@ export function ModalReceberCobranca({
                       setDesconto('');
                       setMostrarDesconto(false);
                       // Recalcula valor a receber sem desconto
+                      const valorDevolvidoNum = parseFloat(valorDevolvido.replace(',', '.')) || 0;
                       const valorBase = isRepasse 
                         ? cobranca.valor_previsto 
-                        : (parseFloat(valorVenda.replace(',', '.')) || 0);
+                        : Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
                       if (isRepasse) {
                         setValorAReceber(valorBase);
-                      } else if (comissaoManual && comissaoPercentualManual) {
-                        calcularComissao(valorBase, parseFloat(comissaoPercentualManual));
                       } else {
                         calcularComissao(valorBase);
                       }
