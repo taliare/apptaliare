@@ -800,9 +800,9 @@ export function ModalReceberCobranca({
           </div>
           
           {/* Mensagem de ajuda quando botão está desabilitado */}
-          {!podeReceber && !isRepasse && !isSubsequente && !valorVenda && (
+          {!podeReceber && !isRepasse && !isSubsequente && !valorDevolvido && (
             <p className="text-xs text-center text-muted-foreground">
-              Preencha o valor da venda para habilitar o botão
+              Informe o valor das joias devolvidas para habilitar o botão
             </p>
           )}
         </div>
