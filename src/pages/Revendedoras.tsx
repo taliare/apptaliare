@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Search, UserCheck, UserX, Phone, Edit2, Upload } from 'lucide-react';
+import RankingRevendedoras from '@/components/revendedoras/RankingRevendedoras';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
@@ -147,13 +149,24 @@ export default function Revendedoras() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Revendedoras</h1>
-          <p className="text-muted-foreground">Listagem geral de todas as revendedoras</p>
+          <p className="text-muted-foreground">Gestão e ranking de revendedoras</p>
         </div>
-        <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
-          <Upload className="h-4 w-4" />
-          Importar WhatsApp
-        </Button>
       </div>
+
+      <Tabs defaultValue="listagem" className="w-full">
+        <TabsList>
+          <TabsTrigger value="listagem">Listagem</TabsTrigger>
+          <TabsTrigger value="ranking">Ranking</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="listagem">
+          <div className="space-y-6">
+            <div className="flex justify-end">
+              <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
+                <Upload className="h-4 w-4" />
+                Importar WhatsApp
+              </Button>
+            </div>
 
       {/* Filtros */}
       <Card>
@@ -342,6 +355,17 @@ export default function Revendedoras() {
         onClose={() => setImportDialogOpen(false)}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['revendedoras-admin'] })}
       />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="ranking">
+          <RankingRevendedoras
+            representantes={representantes}
+            representanteFiltro={representanteFiltro}
+            setRepresentanteFiltro={setRepresentanteFiltro}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
