@@ -1636,12 +1636,11 @@ function CobrancaItem({
 
         {/* Linha de pagamentos parciais — só aparece se tiver */}
         {temPagamentos && (
-          <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="mt-2 pt-2 border-t border-border/40 flex items-center gap-4 text-xs text-muted-foreground">
             <span>Já pago: <span className="font-medium text-foreground">{formatarValor(acumulado)}</span></span>
             {adiantado > 0 && (
               <span>Adiantado: <span className="font-medium text-green-600">{formatarValor(adiantado)}</span></span>
             )}
-            <span>Saldo: <span className="font-semibold text-foreground">{formatarValor(saldo)}</span></span>
           </div>
         )}
 
