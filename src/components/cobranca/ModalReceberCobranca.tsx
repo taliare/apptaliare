@@ -454,39 +454,8 @@ export function ModalReceberCobranca({
             <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
               <div className="flex justify-between items-center">
                 <span>Comissão ({comissaoPercentual}%):</span>
-                <div className="flex items-center gap-1">
-                  <span className="font-medium">{formatarValor(comissaoValor)}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 p-0"
-                    onClick={() => {
-                      if (!comissaoManual) {
-                        setComissaoManual(true);
-                        setComissaoPercentualManual(comissaoPercentual.toString());
-                      } else {
-                        setComissaoManual(false);
-                        setComissaoPercentualManual('');
-                        const valorNum = parseFloat(valorVenda.replace(',', '.')) || 0;
-                        if (valorNum > 0) calcularComissao(valorNum);
-                      }
-                    }}
-                  >
-                    <Edit2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                <span className="font-medium">{formatarValor(comissaoValor)}</span>
               </div>
-              {comissaoManual && (
-                <div className="flex items-center gap-2 mt-2">
-                  <Label className="text-xs">%:</Label>
-                  <Input
-                    type="text"
-                    className="h-7 text-sm w-20"
-                    value={comissaoPercentualManual}
-                    onChange={(e) => handleComissaoManualChange(e.target.value)}
-                  />
-                </div>
-              )}
             </div>
           )}
 
