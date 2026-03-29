@@ -759,7 +759,7 @@ export function ModalReceberCobranca({
                     type="text"
                     placeholder="Valor"
                     value={pagamento2.valor}
-                    onChange={(e) => setPagamento2({ ...pagamento2, valor: e.target.value.replace(/[^\d,]/g, '') })}
+                    onChange={(e) => setPagamento2({ ...pagamento2, valor: formatarInputMoeda(e.target.value) })}
                   />
                 </div>
               )}
