@@ -1,18 +1,19 @@
 
 
-# Correção do handleJuridicoClick para usar saldo real
+# Substituir PWAUpdateNotification por versão bloqueante
 
 ## Resumo
-Atualizar `valor_previsto` para o saldo real (descontando pagamentos e adiantamentos) ao encaminhar cobrança ao jurídico.
+Substituir o componente de notificação PWA por um overlay fullscreen que bloqueia o uso do sistema até o usuário clicar "Atualizar agora". Remove o botão de fechar/dismiss.
 
-## Alteração em `src/pages/Cobranca.tsx`
+## Alteração em `src/components/PWAUpdateNotification.tsx`
 
-### Bloco 1: juridicoMutation (linhas 667-686)
-Alterar `mutationFn` para receber `{ id, saldoReal }` em vez de apenas `id`, e incluir `valor_previsto: saldoReal` no update.
-
-### Bloco 2: handleJuridicoClick (linhas 688-690)
-Calcular `saldoReal = Math.max(0, valor_previsto - acumulado - adiantado)` e passar `{ id, saldoReal }` ao mutate.
+Substituir o arquivo inteiro por:
+- Overlay fixo fullscreen com `z-[9999]`, backdrop blur e fundo escuro
+- Card centralizado com ícone animado (rotate), título, descrição e botão "Atualizar agora"
+- Mensagem de segurança ("Seus dados estão salvos")
+- Remove import de `X` e uso de `dismissUpdate` — o usuário é obrigado a atualizar
+- Mantém `usePWAUpdate` hook sem alterações
 
 ### Arquivo afetado
-- `src/pages/Cobranca.tsx` — 2 blocos (linhas 667-690)
+- `src/components/PWAUpdateNotification.tsx` — substituição completa (1 arquivo)
 
