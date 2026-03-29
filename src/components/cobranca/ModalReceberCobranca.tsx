@@ -227,7 +227,7 @@ export function ModalReceberCobranca({
 
   // Valor efetivo a receber (considera pagamento parcial)
   const valorEfetivoReceber = mostrarPagamentoParcial && valorParcial
-    ? parseFloat(valorParcial.replace(',', '.')) || 0
+    ? parseInputMoeda(valorParcial)
     : valorAReceber;
   
   const valorRestante = valorAReceber - valorEfetivoReceber;
