@@ -1,46 +1,30 @@
 
 
-# Formatação monetária nos inputs
+# Correção de "Notas Cobradas" e "Ticket Médio" no Dashboard
 
 ## Resumo
-Adicionar funções `formatarInputMoeda` e `parseInputMoeda` em `utils.ts` e aplicá-las em todos os inputs monetários de `ModalReceberCobranca.tsx`.
+A query de `notasCobradas` conta todas as linhas de `notas_promissorias`, mas ciclos parciais geram múltiplas notas para a mesma cobrança, inflando os números. A correção conta apenas `cobranca_id` distintos.
 
-## Alterações
+## Alterações em `src/pages/Dashboard.tsx`
 
-### 1. `src/lib/utils.ts` — Adicionar duas funções ao final
-- `formatarInputMoeda(valor)`: formata string digitada como "1.234,56" (máscara automática)
-- `parseInputMoeda(valor)`: converte string formatada para number
+### 1. Query notasCobradas (linhas 202-206)
+Adicionar `cobranca_id` ao select:
+```typescript
+.select("id, cobranca_id")
+```
 
-### 2. `src/components/cobranca/ModalReceberCobranca.tsx`
+### 2. Cálculo totalNotasCobradas e ticketMedio (linhas 219-220)
+Substituir contagem simples por contagem de `cobranca_id` distintos usando `Set`:
+```typescript
+const cobrancasUnicas = new Set(
+  notasCobradas
+    .filter(n => n.cobranca_id)
+    .map(n => n.cobranca_id)
+);
+const totalNotasCobradas = cobrancasUnicas.size;
+const ticketMedio = totalNotasCobradas > 0 ? totalCobrado / totalNotasCobradas : 0;
+```
 
-**Import** (linha 13): adicionar `formatarInputMoeda, parseInputMoeda`
-
-**`handleValorDevolvidoChange`** (linhas 152-166): usar `formatarInputMoeda` para formatar e `parseInputMoeda` para converter
-
-**`handleDescontoChange`** (linhas 168-182): mesma abordagem — `formatarInputMoeda` + `parseInputMoeda`
-
-**Input valorParcial** (linhas 598-605): onChange usa `formatarInputMoeda`
-
-**Input pagamento1.valor** (linha 710): onChange usa `formatarInputMoeda`
-
-**Input pagamento2.valor** (linha 764): onChange usa `formatarInputMoeda`
-
-**Todos os `parseFloat(...replace(',', '.'))` restantes** — substituir por `parseInputMoeda(...)`:
-- Linha 224: `parseFloat(pagamento1.valor.replace(',', '.'))` → `parseInputMoeda(pagamento1.valor)`
-- Linha 225: `parseFloat(pagamento2.valor.replace(',', '.'))` → `parseInputMoeda(pagamento2.valor)`
-- Linha 231: `parseFloat(valorParcial.replace(',', '.'))` → `parseInputMoeda(valorParcial)`
-- Linha 271: `parseFloat(pagamento1.valor.replace(',', '.'))` → `parseInputMoeda(pagamento1.valor)`
-- Linha 277: `parseFloat(pagamento2.valor.replace(',', '.'))` → `parseInputMoeda(pagamento2.valor)`
-- Linha 282: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
-- Linha 324: `parseFloat(pagamento1.valor.replace(',', '.'))` → `parseInputMoeda(pagamento1.valor)`
-- Linha 330: `parseFloat(pagamento2.valor.replace(',', '.'))` → `parseInputMoeda(pagamento2.valor)`
-- Linha 336: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
-- Linha 434: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
-- Linha 436: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
-- Linha 543: `parseFloat(desconto.replace(',', '.'))` (x2) → `parseInputMoeda(desconto)`
-- Linha 553: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
-
-### Arquivos afetados
-- `src/lib/utils.ts` — 2 funções adicionadas
-- `src/components/cobranca/ModalReceberCobranca.tsx` — import + handlers + ~15 substituições de parseFloat
+### Arquivo afetado
+- `src/pages/Dashboard.tsx` — 2 blocos substituídos
 
