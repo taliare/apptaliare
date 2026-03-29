@@ -165,16 +165,16 @@ export function ModalReceberCobranca({
   };
   
   const handleDescontoChange = (value: string) => {
-    const cleanValue = value.replace(/[^\d,]/g, '');
-    setDesconto(cleanValue);
+    const formatado = formatarInputMoeda(value);
+    setDesconto(formatado);
     
-    const descontoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
+    const descontoNum = parseInputMoeda(formatado);
     
     if (isRepasse) {
       setValorAReceber(cobranca.valor_previsto - descontoNum);
     } else {
-      const valorDevolvidoNum = parseFloat(valorDevolvido.replace(',', '.')) || 0;
-      const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
+      const valorVendaNum = parseInputMoeda(valorDevolvido);
+      const valorVendido = Math.max(0, cobranca.valor_previsto - valorVendaNum);
       const valorAposComissao = valorVendido - comissaoValor;
       setValorAReceber(valorAposComissao - descontoNum);
     }
