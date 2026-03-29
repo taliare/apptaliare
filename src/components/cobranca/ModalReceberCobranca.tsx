@@ -430,9 +430,9 @@ export function ModalReceberCobranca({
                   Informe o valor total das joias que a revendedora devolveu
                 </p>
               )}
-              {valorDevolvido && parseFloat(valorDevolvido.replace(',', '.')) >= 0 && (
+              {valorDevolvido && parseInputMoeda(valorDevolvido) >= 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Valor do kit: {formatarValor(cobranca.valor_previsto)} — Vendido: {formatarValor(Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)))}
+                  Valor do kit: {formatarValor(cobranca.valor_previsto)} — Vendido: {formatarValor(Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)))}
                 </p>
               )}
             </div>
