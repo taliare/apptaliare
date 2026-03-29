@@ -1,60 +1,35 @@
 
 
-# Transformar RevendedorasInativas em "Minhas Revendedoras" com 3 abas
+# Correção do saldo em aberto na aba Ativas
 
 ## Resumo
-Expandir a página atual para incluir abas Ativas, Inativas e Ranking, com modal de perfil compartilhado e edição de WhatsApp inline. A lógica existente de inativas permanece intacta.
+Só exibir saldo em aberto quando a cobrança já tiver prestação de contas registrada. Antes da apuração, mostrar "Pendente apuração".
 
-## Arquivos afetados
+## Alterações em `src/pages/RevendedorasInativas.tsx`
 
-### 1. `src/pages/RevendedorasInativas.tsx` — Reescrita completa
+### 1. Interface `RevendedoraAtiva` (linha 28-34)
+Adicionar campo `temApuracao: boolean`.
 
-**Título**: "Minhas Revendedoras" com subtítulo atualizado.
-
-**Tabs**: Ativas | Inativas | Ranking (usando componente Tabs existente).
-
-**Aba Inativas**: Todo o conteúdo atual (busca, card resumo, grid de cards, dialog de reativação) movido para dentro de `TabsContent value="inativas"`. Nenhuma lógica removida.
-
-**Aba Ativas** (nova):
-- Query `minhas-revendedoras-ativas` busca `cobrancas_agendadas` com status pendente/parcial/reagendado + dados cadastrais de `revendedoras`
-- Agrupa por nome, calcula saldo total e conta cobranças
-- Cards com: nome, badge "Ativa" verde, WhatsApp (editável), saldo em aberto, cobranças abertas, botão "Ver Perfil"
-
-**Aba Ranking** (nova):
-- Query `ranking-minhas-revendedoras` busca `prestacoes_contas` do representante com `total_venda > 0`
-- Filtro de período: Mensal / Trimestral / Total
-- Deduplicação por `cobranca_id` (mesmo padrão já usado no ranking admin)
-- Agrupamento por revendedora com cálculo de: ciclos, volume, ticket médio, nível
-- Tabela: Posição, Nome, Nível (badge colorido), Ciclos, Volume, Ticket Médio, "Ver Perfil"
-
-**Modal de Perfil** (novo, compartilhado):
-- State `perfilAberto` controla nome da revendedora selecionada
-- Busca todas as prestações da revendedora, deduplica por `cobranca_id`
-- Exibe: nome, WhatsApp editável, status, cards resumo (ciclos, volume, ticket, nível), tabela histórica, evolução de nível
-
-**Edição de WhatsApp**:
-- Mutation `atualizarWhatsApp` faz update em `revendedoras` por `revendedora_id`
-- Disponível nos cards de ativas e no modal de perfil
-
-**Imports adicionais**: `startOfMonth, endOfMonth, subMonths` de date-fns; `Tabs, TabsList, TabsTrigger, TabsContent`; `Table` components; ícones adicionais (Phone, Edit2, Trophy, etc.)
-
-**Função `calcularNivel`**:
+### 2. Query `minhas-revendedoras-ativas` (linhas 86-124)
+Após buscar cadastros e antes do agrupamento, adicionar busca de prestações:
 ```typescript
-function calcularNivel(ticketMedio: number) {
-  if (ticketMedio >= 2000) return { nivel: 'Elite', cor: 'purple' };
-  if (ticketMedio >= 1000) return { nivel: 'Destaque', cor: 'orange' };
-  if (ticketMedio >= 300) return { nivel: 'Ativa', cor: 'blue' };
-  return { nivel: 'Inicial', cor: 'gray' };
-}
+const { data: prestacoes } = await supabase
+  .from('prestacoes_contas')
+  .select('cobranca_id, valor_devido_empresa, valor_pago, saldo_devedor')
+  .eq('representante_id', user!.id);
+const prestacaoMap = new Map(prestacoes?.map(p => [p.cobranca_id, p]) || []);
 ```
 
-### 2. `src/components/AnimatedRoutes.tsx` — Sem alteração
-A rota `/revendedoras-inativas` já importa este arquivo. O export default mantém o mesmo nome, então nenhuma mudança de rota é necessária.
+No `forEach` de agrupamento (linhas 106-122):
+- Verificar `jaApurada = prestacaoMap.has(c.id)` antes de calcular saldo
+- Saldo = 0 se não apurada
+- Adicionar `temApuracao: false` ao criar entrada e setar `true` se qualquer cobrança estiver apurada
 
-## Detalhes técnicos
+### 3. Card de métricas (linhas 473-476)
+Substituir exibição fixa do saldo por condicional:
+- Se `temApuracao`: mostrar valor formatado em vermelho
+- Se não: mostrar "Pendente apuração" em texto muted
 
-- O arquivo será substancialmente maior (~600-700 linhas). Todas as queries, states e mutations ficam no mesmo componente para simplicidade.
-- A aba padrão será "ativas" (`defaultValue="ativas"` no Tabs).
-- A busca por nome será compartilhada entre as 3 abas.
-- O modal de perfil usa `Dialog` com state `perfilAberto: string | null`.
+### Arquivo afetado
+- `src/pages/RevendedorasInativas.tsx` — 4 blocos alterados
 
