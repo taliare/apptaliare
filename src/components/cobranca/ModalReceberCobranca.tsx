@@ -420,21 +420,30 @@ export function ModalReceberCobranca({
             </div>
           )}
 
-          {/* Valor da Venda (só para KIT na primeira cobrança - não mostrar no modo subsequente) */}
+          {/* Valor em Joias Devolvidas (só para KIT na primeira cobrança) */}
           {!isRepasse && !isSubsequente && (
             <div className="space-y-2">
-              <Label>Valor da Venda <span className="text-destructive">*</span></Label>
+              <div className="p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">⚠️ ATENÇÃO: campo atualizado</p>
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">Agora informe o valor em joias <strong>devolvidas</strong>, não o valor vendido.</p>
+              </div>
+              <Label>Valor em Joias Devolvidas <span className="text-destructive">*</span></Label>
               <Input
                 type="text"
-                placeholder="Digite o valor total da venda"
-                value={valorVenda}
-                onChange={(e) => handleValorVendaChange(e.target.value)}
+                placeholder="Digite o valor total devolvido em joias"
+                value={valorDevolvido}
+                onChange={(e) => handleValorDevolvidoChange(e.target.value)}
                 disabled={loading}
-                className={cn(!valorVenda && "border-orange-400 focus-visible:ring-orange-400")}
+                className={cn(!valorDevolvido && "border-orange-400 focus-visible:ring-orange-400")}
               />
-              {!valorVenda && (
+              {!valorDevolvido && (
                 <p className="text-xs text-orange-600">
-                  Informe o valor total que a revendedora vendeu
+                  Informe o valor total das joias que a revendedora devolveu
+                </p>
+              )}
+              {valorDevolvido && parseFloat(valorDevolvido.replace(',', '.')) >= 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Valor do kit: {formatarValor(cobranca.valor_previsto)} — Vendido: {formatarValor(Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)))}
                 </p>
               )}
             </div>
