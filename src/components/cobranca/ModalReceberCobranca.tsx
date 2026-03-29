@@ -9,8 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-import { formatarValor } from '@/lib/utils';
+import { cn, formatarValor, formatarInputMoeda, parseInputMoeda } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { registrarLog } from '@/lib/logOperacional';
 import { useAuth } from '@/contexts/AuthContext';
