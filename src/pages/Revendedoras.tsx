@@ -355,6 +355,17 @@ export default function Revendedoras() {
         onClose={() => setImportDialogOpen(false)}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['revendedoras-admin'] })}
       />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="ranking">
+          <RankingRevendedoras
+            representantes={representantes}
+            representanteFiltro={representanteFiltro}
+            setRepresentanteFiltro={setRepresentanteFiltro}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
