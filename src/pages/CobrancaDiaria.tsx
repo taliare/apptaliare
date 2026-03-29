@@ -1162,28 +1162,28 @@ export default function CobrancaDiaria() {
   };
 
   return (
-    <div className="space-y-4 md:space-y-6 max-w-full overflow-x-hidden">
-      {/* Título com data */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2">
-            <span className="truncate">Fechamento do Dia</span>
+    <div className="space-y-4 max-w-full overflow-x-hidden pb-8">
+      
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            Fechamento do Dia
             {isDiaFinalizado && (
-              <Badge variant="default" className="text-xs sm:text-sm shrink-0">
+              <Badge variant="default" className="text-xs">
                 <Lock className="h-3 w-3 mr-1" />
                 Finalizado
               </Badge>
             )}
           </h1>
-          <p className="text-sm sm:text-base md:text-lg text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
         </div>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="w-full sm:w-auto">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              Alterar Data
+            <Button variant="outline" size="sm">
+              <CalendarIcon className="h-4 w-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">
@@ -1198,826 +1198,378 @@ export default function CobrancaDiaria() {
         </Popover>
       </div>
 
-      {/* Três blocos visuais */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-3">
-        {/* Bloco Cobranças de Hoje */}
-        <Card className="w-full max-w-full overflow-hidden">
-          <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-              <span className="truncate">Cobranças de Hoje</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 sm:px-6">
-            {loadingNotas ? (
-              <div className="text-center py-4 text-muted-foreground text-sm">Carregando...</div>
-            ) : notas.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground text-sm">
-                Nenhuma cobrança registrada
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[240px] sm:max-h-[280px] overflow-y-auto">
+      {/* Etapa 1 — Cobranças */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">1</div>
+            <span className="font-semibold text-sm">Cobranças de Hoje</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{notas.length} notas</span>
+            <span className="font-bold text-sm text-primary">{formatarValor(totalCobradoCalculado)}</span>
+          </div>
+        </div>
+        <div className="px-4 py-3 space-y-2">
+          {loadingNotas ? (
+            <p className="text-sm text-muted-foreground text-center py-2">Carregando...</p>
+          ) : notas.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-2">Nenhuma cobrança registrada</p>
+          ) : (
+            <div className="space-y-2 max-h-56 overflow-y-auto">
               {notas.map((nota) => {
-                  // Resolver revendedora e código do pedido real
-                  let revendedora: string | undefined;
-                  let codigoPedido: string | undefined;
-
-                  // 1. Tentar via cobranca_id (lookup reverso)
-                  if (nota.cobranca_id && cobrancaIdMap[nota.cobranca_id]) {
-                    const mapped = cobrancaIdMap[nota.cobranca_id];
-                    revendedora = mapped.revendedora;
-                    codigoPedido = mapped.codigo_nota;
-                  }
-                  // 2. Tentar via revendedoraMap (código curto direto)
-                  else if (revendedoraMap[nota.codigo_nota]) {
-                    revendedora = revendedoraMap[nota.codigo_nota];
-                    codigoPedido = nota.codigo_nota;
-                  }
-                  // 3. Código gerado com formato NOME-14digitos
-                  else if (nota.codigo_nota) {
-                    const match = nota.codigo_nota.match(/^(.+?)-\d{14}$/);
-                    if (match) {
-                      revendedora = match[1];
-                      codigoPedido = undefined; // sem código real
-                    } else {
-                      codigoPedido = nota.codigo_nota;
-                    }
-                  }
-
-                  // Usar a coluna devolveu_tudo para identificar devoluções, não apenas valor zero
-                  const isDevolveuTudo = nota.devolveu_tudo === true;
-                  return (
-                    <div key={nota.id} className={cn(
-                      "p-2 rounded-lg text-xs sm:text-sm space-y-1",
-                      isDevolveuTudo ? "bg-orange-100 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800" : "bg-muted/50"
-                    )}>
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="min-w-0 flex-1 overflow-hidden">
-                          {revendedora && (
-                            <p className="font-medium text-foreground truncate max-w-[140px] sm:max-w-none">{revendedora}</p>
-                          )}
-                          {codigoPedido ? (
-                            <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">Nota {codigoPedido}</p>
-                          ) : (
-                            <p className="text-[10px] sm:text-xs text-muted-foreground font-mono truncate">—</p>
-                          )}
-                          {isDevolveuTudo && (
-                            <p className="text-[10px] sm:text-xs text-orange-600 dark:text-orange-400 font-medium mt-0.5">Devolveu tudo</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                          <span className={cn(
-                            "font-semibold text-xs sm:text-sm whitespace-nowrap",
-                            isDevolveuTudo ? "text-orange-600 dark:text-orange-400" : nota.valor_total === 0 ? "text-muted-foreground" : "text-primary"
-                          )}>
-                            {formatarValor(nota.valor_total)}
-                          </span>
-                          {!isDiaFinalizado && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-5 w-5 sm:h-6 sm:w-6 p-0 shrink-0">
-                                  <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="max-w-[90vw] sm:max-w-lg">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir da Cobrança de Hoje</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    A nota <strong className="break-all">{nota.codigo_nota}</strong> será removida da cobrança de hoje e voltará para a <strong>Agenda de Cobrança</strong> como pendente.
-                                    <br /><br />
-                                    A nota NÃO será apagada do sistema.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-                                  <AlertDialogCancel className="w-full sm:w-auto">Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => excluirNotaDaCobrancaMutation.mutate(nota)}
-                                    disabled={excluirNotaDaCobrancaMutation.isPending}
-                                    className="w-full sm:w-auto"
-                                  >
-                                    {excluirNotaDaCobrancaMutation.isPending ? 'Removendo...' : 'Confirmar'}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
-                      </div>
+                let revendedora: string | undefined;
+                let codigoPedido: string | undefined;
+                if (nota.cobranca_id && cobrancaIdMap[nota.cobranca_id]) {
+                  const mapped = cobrancaIdMap[nota.cobranca_id];
+                  revendedora = mapped.revendedora;
+                  codigoPedido = mapped.codigo_nota;
+                } else if (revendedoraMap[nota.codigo_nota]) {
+                  revendedora = revendedoraMap[nota.codigo_nota];
+                  codigoPedido = nota.codigo_nota;
+                } else if (nota.codigo_nota) {
+                  const match = nota.codigo_nota.match(/^(.+?)-\d{14}$/);
+                  if (match) { revendedora = match[1]; }
+                  else { codigoPedido = nota.codigo_nota; }
+                }
+                const isDevolveuTudo = nota.devolveu_tudo === true;
+                return (
+                  <div key={nota.id} className={cn(
+                    "flex items-center justify-between p-2.5 rounded-lg text-sm",
+                    isDevolveuTudo ? "bg-orange-500/10 border border-orange-500/20" : "bg-muted/50"
+                  )}>
+                    <div className="min-w-0 flex-1">
+                      {revendedora && <p className="font-medium truncate">{revendedora}</p>}
+                      <p className="text-xs text-muted-foreground font-mono">{codigoPedido || '—'}</p>
+                      {isDevolveuTudo && <p className="text-xs text-orange-500">Devolveu tudo</p>}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t flex justify-between items-center">
-              <span className="text-xs sm:text-sm text-muted-foreground">{notas.length} notas</span>
-              <span className="font-bold text-primary text-sm sm:text-base">{formatarValor(totalCobradoCalculado)}</span>
-            </div>
-            {!isDiaFinalizado && (
-              <Dialog open={isBuscarNotaDialogOpen} onOpenChange={(open) => {
-                setIsBuscarNotaDialogOpen(open);
-                if (!open) resetBuscarNotaForm();
-              }}>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-3"
-                  >
-                    <Search className="h-4 w-4 mr-1" />
-                    Buscar Nota
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Buscar Nota na Agenda</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="codigo_busca">Código ou Nome da Revendedora</Label>
-                      <div className="flex gap-2 mt-1">
-                        <Input
-                          id="codigo_busca"
-                          value={codigoBusca}
-                          onChange={(e) => setCodigoBusca(e.target.value)}
-                          placeholder="Ex: KIT-001 ou Maria"
-                          onKeyDown={(e) => e.key === 'Enter' && handleBuscarNota()}
-                        />
-                        <Button 
-                          onClick={handleBuscarNota} 
-                          disabled={buscandoNota || !codigoBusca.trim()}
-                        >
-                          {buscandoNota ? 'Buscando...' : 'Buscar'}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {erroNota && (
-                      <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
-                        {erroNota}
-                      </div>
-                    )}
-
-                    {notaEncontrada && (
-                      <div className="p-4 bg-muted rounded-lg space-y-3">
-                        <h4 className="font-semibold text-foreground">Nota Encontrada</h4>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Revendedora:</span>
-                            <span className="font-medium">{notaEncontrada.revendedora}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Tipo:</span>
-                            <Badge variant="secondary">
-                              {notaEncontrada.tipo?.toLowerCase() === 'repasse' ? 'Repasse' : 'Kit'}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Valor:</span>
-                            <span className="font-semibold text-primary">
-                              {formatarValor(
-                                (notaEncontrada as any).valor_pago_acumulado > 0 || notaEncontrada.status === 'parcial'
-                                  ? Math.max(0, notaEncontrada.valor_previsto - ((notaEncontrada as any).valor_pago_acumulado || 0) - (notaEncontrada.valor_adiantado || 0))
-                                  : notaEncontrada.valor_previsto
-                              )}
-                            </span>
-                          </div>
-                          {(notaEncontrada as any).valor_pago_acumulado > 0 && (
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>Já pago:</span>
-                              <span>{formatarValor((notaEncontrada as any).valor_pago_acumulado)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Vencimento:</span>
-                            <span>{format(new Date(notaEncontrada.data_agendada + 'T12:00:00'), 'dd/MM/yyyy')}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Status:</span>
-                            <Badge variant="outline">{notaEncontrada.status}</Badge>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 mt-2">
-                          <Button 
-                            className="flex-1" 
-                            onClick={handleAbrirModalCobrar}
-                          >
-                            <DollarSign className="h-4 w-4 mr-1" />
-                            Cobrar
-                          </Button>
-                          {notaEncontrada.tipo === 'kit' && 
-                           ((notaEncontrada as any).valor_pago_acumulado === 0) && 
-                           notaEncontrada.status !== 'parcial' && (
-                            <Button
-                              variant="outline"
-                              className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                              onClick={handleAcrescimoFromBusca}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Joias adicionais
+                    <div className="flex items-center gap-2 ml-2 shrink-0">
+                      <span className={cn("font-semibold text-sm", isDevolveuTudo ? "text-orange-500" : "text-primary")}>
+                        {formatarValor(nota.valor_total)}
+                      </span>
+                      {!isDiaFinalizado && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <XCircle className="h-3.5 w-3.5 text-destructive" />
                             </Button>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="max-w-[90vw] sm:max-w-lg">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover da Cobrança</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                A nota <strong>{nota.codigo_nota}</strong> voltará para a Agenda como pendente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => excluirNotaDaCobrancaMutation.mutate(nota)} disabled={excluirNotaDaCobrancaMutation.isPending}>
+                                {excluirNotaDaCobrancaMutation.isPending ? 'Removendo...' : 'Confirmar'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsBuscarNotaDialogOpen(false)}>
-                      Cancelar
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Bloco Entregas de Kits */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Package className="h-5 w-5 text-primary" />
-              Entregas de Kits
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {entregasDoDia.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground text-sm">
-                Nenhuma entrega hoje
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {entregasDoDia.map((entrega: any) => {
-                  const kitAcrescimos = acrescimosMap[entrega.id] || [];
-                  return (
-                    <div key={entrega.id} className="p-2 bg-muted/50 rounded-lg text-sm space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="font-mono font-medium">{entrega.codigo_nota}</span>
-                        {!isDiaFinalizado && (
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                              title="Registrar joias adicionais"
-                              onClick={() => {
-                                setCobrancaParaAcrescimo({
-                                  id: entrega.id,
-                                  kit_entregue_id: entrega.id,
-                                  revendedora: entrega.revendedora,
-                                  codigo_nota: entrega.codigo_nota,
-                                  representante_id: user?.id || '',
-                                  data_agendada: '',
-                                  valor_previsto: 0,
-                                  status: 'pendente',
-                                } as any);
-                                setModalAcrescimoOpen(true);
-                              }}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                  <Trash2 className="h-3 w-3 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir Entrega</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja excluir esta entrega? O kit {entrega.codigo_nota} voltará para sua posse.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => excluirEntregaMutation.mutate({ 
-                                      id: entrega.id, 
-                                      codigo_nota: entrega.codigo_nota 
-                                    })}
-                                  >
-                                    Excluir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                );
+              })}
+            </div>
+          )}
+          {!isDiaFinalizado && (
+            <Dialog open={isBuscarNotaDialogOpen} onOpenChange={(open) => { setIsBuscarNotaDialogOpen(open); if (!open) resetBuscarNotaForm(); }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full mt-1">
+                  <Search className="h-4 w-4 mr-2" />
+                  Buscar Nota
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Buscar Nota na Agenda</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="codigo_busca">Código ou Nome da Revendedora</Label>
+                    <div className="flex gap-2 mt-1">
+                      <Input id="codigo_busca" value={codigoBusca} onChange={(e) => setCodigoBusca(e.target.value)} placeholder="Ex: 5001 ou Maria" onKeyDown={(e) => e.key === 'Enter' && handleBuscarNota()} />
+                      <Button onClick={handleBuscarNota} disabled={buscandoNota || !codigoBusca.trim()}>{buscandoNota ? 'Buscando...' : 'Buscar'}</Button>
+                    </div>
+                  </div>
+                  {erroNota && <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">{erroNota}</div>}
+                  {notaEncontrada && (
+                    <div className="p-4 bg-muted rounded-lg space-y-3">
+                      <h4 className="font-semibold">Nota Encontrada</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Revendedora:</span><span className="font-medium">{notaEncontrada.revendedora}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Tipo:</span><Badge variant="secondary">{notaEncontrada.tipo?.toLowerCase() === 'repasse' ? 'Repasse' : 'Kit'}</Badge></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Valor:</span><span className="font-semibold text-primary">{formatarValor((notaEncontrada as any).valor_pago_acumulado > 0 ? Math.max(0, notaEncontrada.valor_previsto - ((notaEncontrada as any).valor_pago_acumulado || 0) - (notaEncontrada.valor_adiantado || 0)) : notaEncontrada.valor_previsto)}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Vencimento:</span><span>{format(new Date(notaEncontrada.data_agendada + 'T12:00:00'), 'dd/MM/yyyy')}</span></div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button className="flex-1" onClick={handleAbrirModalCobrar}><DollarSign className="h-4 w-4 mr-1" />Cobrar</Button>
+                        {notaEncontrada.tipo === 'kit' && (notaEncontrada as any).valor_pago_acumulado === 0 && notaEncontrada.status !== 'parcial' && (
+                          <Button variant="outline" className="text-amber-600 border-amber-300" onClick={handleAcrescimoFromBusca}><Plus className="h-4 w-4 mr-1" />Joias adicionais</Button>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">{entrega.revendedora}</p>
-                      <div className="flex items-center gap-1 text-xs">
-                        <DollarSign className="h-3 w-3 text-muted-foreground" />
-                        <span>Kit: {formatarValor(entrega.valor_previsto)}</span>
-                      </div>
-                      {kitAcrescimos.map((acrescimo: any) => (
-                        <div key={acrescimo.id} className="flex items-center gap-1.5 text-xs pl-1">
-                          <Badge variant="warning" className="text-[10px] px-1.5 py-0">ACRÉSCIMO</Badge>
-                          <span className="truncate">{acrescimo.descricao || 'Joias adicionais'}</span>
-                          <span className="font-medium ml-auto whitespace-nowrap">{formatarValor(acrescimo.valor)}</span>
-                        </div>
-                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-            <div className="mt-3 pt-3 border-t">
-              <span className="text-sm text-muted-foreground">{entregasDoDia.length} entregas</span>
-            </div>
-            {!isDiaFinalizado && (
-              <Dialog open={isKitEntregaDialogOpen} onOpenChange={setIsKitEntregaDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-3"
-                    onClick={resetKitEntregaForm}
-                    disabled={kitsEstoque.length === 0}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Entregar Kit ({kitsEstoque.length})
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="overflow-visible">
-                  <DialogHeader>
-                    <DialogTitle>Registrar Entrega de Kit</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Selecionar Kit * ({kitsEstoque.length} disponíveis)</Label>
-                      <Select value={selectedKit} onValueChange={setSelectedKit}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Pesquisar e selecionar kit..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <div className="p-2">
-                            <Input
-                              placeholder="Buscar por código..."
-                              value={kitSearchTerm}
-                              onChange={(e) => setKitSearchTerm(e.target.value)}
-                              className="mb-2"
-                            />
-                          </div>
-                          {kitsFiltrados.length === 0 ? (
-                            <div className="p-2 text-sm text-muted-foreground text-center">Nenhum kit encontrado</div>
-                          ) : (
-                            kitsFiltrados.map((kit: any) => (
-                              <SelectItem key={kit.id} value={kit.id}>
-                                {kit.codigo} ({kit.tipo}) {kit.valor > 0 && `- R$ ${kit.valor.toFixed(2)}`}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {selectedKit && (() => {
-                      const kit = kitsEstoque.find((k: any) => k.id === selectedKit);
-                      return kit ? (
-                        <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
-                          <p><strong>Código:</strong> {kit.codigo}</p>
-                          <p><strong>Tipo:</strong> {kit.tipo}</p>
-                          <p><strong>Valor:</strong> R$ {(kit.valor || 0).toFixed(2)}</p>
-                        </div>
-                      ) : null;
-                    })()}
-
-                    <div>
-                      <Label>Nome da Revendedora *</Label>
-                      <RevendedoraSearchSelect
-                        representanteId={user?.id || ''}
-                        value={revendedoraKit}
-                        onSelect={(nome) => setRevendedoraKit(nome)}
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="vincular-vendedora"
-                        checked={vincularVendedora}
-                        onChange={(e) => setVincularVendedora(e.target.checked)}
-                        className="rounded"
-                      />
-                      <Label htmlFor="vincular-vendedora" className="cursor-pointer">
-                        Vincular a uma vendedora
-                      </Label>
-                    </div>
-
-                    {vincularVendedora && (
-                      <div className="space-y-2">
-                        <Label>Vendedora / Recrutadora</Label>
-                        <Select
-                          value={vendedoraId}
-                          onValueChange={setVendedoraId}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione a vendedora" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {vendedoras.map((vendedora) => (
-                              <SelectItem key={vendedora.id} value={vendedora.id}>
-                                {vendedora.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    <div>
-                      <Label>Data de Vencimento</Label>
-                      <Input
-                        type="date"
-                        value={dataVencimentoKit}
-                        onChange={(e) => setDataVencimentoKit(e.target.value)}
-                        className="w-full"
-                      />
-                    </div>
-
-                    {/* Seção de Joias Adicionais */}
-                    <div className="border-t pt-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">Joias Adicionais (opcional)</Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setAcrescimosKit([...acrescimosKit, { valor: '', observacao: '' }])}
-                          className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Adicionar
-                        </Button>
-                      </div>
-                      {acrescimosKit.map((acrescimo, index) => (
-                        <div key={index} className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Acréscimo {index + 1}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setAcrescimosKit(acrescimosKit.filter((_, i) => i !== index))}
-                              className="h-6 w-6 p-0 text-destructive"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                            <Input
-                              className="pl-10"
-                              value={acrescimo.valor}
-                              onChange={(e) => {
-                                const novos = [...acrescimosKit];
-                                novos[index].valor = formatarValorInput(e.target.value);
-                                setAcrescimosKit(novos);
-                              }}
-                              placeholder="0,00"
-                            />
-                          </div>
-                          <Input
-                            value={acrescimo.observacao}
-                            onChange={(e) => {
-                              const novos = [...acrescimosKit];
-                              novos[index].observacao = e.target.value;
-                              setAcrescimosKit(novos);
-                            }}
-                            placeholder="Observação (ex: brincos extras)"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsKitEntregaDialogOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button onClick={handleSubmitKitEntrega} disabled={entregaKitMutation.isPending}>
-                      {entregaKitMutation.isPending ? 'Registrando...' : 'Registrar Entrega'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Bloco Despesas do Dia */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Wallet className="h-5 w-5 text-primary" />
-              Despesas do Dia
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="despesa_cobranca" className="text-sm">Valor da Despesa</Label>
-                <div className="relative mt-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    R$
-                  </span>
-                  <Input
-                    id="despesa_cobranca"
-                    type="text"
-                    value={despesaCobranca}
-                    onChange={(e) => handleValorChange(e.target.value, setDespesaCobranca)}
-                    placeholder="0,00"
-                    className="pl-10"
-                    disabled={isDiaFinalizado}
-                  />
+                  )}
                 </div>
-              </div>
-              
-              <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">PIX</span>
-                  <span className="font-medium">{formatarValor(totalPixCalculado)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Dinheiro</span>
-                  <span className="font-medium">{formatarValor(totalDinheiroCalculado)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Cartão</span>
-                  <span className="font-medium">{formatarValor(totalCartaoCalculado)}</span>
-                </div>
-              </div>
-
-              <div className="pt-3 border-t">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Saldo Final</span>
-                  <span className="text-xl font-bold text-primary">
-                    {formatarValor(totalCobradoCalculado - parseValorFormatado(despesaCobranca))}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                <DialogFooter><Button variant="outline" onClick={() => setIsBuscarNotaDialogOpen(false)}>Cancelar</Button></DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
-      {/* Card de Observações - antes do botão de finalizar */}
+      {/* Etapa 2 — Entregas */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">2</div>
+            <span className="font-semibold text-sm">Entregas de Kits</span>
+          </div>
+          <span className="text-xs text-muted-foreground">{entregasDoDia.length} entregas</span>
+        </div>
+        <div className="px-4 py-3 space-y-2">
+          {entregasDoDia.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-2">Nenhuma entrega hoje</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {entregasDoDia.map((entrega: any) => {
+                const kitAcrescimos = acrescimosMap[entrega.id] || [];
+                return (
+                  <div key={entrega.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono font-medium text-xs">{entrega.codigo_nota}</p>
+                      <p className="text-xs text-muted-foreground truncate">{entrega.revendedora}</p>
+                      <p className="text-xs text-primary">{formatarValor(entrega.valor_previsto)}</p>
+                      {kitAcrescimos.map((a: any) => (
+                        <p key={a.id} className="text-xs text-amber-600">+ {a.descricao || 'Joia adicional'}: {formatarValor(a.valor)}</p>
+                      ))}
+                    </div>
+                    {!isDiaFinalizado && (
+                      <div className="flex items-center gap-1 ml-2 shrink-0">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-amber-600" onClick={() => { setCobrancaParaAcrescimo({ id: entrega.id, kit_entregue_id: entrega.id, revendedora: entrega.revendedora, codigo_nota: entrega.codigo_nota, representante_id: user?.id || '', data_agendada: '', valor_previsto: 0, status: 'pendente' } as any); setModalAcrescimoOpen(true); }}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Excluir Entrega</AlertDialogTitle><AlertDialogDescription>O kit {entrega.codigo_nota} voltará para sua posse.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => excluirEntregaMutation.mutate({ id: entrega.id, codigo_nota: entrega.codigo_nota })}>Excluir</AlertDialogAction></AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {!isDiaFinalizado && (
+            <Dialog open={isKitEntregaDialogOpen} onOpenChange={setIsKitEntregaDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full mt-1" onClick={resetKitEntregaForm} disabled={kitsEstoque.length === 0}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Entregar Kit ({kitsEstoque.length})
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="overflow-visible">
+                <DialogHeader><DialogTitle>Registrar Entrega de Kit</DialogTitle></DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Selecionar Kit * ({kitsEstoque.length} disponíveis)</Label>
+                    <Select value={selectedKit} onValueChange={setSelectedKit}>
+                      <SelectTrigger><SelectValue placeholder="Selecionar kit..." /></SelectTrigger>
+                      <SelectContent>
+                        <div className="p-2"><Input placeholder="Buscar por código..." value={kitSearchTerm} onChange={(e) => setKitSearchTerm(e.target.value)} className="mb-2" /></div>
+                        {kitsFiltrados.length === 0 ? <div className="p-2 text-sm text-muted-foreground text-center">Nenhum kit encontrado</div> : kitsFiltrados.map((kit: any) => (<SelectItem key={kit.id} value={kit.id}>{kit.codigo} ({kit.tipo}) {kit.valor > 0 && `- R$ ${kit.valor.toFixed(2)}`}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {selectedKit && (() => { const kit = kitsEstoque.find((k: any) => k.id === selectedKit); return kit ? (<div className="p-3 bg-muted rounded-lg text-sm"><p><strong>Código:</strong> {kit.codigo} — <strong>Tipo:</strong> {kit.tipo} — <strong>Valor:</strong> R$ {(kit.valor || 0).toFixed(2)}</p></div>) : null; })()}
+                  <div><Label>Nome da Revendedora *</Label><RevendedoraSearchSelect representanteId={user?.id || ''} value={revendedoraKit} onSelect={(nome) => setRevendedoraKit(nome)} /></div>
+                  <div className="flex items-center gap-2"><input type="checkbox" id="vincular-vendedora" checked={vincularVendedora} onChange={(e) => setVincularVendedora(e.target.checked)} className="rounded" /><Label htmlFor="vincular-vendedora" className="cursor-pointer">Vincular a uma vendedora</Label></div>
+                  {vincularVendedora && (<div><Label>Vendedora / Recrutadora</Label><Select value={vendedoraId} onValueChange={setVendedoraId}><SelectTrigger><SelectValue placeholder="Selecione a vendedora" /></SelectTrigger><SelectContent>{vendedoras.map((v: any) => (<SelectItem key={v.id} value={v.id}>{v.nome}</SelectItem>))}</SelectContent></Select></div>)}
+                  <div><Label>Data de Vencimento</Label><Input type="date" value={dataVencimentoKit} onChange={(e) => setDataVencimentoKit(e.target.value)} /></div>
+                  <div className="border-t pt-3 space-y-2">
+                    <div className="flex items-center justify-between"><Label className="text-sm">Joias Adicionais (opcional)</Label><Button type="button" variant="outline" size="sm" onClick={() => setAcrescimosKit([...acrescimosKit, { valor: '', observacao: '' }])} className="text-amber-600 border-amber-300"><Plus className="h-3 w-3 mr-1" />Adicionar</Button></div>
+                    {acrescimosKit.map((acrescimo, index) => (<div key={index} className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg space-y-2"><div className="flex justify-between"><span className="text-xs font-medium text-amber-700">Acréscimo {index + 1}</span><Button type="button" variant="ghost" size="sm" onClick={() => setAcrescimosKit(acrescimosKit.filter((_, i) => i !== index))} className="h-6 w-6 p-0 text-destructive"><Trash2 className="h-3 w-3" /></Button></div><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span><Input className="pl-10" value={acrescimo.valor} onChange={(e) => { const novos = [...acrescimosKit]; novos[index].valor = formatarValorInput(e.target.value); setAcrescimosKit(novos); }} placeholder="0,00" /></div><Input value={acrescimo.observacao} onChange={(e) => { const novos = [...acrescimosKit]; novos[index].observacao = e.target.value; setAcrescimosKit(novos); }} placeholder="Observação" /></div>))}
+                  </div>
+                </div>
+                <DialogFooter><Button variant="outline" onClick={() => setIsKitEntregaDialogOpen(false)}>Cancelar</Button><Button onClick={handleSubmitKitEntrega} disabled={entregaKitMutation.isPending}>{entregaKitMutation.isPending ? 'Registrando...' : 'Registrar Entrega'}</Button></DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+      </div>
+
+      {/* Etapa 3 — Resumo Financeiro */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 bg-muted/40 border-b border-border">
+          <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">3</div>
+          <span className="font-semibold text-sm">Resumo do Dia</span>
+        </div>
+        <div className="px-4 py-3 space-y-3">
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="bg-muted/50 rounded-lg p-2.5 text-center">
+              <p className="text-xs text-muted-foreground mb-1">PIX</p>
+              <p className="font-semibold">{formatarValor(totalPixCalculado)}</p>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-2.5 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Dinheiro</p>
+              <p className="font-semibold">{formatarValor(totalDinheiroCalculado)}</p>
+            </div>
+            <div className="bg-muted/50 rounded-lg p-2.5 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Cartão</p>
+              <p className="font-semibold">{formatarValor(totalCartaoCalculado)}</p>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Despesas do dia</Label>
+            <div className="relative mt-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+              <Input type="text" value={despesaCobranca} onChange={(e) => handleValorChange(e.target.value, setDespesaCobranca)} placeholder="0,00" className="pl-9" disabled={isDiaFinalizado} />
+            </div>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t">
+            <span className="text-sm font-medium">Saldo Final</span>
+            <span className="text-2xl font-bold text-primary">{formatarValor(totalCobradoCalculado - parseValorFormatado(despesaCobranca))}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Etapa 4 — Observações */}
       {!isDiaFinalizado && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <MessageSquare className="h-5 w-5 text-primary" />
-              Observações do Dia
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="Deixe aqui alguma observação ou recado para o administrador (opcional)..."
-              value={observacoesDia}
-              onChange={(e) => setObservacoesDia(e.target.value)}
-              className="min-h-[100px] resize-none"
-              maxLength={500}
-            />
-            <p className="text-xs text-muted-foreground mt-2 text-right">
-              {observacoesDia.length}/500 caracteres
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-border overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 bg-muted/40 border-b border-border">
+            <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">4</div>
+            <span className="font-semibold text-sm">Observações</span>
+          </div>
+          <div className="px-4 py-3">
+            <Textarea placeholder="Algum recado para o administrador? (opcional)" value={observacoesDia} onChange={(e) => setObservacoesDia(e.target.value)} className="min-h-[80px] resize-none text-sm" maxLength={500} />
+            <p className="text-xs text-muted-foreground mt-1 text-right">{observacoesDia.length}/500</p>
+          </div>
+        </div>
       )}
 
-      {/* Botão grande de confirmar fechamento */}
+      {/* Botão Finalizar */}
       {!isDiaFinalizado && (() => {
         const hoje = getLocalDateString(new Date());
         const ontem = getLocalDateString(new Date(new Date().setDate(new Date().getDate() - 1)));
         const podeFinalizar = dateStr === hoje || dateStr === ontem;
-        
         return podeFinalizar ? (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button size="lg" className="w-full h-14 text-lg">
+              <Button size="lg" className="w-full h-13 text-base">
                 <CheckCircle2 className="h-5 w-5 mr-2" />
                 Confirmar Fechamento do Dia
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza que deseja finalizar o dia? Após finalizar, não será possível editar.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleFinalizarDia}>
-                  Confirmar Finalização
-                </AlertDialogAction>
-              </AlertDialogFooter>
+              <AlertDialogHeader><AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle><AlertDialogDescription>Após finalizar, não será possível editar.</AlertDialogDescription></AlertDialogHeader>
+              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleFinalizarDia}>Confirmar</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         ) : (
-          <Card className="p-4 text-center border-yellow-500/50 bg-yellow-500/5">
-            <p className="text-sm text-muted-foreground">
-              <Lock className="h-4 w-4 inline mr-1" />
-              Você só pode finalizar o dia atual ou o dia anterior. Para corrigir dias passados, solicite ao administrador.
-            </p>
-          </Card>
+          <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-4 text-center">
+            <p className="text-sm text-muted-foreground"><Lock className="h-4 w-4 inline mr-1" />Só é possível finalizar o dia atual ou o anterior.</p>
+          </div>
         );
       })()}
 
-      {/* Modal de Receber Cobrança */}
+      {/* Histórico */}
+      {historico.length > 0 && (
+        <details className="group">
+          <summary className="cursor-pointer list-none">
+            <div className="rounded-xl border border-border px-4 py-3 flex items-center justify-between">
+              <span className="font-medium text-sm">Histórico de fechamentos</span>
+              <Badge variant="secondary">{historico.length} registros</Badge>
+            </div>
+          </summary>
+          <div className="border border-t-0 border-border rounded-b-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Despesas</TableHead>
+                    <TableHead className="text-right">Notas</TableHead>
+                    <TableHead className="text-right">Saldo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {historico.map((cobranca) => {
+                    const qtdNotas = notasPorDia[cobranca.data] || 0;
+                    const saldo = cobranca.total_cobrado - (cobranca.despesa_cobranca || 0);
+                    return (
+                      <TableRow key={cobranca.id} className="cursor-pointer" onClick={() => handleOpenHistoricoDialog(cobranca.data)}>
+                        <TableCell className="font-medium text-sm">{format(new Date(cobranca.data + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR })}</TableCell>
+                        <TableCell className="text-right text-sm">{formatarValor(cobranca.total_cobrado)}</TableCell>
+                        <TableCell className="text-right text-sm">{formatarValor(cobranca.despesa_cobranca || 0)}</TableCell>
+                        <TableCell className="text-right"><Badge variant="secondary">{qtdNotas}</Badge></TableCell>
+                        <TableCell className="text-right font-semibold text-sm">{formatarValor(saldo)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </details>
+      )}
+
+      {/* Modais */}
       {cobrancaParaPagar && (
         <ModalReceberCobranca
           open={!!cobrancaParaPagar}
-          onOpenChange={(open) => {
-            if (!open) {
-              setCobrancaParaPagar(null);
-            }
-          }}
-          cobranca={{
-            id: cobrancaParaPagar.id,
-            revendedora: cobrancaParaPagar.revendedora,
-            valor_previsto: cobrancaParaPagar.valor_previsto,
-            tipo: cobrancaParaPagar.tipo,
-            valor_adiantado: cobrancaParaPagar.valor_adiantado
-          }}
+          onOpenChange={(open) => { if (!open) setCobrancaParaPagar(null); }}
+          cobranca={{ id: cobrancaParaPagar.id, revendedora: cobrancaParaPagar.revendedora, valor_previsto: cobrancaParaPagar.valor_previsto, tipo: cobrancaParaPagar.tipo, valor_adiantado: cobrancaParaPagar.valor_adiantado }}
           valor_pago_acumulado={(cobrancaParaPagar as any)?.valor_pago_acumulado || 0}
           diasNaoFinalizados={diasNaoFinalizados}
           onPagamentoCompleto={handlePagamentoCompleto}
           onPagamentoParcial={handlePagamentoParcial}
         />
       )}
-
-      {/* Modal de Acréscimo */}
       {cobrancaParaAcrescimo && cobrancaParaAcrescimo.kit_entregue_id && (
         <ModalRegistrarAcrescimo
           open={modalAcrescimoOpen}
-          onOpenChange={(open) => {
-            setModalAcrescimoOpen(open);
-            if (!open) setCobrancaParaAcrescimo(null);
-          }}
+          onOpenChange={(open) => { setModalAcrescimoOpen(open); if (!open) setCobrancaParaAcrescimo(null); }}
           kitEntregueId={cobrancaParaAcrescimo.kit_entregue_id}
           revendedora={cobrancaParaAcrescimo.revendedora}
           codigoKit={cobrancaParaAcrescimo.codigo_nota || ''}
         />
       )}
-
-      {/* Histórico de Fechamentos - Colapsável */}
-      {historico.length > 0 && (
-        <details className="group">
-          <summary className="cursor-pointer list-none">
-            <Card className="group-open:rounded-b-none">
-              <CardHeader className="flex flex-row items-center justify-between py-4">
-                <CardTitle className="text-base font-medium">Ver histórico de fechamentos anteriores</CardTitle>
-                <Badge variant="secondary">{historico.length} registros</Badge>
-              </CardHeader>
-            </Card>
-          </summary>
-          <Card className="rounded-t-none border-t-0">
-            <CardContent className="pt-4">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead className="text-right">Total Cobrado</TableHead>
-                      <TableHead className="text-right">Despesas</TableHead>
-                      <TableHead className="text-right">Qtd Notas</TableHead>
-                      <TableHead className="text-right">Saldo do Dia</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {historico.map((cobranca) => {
-                      const qtdNotas = notasPorDia[cobranca.data] || 0;
-                      const saldo = cobranca.total_cobrado - (cobranca.despesa_cobranca || 0);
-                      
-                      return (
-                        <TableRow 
-                          key={cobranca.id}
-                          className="cursor-pointer hover:bg-muted/50 transition-colors"
-                          onClick={() => handleOpenHistoricoDialog(cobranca.data)}
-                        >
-                          <TableCell className="font-medium">
-                            {format(new Date(cobranca.data + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatarValor(cobranca.total_cobrado)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatarValor(cobranca.despesa_cobranca || 0)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant="secondary" className="font-semibold">
-                              {formatarNumero(qtdNotas)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-semibold text-foreground">
-                            {formatarValor(saldo)}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </details>
-      )}
-
-      {/* Dialog de Detalhes do Histórico */}
       <Dialog open={historicoDialogOpen} onOpenChange={setHistoricoDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Detalhes da Cobrança - {selectedHistoricoDate && format(new Date(selectedHistoricoDate + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </DialogTitle>
-          </DialogHeader>
-          
-          {loadingNotasHistorico ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : notasHistorico.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma nota encontrada para esta data
-            </div>
-          ) : (
+          <DialogHeader><DialogTitle>Detalhes — {selectedHistoricoDate && format(new Date(selectedHistoricoDate + 'T12:00:00'), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</DialogTitle></DialogHeader>
+          {loadingNotasHistorico ? <div className="text-center py-8 text-muted-foreground">Carregando...</div> : notasHistorico.length === 0 ? <div className="text-center py-8 text-muted-foreground">Nenhuma nota encontrada</div> : (
             <div className="space-y-4">
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Valor Total</TableHead>
-                      <TableHead>Forma Pag. 1</TableHead>
-                      <TableHead>Valor Pag. 1</TableHead>
-                      <TableHead>Forma Pag. 2</TableHead>
-                      <TableHead>Valor Pag. 2</TableHead>
-                      <TableHead>Horário</TableHead>
+              <Table>
+                <TableHeader><TableRow><TableHead>Código</TableHead><TableHead>Valor</TableHead><TableHead>Forma 1</TableHead><TableHead>Valor 1</TableHead><TableHead>Forma 2</TableHead><TableHead>Valor 2</TableHead><TableHead>Hora</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {notasHistorico.map((nota) => (
+                    <TableRow key={nota.id}>
+                      <TableCell className="font-medium">{nota.codigo_nota}{nota.devolveu_tudo && <Badge variant="outline" className="ml-2 text-xs text-orange-500">Devolveu</Badge>}</TableCell>
+                      <TableCell className={nota.devolveu_tudo ? 'text-orange-500' : 'font-semibold'}>{formatarValor(nota.valor_total)}</TableCell>
+                      <TableCell><Badge variant="secondary">{formaPagamentoLabels[nota.forma_pagamento_1]}</Badge></TableCell>
+                      <TableCell>{formatarValor(nota.valor_pagamento_1)}</TableCell>
+                      <TableCell>{nota.forma_pagamento_2 ? <Badge variant="secondary">{formaPagamentoLabels[nota.forma_pagamento_2]}</Badge> : '-'}</TableCell>
+                      <TableCell>{nota.valor_pagamento_2 ? formatarValor(nota.valor_pagamento_2) : '-'}</TableCell>
+                      <TableCell className="text-muted-foreground">{nota.criado_em ? format(new Date(nota.criado_em), 'HH:mm') : '-'}</TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {notasHistorico.map((nota) => (
-                      <TableRow key={nota.id}>
-                        <TableCell className="font-medium">
-                          {nota.codigo_nota}
-                          {nota.devolveu_tudo && (
-                            <Badge variant="outline" className="ml-2 text-xs bg-orange-100 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700">
-                              Devolveu Tudo
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className={nota.devolveu_tudo ? 'text-orange-600 dark:text-orange-400' : nota.valor_total === 0 ? 'text-muted-foreground' : 'font-semibold'}>
-                          {formatarValor(nota.valor_total)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {formaPagamentoLabels[nota.forma_pagamento_1]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatarValor(nota.valor_pagamento_1)}</TableCell>
-                        <TableCell>
-                          {nota.forma_pagamento_2 ? (
-                            <Badge variant="secondary">
-                              {formaPagamentoLabels[nota.forma_pagamento_2]}
-                            </Badge>
-                          ) : (
-                            '-'
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {nota.valor_pagamento_2 ? formatarValor(nota.valor_pagamento_2) : '-'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {nota.criado_em ? format(new Date(nota.criado_em), 'HH:mm', { locale: ptBR }) : '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Resumo do dia */}
-              <div className="bg-muted rounded-lg p-4 space-y-2">
-                <h4 className="font-semibold text-foreground mb-3">Resumo do Dia</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total de Notas</p>
-                    <p className="text-lg font-bold">{notasHistorico.length}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Cobrado</p>
-                    <p className="text-lg font-bold">
-                      {formatarValor(notasHistorico.reduce((acc, n) => acc + n.valor_total, 0))}
-                    </p>
-                  </div>
-                </div>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="bg-muted rounded-lg p-4 grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-muted-foreground">Total de Notas</p><p className="text-lg font-bold">{notasHistorico.length}</p></div>
+                <div><p className="text-muted-foreground">Total Cobrado</p><p className="text-lg font-bold">{formatarValor(notasHistorico.reduce((acc, n) => acc + n.valor_total, 0))}</p></div>
               </div>
             </div>
           )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setHistoricoDialogOpen(false)}>
-              Fechar
-            </Button>
-          </DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setHistoricoDialogOpen(false)}>Fechar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
