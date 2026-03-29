@@ -79,7 +79,7 @@ export function ModalReceberCobranca({
   
   // Para KIT: valor da venda (precisa preencher)
   // Para REPASSE: usa valor_previsto
-  const [valorVenda, setValorVenda] = useState('');
+  const [valorDevolvido, setValorDevolvido] = useState('');
   
   // Desconto (discreto)
   const [desconto, setDesconto] = useState('');
@@ -89,8 +89,6 @@ export function ModalReceberCobranca({
   const [comissaoPercentual, setComissaoPercentual] = useState(0);
   const [comissaoValor, setComissaoValor] = useState(0);
   const [valorAReceber, setValorAReceber] = useState(0);
-  const [comissaoManual, setComissaoManual] = useState(false);
-  const [comissaoPercentualManual, setComissaoPercentualManual] = useState('');
   
   // Pagamentos
   const [pagamento1, setPagamento1] = useState<PagamentoForm>({ forma: '', valor: '' });
