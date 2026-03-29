@@ -31,6 +31,7 @@ interface RevendedoraAtiva {
   revendedora_id: string | null;
   cobrancas: any[];
   saldoTotal: number;
+  temApuracao: boolean;
 }
 
 function calcularNivel(ticketMedio: number) {
