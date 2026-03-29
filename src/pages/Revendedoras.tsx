@@ -161,15 +161,12 @@ export default function Revendedoras() {
 
         <TabsContent value="listagem">
           <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Revendedoras</h1>
-          <p className="text-muted-foreground">Listagem geral de todas as revendedoras</p>
-        </div>
-        <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
-          <Upload className="h-4 w-4" />
-          Importar WhatsApp
-        </Button>
-      </div>
+            <div className="flex justify-end">
+              <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
+                <Upload className="h-4 w-4" />
+                Importar WhatsApp
+              </Button>
+            </div>
 
       {/* Filtros */}
       <Card>
