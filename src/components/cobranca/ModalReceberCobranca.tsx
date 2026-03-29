@@ -539,7 +539,7 @@ export function ModalReceberCobranca({
                     className="h-8 w-24"
                   />
                   <span className="text-sm text-orange-600">
-                    {desconto && parseFloat(desconto.replace(',', '.')) > 0 && `-${formatarValor(parseFloat(desconto.replace(',', '.')))}`}
+                    {desconto && parseInputMoeda(desconto) > 0 && `-${formatarValor(parseInputMoeda(desconto))}`}
                   </span>
                   <Button
                     variant="ghost"
