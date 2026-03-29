@@ -220,8 +220,8 @@ export function ModalReceberCobranca({
   };
 
   const calcularTotalRecebido = () => {
-    const valor1 = parseFloat(pagamento1.valor.replace(',', '.')) || 0;
-    const valor2 = pagamento2 ? (parseFloat(pagamento2.valor.replace(',', '.')) || 0) : 0;
+    const valor1 = parseInputMoeda(pagamento1.valor);
+    const valor2 = pagamento2 ? parseInputMoeda(pagamento2.valor) : 0;
     return valor1 + valor2;
   };
 
