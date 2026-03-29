@@ -1404,7 +1404,9 @@ export default function CobrancaDiaria() {
                             <DollarSign className="h-4 w-4 mr-1" />
                             Cobrar
                           </Button>
-                          {notaEncontrada.tipo === 'kit' && (
+                          {notaEncontrada.tipo === 'kit' && 
+                           ((notaEncontrada as any).valor_pago_acumulado === 0) && 
+                           notaEncontrada.status !== 'parcial' && (
                             <Button
                               variant="outline"
                               className="text-amber-600 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30"
