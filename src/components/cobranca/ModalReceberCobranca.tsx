@@ -549,7 +549,7 @@ export function ModalReceberCobranca({
                       setDesconto('');
                       setMostrarDesconto(false);
                       // Recalcula valor a receber sem desconto
-                      const valorDevolvidoNum = parseFloat(valorDevolvido.replace(',', '.')) || 0;
+                      const valorDevolvidoNum = parseInputMoeda(valorDevolvido);
                       const valorBase = isRepasse 
                         ? cobranca.valor_previsto 
                         : Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
