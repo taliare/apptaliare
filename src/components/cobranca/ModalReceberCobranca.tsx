@@ -109,18 +109,16 @@ export function ModalReceberCobranca({
     if (open) {
       if (isSubsequente) {
         // Modo subsequente: saldo já calculado, não pedir valor da venda
-        setValorVenda('0');
+        setValorDevolvido('0');
         setValorAReceber(saldoAberto);
       } else {
-        setValorVenda('');
+        setValorDevolvido('');
         setValorAReceber(0);
       }
       setDesconto('');
       setMostrarDesconto(false);
       setComissaoPercentual(0);
       setComissaoValor(0);
-      setComissaoManual(false);
-      setComissaoPercentualManual('');
       setPagamento1({ forma: '', valor: '' });
       setPagamento2(null);
       setDataNota(new Date());
