@@ -103,12 +103,20 @@ export default function RevendedorasInativas() {
         cadastroMap = new Map(cadastros?.map(c => [c.nome.toUpperCase(), c]) || []);
       }
 
-      // Buscar cobrancas que já têm prestação de contas
-      const { data: prestacoes } = await supabase
-        .from('prestacoes_contas')
-        .select('cobranca_id, valor_devido_empresa, valor_pago, saldo_devedor')
-        .eq('representante_id', user!.id);
-      const prestacaoMap = new Map(prestacoes?.map(p => [p.cobranca_id, p]) || []);
+      // Buscar prestações APENAS das cobranças ativas
+      const cobrancaIds = cobrancas?.map(c => c.id) || [];
+      let prestacaoMap = new Map<string, boolean>();
+
+      if (cobrancaIds.length > 0) {
+        const { data: prestacoes } = await supabase
+          .from('prestacoes_contas')
+          .select('cobranca_id')
+          .in('cobranca_id', cobrancaIds);
+        
+        prestacoes?.forEach(p => {
+          if (p.cobranca_id) prestacaoMap.set(p.cobranca_id, true);
+        });
+      }
 
       const map = new Map<string, RevendedoraAtiva>();
       cobrancas?.forEach(c => {
