@@ -93,7 +93,7 @@ export function AppSidebar() {
     {
       label: "GESTÃO",
       items: [
-        { title: "Revendedoras Inativas", url: "/revendedoras-inativas", icon: Users },
+        { title: "Minhas Revendedoras", url: "/revendedoras-inativas", icon: Users },
         { title: "Histórico de Ações", url: "/historico-acoes", icon: ClipboardList },
       ],
     },
