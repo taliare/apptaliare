@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -35,6 +34,8 @@ import { toast } from "sonner";
 import { Plus, Receipt, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatarValor } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface Categoria {
   id: string;
@@ -47,6 +48,7 @@ interface Despesa {
   ano_mes: string;
   valor: number;
   observacao: string | null;
+  data_despesa: string | null;
   criado_em: string;
   dre_categorias_despesas: Categoria | null;
 }
@@ -82,6 +84,7 @@ export default function DreDespesas() {
   const [categoriaId, setCategoriaId] = useState("");
   const [valor, setValor] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [dataDespesa, setDataDespesa] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const anoMes = `${selectedAno}-${selectedMes}`;
   const anos = Array.from({ length: 5 }, (_, i) => String(currentDate.getFullYear() - 2 + i));
@@ -114,29 +117,20 @@ export default function DreDespesas() {
     },
   });
 
-  // Agrupar despesas por categoria
-  const despesasAgrupadas = useMemo(() => {
-    const grouped: Record<string, { categoria: string; despesas: Despesa[]; total: number }> = {};
-    
-    despesas.forEach((d) => {
-      const catId = d.categoria_id || "sem-categoria";
-      const catNome = d.dre_categorias_despesas?.nome || "Sem categoria";
-      
-      if (!grouped[catId]) {
-        grouped[catId] = { categoria: catNome, despesas: [], total: 0 };
-      }
-      grouped[catId].despesas.push(d);
-      grouped[catId].total += Number(d.valor);
+  // Ordenar despesas por data_despesa ou criado_em (mais recente primeiro)
+  const despesasOrdenadas = useMemo(() => {
+    return [...despesas].sort((a, b) => {
+      const dataA = a.data_despesa || a.criado_em;
+      const dataB = b.data_despesa || b.criado_em;
+      return dataB.localeCompare(dataA);
     });
-    
-    return Object.values(grouped).sort((a, b) => a.categoria.localeCompare(b.categoria));
   }, [despesas]);
 
   const totalPeriodo = despesas.reduce((sum, d) => sum + Number(d.valor), 0);
 
   // Mutations
   const saveMutation = useMutation({
-    mutationFn: async (data: { id?: string; categoria_id: string; valor: number; observacao: string }) => {
+    mutationFn: async (data: { id?: string; categoria_id: string; valor: number; observacao: string; data_despesa?: string }) => {
       if (data.id) {
         const { error } = await supabase
           .from("dre_despesas")
@@ -157,6 +151,7 @@ export default function DreDespesas() {
             valor: data.valor,
             observacao: data.observacao || null,
             criado_por: user?.id,
+            data_despesa: data.data_despesa,
           });
         if (error) throw error;
       }
@@ -195,11 +190,13 @@ export default function DreDespesas() {
       setCategoriaId(despesa.categoria_id || "");
       setValor(formatarValorInput(String(despesa.valor)));
       setObservacao(despesa.observacao || "");
+      setDataDespesa(despesa.data_despesa || format(new Date(), 'yyyy-MM-dd'));
     } else {
       setEditingDespesa(null);
       setCategoriaId("");
       setValor("");
       setObservacao("");
+      setDataDespesa(format(new Date(), 'yyyy-MM-dd'));
     }
     setDialogOpen(true);
   };
@@ -210,6 +207,7 @@ export default function DreDespesas() {
     setCategoriaId("");
     setValor("");
     setObservacao("");
+    setDataDespesa(format(new Date(), 'yyyy-MM-dd'));
   };
 
   const formatarValorInput = (value: string): string => {
@@ -240,6 +238,7 @@ export default function DreDespesas() {
       categoria_id: categoriaId,
       valor: valorNumerico,
       observacao: observacao.trim(),
+      data_despesa: editingDespesa ? undefined : dataDespesa,
     });
   };
 
@@ -263,7 +262,7 @@ export default function DreDespesas() {
             Lançamento manual de despesas por competência
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="gap-2">
+        <Button onClick={() => handleOpenDialog()} className="gap-2 hidden md:flex">
           <Plus className="h-4 w-4" />
           Nova Despesa
         </Button>
@@ -324,51 +323,40 @@ export default function DreDespesas() {
               Nenhuma despesa lançada neste período
             </div>
           ) : (
-            <div className="space-y-6">
-              {despesasAgrupadas.map((grupo) => (
-                <div key={grupo.categoria}>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-                      {grupo.categoria}
-                    </h3>
-                    <Badge variant="outline">
-                      R$ {grupo.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </Badge>
+            <div className="space-y-3">
+              {despesasOrdenadas.map((despesa) => (
+                <div
+                  key={despesa.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">
+                        {formatarValor(Number(despesa.valor))}
+                      </span>
+                      <Badge variant="outline" className="text-xs">
+                        {despesa.dre_categorias_despesas?.nome || 'Sem categoria'}
+                      </Badge>
+                    </div>
+                    {despesa.observacao && (
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        {despesa.observacao}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {despesa.data_despesa
+                        ? format(new Date(despesa.data_despesa + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR })
+                        : format(new Date(despesa.criado_em), "dd/MM/yyyy", { locale: ptBR })}
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    {grupo.despesas.map((despesa) => (
-                      <div
-                        key={despesa.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                      >
-                        <div>
-                          <p className="font-medium">
-                            R$ {Number(despesa.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </p>
-                          {despesa.observacao && (
-                            <p className="text-sm text-muted-foreground">
-                              {despesa.observacao}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDialog(despesa)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteClick(despesa)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(despesa)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(despesa)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -380,12 +368,20 @@ export default function DreDespesas() {
             <div className="flex justify-between items-center">
               <span className="font-semibold">TOTAL DO PERÍODO</span>
               <span className="text-xl font-bold text-destructive">
-                R$ {totalPeriodo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                {formatarValor(totalPeriodo)}
               </span>
             </div>
           </div>
         )}
       </Card>
+
+      {/* Botão flutuante mobile */}
+      <button
+        onClick={() => handleOpenDialog()}
+        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all active:scale-95 md:hidden"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
 
       {/* Dialog de Lançamento */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -396,29 +392,40 @@ export default function DreDespesas() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {/* Data */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Competência</label>
+              <label className="text-sm font-medium">Data</label>
               <Input
-                value={`${mesLabel} ${selectedAno}`}
-                disabled
-                className="bg-muted"
+                type="date"
+                value={dataDespesa}
+                onChange={(e) => setDataDespesa(e.target.value)}
+                max={format(new Date(), 'yyyy-MM-dd')}
               />
             </div>
+
+            {/* Categorias como botões rápidos */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Categoria *</label>
-              <Select value={categoriaId} onValueChange={setCategoriaId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categorias.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-2 gap-2">
+                {categorias.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setCategoriaId(cat.id)}
+                    className={cn(
+                      "text-left px-3 py-2 rounded-lg text-sm border transition-all",
+                      categoriaId === cat.id
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-muted/50 border-border hover:bg-muted"
+                    )}
+                  >
+                    {cat.nome}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Valor */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Valor *</label>
               <Input
@@ -426,15 +433,18 @@ export default function DreDespesas() {
                 onChange={(e) => setValor(formatarValorInput(e.target.value))}
                 placeholder="0,00"
                 inputMode="decimal"
+                className="text-lg font-semibold"
+                autoFocus={!editingDespesa}
               />
             </div>
+
+            {/* Descrição */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Observação</label>
-              <Textarea
+              <label className="text-sm font-medium">Descrição (opcional)</label>
+              <Input
                 value={observacao}
                 onChange={(e) => setObservacao(e.target.value)}
-                placeholder="Descrição opcional da despesa"
-                rows={3}
+                placeholder="Ex: Pagamento fornecedor X"
               />
             </div>
           </div>
@@ -443,7 +453,7 @@ export default function DreDespesas() {
               Cancelar
             </Button>
             <Button onClick={handleSave} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Salvando..." : "Salvar"}
+              {saveMutation.isPending ? "Salvando..." : editingDespesa ? "Salvar" : "Lançar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -457,7 +467,7 @@ export default function DreDespesas() {
             <AlertDialogDescription>
               Tem certeza que deseja excluir esta despesa de{" "}
               <strong>
-                R$ {Number(deletingDespesa?.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                {formatarValor(Number(deletingDespesa?.valor || 0))}
               </strong>
               ? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
