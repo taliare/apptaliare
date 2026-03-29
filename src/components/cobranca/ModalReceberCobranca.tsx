@@ -149,10 +149,10 @@ export function ModalReceberCobranca({
   };
 
   const handleValorDevolvidoChange = (value: string) => {
-    const cleanValue = value.replace(/[^\d,]/g, '');
-    setValorDevolvido(cleanValue);
+    const formatado = formatarInputMoeda(value);
+    setValorDevolvido(formatado);
     
-    const valorDevolvidoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
+    const valorDevolvidoNum = parseInputMoeda(formatado);
     const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
     
     if (valorVendido > 0) {
