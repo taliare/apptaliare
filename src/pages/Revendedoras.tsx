@@ -149,6 +149,20 @@ export default function Revendedoras() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Revendedoras</h1>
+          <p className="text-muted-foreground">Gestão e ranking de revendedoras</p>
+        </div>
+      </div>
+
+      <Tabs defaultValue="listagem" className="w-full">
+        <TabsList>
+          <TabsTrigger value="listagem">Listagem</TabsTrigger>
+          <TabsTrigger value="ranking">Ranking</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="listagem">
+          <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Revendedoras</h1>
           <p className="text-muted-foreground">Listagem geral de todas as revendedoras</p>
         </div>
         <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
