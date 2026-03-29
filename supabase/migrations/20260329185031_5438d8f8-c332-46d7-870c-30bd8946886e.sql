@@ -1,0 +1,1 @@
+ALTER TABLE public.dre_despesas ADD COLUMN data_despesa date;
