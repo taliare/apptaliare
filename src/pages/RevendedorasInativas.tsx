@@ -86,7 +86,7 @@ export default function RevendedorasInativas() {
     queryFn: async () => {
       const { data: cobrancas, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('id, revendedora, valor_previsto, valor_pago_acumulado, valor_adiantado, data_agendada, status, codigo_nota')
+        .select('id, revendedora, valor_previsto, valor_pago_acumulado, valor_adiantado, data_agendada, status, codigo_nota, tipo')
         .eq('representante_id', user!.id)
         .in('status', ['pendente', 'parcial', 'reagendado'])
         .order('revendedora');
