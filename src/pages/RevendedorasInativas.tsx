@@ -485,7 +485,10 @@ export default function RevendedorasInativas() {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-muted/50 rounded-lg p-2 text-center">
                         <p className="text-[10px] text-muted-foreground mb-0.5">Saldo em aberto</p>
-                        <p className="text-sm font-bold text-destructive">{formatarValor(rev.saldoTotal)}</p>
+                        {rev.temApuracao
+                          ? <p className="text-sm font-bold text-destructive">{formatarValor(rev.saldoTotal)}</p>
+                          : <p className="text-sm font-medium text-muted-foreground">Pendente apuração</p>
+                        }
                       </div>
                       <div className="bg-muted/50 rounded-lg p-2 text-center">
                         <p className="text-[10px] text-muted-foreground mb-0.5">Cobranças</p>
