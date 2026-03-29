@@ -273,12 +273,12 @@ export function ModalReceberCobranca({
         if (valorEfetivoReceber > 0 && pagamento2) {
           pagamentos.push({
             forma: pagamento2.forma as FormaPagamento,
-            valor: parseFloat(pagamento2.valor.replace(',', '.'))
+            valor: parseInputMoeda(pagamento2.valor)
           });
         }
 
         await onPagamentoParcial({
-          valor_venda: Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)),
+          valor_venda: Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)),
           comissao_percentual: comissaoPercentual,
           comissao_valor: comissaoValor,
           valor_devido_empresa: valorAReceber,
