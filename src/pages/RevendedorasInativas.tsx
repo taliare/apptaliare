@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { UserX, RefreshCw, CalendarIcon, Search, Package, Phone, Pencil, Trophy, TrendingUp, Users, Award, Check, X } from 'lucide-react';
+import { UserX, RefreshCw, CalendarIcon, Search, Package, Phone, Pencil, Edit2, Trophy, TrendingUp, Users, Award, Check, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -416,54 +416,79 @@ export default function RevendedorasInativas() {
               {searchTerm ? 'Nenhuma revendedora encontrada' : 'Nenhuma revendedora ativa no momento'}
             </CardContent></Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {ativasFiltradas.map((rev) => (
-                <Card key={rev.nome} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex flex-col gap-3">
-                      <div>
-                        <h3 className="font-semibold text-lg truncate">{rev.nome}</h3>
-                        <Badge className="mt-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Ativa</Badge>
+                <Card key={rev.nome} className="hover:shadow-lg transition-all duration-200 border border-border/50 hover:border-primary/30">
+                  <CardContent className="p-4 space-y-3">
+                    {/* Header: nome + badge */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-semibold text-sm leading-tight truncate">{rev.nome}</h3>
                       </div>
-
-                      {/* WhatsApp */}
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                        {editandoWhatsApp === rev.nome ? (
-                          <div className="flex items-center gap-1 flex-1">
-                            <Input value={whatsAppTemp} onChange={(e) => setWhatsAppTemp(e.target.value)} className="h-7 text-xs" placeholder="(00) 00000-0000" />
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleSaveWhatsApp(rev.revendedora_id)}>
-                              <Check className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditandoWhatsApp(null)}>
-                              <X className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <span className="text-muted-foreground">{rev.whatsapp || 'Não informado'}</span>
-                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handleEditWhatsApp(rev.nome, rev.whatsapp)}>
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="text-sm space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Saldo em aberto:</span>
-                          <span className="font-semibold text-primary">{formatarValor(rev.saldoTotal)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Cobranças abertas:</span>
-                          <span className="font-medium">{rev.cobrancas.length}</span>
-                        </div>
-                      </div>
-
-                      <Button size="sm" variant="outline" className="w-full mt-1" onClick={() => setPerfilAberto(rev.nome)}>
-                        Ver Perfil
-                      </Button>
+                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0 shrink-0 text-xs">
+                        Ativa
+                      </Badge>
                     </div>
+
+                    {/* WhatsApp */}
+                    <div className="flex items-center gap-2">
+                      {editandoWhatsApp === rev.nome ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <Input
+                            value={whatsAppTemp}
+                            onChange={(e) => setWhatsAppTemp(e.target.value)}
+                            placeholder="Ex: 92999998888"
+                            className="h-7 text-xs flex-1"
+                          />
+                          <Button size="sm" className="h-7 px-2 text-xs" onClick={() => handleSaveWhatsApp(rev.revendedora_id)}>
+                            Salvar
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditandoWhatsApp(null)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-xs text-muted-foreground flex-1">
+                            {rev.whatsapp || 'Sem WhatsApp'}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+                            onClick={() => handleEditWhatsApp(rev.nome, rev.whatsapp)}
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Divisor */}
+                    <div className="border-t border-border/50" />
+
+                    {/* Métricas */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-muted/50 rounded-lg p-2 text-center">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">Saldo em aberto</p>
+                        <p className="text-sm font-bold text-destructive">{formatarValor(rev.saldoTotal)}</p>
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-2 text-center">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">Cobranças</p>
+                        <p className="text-sm font-bold">{rev.cobrancas.length}</p>
+                      </div>
+                    </div>
+
+                    {/* Botão Ver Perfil */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs h-8 hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => setPerfilAberto(rev.nome)}
+                    >
+                      Ver Perfil
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
