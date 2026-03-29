@@ -595,11 +595,10 @@ export function ModalReceberCobranca({
                     placeholder="0,00"
                     value={valorParcial}
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/[^\d,]/g, '');
-                      setValorParcial(clean);
-                      // Atualiza pagamento1
+                      const formatado = formatarInputMoeda(e.target.value);
+                      setValorParcial(formatado);
                       if (pagamento1.forma && !pagamento2) {
-                        setPagamento1({ ...pagamento1, valor: clean });
+                        setPagamento1({ ...pagamento1, valor: formatado });
                       }
                     }}
                     className="h-8"
