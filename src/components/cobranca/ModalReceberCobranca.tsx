@@ -149,18 +149,18 @@ export function ModalReceberCobranca({
     setValorAReceber(valor - comissao);
   };
 
-  const handleValorVendaChange = (value: string) => {
+  const handleValorDevolvidoChange = (value: string) => {
     const cleanValue = value.replace(/[^\d,]/g, '');
-    setValorVenda(cleanValue);
+    setValorDevolvido(cleanValue);
     
-    const numeroValor = parseFloat(cleanValue.replace(',', '.'));
-    if (!isNaN(numeroValor) && numeroValor > 0) {
-      if (comissaoManual && comissaoPercentualManual) {
-        calcularComissao(numeroValor, parseFloat(comissaoPercentualManual));
-      } else {
-        calcularComissao(numeroValor);
-      }
+    const valorDevolvidoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
+    const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
+    
+    if (valorVendido > 0) {
+      calcularComissao(valorVendido);
     } else {
+      setComissaoPercentual(0);
+      setComissaoValor(0);
       setValorAReceber(0);
     }
   };
@@ -172,25 +172,12 @@ export function ModalReceberCobranca({
     const descontoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
     
     if (isRepasse) {
-      // Para repasse: desconto sobre o valor previsto
       setValorAReceber(cobranca.valor_previsto - descontoNum);
     } else {
-      // Para KIT: desconto sobre o valor a receber (já descontado comissão)
-      const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
-      const valorAposComissao = valorVendaNum - comissaoValor;
+      const valorDevolvidoNum = parseFloat(valorDevolvido.replace(',', '.')) || 0;
+      const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
+      const valorAposComissao = valorVendido - comissaoValor;
       setValorAReceber(valorAposComissao - descontoNum);
-    }
-  };
-
-  const handleComissaoManualChange = (value: string) => {
-    const cleanValue = value.replace(/[^\d,]/g, '');
-    setComissaoPercentualManual(cleanValue);
-    
-    const percentual = parseFloat(cleanValue.replace(',', '.')) || 0;
-    const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
-    
-    if (valorVendaNum > 0) {
-      calcularComissao(valorVendaNum, percentual);
     }
   };
 
