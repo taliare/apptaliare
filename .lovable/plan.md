@@ -1,35 +1,33 @@
 
 
-# Correção do saldo em aberto na aba Ativas
+# Correção do bug "Pendente apuração" na aba Ativas
 
-## Resumo
-Só exibir saldo em aberto quando a cobrança já tiver prestação de contas registrada. Antes da apuração, mostrar "Pendente apuração".
+## Problema
+A query de prestações busca todas do representante mas o `prestacaoMap` usa `cobranca_id` como chave. Como a query não filtra pelos IDs das cobranças ativas, o match com `c.id` falha.
 
-## Alterações em `src/pages/RevendedorasInativas.tsx`
+## Alteração em `src/pages/RevendedorasInativas.tsx` (linhas 106-111)
 
-### 1. Interface `RevendedoraAtiva` (linha 28-34)
-Adicionar campo `temApuracao: boolean`.
+Substituir o bloco de busca de prestações por uma versão que filtra pelos `cobranca_id` das cobranças ativas:
 
-### 2. Query `minhas-revendedoras-ativas` (linhas 86-124)
-Após buscar cadastros e antes do agrupamento, adicionar busca de prestações:
 ```typescript
-const { data: prestacoes } = await supabase
-  .from('prestacoes_contas')
-  .select('cobranca_id, valor_devido_empresa, valor_pago, saldo_devedor')
-  .eq('representante_id', user!.id);
-const prestacaoMap = new Map(prestacoes?.map(p => [p.cobranca_id, p]) || []);
+// Buscar prestações APENAS das cobranças ativas
+const cobrancaIds = cobrancas?.map(c => c.id) || [];
+let prestacaoMap = new Map<string, boolean>();
+
+if (cobrancaIds.length > 0) {
+  const { data: prestacoes } = await supabase
+    .from('prestacoes_contas')
+    .select('cobranca_id')
+    .in('cobranca_id', cobrancaIds);
+  
+  prestacoes?.forEach(p => {
+    if (p.cobranca_id) prestacaoMap.set(p.cobranca_id, true);
+  });
+}
 ```
 
-No `forEach` de agrupamento (linhas 106-122):
-- Verificar `jaApurada = prestacaoMap.has(c.id)` antes de calcular saldo
-- Saldo = 0 se não apurada
-- Adicionar `temApuracao: false` ao criar entrada e setar `true` se qualquer cobrança estiver apurada
-
-### 3. Card de métricas (linhas 473-476)
-Substituir exibição fixa do saldo por condicional:
-- Se `temApuracao`: mostrar valor formatado em vermelho
-- Se não: mostrar "Pendente apuração" em texto muted
+O resto do agrupamento (linhas 113-137) permanece inalterado — a chamada `prestacaoMap.has(c.id)` agora vai funcionar corretamente porque o map contém exatamente os IDs das cobranças que têm prestação vinculada.
 
 ### Arquivo afetado
-- `src/pages/RevendedorasInativas.tsx` — 4 blocos alterados
+- `src/pages/RevendedorasInativas.tsx` — 1 bloco substituído (linhas 106-111)
 
