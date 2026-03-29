@@ -2,262 +2,272 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertTriangle } from 'lucide-react';
-import { differenceInDays, isBefore, startOfDay } from 'date-fns';
+import { AlertTriangle, DollarSign, Users, TrendingDown } from 'lucide-react';
+import { differenceInDays, startOfDay, format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { formatarValor } from '@/lib/utils';
+import { profilesLimited } from '@/lib/profilesLimited';
 
 export default function T2Inadimplencia() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const isAdmin = profile?.role === 'admin';
+
   const [filtroRepresentante, setFiltroRepresentante] = useState('todos');
-  const [filtroCidade, setFiltroCidade] = useState('');
   const [filtroAtraso, setFiltroAtraso] = useState('todos');
-
-  // 1. Buscar ciclos não encerrados com data_cobranca preenchida
-  const { data: ciclos = [], isLoading: loadingCiclos } = useQuery({
-    queryKey: ['t2-inadimplencia-ciclos'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('t2_ciclos')
-        .select('*, t2_revendedoras(nome_completo, nome_exibicao, cidade)')
-        .neq('status', 'encerrado')
-        .not('data_cobranca', 'is', null)
-        .order('data_cobranca', { ascending: true });
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // 2. Buscar apurações dos ciclos para valor_empresa
-  const cicloIds = ciclos.map((c: any) => c.id);
-
-  const { data: apuracoes = [] } = useQuery({
-    queryKey: ['t2-inadimplencia-apuracoes', cicloIds],
-    queryFn: async () => {
-      if (cicloIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from('t2_apuracoes')
-        .select('ciclo_id, valor_empresa')
-        .in('ciclo_id', cicloIds);
-      if (error) throw error;
-      return data;
-    },
-    enabled: cicloIds.length > 0,
-  });
-
-  // 3. Buscar pagamentos
-  const apuracaoMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    apuracoes.forEach((a: any) => { map[a.ciclo_id] = a.ciclo_id; });
-    return map;
-  }, [apuracoes]);
-
-  const { data: pagamentos = [] } = useQuery({
-    queryKey: ['t2-inadimplencia-pagamentos', cicloIds],
-    queryFn: async () => {
-      if (cicloIds.length === 0) return [];
-      // Buscar pagamentos via apuracoes
-      const apuracaoIds = apuracoes.map((a: any) => a.id);
-      if (apuracaoIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from('t2_pagamentos')
-        .select('apuracao_id, valor_pago')
-        .in('apuracao_id', apuracoes.map((a: any) => a.id));
-      if (error) throw error;
-      return data;
-    },
-    enabled: apuracoes.length > 0,
-  });
-
-  // 4. Buscar adiantamentos
-  const { data: adiantamentos = [] } = useQuery({
-    queryKey: ['t2-inadimplencia-adiantamentos', cicloIds],
-    queryFn: async () => {
-      if (cicloIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from('t2_adiantamentos')
-        .select('ciclo_id, valor')
-        .in('ciclo_id', cicloIds);
-      if (error) throw error;
-      return data;
-    },
-    enabled: cicloIds.length > 0,
-  });
-
-  // 5. Representantes para filtro
-  const { data: representantes = [] } = useQuery({
-    queryKey: ['t2-representantes-inadimplencia'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles_limited')
-        .select('id, nome');
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Mapas de cálculo
-  const apuracaoValorEmpresa = useMemo(() => {
-    const map: Record<string, number> = {};
-    apuracoes.forEach((a: any) => { map[a.ciclo_id] = Number(a.valor_empresa) || 0; });
-    return map;
-  }, [apuracoes]);
-
-  const apuracaoIdByCiclo = useMemo(() => {
-    const map: Record<string, string> = {};
-    apuracoes.forEach((a: any) => { map[a.ciclo_id] = a.id; });
-    return map;
-  }, [apuracoes]);
-
-  const totalPagamentosByApuracao = useMemo(() => {
-    const map: Record<string, number> = {};
-    pagamentos.forEach((p: any) => {
-      map[p.apuracao_id] = (map[p.apuracao_id] || 0) + Number(p.valor_pago);
-    });
-    return map;
-  }, [pagamentos]);
-
-  const totalAdiantamentosByCiclo = useMemo(() => {
-    const map: Record<string, number> = {};
-    adiantamentos.forEach((a: any) => {
-      map[a.ciclo_id] = (map[a.ciclo_id] || 0) + Number(a.valor);
-    });
-    return map;
-  }, [adiantamentos]);
-
-  const calcSaldo = (cicloId: string) => {
-    const valorEmpresa = apuracaoValorEmpresa[cicloId] || 0;
-    // Se não tem apuração, usar valor_kit do ciclo como fallback
-    if (!apuracaoIdByCiclo[cicloId]) {
-      const ciclo = ciclos.find((c: any) => c.id === cicloId);
-      const valorKit = Number(ciclo?.valor_kit || 0);
-      const adiant = totalAdiantamentosByCiclo[cicloId] || 0;
-      return valorKit - adiant;
-    }
-    const apuracaoId = apuracaoIdByCiclo[cicloId];
-    const pags = totalPagamentosByApuracao[apuracaoId] || 0;
-    const adiant = totalAdiantamentosByCiclo[cicloId] || 0;
-    return valorEmpresa - pags - adiant;
-  };
+  const [busca, setBusca] = useState('');
 
   const hoje = startOfDay(new Date());
 
-  // Filtrar inadimplentes: data_cobranca < hoje && saldo > 0
+  // Buscar representantes (admin only)
+  const { data: representantes = [] } = useQuery({
+    queryKey: ['representantes-inadimplencia'],
+    queryFn: async () => {
+      const { data } = await profilesLimited().select('id, nome').order('nome');
+      const { data: roles } = await supabase.from('user_roles').select('user_id').eq('role', 'representante');
+      const repIds = new Set(roles?.map((r: any) => r.user_id) || []);
+      return (data || []).filter((p: any) => repIds.has(p.id));
+    },
+    enabled: isAdmin,
+  });
+
+  // Buscar cobranças vencidas com saldo em aberto
+  const { data: cobrancas = [], isLoading } = useQuery({
+    queryKey: ['inadimplencia-v1', user?.id, isAdmin],
+    queryFn: async () => {
+      let query = supabase
+        .from('cobrancas_agendadas')
+        .select('id, revendedora, representante_id, valor_previsto, valor_pago_acumulado, valor_adiantado, data_agendada, status, tipo, codigo_nota')
+        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .lt('data_agendada', format(hoje, 'yyyy-MM-dd'))
+        .order('data_agendada', { ascending: true });
+
+      if (!isAdmin) {
+        query = query.eq('representante_id', user!.id);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Buscar prestações para saber quais já foram apuradas
+  const cobrancaIds = cobrancas.map(c => c.id);
+  const { data: prestacoes = [] } = useQuery({
+    queryKey: ['inadimplencia-prestacoes', cobrancaIds],
+    queryFn: async () => {
+      if (cobrancaIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('prestacoes_contas')
+        .select('cobranca_id, valor_devido_empresa')
+        .in('cobranca_id', cobrancaIds);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: cobrancaIds.length > 0,
+  });
+
+  const prestacaoMap = useMemo(() => {
+    const map = new Map<string, number>();
+    prestacoes.forEach(p => {
+      if (p.cobranca_id) map.set(p.cobranca_id, p.valor_devido_empresa);
+    });
+    return map;
+  }, [prestacoes]);
+
+  // Calcular inadimplentes
   const inadimplentes = useMemo(() => {
-    return ciclos
-      .filter((c: any) => {
-        const dataCobranca = new Date(c.data_cobranca);
-        if (!isBefore(startOfDay(dataCobranca), hoje)) return false;
-        const saldo = calcSaldo(c.id);
-        if (saldo <= 0) return false;
-        // Filtros do usuário
-        if (filtroRepresentante !== 'todos' && c.representante_id !== filtroRepresentante) return false;
-        if (filtroCidade && !(c.t2_revendedoras?.cidade || '').toLowerCase().includes(filtroCidade.toLowerCase())) return false;
-        const dias = differenceInDays(hoje, startOfDay(dataCobranca));
-        if (filtroAtraso === '0-15' && dias > 15) return false;
-        if (filtroAtraso === '16-30' && (dias < 16 || dias > 30)) return false;
-        if (filtroAtraso === '31+' && dias < 31) return false;
-        return true;
+    return cobrancas
+      .map(c => {
+        const acumulado = (c as any).valor_pago_acumulado || 0;
+        const adiantado = c.valor_adiantado || 0;
+        const jaApurada = prestacaoMap.has(c.id);
+        const tipoJaApurado = ['repasse', 'acrescimo'].includes((c.tipo || '').toLowerCase());
+
+        // Calcular saldo real
+        let saldo = 0;
+        if (jaApurada || tipoJaApurado) {
+          saldo = Math.max(0, c.valor_previsto - acumulado - adiantado);
+        } else {
+          // Kit ainda não apurado — não conta como inadimplência real
+          return null;
+        }
+
+        if (saldo <= 0) return null;
+
+        const diasAtraso = differenceInDays(hoje, startOfDay(new Date(c.data_agendada + 'T12:00:00')));
+
+        return {
+          ...c,
+          saldo,
+          diasAtraso,
+        };
       })
-      .map((c: any) => ({
-        ...c,
-        diasAtraso: differenceInDays(hoje, startOfDay(new Date(c.data_cobranca))),
-        saldoRestante: calcSaldo(c.id),
-      }))
-      .sort((a: any, b: any) => b.diasAtraso - a.diasAtraso);
-  }, [ciclos, apuracaoValorEmpresa, apuracaoIdByCiclo, totalPagamentosByApuracao, totalAdiantamentosByCiclo, filtroRepresentante, filtroCidade, filtroAtraso, hoje]);
+      .filter(Boolean) as any[];
+  }, [cobrancas, prestacaoMap, hoje]);
 
-  const isLoading = loadingCiclos;
+  // Aplicar filtros
+  const inadimplentesFiltered = useMemo(() => {
+    return inadimplentes.filter((c: any) => {
+      if (isAdmin && filtroRepresentante !== 'todos' && c.representante_id !== filtroRepresentante) return false;
+      if (busca && !c.revendedora.toLowerCase().includes(busca.toLowerCase())) return false;
+      if (filtroAtraso === '0-15' && c.diasAtraso > 15) return false;
+      if (filtroAtraso === '16-30' && (c.diasAtraso < 16 || c.diasAtraso > 30)) return false;
+      if (filtroAtraso === '31+' && c.diasAtraso < 31) return false;
+      return true;
+    }).sort((a: any, b: any) => b.diasAtraso - a.diasAtraso);
+  }, [inadimplentes, filtroRepresentante, busca, filtroAtraso, isAdmin]);
 
-  const getRepName = (id: string) => {
-    const rep = representantes.find((r: any) => r.id === id);
-    return rep?.nome || 'N/A';
+  // Totais
+  const totalSaldo = inadimplentesFiltered.reduce((s: number, c: any) => s + c.saldo, 0);
+  const totalRevendedoras = new Set(inadimplentesFiltered.map((c: any) => c.revendedora)).size;
+  const maiorAtraso = inadimplentesFiltered[0]?.diasAtraso || 0;
+
+  const getRepNome = (id: string) => representantes.find((r: any) => r.id === id)?.nome || '—';
+
+  const getAtrasoColor = (dias: number) => {
+    if (dias <= 15) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400';
+    if (dias <= 30) return 'bg-orange-500/20 text-orange-700 dark:text-orange-400';
+    return 'bg-red-500/20 text-red-700 dark:text-red-400';
   };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Inadimplência T2</h1>
-        <p className="text-sm text-muted-foreground">Ciclos com cobrança vencida e saldo pendente</p>
+        <h1 className="text-2xl font-bold text-foreground">Inadimplência</h1>
+        <p className="text-sm text-muted-foreground">Cobranças vencidas com saldo pendente após apuração</p>
+      </div>
+
+      {/* Cards resumo */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <DollarSign className="h-4 w-4" />
+              Total em aberto
+            </div>
+            <p className="text-2xl font-bold text-destructive">{formatarValor(totalSaldo)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <Users className="h-4 w-4" />
+              Revendedoras
+            </div>
+            <p className="text-2xl font-bold">{totalRevendedoras}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <TrendingDown className="h-4 w-4" />
+              Maior atraso
+            </div>
+            <p className="text-2xl font-bold">{maiorAtraso} dias</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filtros */}
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+      <div className="flex flex-wrap gap-3 items-center">
+        <Input
+          placeholder="Buscar revendedora..."
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          className="max-w-xs"
+        />
         {isAdmin && (
           <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
-            <SelectTrigger><SelectValue placeholder="Representante" /></SelectTrigger>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Representante" />
+            </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos os representantes</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
               {representantes.map((r: any) => (
                 <SelectItem key={r.id} value={r.id!}>{r.nome}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
-        <Input
-          placeholder="Filtrar por cidade..."
-          value={filtroCidade}
-          onChange={e => setFiltroCidade(e.target.value)}
-        />
         <Select value={filtroAtraso} onValueChange={setFiltroAtraso}>
-          <SelectTrigger><SelectValue placeholder="Dias em atraso" /></SelectTrigger>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Atraso" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos</SelectItem>
-            <SelectItem value="0-15">0 - 15 dias</SelectItem>
-            <SelectItem value="16-30">16 - 30 dias</SelectItem>
+            <SelectItem value="0-15">0 — 15 dias</SelectItem>
+            <SelectItem value="16-30">16 — 30 dias</SelectItem>
             <SelectItem value="31+">31+ dias</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
+      {/* Lista */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
-      ) : inadimplentes.length === 0 ? (
+      ) : inadimplentesFiltered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-40" />
-            <p>Nenhum ciclo inadimplente encontrado</p>
+            <p>Nenhuma inadimplência encontrada</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="py-3 px-2 font-medium text-muted-foreground">Revendedora</th>
-                <th className="py-3 px-2 font-medium text-muted-foreground">Cidade</th>
-                {isAdmin && <th className="py-3 px-2 font-medium text-muted-foreground">Representante</th>}
-                <th className="py-3 px-2 font-medium text-muted-foreground text-right">Saldo Restante</th>
-                <th className="py-3 px-2 font-medium text-muted-foreground text-center">Data Cobrança</th>
-                <th className="py-3 px-2 font-medium text-muted-foreground text-center">Dias em Atraso</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inadimplentes.map((c: any) => (
-                <tr key={c.id} className="border-b border-border/50 hover:bg-muted/30">
-                  <td className="py-3 px-2 font-medium">
-                    {c.t2_revendedoras?.nome_exibicao || c.t2_revendedoras?.nome_completo || 'N/A'}
-                  </td>
-                  <td className="py-3 px-2 text-muted-foreground">{c.t2_revendedoras?.cidade || '-'}</td>
-                  {isAdmin && <td className="py-3 px-2">{getRepName(c.representante_id)}</td>}
-                  <td className="py-3 px-2 text-right font-semibold text-destructive">
-                    {formatarValor(c.saldoRestante)}
-                  </td>
-                  <td className="py-3 px-2 text-center">{new Date(c.data_cobranca).toLocaleDateString('pt-BR')}</td>
-                  <td className="py-3 px-2 text-center">
-                    <Badge variant="destructive" className="text-xs">{c.diasAtraso} dias</Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">
+              {inadimplentesFiltered.length} cobranças em atraso
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left">
+                    <th className="py-3 px-2 font-medium text-muted-foreground">Revendedora</th>
+                    {isAdmin && <th className="py-3 px-2 font-medium text-muted-foreground">Representante</th>}
+                    <th className="py-3 px-2 font-medium text-muted-foreground">Nota</th>
+                    <th className="py-3 px-2 font-medium text-muted-foreground text-right">Saldo</th>
+                    <th className="py-3 px-2 font-medium text-muted-foreground text-center">Vencimento</th>
+                    <th className="py-3 px-2 font-medium text-muted-foreground text-center">Atraso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inadimplentesFiltered.map((c: any) => (
+                    <tr key={c.id} className="border-b border-border/50 hover:bg-muted/30">
+                      <td className="py-3 px-2 font-medium">{c.revendedora}</td>
+                      {isAdmin && (
+                        <td className="py-3 px-2 text-muted-foreground">{getRepNome(c.representante_id)}</td>
+                      )}
+                      <td className="py-3 px-2 text-muted-foreground">
+                        {c.codigo_nota || '—'}
+                      </td>
+                      <td className="py-3 px-2 text-right font-semibold text-destructive">
+                        {formatarValor(c.saldo)}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        {format(new Date(c.data_agendada + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
+                      </td>
+                      <td className="py-3 px-2 text-center">
+                        <Badge className={`text-xs ${getAtrasoColor(c.diasAtraso)}`}>
+                          {c.diasAtraso} dias
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
