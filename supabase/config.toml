@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.get-external-supabase-config]
 verify_jwt = false
+
+[functions.telegram-despesas]
+verify_jwt = false
