@@ -350,6 +350,7 @@ export type Database = {
           categoria_id: string | null
           criado_em: string | null
           criado_por: string | null
+          data_despesa: string | null
           id: string
           observacao: string | null
           valor: number
@@ -360,6 +361,7 @@ export type Database = {
           categoria_id?: string | null
           criado_em?: string | null
           criado_por?: string | null
+          data_despesa?: string | null
           id?: string
           observacao?: string | null
           valor: number
@@ -370,6 +372,7 @@ export type Database = {
           categoria_id?: string | null
           criado_em?: string | null
           criado_por?: string | null
+          data_despesa?: string | null
           id?: string
           observacao?: string | null
           valor?: number
