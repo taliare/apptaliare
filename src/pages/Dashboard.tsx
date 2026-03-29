@@ -201,7 +201,7 @@ export default function Dashboard() {
 
       const { data, error } = await supabase
         .from("notas_promissorias")
-        .select("id")
+        .select("id, cobranca_id")
         .eq("representante_id", user!.id)
         .in("data", diasFinalizados);
 
