@@ -1490,173 +1490,101 @@ function CobrancaItem({
 }) {
   const { profile } = useAuth();
 
+  const acumulado = (cobranca as any).valor_pago_acumulado || 0;
+  const adiantado = cobranca.valor_adiantado || 0;
+  const saldo = Math.max(0, cobranca.valor_previsto - acumulado - adiantado);
+  const temPagamentos = acumulado > 0;
   const totalAcrescimos = acrescimos.reduce((acc, a) => acc + a.valor, 0);
-  const totalComAcrescimos = cobranca.valor_previsto + totalAcrescimos;
   const temAcrescimos = acrescimos.length > 0 && cobranca.tipo === 'kit';
-  
+
+  const tipo = cobranca.tipo?.toLowerCase();
+  const isRepasse = tipo === 'repasse' || tipo === 'acrescimo';
+  const semKit = !isRepasse && !cobranca.kit_entregue_id && tipo !== 'kit';
+  const kitQuitado = tipo === 'kit' && cobranca.status === 'pago';
+  const bloqueadoAcrescimo = isRepasse || semKit || kitQuitado;
+  const razaoAcrescimo = isRepasse
+    ? 'Não permitido em notas de repasse.'
+    : semKit ? 'Nota sem kit vinculado.'
+    : 'Kit já quitado.';
+
   return (
-    <Card 
-      variant="interactive"
+    <Card
       className={cn(
-        "animate-fade-in w-full max-w-full overflow-hidden",
-        destacarVencida && "border-destructive/60 bg-destructive/5 hover:border-destructive"
+        "animate-fade-in w-full overflow-hidden transition-all duration-200",
+        destacarVencida
+          ? "border-destructive/40 bg-destructive/5"
+          : "border-border/50 hover:border-border"
       )}
       style={{ animationDelay: `${animationDelay}s` }}
     >
-      <CardContent className="p-3 sm:p-4 md:p-5">
-        <div className="flex flex-col gap-3 sm:gap-4">
-          <div className="flex-1 space-y-2 min-w-0">
-            <div className="flex items-start sm:items-center gap-2 flex-wrap">
-              <div className="font-semibold text-sm sm:text-base md:text-lg flex items-center gap-1.5 font-display min-w-0 max-w-full">
-                <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0" />
-                <span className="truncate max-w-[180px] sm:max-w-none">{cobranca.revendedora}</span>
-              </div>
-              {destacarVencida && (
-                <AlertCircle className="h-3.5 w-3.5 text-destructive animate-glow-pulse shrink-0" />
-              )}
-              <Badge className={cn(statusConfig[cobranca.status].color, "transition-all duration-200 text-[10px] sm:text-xs shrink-0")}>
+      <CardContent className="p-3 sm:p-4">
+        {/* Linha principal: nome + valor + botão cobrar */}
+        <div className="flex items-center gap-3">
+          {/* Nome e badges */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-sm truncate">{cobranca.revendedora}</span>
+              <Badge className={cn("text-[10px] px-1.5 py-0", statusConfig[cobranca.status].color)}>
                 {statusConfig[cobranca.status].label}
               </Badge>
               {cobranca.tipo && (
-                <Badge 
-                  variant="outline"
-                  className={cn(
-                    "transition-all duration-200 text-[10px] sm:text-xs shrink-0",
-                    cobranca.tipo === 'kit' 
-                      ? 'border-primary/50 bg-primary/10 text-primary' 
-                      : cobranca.tipo === 'acrescimo'
-                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-                      : 'border-muted-foreground/50 bg-muted text-muted-foreground'
-                  )}
-                >
-                  <Package className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5" />
+                <Badge variant="outline" className={cn(
+                  "text-[10px] px-1.5 py-0",
+                  cobranca.tipo === 'kit' ? 'border-primary/30 text-primary' : 'text-muted-foreground'
+                )}>
                   {cobranca.tipo === 'acrescimo' ? 'ACRÉSCIMO' : cobranca.tipo.toUpperCase()}
                 </Badge>
               )}
             </div>
-            
-            <div className="flex flex-wrap gap-3 text-sm">
+
+            {/* Linha secundária: código + data */}
+            <div className="flex items-center gap-3 mt-1">
               {cobranca.codigo_nota && (
-                <div className="flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="font-mono text-xs bg-muted px-2 py-1 rounded font-medium">
-                    {cobranca.codigo_nota}
-                  </span>
-                </div>
+                <span className="font-mono text-xs text-muted-foreground">{cobranca.codigo_nota}</span>
               )}
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <DollarSign className="h-4 w-4" />
-                {(() => {
-                  const acumulado = (cobranca as any).valor_pago_acumulado || 0;
-                  const adiantado = cobranca.valor_adiantado || 0;
-                  const saldo = Math.max(0, cobranca.valor_previsto - acumulado - adiantado);
-                  const temPagamentos = acumulado > 0;
-                  return temPagamentos ? (
-                    <div className="flex flex-col">
-                      <span className="font-bold text-foreground text-base">
-                        Saldo: {formatarValor(saldo)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Total: {formatarValor(cobranca.valor_previsto)}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className={cn(
-                      "font-semibold text-foreground text-base",
-                      temAcrescimos && "text-sm"
-                    )}>
-                      {temAcrescimos ? `Kit: ${formatarValor(cobranca.valor_previsto)}` : formatarValor(cobranca.valor_previsto)}
-                    </span>
-                  );
-                })()}
-              </div>
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <CalendarIcon className="h-4 w-4" />
-                <span className={cn(
-                  "font-medium",
-                  destacarVencida && "text-destructive font-semibold"
-                )}>
-                  {formatDateBR(cobranca.data_agendada)}
-                </span>
-              </div>
+              <span className={cn(
+                "text-xs",
+                destacarVencida ? "text-destructive font-medium" : "text-muted-foreground"
+              )}>
+                {formatDateBR(cobranca.data_agendada)}
+              </span>
             </div>
-
-            {/* Informações de pagamento parcial acumulado */}
-            {(() => {
-              const acumulado = (cobranca as any).valor_pago_acumulado || 0;
-              const adiantado = cobranca.valor_adiantado || 0;
-              const saldo = cobranca.valor_previsto - acumulado - adiantado;
-              if (acumulado > 0) {
-                return (
-                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-xs space-y-0.5">
-                    <div className="flex justify-between">
-                      <span className="text-blue-700 dark:text-blue-300">Já pago:</span>
-                      <span className="font-semibold text-blue-700 dark:text-blue-300">{formatarValor(acumulado)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-blue-700 dark:text-blue-300">Saldo em aberto:</span>
-                      <span className="font-bold text-blue-700 dark:text-blue-300">{formatarValor(Math.max(0, saldo))}</span>
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            })()}
-
-            {/* Lista de acréscimos (joias adicionais) */}
-            {temAcrescimos && (
-              <div className="space-y-1 pl-1">
-                {acrescimos.map((a) => (
-                  <div key={a.id} className="flex items-center gap-1.5 text-xs">
-                    <Plus className="h-3 w-3 text-amber-600 shrink-0" />
-                    <span className="text-amber-700 dark:text-amber-400">
-                      {a.descricao || 'Joia adicional'}
-                    </span>
-                    <span className="font-semibold text-amber-700 dark:text-amber-400">
-                      {formatarValor(a.valor)}
-                    </span>
-                  </div>
-                ))}
-                <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
-                  <DollarSign className="h-4 w-4 text-success" />
-                  <span className="font-bold text-success text-sm">
-                    Total: {formatarValor(totalComAcrescimos)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {cobranca.observacoes && (
-              <p className="text-xs text-muted-foreground">{cobranca.observacoes}</p>
-            )}
-
-            {cobranca.valor_adiantado > 0 && (
-              <div className="text-xs text-green-600 font-semibold flex items-center gap-1">
-                <TrendingDown className="h-3 w-3" />
-                Adiantamento: {formatarValor(cobranca.valor_adiantado)}
-              </div>
-            )}
           </div>
 
-          <div className="flex flex-wrap gap-2 sm:flex-nowrap items-center">
-            {profile?.role === 'admin' && (
-              <Button variant="outline" size="sm" onClick={() => onEdit(cobranca)} className="flex-1 sm:flex-none">
-                <Edit className="h-3.5 w-3.5 sm:mr-1" />
-                <span className="hidden sm:inline">Editar</span>
-              </Button>
-            )}
-            <Button variant="default" size="sm" onClick={() => onPagar(cobranca)} className="flex-1 sm:flex-none">
-              <CreditCard className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Cobrar</span>
+          {/* Valor + botão cobrar */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="text-right">
+              {temPagamentos ? (
+                <>
+                  <p className="text-sm font-bold text-foreground">{formatarValor(saldo)}</p>
+                  <p className="text-[10px] text-muted-foreground">saldo</p>
+                </>
+              ) : (
+                <p className="text-sm font-bold text-foreground">
+                  {formatarValor(temAcrescimos ? cobranca.valor_previsto + totalAcrescimos : cobranca.valor_previsto)}
+                </p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              onClick={() => onPagar(cobranca)}
+              className="h-8 px-3 shrink-0"
+            >
+              Cobrar
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="flex-1 sm:flex-none">
-                  <MoreVertical className="h-3.5 w-3.5 sm:mr-1" />
-                  <span className="hidden sm:inline">Mais opções</span>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {profile?.role === 'admin' && (
+                  <DropdownMenuItem onClick={() => onEdit(cobranca)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => onReagendar(cobranca)}>
                   <CalendarDays className="h-4 w-4 mr-2" />
                   Reagendar
@@ -1665,57 +1593,35 @@ function CobrancaItem({
                   <TrendingDown className="h-4 w-4 mr-2" />
                   Adiantamento
                 </DropdownMenuItem>
-                {(() => {
-                  const tipo = cobranca.tipo?.toLowerCase();
-                  const isRepasse = tipo === 'repasse' || tipo === 'acrescimo';
-                  const semKit = !isRepasse && !cobranca.kit_entregue_id && tipo !== 'kit';
-                  const kitQuitado = tipo === 'kit' && cobranca.status === 'pago';
-                  const bloqueado = isRepasse || semKit || kitQuitado;
-                  const razao = isRepasse
-                    ? 'Acréscimos não são permitidos em notas de repasse.'
-                    : semKit
-                    ? 'Esta nota não está vinculada a um kit.'
-                    : kitQuitado
-                    ? 'Este kit já foi quitado. Acréscimos não são permitidos.'
-                    : '';
-
-                  if (bloqueado) {
-                    return (
-                      <TooltipProvider delayDuration={200}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div
-                              className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm text-muted-foreground opacity-50"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Registrar joias adicionais
-                              <Info className="h-3.5 w-3.5 ml-auto text-muted-foreground" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="left" className="max-w-[220px] text-xs">
-                            {razao}
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    );
-                  }
-
-                  return (
-                    <DropdownMenuItem onClick={() => onAcrescimo(cobranca)} className="text-amber-600">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Registrar joias adicionais
-                    </DropdownMenuItem>
-                  );
-                })()}
+                {bloqueadoAcrescimo ? (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="relative flex cursor-not-allowed select-none items-center rounded-sm px-2 py-1.5 text-sm text-muted-foreground opacity-50">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Joias adicionais
+                          <Info className="h-3.5 w-3.5 ml-auto" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-[200px] text-xs">
+                        {razaoAcrescimo}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <DropdownMenuItem onClick={() => onAcrescimo(cobranca)} className="text-amber-600">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Joias adicionais
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={() => onJuridico(cobranca)} className="text-purple-600">
                   <Scale className="h-4 w-4 mr-2" />
-                  Encaminhar ao Jurídico
+                  Jurídico
                 </DropdownMenuItem>
-                {/* Botão Desistência - só aparece para kit sem pagamentos */}
                 {cobranca.kit_entregue_id &&
-                  cobranca.tipo?.toLowerCase() === 'kit' &&
-                  (cobranca.valor_pago_acumulado || 0) === 0 &&
-                  (cobranca.valor_adiantado || 0) === 0 &&
+                  tipo === 'kit' &&
+                  acumulado === 0 &&
+                  adiantado === 0 &&
                   cobranca.status !== 'pago' &&
                   cobranca.status !== ('cancelado' as any) && (
                   <DropdownMenuItem onClick={() => onDesistencia(cobranca)} className="text-destructive">
@@ -1727,6 +1633,34 @@ function CobrancaItem({
             </DropdownMenu>
           </div>
         </div>
+
+        {/* Linha de pagamentos parciais — só aparece se tiver */}
+        {temPagamentos && (
+          <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Já pago: <span className="font-medium text-foreground">{formatarValor(acumulado)}</span></span>
+            {adiantado > 0 && (
+              <span>Adiantado: <span className="font-medium text-green-600">{formatarValor(adiantado)}</span></span>
+            )}
+            <span>Saldo: <span className="font-semibold text-foreground">{formatarValor(saldo)}</span></span>
+          </div>
+        )}
+
+        {/* Acréscimos — só aparece se tiver */}
+        {temAcrescimos && (
+          <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5">
+            {acrescimos.map((a) => (
+              <div key={a.id} className="flex items-center justify-between text-xs">
+                <span className="text-amber-600">+ {a.descricao || 'Joia adicional'}</span>
+                <span className="text-amber-600 font-medium">{formatarValor(a.valor)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Observações — só aparece se tiver */}
+        {cobranca.observacoes && (
+          <p className="mt-2 text-xs text-muted-foreground italic">{cobranca.observacoes}</p>
+        )}
       </CardContent>
     </Card>
   );
