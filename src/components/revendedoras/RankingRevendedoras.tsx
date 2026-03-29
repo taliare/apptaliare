@@ -142,7 +142,7 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
     else result.sort((a, b) => b.ticketMedio - a.ticketMedio);
 
     return result;
-  }, [prestacoes, profileMap, ordenacao]);
+  }, [prestacoesDeduplicated, profileMap, ordenacao]);
 
   const totalVolume = ranking.reduce((s, r) => s + r.volumeVendido, 0);
   const totalCiclos = ranking.reduce((s, r) => s + r.ciclos, 0);
