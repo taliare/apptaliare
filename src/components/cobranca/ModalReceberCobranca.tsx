@@ -347,17 +347,7 @@ export function ModalReceberCobranca({
         description: "Cobrança recebida com sucesso.",
       });
       
-      // Log de comissão manual se aplicável
-      if (comissaoManual && comissaoPercentualManual) {
-        registrarLog({
-          tipo_acao: 'ALTERACAO_COMISSAO',
-          pedido_id: cobranca.id,
-          valor_antes: undefined,
-          valor_depois: comissaoPercentual,
-          descricao: `Comissão manual de ${comissaoPercentual}% aplicada para ${cobranca.revendedora}`,
-          user: { id: user!.id, nome: profile?.nome || '', papel: profile?.role || 'representante' },
-        });
-      }
+      
       
       onOpenChange(false);
     } catch (error) {
