@@ -1,33 +1,17 @@
 
+# Redesenhar CobrancaItem
 
-# Correção do bug "Pendente apuração" na aba Ativas
+## Resumo
+Substituir o componente `CobrancaItem` (linhas 1464-1733) pelo layout redesenhado fornecido pelo usuário. Layout mais compacto: linha principal com nome+badges+valor+botão cobrar, menu de 3 pontos, e seções condicionais para pagamentos parciais, acréscimos e observações.
 
-## Problema
-A query de prestações busca todas do representante mas o `prestacaoMap` usa `cobranca_id` como chave. Como a query não filtra pelos IDs das cobranças ativas, o match com `c.id` falha.
+## Alteração em `src/pages/Cobranca.tsx`
 
-## Alteração em `src/pages/RevendedorasInativas.tsx` (linhas 106-111)
+### Bloco único (linhas 1464-1733)
+Substituir o componente inteiro pela versão fornecida pelo usuário. Todas as props, handlers e lógica permanecem iguais. As mudanças são puramente visuais:
 
-Substituir o bloco de busca de prestações por uma versão que filtra pelos `cobranca_id` das cobranças ativas:
+- **Header compacto**: nome + badges + valor + botão "Cobrar" + menu dropdown na mesma linha
+- **Remove**: ícones decorativos (User, DollarSign, CalendarIcon, FileText, Package), card azul de pagamento parcial duplicado, botões inline (Editar, Cobrar como botões separados)
+- **Adiciona**: layout flex horizontal compacto, seções condicionais com `border-t` para pagamentos parciais, acréscimos e observações
+- **Dropdown simplificado**: textos mais curtos ("Joias adicionais" em vez de "Registrar joias adicionais")
 
-```typescript
-// Buscar prestações APENAS das cobranças ativas
-const cobrancaIds = cobrancas?.map(c => c.id) || [];
-let prestacaoMap = new Map<string, boolean>();
-
-if (cobrancaIds.length > 0) {
-  const { data: prestacoes } = await supabase
-    .from('prestacoes_contas')
-    .select('cobranca_id')
-    .in('cobranca_id', cobrancaIds);
-  
-  prestacoes?.forEach(p => {
-    if (p.cobranca_id) prestacaoMap.set(p.cobranca_id, true);
-  });
-}
-```
-
-O resto do agrupamento (linhas 113-137) permanece inalterado — a chamada `prestacaoMap.has(c.id)` agora vai funcionar corretamente porque o map contém exatamente os IDs das cobranças que têm prestação vinculada.
-
-### Arquivo afetado
-- `src/pages/RevendedorasInativas.tsx` — 1 bloco substituído (linhas 106-111)
-
+Todos os imports necessários já existem no arquivo. Nenhuma outra parte do arquivo é alterada.
