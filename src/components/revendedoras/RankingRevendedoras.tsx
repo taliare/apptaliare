@@ -53,7 +53,7 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
     queryFn: async () => {
       let query = supabase
         .from('prestacoes_contas')
-        .select('revendedora, representante_id, total_venda, comissao_percentual, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao')
+        .select('cobranca_id, revendedora, representante_id, total_venda, comissao_percentual, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao')
         .gt('total_venda', 0);
 
       if (periodoFiltro === 'mensal') {
