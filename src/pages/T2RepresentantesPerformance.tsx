@@ -208,47 +208,61 @@ export default function T2RepresentantesPerformance() {
       {/* Rankings */}
       <div className="grid md:grid-cols-3 gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">🏆 Top Vendas</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">🏆 Top Vendas</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {topVendas.length === 0 ? <p className="text-xs text-muted-foreground">Sem dados</p> :
-              topVendas.map((r, i) => (
-                <div key={r.representante_id} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{i + 1}. {getNome(r.representante_id)}</span>
-                  <span className="font-medium text-foreground">{formatarValor(r.totalVendido)}</span>
+          <CardContent className="space-y-3">
+            {topVendas.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem dados</p>
+            ) : topVendas.map((r, i) => (
+              <div key={r.representante_id} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-bold text-muted-foreground w-4 shrink-0">{i + 1}.</span>
+                  <span className="text-sm truncate">{getNome(r.representante_id)}</span>
                 </div>
-              ))}
+                <span className="text-sm font-semibold shrink-0">{formatarValor(r.totalVendido)}</span>
+              </div>
+            ))}
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">📈 Maior Rede</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">📈 Maior Rede</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {topRede.length === 0 ? <p className="text-xs text-muted-foreground">Sem dados</p> :
-              topRede.map((r, i) => (
-                <div key={r.representante_id} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{i + 1}. {getNome(r.representante_id)}</span>
-                  <span className="font-medium text-foreground">{r.totalRevendedoras} rev.</span>
+          <CardContent className="space-y-3">
+            {topRede.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem dados</p>
+            ) : topRede.map((r, i) => (
+              <div key={r.representante_id} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-bold text-muted-foreground w-4 shrink-0">{i + 1}.</span>
+                  <span className="text-sm truncate">{getNome(r.representante_id)}</span>
                 </div>
-              ))}
+                <span className="text-sm font-semibold shrink-0">{r.totalRevendedoras} rev.</span>
+              </div>
+            ))}
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">✅ Menor Inadimplência</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">✅ Menor Inadimplência</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {topAdimplentes.length === 0 ? <p className="text-xs text-muted-foreground">Sem dados</p> :
-              topAdimplentes.map((r, i) => (
-                <div key={r.representante_id} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{i + 1}. {getNome(r.representante_id)}</span>
-                  <Badge className={getInadColor(r.pctInadimplencia)}>
-                    {r.pctInadimplencia.toFixed(1)}%
-                  </Badge>
+          <CardContent className="space-y-3">
+            {topAdimplentes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sem dados</p>
+            ) : topAdimplentes.map((r, i) => (
+              <div key={r.representante_id} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-bold text-muted-foreground w-4 shrink-0">{i + 1}.</span>
+                  <span className="text-sm truncate">{getNome(r.representante_id)}</span>
                 </div>
-              ))}
+                <Badge className={getInadColor(r.pctInadimplencia)}>
+                  {r.pctInadimplencia.toFixed(1)}%
+                </Badge>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
