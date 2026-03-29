@@ -201,7 +201,7 @@ export default function Dashboard() {
 
       const { data, error } = await supabase
         .from("notas_promissorias")
-        .select("id")
+        .select("id, cobranca_id")
         .eq("representante_id", user!.id)
         .in("data", diasFinalizados);
 
@@ -216,7 +216,13 @@ export default function Dashboard() {
   const totalCobrado = cobrancas.reduce((sum, c) => sum + c.total_cobrado, 0);
   const totalDespesas = cobrancas.reduce((sum, c) => sum + (c.despesa_cobranca || 0), 0);
   const totalKits = kitsDoMes.length;
-  const totalNotasCobradas = notasCobradas.length;
+  // Contar ciclos únicos (cobrancas_id distintos), ignorando notas sem cobranca_id
+  const cobrancasUnicas = new Set(
+    notasCobradas
+      .filter(n => n.cobranca_id)
+      .map(n => n.cobranca_id)
+  );
+  const totalNotasCobradas = cobrancasUnicas.size;
   const ticketMedio = totalNotasCobradas > 0 ? totalCobrado / totalNotasCobradas : 0;
 
   const percentualMeta = metaDoMes?.meta_valor ? (totalCobrado / metaDoMes.meta_valor) * 100 : 0;
