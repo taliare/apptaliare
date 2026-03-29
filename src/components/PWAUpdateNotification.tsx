@@ -1,37 +1,39 @@
-import { RefreshCw, X } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePWAUpdate } from "@/hooks/usePWAUpdate";
 
 export function PWAUpdateNotification() {
-  const { showUpdate, reloadPage, dismissUpdate } = usePWAUpdate();
+  const { showUpdate, reloadPage } = usePWAUpdate();
 
   if (!showUpdate) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-[200] animate-in slide-in-from-bottom-4 duration-300">
-      <div className="bg-primary text-primary-foreground rounded-lg shadow-lg p-4 flex items-center gap-3">
-        <RefreshCw className="h-5 w-5 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm">Nova versão disponível!</p>
-          <p className="text-xs opacity-90">Atualize para obter as últimas melhorias.</p>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 backdrop-blur-sm">
+      <div className="mx-4 w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-lg text-center space-y-6">
+        {/* Ícone animado */}
+        <div className="flex justify-center">
+          <div className="rounded-full bg-primary/10 p-4">
+            <RefreshCw className="h-8 w-8 text-primary animate-spin" style={{ animationDuration: '3s' }} />
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={reloadPage}
-            className="h-8 text-xs"
-          >
-            Atualizar
-          </Button>
-          <button
-            onClick={dismissUpdate}
-            className="p-1 hover:opacity-70 transition-opacity"
-            aria-label="Fechar"
-          >
-            <X className="h-4 w-4" />
-          </button>
+
+        {/* Texto */}
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold text-foreground">Nova versão disponível</h2>
+          <p className="text-sm text-muted-foreground">
+            O sistema foi atualizado com melhorias e correções importantes. É necessário atualizar para continuar usando.
+          </p>
         </div>
+
+        {/* Botão */}
+        <Button onClick={reloadPage} className="w-full" size="lg">
+          <RefreshCw className="h-4 w-4" />
+          Atualizar agora
+        </Button>
+
+        <p className="text-xs text-muted-foreground">
+          Seus dados estão salvos e não serão perdidos.
+        </p>
       </div>
     </div>
   );
