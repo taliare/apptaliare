@@ -1,44 +1,46 @@
 
 
-# Refatorar ModalReceberCobranca: "Valor da Venda" → "Valor em Joias Devolvidas"
+# Formatação monetária nos inputs
 
 ## Resumo
-Trocar a lógica de entrada de "valor vendido" para "valor devolvido em joias", removendo edição manual de comissão.
+Adicionar funções `formatarInputMoeda` e `parseInputMoeda` em `utils.ts` e aplicá-las em todos os inputs monetários de `ModalReceberCobranca.tsx`.
 
-## Alterações no arquivo `src/components/cobranca/ModalReceberCobranca.tsx`
+## Alterações
 
-### 1. Import (linha 9)
-Remover `Edit2` do import de lucide-react.
+### 1. `src/lib/utils.ts` — Adicionar duas funções ao final
+- `formatarInputMoeda(valor)`: formata string digitada como "1.234,56" (máscara automática)
+- `parseInputMoeda(valor)`: converte string formatada para number
 
-### 2. States (linhas 82, 92-93)
-- `valorVenda` → `valorDevolvido`
-- Remover `comissaoManual` e `comissaoPercentualManual`
+### 2. `src/components/cobranca/ModalReceberCobranca.tsx`
 
-### 3. useEffect (linhas 110-133)
-- Substituir referências `setValorVenda` → `setValorDevolvido`
-- Remover `setComissaoManual(false)` e `setComissaoPercentualManual('')`
+**Import** (linha 13): adicionar `formatarInputMoeda, parseInputMoeda`
 
-### 4. Função handler (linhas 156-170)
-- Substituir `handleValorVendaChange` por `handleValorDevolvidoChange` com lógica invertida:
-  - `valorVendido = cobranca.valor_previsto - valorDevolvido`
-  - Comissão calculada sobre valorVendido
+**`handleValorDevolvidoChange`** (linhas 152-166): usar `formatarInputMoeda` para formatar e `parseInputMoeda` para converter
 
-### 5. Remover `handleComissaoManualChange` (linhas 189-199)
+**`handleDescontoChange`** (linhas 168-182): mesma abordagem — `formatarInputMoeda` + `parseInputMoeda`
 
-### 6. `handleReceberPagamento` (linhas 299, 353)
-- `valor_venda` passa a ser `Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0))`
+**Input valorParcial** (linhas 598-605): onChange usa `formatarInputMoeda`
 
-### 7. Remover log de comissão manual (linhas 368-377)
+**Input pagamento1.valor** (linha 710): onChange usa `formatarInputMoeda`
 
-### 8. UI — Campo de entrada (linhas 440-458)
-- Novo label "Valor em Joias Devolvidas" com banner de atenção amarelo
-- Input usa `valorDevolvido` e `handleValorDevolvidoChange`
-- Mostra cálculo "Valor do kit: X — Vendido: Y"
+**Input pagamento2.valor** (linha 764): onChange usa `formatarInputMoeda`
 
-### 9. UI — Bloco de comissão (linhas 460-499)
-- Simplificar: remover botão Edit2 e campo de edição manual
-- Manter apenas exibição: `Comissão (X%): R$ Y`
+**Todos os `parseFloat(...replace(',', '.'))` restantes** — substituir por `parseInputMoeda(...)`:
+- Linha 224: `parseFloat(pagamento1.valor.replace(',', '.'))` → `parseInputMoeda(pagamento1.valor)`
+- Linha 225: `parseFloat(pagamento2.valor.replace(',', '.'))` → `parseInputMoeda(pagamento2.valor)`
+- Linha 231: `parseFloat(valorParcial.replace(',', '.'))` → `parseInputMoeda(valorParcial)`
+- Linha 271: `parseFloat(pagamento1.valor.replace(',', '.'))` → `parseInputMoeda(pagamento1.valor)`
+- Linha 277: `parseFloat(pagamento2.valor.replace(',', '.'))` → `parseInputMoeda(pagamento2.valor)`
+- Linha 282: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
+- Linha 324: `parseFloat(pagamento1.valor.replace(',', '.'))` → `parseInputMoeda(pagamento1.valor)`
+- Linha 330: `parseFloat(pagamento2.valor.replace(',', '.'))` → `parseInputMoeda(pagamento2.valor)`
+- Linha 336: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
+- Linha 434: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
+- Linha 436: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
+- Linha 543: `parseFloat(desconto.replace(',', '.'))` (x2) → `parseInputMoeda(desconto)`
+- Linha 553: `parseFloat(valorDevolvido.replace(',', '.'))` → `parseInputMoeda(valorDevolvido)`
 
-### 10. Mensagem de ajuda (linhas 842-845)
-- `valorVenda` → `valorDevolvido`, texto atualizado
+### Arquivos afetados
+- `src/lib/utils.ts` — 2 funções adicionadas
+- `src/components/cobranca/ModalReceberCobranca.tsx` — import + handlers + ~15 substituições de parseFloat
 
