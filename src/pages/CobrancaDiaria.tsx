@@ -1374,9 +1374,19 @@ export default function CobrancaDiaria() {
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Valor:</span>
                             <span className="font-semibold text-primary">
-                              {formatarValor(notaEncontrada.valor_previsto)}
+                              {formatarValor(
+                                (notaEncontrada as any).valor_pago_acumulado > 0 || notaEncontrada.status === 'parcial'
+                                  ? Math.max(0, notaEncontrada.valor_previsto - ((notaEncontrada as any).valor_pago_acumulado || 0) - (notaEncontrada.valor_adiantado || 0))
+                                  : notaEncontrada.valor_previsto
+                              )}
                             </span>
                           </div>
+                          {(notaEncontrada as any).valor_pago_acumulado > 0 && (
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>Já pago:</span>
+                              <span>{formatarValor((notaEncontrada as any).valor_pago_acumulado)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Vencimento:</span>
                             <span>{format(new Date(notaEncontrada.data_agendada + 'T12:00:00'), 'dd/MM/yyyy')}</span>
