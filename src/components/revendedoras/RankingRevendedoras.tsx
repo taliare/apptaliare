@@ -82,11 +82,32 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
     return map;
   }, [representantes]);
 
+  // Deduplicar: para cada cobranca_id, manter apenas o registro com maior total_venda
+  const prestacoesDeduplicated = useMemo(() => {
+    if (!prestacoes) return [];
+    
+    const porCobranca = new Map<string, any>();
+    
+    for (const p of prestacoes) {
+      if (!p.cobranca_id) {
+        continue;
+      }
+      const existente = porCobranca.get(p.cobranca_id);
+      if (!existente || Number(p.total_venda) > Number(existente.total_venda)) {
+        porCobranca.set(p.cobranca_id, p);
+      }
+    }
+    
+    const semCobrancaId = prestacoes.filter(p => !p.cobranca_id);
+    
+    return [...porCobranca.values(), ...semCobrancaId];
+  }, [prestacoes]);
+
   // Group by revendedora name
   const ranking = useMemo(() => {
     const grouped = new Map<string, { repId: string | null; totalVenda: number; comissao: number; empresa: number; count: number }>();
 
-    prestacoes.forEach(p => {
+    prestacoesDeduplicated.forEach(p => {
       const nome = p.revendedora;
       const existing = grouped.get(nome) || { repId: null, totalVenda: 0, comissao: 0, empresa: 0, count: 0 };
       existing.repId = p.representante_id;
