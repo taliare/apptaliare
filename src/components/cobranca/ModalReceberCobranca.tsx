@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Plus, X, Edit2 } from 'lucide-react';
+import { CalendarIcon, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -79,7 +79,7 @@ export function ModalReceberCobranca({
   
   // Para KIT: valor da venda (precisa preencher)
   // Para REPASSE: usa valor_previsto
-  const [valorVenda, setValorVenda] = useState('');
+  const [valorDevolvido, setValorDevolvido] = useState('');
   
   // Desconto (discreto)
   const [desconto, setDesconto] = useState('');
@@ -89,8 +89,6 @@ export function ModalReceberCobranca({
   const [comissaoPercentual, setComissaoPercentual] = useState(0);
   const [comissaoValor, setComissaoValor] = useState(0);
   const [valorAReceber, setValorAReceber] = useState(0);
-  const [comissaoManual, setComissaoManual] = useState(false);
-  const [comissaoPercentualManual, setComissaoPercentualManual] = useState('');
   
   // Pagamentos
   const [pagamento1, setPagamento1] = useState<PagamentoForm>({ forma: '', valor: '' });
@@ -111,18 +109,16 @@ export function ModalReceberCobranca({
     if (open) {
       if (isSubsequente) {
         // Modo subsequente: saldo já calculado, não pedir valor da venda
-        setValorVenda('0');
+        setValorDevolvido('0');
         setValorAReceber(saldoAberto);
       } else {
-        setValorVenda('');
+        setValorDevolvido('');
         setValorAReceber(0);
       }
       setDesconto('');
       setMostrarDesconto(false);
       setComissaoPercentual(0);
       setComissaoValor(0);
-      setComissaoManual(false);
-      setComissaoPercentualManual('');
       setPagamento1({ forma: '', valor: '' });
       setPagamento2(null);
       setDataNota(new Date());
@@ -153,18 +149,18 @@ export function ModalReceberCobranca({
     setValorAReceber(valor - comissao);
   };
 
-  const handleValorVendaChange = (value: string) => {
+  const handleValorDevolvidoChange = (value: string) => {
     const cleanValue = value.replace(/[^\d,]/g, '');
-    setValorVenda(cleanValue);
+    setValorDevolvido(cleanValue);
     
-    const numeroValor = parseFloat(cleanValue.replace(',', '.'));
-    if (!isNaN(numeroValor) && numeroValor > 0) {
-      if (comissaoManual && comissaoPercentualManual) {
-        calcularComissao(numeroValor, parseFloat(comissaoPercentualManual));
-      } else {
-        calcularComissao(numeroValor);
-      }
+    const valorDevolvidoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
+    const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
+    
+    if (valorVendido > 0) {
+      calcularComissao(valorVendido);
     } else {
+      setComissaoPercentual(0);
+      setComissaoValor(0);
       setValorAReceber(0);
     }
   };
@@ -176,25 +172,12 @@ export function ModalReceberCobranca({
     const descontoNum = parseFloat(cleanValue.replace(',', '.')) || 0;
     
     if (isRepasse) {
-      // Para repasse: desconto sobre o valor previsto
       setValorAReceber(cobranca.valor_previsto - descontoNum);
     } else {
-      // Para KIT: desconto sobre o valor a receber (já descontado comissão)
-      const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
-      const valorAposComissao = valorVendaNum - comissaoValor;
+      const valorDevolvidoNum = parseFloat(valorDevolvido.replace(',', '.')) || 0;
+      const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
+      const valorAposComissao = valorVendido - comissaoValor;
       setValorAReceber(valorAposComissao - descontoNum);
-    }
-  };
-
-  const handleComissaoManualChange = (value: string) => {
-    const cleanValue = value.replace(/[^\d,]/g, '');
-    setComissaoPercentualManual(cleanValue);
-    
-    const percentual = parseFloat(cleanValue.replace(',', '.')) || 0;
-    const valorVendaNum = parseFloat(valorVenda.replace(',', '.')) || 0;
-    
-    if (valorVendaNum > 0) {
-      calcularComissao(valorVendaNum, percentual);
     }
   };
 
@@ -296,7 +279,7 @@ export function ModalReceberCobranca({
         }
 
         await onPagamentoParcial({
-          valor_venda: parseFloat(valorVenda.replace(',', '.')),
+          valor_venda: Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)),
           comissao_percentual: comissaoPercentual,
           comissao_valor: comissaoValor,
           valor_devido_empresa: valorAReceber,
@@ -350,7 +333,7 @@ export function ModalReceberCobranca({
       }
 
       await onPagamentoCompleto({
-        valor_venda: parseFloat(valorVenda.replace(',', '.')),
+        valor_venda: Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)),
         comissao_percentual: comissaoPercentual,
         comissao_valor: comissaoValor,
         valor_devido_empresa: valorAReceber,
@@ -364,17 +347,7 @@ export function ModalReceberCobranca({
         description: "Cobrança recebida com sucesso.",
       });
       
-      // Log de comissão manual se aplicável
-      if (comissaoManual && comissaoPercentualManual) {
-        registrarLog({
-          tipo_acao: 'ALTERACAO_COMISSAO',
-          pedido_id: cobranca.id,
-          valor_antes: undefined,
-          valor_depois: comissaoPercentual,
-          descricao: `Comissão manual de ${comissaoPercentual}% aplicada para ${cobranca.revendedora}`,
-          user: { id: user!.id, nome: profile?.nome || '', papel: profile?.role || 'representante' },
-        });
-      }
+      
       
       onOpenChange(false);
     } catch (error) {
@@ -437,21 +410,30 @@ export function ModalReceberCobranca({
             </div>
           )}
 
-          {/* Valor da Venda (só para KIT na primeira cobrança - não mostrar no modo subsequente) */}
+          {/* Valor em Joias Devolvidas (só para KIT na primeira cobrança) */}
           {!isRepasse && !isSubsequente && (
             <div className="space-y-2">
-              <Label>Valor da Venda <span className="text-destructive">*</span></Label>
+              <div className="p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">⚠️ ATENÇÃO: campo atualizado</p>
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">Agora informe o valor em joias <strong>devolvidas</strong>, não o valor vendido.</p>
+              </div>
+              <Label>Valor em Joias Devolvidas <span className="text-destructive">*</span></Label>
               <Input
                 type="text"
-                placeholder="Digite o valor total da venda"
-                value={valorVenda}
-                onChange={(e) => handleValorVendaChange(e.target.value)}
+                placeholder="Digite o valor total devolvido em joias"
+                value={valorDevolvido}
+                onChange={(e) => handleValorDevolvidoChange(e.target.value)}
                 disabled={loading}
-                className={cn(!valorVenda && "border-orange-400 focus-visible:ring-orange-400")}
+                className={cn(!valorDevolvido && "border-orange-400 focus-visible:ring-orange-400")}
               />
-              {!valorVenda && (
+              {!valorDevolvido && (
                 <p className="text-xs text-orange-600">
-                  Informe o valor total que a revendedora vendeu
+                  Informe o valor total das joias que a revendedora devolveu
+                </p>
+              )}
+              {valorDevolvido && parseFloat(valorDevolvido.replace(',', '.')) >= 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Valor do kit: {formatarValor(cobranca.valor_previsto)} — Vendido: {formatarValor(Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)))}
                 </p>
               )}
             </div>
@@ -462,39 +444,8 @@ export function ModalReceberCobranca({
             <div className="p-3 bg-muted rounded-lg text-sm space-y-1">
               <div className="flex justify-between items-center">
                 <span>Comissão ({comissaoPercentual}%):</span>
-                <div className="flex items-center gap-1">
-                  <span className="font-medium">{formatarValor(comissaoValor)}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-5 w-5 p-0"
-                    onClick={() => {
-                      if (!comissaoManual) {
-                        setComissaoManual(true);
-                        setComissaoPercentualManual(comissaoPercentual.toString());
-                      } else {
-                        setComissaoManual(false);
-                        setComissaoPercentualManual('');
-                        const valorNum = parseFloat(valorVenda.replace(',', '.')) || 0;
-                        if (valorNum > 0) calcularComissao(valorNum);
-                      }
-                    }}
-                  >
-                    <Edit2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                <span className="font-medium">{formatarValor(comissaoValor)}</span>
               </div>
-              {comissaoManual && (
-                <div className="flex items-center gap-2 mt-2">
-                  <Label className="text-xs">%:</Label>
-                  <Input
-                    type="text"
-                    className="h-7 text-sm w-20"
-                    value={comissaoPercentualManual}
-                    onChange={(e) => handleComissaoManualChange(e.target.value)}
-                  />
-                </div>
-              )}
             </div>
           )}
 
@@ -599,13 +550,12 @@ export function ModalReceberCobranca({
                       setDesconto('');
                       setMostrarDesconto(false);
                       // Recalcula valor a receber sem desconto
+                      const valorDevolvidoNum = parseFloat(valorDevolvido.replace(',', '.')) || 0;
                       const valorBase = isRepasse 
                         ? cobranca.valor_previsto 
-                        : (parseFloat(valorVenda.replace(',', '.')) || 0);
+                        : Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
                       if (isRepasse) {
                         setValorAReceber(valorBase);
-                      } else if (comissaoManual && comissaoPercentualManual) {
-                        calcularComissao(valorBase, parseFloat(comissaoPercentualManual));
                       } else {
                         calcularComissao(valorBase);
                       }
@@ -839,9 +789,9 @@ export function ModalReceberCobranca({
           </div>
           
           {/* Mensagem de ajuda quando botão está desabilitado */}
-          {!podeReceber && !isRepasse && !isSubsequente && !valorVenda && (
+          {!podeReceber && !isRepasse && !isSubsequente && !valorDevolvido && (
             <p className="text-xs text-center text-muted-foreground">
-              Preencha o valor da venda para habilitar o botão
+              Informe o valor das joias devolvidas para habilitar o botão
             </p>
           )}
         </div>
