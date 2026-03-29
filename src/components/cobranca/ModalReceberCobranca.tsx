@@ -279,7 +279,7 @@ export function ModalReceberCobranca({
         }
 
         await onPagamentoParcial({
-          valor_venda: parseFloat(valorVenda.replace(',', '.')),
+          valor_venda: Math.max(0, cobranca.valor_previsto - (parseFloat(valorDevolvido.replace(',', '.')) || 0)),
           comissao_percentual: comissaoPercentual,
           comissao_valor: comissaoValor,
           valor_devido_empresa: valorAReceber,
