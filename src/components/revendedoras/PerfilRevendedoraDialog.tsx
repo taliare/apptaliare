@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClose }: Props) {
-  const { data: prestacoes = [], isLoading } = useQuery({
+  const { data: prestacoesBruto = [], isLoading } = useQuery({
     queryKey: ['perfil-revendedora', nomeRevendedora],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -30,6 +30,29 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
       return data;
     },
   });
+
+  // Deduplicar: para cada cobranca_id, manter apenas o registro com maior total_venda
+  const prestacoes = useMemo(() => {
+    if (!prestacoesBruto) return [];
+    
+    const porCobranca = new Map<string, any>();
+    
+    for (const p of prestacoesBruto) {
+      if (!p.cobranca_id) {
+        continue;
+      }
+      const existente = porCobranca.get(p.cobranca_id);
+      if (!existente || Number(p.total_venda) > Number(existente.total_venda)) {
+        porCobranca.set(p.cobranca_id, p);
+      }
+    }
+    
+    const semCobrancaId = prestacoesBruto.filter(p => !p.cobranca_id);
+    
+    return [...porCobranca.values(), ...semCobrancaId].sort(
+      (a, b) => new Date(b.data_execucao).getTime() - new Date(a.data_execucao).getTime()
+    );
+  }, [prestacoesBruto]);
 
   // Buscar info da revendedora na tabela revendedoras
   const { data: revendedoraInfo } = useQuery({
