@@ -121,7 +121,8 @@ export default function RevendedorasInativas() {
       const map = new Map<string, RevendedoraAtiva>();
       cobrancas?.forEach(c => {
         const nome = c.revendedora;
-        const jaApurada = prestacaoMap.has(c.id);
+        const tipoJaApurado = ['repasse', 'acrescimo'].includes((c.tipo || '').toLowerCase());
+        const jaApurada = prestacaoMap.has(c.id) || tipoJaApurado;
         const saldo = jaApurada
           ? Math.max(0, c.valor_previsto - (c.valor_pago_acumulado || 0) - (c.valor_adiantado || 0))
           : 0;
