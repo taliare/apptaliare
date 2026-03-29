@@ -665,12 +665,13 @@ export default function Cobranca() {
 
   // Mutation para encaminhar ao jurídico
   const juridicoMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, saldoReal }: { id: string; saldoReal: number }) => {
       const { error } = await supabase
         .from('cobrancas_agendadas')
         .update({ 
           status: 'juridico' as any,
-          data_encaminhado_juridico: new Date().toISOString()
+          data_encaminhado_juridico: new Date().toISOString(),
+          valor_previsto: saldoReal,
         })
         .eq('id', id);
       
@@ -686,7 +687,10 @@ export default function Cobranca() {
   });
 
   const handleJuridicoClick = (cobranca: Cobranca) => {
-    juridicoMutation.mutate(cobranca.id);
+    const acumulado = (cobranca as any).valor_pago_acumulado || 0;
+    const adiantado = cobranca.valor_adiantado || 0;
+    const saldoReal = Math.max(0, cobranca.valor_previsto - acumulado - adiantado);
+    juridicoMutation.mutate({ id: cobranca.id, saldoReal });
   };
 
   // Mutation de desistência
