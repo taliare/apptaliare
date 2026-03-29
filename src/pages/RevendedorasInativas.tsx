@@ -86,7 +86,7 @@ export default function RevendedorasInativas() {
     queryFn: async () => {
       const { data: cobrancas, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('id, revendedora, valor_previsto, valor_pago_acumulado, valor_adiantado, data_agendada, status, codigo_nota')
+        .select('id, revendedora, valor_previsto, valor_pago_acumulado, valor_adiantado, data_agendada, status, codigo_nota, tipo')
         .eq('representante_id', user!.id)
         .in('status', ['pendente', 'parcial', 'reagendado'])
         .order('revendedora');
@@ -121,7 +121,8 @@ export default function RevendedorasInativas() {
       const map = new Map<string, RevendedoraAtiva>();
       cobrancas?.forEach(c => {
         const nome = c.revendedora;
-        const jaApurada = prestacaoMap.has(c.id);
+        const tipoJaApurado = ['repasse', 'acrescimo'].includes((c.tipo || '').toLowerCase());
+        const jaApurada = prestacaoMap.has(c.id) || tipoJaApurado;
         const saldo = jaApurada
           ? Math.max(0, c.valor_previsto - (c.valor_pago_acumulado || 0) - (c.valor_adiantado || 0))
           : 0;
