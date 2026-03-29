@@ -31,6 +31,7 @@ interface RevendedoraAtiva {
   revendedora_id: string | null;
   cobrancas: any[];
   saldoTotal: number;
+  temApuracao: boolean;
 }
 
 function calcularNivel(ticketMedio: number) {
@@ -85,7 +86,7 @@ export default function RevendedorasInativas() {
     queryFn: async () => {
       const { data: cobrancas, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('revendedora, valor_previsto, valor_pago_acumulado, valor_adiantado, data_agendada, status, codigo_nota')
+        .select('id, revendedora, valor_previsto, valor_pago_acumulado, valor_adiantado, data_agendada, status, codigo_nota')
         .eq('representante_id', user!.id)
         .in('status', ['pendente', 'parcial', 'reagendado'])
         .order('revendedora');
@@ -102,10 +103,20 @@ export default function RevendedorasInativas() {
         cadastroMap = new Map(cadastros?.map(c => [c.nome.toUpperCase(), c]) || []);
       }
 
+      // Buscar cobrancas que já têm prestação de contas
+      const { data: prestacoes } = await supabase
+        .from('prestacoes_contas')
+        .select('cobranca_id, valor_devido_empresa, valor_pago, saldo_devedor')
+        .eq('representante_id', user!.id);
+      const prestacaoMap = new Map(prestacoes?.map(p => [p.cobranca_id, p]) || []);
+
       const map = new Map<string, RevendedoraAtiva>();
       cobrancas?.forEach(c => {
         const nome = c.revendedora;
-        const saldo = Math.max(0, c.valor_previsto - (c.valor_pago_acumulado || 0) - (c.valor_adiantado || 0));
+        const jaApurada = prestacaoMap.has(c.id);
+        const saldo = jaApurada
+          ? Math.max(0, c.valor_previsto - (c.valor_pago_acumulado || 0) - (c.valor_adiantado || 0))
+          : 0;
         if (!map.has(nome)) {
           const cadastro = cadastroMap.get(nome.toUpperCase());
           map.set(nome, {
@@ -114,11 +125,13 @@ export default function RevendedorasInativas() {
             revendedora_id: cadastro?.id || null,
             cobrancas: [],
             saldoTotal: 0,
+            temApuracao: false,
           });
         }
         const entry = map.get(nome)!;
         entry.cobrancas.push(c);
         entry.saldoTotal += saldo;
+        if (jaApurada) entry.temApuracao = true;
       });
 
       return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome));
@@ -472,7 +485,10 @@ export default function RevendedorasInativas() {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-muted/50 rounded-lg p-2 text-center">
                         <p className="text-[10px] text-muted-foreground mb-0.5">Saldo em aberto</p>
-                        <p className="text-sm font-bold text-destructive">{formatarValor(rev.saldoTotal)}</p>
+                        {rev.temApuracao
+                          ? <p className="text-sm font-bold text-destructive">{formatarValor(rev.saldoTotal)}</p>
+                          : <p className="text-sm font-medium text-muted-foreground">Pendente apuração</p>
+                        }
                       </div>
                       <div className="bg-muted/50 rounded-lg p-2 text-center">
                         <p className="text-[10px] text-muted-foreground mb-0.5">Cobranças</p>
