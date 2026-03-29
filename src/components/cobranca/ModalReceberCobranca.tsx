@@ -267,7 +267,7 @@ export function ModalReceberCobranca({
       try {
         // Se valor efetivo a receber é zero, não precisa de pagamentos
         const pagamentos: Array<{ forma: FormaPagamento; valor: number }> = valorEfetivoReceber > 0 
-          ? [{ forma: pagamento1.forma as FormaPagamento, valor: parseFloat(pagamento1.valor.replace(',', '.')) }]
+          ? [{ forma: pagamento1.forma as FormaPagamento, valor: parseInputMoeda(pagamento1.valor) }]
           : [];
         
         if (valorEfetivoReceber > 0 && pagamento2) {
