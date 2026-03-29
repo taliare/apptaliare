@@ -1546,12 +1546,29 @@ function CobrancaItem({
               )}
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <DollarSign className="h-4 w-4" />
-                <span className={cn(
-                  "font-semibold text-foreground text-base",
-                  temAcrescimos && "text-sm"
-                )}>
-                  {temAcrescimos ? `Kit: ${formatarValor(cobranca.valor_previsto)}` : formatarValor(cobranca.valor_previsto)}
-                </span>
+                {(() => {
+                  const acumulado = (cobranca as any).valor_pago_acumulado || 0;
+                  const adiantado = cobranca.valor_adiantado || 0;
+                  const saldo = Math.max(0, cobranca.valor_previsto - acumulado - adiantado);
+                  const temPagamentos = acumulado > 0;
+                  return temPagamentos ? (
+                    <div className="flex flex-col">
+                      <span className="font-bold text-foreground text-base">
+                        Saldo: {formatarValor(saldo)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Total: {formatarValor(cobranca.valor_previsto)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className={cn(
+                      "font-semibold text-foreground text-base",
+                      temAcrescimos && "text-sm"
+                    )}>
+                      {temAcrescimos ? `Kit: ${formatarValor(cobranca.valor_previsto)}` : formatarValor(cobranca.valor_previsto)}
+                    </span>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <CalendarIcon className="h-4 w-4" />
