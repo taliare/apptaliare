@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { profilesLimited } from "@/lib/profilesLimited";
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Users, Search, Filter, ChevronDown, Plus, UserPlus, FileSpreadsheet, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
 import { LeadsKanban } from "@/components/leads/LeadsKanban";
 import { ImportLeadDialog } from "@/components/leads/ImportLeadDialog";
 import { BulkImportLeadsDialog } from "@/components/leads/BulkImportLeadsDialog";
@@ -44,6 +45,25 @@ export default function LeadsRevendedoras() {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [semanaFiltro, setSemanaFiltro] = useState('todas');
+
+  const semanas = useMemo(() => {
+    const opcoes: { value: string; label: string; inicio: string | null; fim: string | null }[] = [{ value: 'todas', label: 'Todas as semanas', inicio: null, fim: null }];
+    const hoje = new Date();
+    for (let i = 0; i < 8; i++) {
+      const fim = new Date(hoje);
+      fim.setDate(hoje.getDate() - (i * 7));
+      const inicio = new Date(fim);
+      inicio.setDate(fim.getDate() - 6);
+      opcoes.push({
+        value: `${format(inicio, 'yyyy-MM-dd')}_${format(fim, 'yyyy-MM-dd')}`,
+        label: `${format(inicio, 'dd/MM')} - ${format(fim, 'dd/MM/yyyy')}`,
+        inicio: format(inicio, 'yyyy-MM-dd'),
+        fim: format(fim, 'yyyy-MM-dd'),
+      });
+    }
+    return opcoes;
+  }, []);
 
   // Mutation para sincronizar leads do site externo
   const syncMutation = useMutation({
@@ -121,15 +141,9 @@ export default function LeadsRevendedoras() {
     };
   }, [queryClient]);
 
-  // Filtrar leads
   const leadsFiltrados = leads.filter((lead) => {
-    // Filtro de status
     if (statusFiltro !== "todos" && lead.status !== statusFiltro) return false;
-
-    // Filtro de origem
     if (origemFiltro !== "todos" && lead.origem !== origemFiltro) return false;
-
-    // Filtro de responsável
     if (responsavelFiltro !== "todos") {
       if (responsavelFiltro === "sem_responsavel") {
         if (lead.responsavel_id !== null) return false;
@@ -137,21 +151,43 @@ export default function LeadsRevendedoras() {
         if (lead.responsavel_id !== responsavelFiltro) return false;
       }
     }
-
-    // Filtro de busca
     if (busca) {
       const termoBusca = busca.toLowerCase();
-      const matchNome = lead.nome?.toLowerCase().includes(termoBusca);
-      const matchWhatsapp = lead.whatsapp?.includes(busca);
-      const matchCidade = lead.cidade?.toLowerCase().includes(termoBusca);
-      const matchInstagram = lead.instagram?.toLowerCase().includes(termoBusca);
-      const matchResponsavel = lead.responsavel_nome?.toLowerCase().includes(termoBusca);
-      if (!matchNome && !matchWhatsapp && !matchCidade && !matchInstagram && !matchResponsavel)
-        return false;
+      if (!lead.nome?.toLowerCase().includes(termoBusca) &&
+          !lead.whatsapp?.includes(busca) &&
+          !lead.cidade?.toLowerCase().includes(termoBusca) &&
+          !lead.instagram?.toLowerCase().includes(termoBusca) &&
+          !lead.responsavel_nome?.toLowerCase().includes(termoBusca)) return false;
     }
-
+    if (semanaFiltro !== 'todas') {
+      const [inicio, fim] = semanaFiltro.split('_');
+      const dataCriacao = lead.created_at?.split('T')[0];
+      if (!dataCriacao || dataCriacao < inicio || dataCriacao > fim) return false;
+    }
     return true;
   });
+
+  const gerarRelatorio = () => {
+    const semana = semanas.find(s => s.value === semanaFiltro);
+    const periodo = semana?.inicio && semana?.fim
+      ? `${format(new Date(semana.inicio + 'T12:00:00'), 'dd/MM/yyyy')} - ${format(new Date(semana.fim + 'T12:00:00'), 'dd/MM/yyyy')}`
+      : 'Período completo';
+
+    const contagem = (status: string) => leadsFiltrados.filter(l => l.status === status).length;
+
+    const relatorio = `📊 *Relatório Semanal - TALIARE*
+📅 *Período:* ${periodo}
+📋 *Total de Formulários:* ${leadsFiltrados.length}
+🔵 *Leads Pendentes:* ${contagem('leads_novos')}
+🟡 *Ligar para as Referências:* ${contagem('ligar_referencias')}
+🟠 *Aguardando Entrevista:* ${contagem('aguardando_entrevista')}
+🟢 *Para Entregar:* ${contagem('para_entregar')}
+💚 *Ativas:* ${contagem('ativas')}
+🔴 *Reprovadas:* ${contagem('reprovadas')}`;
+
+    navigator.clipboard.writeText(relatorio);
+    toast({ title: '✅ Relatório copiado!', description: 'Cole direto no WhatsApp.' });
+  };
 
   // Contadores
   const totalLeads = leads.length;
@@ -167,6 +203,13 @@ export default function LeadsRevendedoras() {
             <h1 className="text-xl font-semibold">CRM - Leads de Revendedoras</h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={gerarRelatorio}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Gerar Relatório
+            </Button>
             <Button
               variant="outline"
               onClick={() => syncMutation.mutate()}
@@ -229,7 +272,7 @@ export default function LeadsRevendedoras() {
         <CollapsibleContent className="mt-3">
           <Card>
             <CardContent className="pt-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 {/* Status */}
                 <div>
                   <Label className="text-xs">Status</Label>
@@ -277,6 +320,21 @@ export default function LeadsRevendedoras() {
                         <SelectItem key={r.id} value={r.id}>
                           {r.nome}
                         </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Semana */}
+                <div>
+                  <Label className="text-xs">Semana</Label>
+                  <Select value={semanaFiltro} onValueChange={setSemanaFiltro}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {semanas.map(s => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
