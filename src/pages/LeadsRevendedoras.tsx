@@ -45,6 +45,25 @@ export default function LeadsRevendedoras() {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [semanaFiltro, setSemanaFiltro] = useState('todas');
+
+  const semanas = useMemo(() => {
+    const opcoes: { value: string; label: string; inicio: string | null; fim: string | null }[] = [{ value: 'todas', label: 'Todas as semanas', inicio: null, fim: null }];
+    const hoje = new Date();
+    for (let i = 0; i < 8; i++) {
+      const fim = new Date(hoje);
+      fim.setDate(hoje.getDate() - (i * 7));
+      const inicio = new Date(fim);
+      inicio.setDate(fim.getDate() - 6);
+      opcoes.push({
+        value: `${format(inicio, 'yyyy-MM-dd')}_${format(fim, 'yyyy-MM-dd')}`,
+        label: `${format(inicio, 'dd/MM')} - ${format(fim, 'dd/MM/yyyy')}`,
+        inicio: format(inicio, 'yyyy-MM-dd'),
+        fim: format(fim, 'yyyy-MM-dd'),
+      });
+    }
+    return opcoes;
+  }, []);
 
   // Mutation para sincronizar leads do site externo
   const syncMutation = useMutation({
