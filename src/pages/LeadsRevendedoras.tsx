@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Users, Search, Filter, ChevronDown, Plus, UserPlus, FileSpreadsheet, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
 import { LeadsKanban } from "@/components/leads/LeadsKanban";
 import { ImportLeadDialog } from "@/components/leads/ImportLeadDialog";
 import { BulkImportLeadsDialog } from "@/components/leads/BulkImportLeadsDialog";
