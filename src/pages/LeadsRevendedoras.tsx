@@ -205,6 +205,13 @@ export default function LeadsRevendedoras() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              onClick={gerarRelatorio}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Gerar Relatório
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => syncMutation.mutate()}
               disabled={syncMutation.isPending}
             >
