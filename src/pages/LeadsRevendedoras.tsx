@@ -325,6 +325,21 @@ export default function LeadsRevendedoras() {
                   </Select>
                 </div>
 
+                {/* Semana */}
+                <div>
+                  <Label className="text-xs">Semana</Label>
+                  <Select value={semanaFiltro} onValueChange={setSemanaFiltro}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {semanas.map(s => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Busca */}
                 <div>
                   <Label className="text-xs">Busca</Label>
