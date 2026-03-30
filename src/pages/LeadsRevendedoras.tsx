@@ -272,7 +272,7 @@ export default function LeadsRevendedoras() {
         <CollapsibleContent className="mt-3">
           <Card>
             <CardContent className="pt-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 {/* Status */}
                 <div>
                   <Label className="text-xs">Status</Label>
