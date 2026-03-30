@@ -141,15 +141,9 @@ export default function LeadsRevendedoras() {
     };
   }, [queryClient]);
 
-  // Filtrar leads
   const leadsFiltrados = leads.filter((lead) => {
-    // Filtro de status
     if (statusFiltro !== "todos" && lead.status !== statusFiltro) return false;
-
-    // Filtro de origem
     if (origemFiltro !== "todos" && lead.origem !== origemFiltro) return false;
-
-    // Filtro de responsável
     if (responsavelFiltro !== "todos") {
       if (responsavelFiltro === "sem_responsavel") {
         if (lead.responsavel_id !== null) return false;
@@ -157,21 +151,43 @@ export default function LeadsRevendedoras() {
         if (lead.responsavel_id !== responsavelFiltro) return false;
       }
     }
-
-    // Filtro de busca
     if (busca) {
       const termoBusca = busca.toLowerCase();
-      const matchNome = lead.nome?.toLowerCase().includes(termoBusca);
-      const matchWhatsapp = lead.whatsapp?.includes(busca);
-      const matchCidade = lead.cidade?.toLowerCase().includes(termoBusca);
-      const matchInstagram = lead.instagram?.toLowerCase().includes(termoBusca);
-      const matchResponsavel = lead.responsavel_nome?.toLowerCase().includes(termoBusca);
-      if (!matchNome && !matchWhatsapp && !matchCidade && !matchInstagram && !matchResponsavel)
-        return false;
+      if (!lead.nome?.toLowerCase().includes(termoBusca) &&
+          !lead.whatsapp?.includes(busca) &&
+          !lead.cidade?.toLowerCase().includes(termoBusca) &&
+          !lead.instagram?.toLowerCase().includes(termoBusca) &&
+          !lead.responsavel_nome?.toLowerCase().includes(termoBusca)) return false;
     }
-
+    if (semanaFiltro !== 'todas') {
+      const [inicio, fim] = semanaFiltro.split('_');
+      const dataCriacao = lead.created_at?.split('T')[0];
+      if (!dataCriacao || dataCriacao < inicio || dataCriacao > fim) return false;
+    }
     return true;
   });
+
+  const gerarRelatorio = () => {
+    const semana = semanas.find(s => s.value === semanaFiltro);
+    const periodo = semana?.inicio && semana?.fim
+      ? `${format(new Date(semana.inicio + 'T12:00:00'), 'dd/MM/yyyy')} - ${format(new Date(semana.fim + 'T12:00:00'), 'dd/MM/yyyy')}`
+      : 'Período completo';
+
+    const contagem = (status: string) => leadsFiltrados.filter(l => l.status === status).length;
+
+    const relatorio = `📊 *Relatório Semanal - TALIARE*
+📅 *Período:* ${periodo}
+📋 *Total de Formulários:* ${leadsFiltrados.length}
+🔵 *Leads Pendentes:* ${contagem('leads_novos')}
+🟡 *Ligar para as Referências:* ${contagem('ligar_referencias')}
+🟠 *Aguardando Entrevista:* ${contagem('aguardando_entrevista')}
+🟢 *Para Entregar:* ${contagem('para_entregar')}
+💚 *Ativas:* ${contagem('ativas')}
+🔴 *Reprovadas:* ${contagem('reprovadas')}`;
+
+    navigator.clipboard.writeText(relatorio);
+    toast({ title: '✅ Relatório copiado!', description: 'Cole direto no WhatsApp.' });
+  };
 
   // Contadores
   const totalLeads = leads.length;
