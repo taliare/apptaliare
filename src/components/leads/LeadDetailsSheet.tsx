@@ -222,6 +222,8 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     }
   };
 
+  if (!lead) return null;
+
   const currentColumn = KANBAN_COLUMNS.find((c) => c.id === lead.status);
   const colorClass = currentColumn ? COLUMN_COLORS[currentColumn.color] : COLUMN_COLORS.blue;
 
