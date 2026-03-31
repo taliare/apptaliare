@@ -94,6 +94,7 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [analisandoIA, setAnalisandoIA] = useState(false);
+  const [analiseFeita, setAnaliseFeita] = useState(false);
 
   const { data: admins = [] } = useQuery({
     queryKey: ["admin-profiles"],
@@ -106,10 +107,26 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     },
   });
 
+  const { data: observacoes = [] } = useQuery({
+    queryKey: ['leads-observacoes-check', lead?.id],
+    queryFn: async () => {
+      if (!lead) return [];
+      const { data } = await supabase
+        .from('leads_observacoes')
+        .select('conteudo')
+        .eq('lead_id', lead.id)
+        .ilike('conteudo', '%ANÁLISE DE IA%')
+        .limit(1);
+      return data || [];
+    },
+    enabled: !!lead?.id,
+  });
+
   useEffect(() => {
     if (lead) {
       setResponsavelId(lead.responsavel_id);
       setShowDeleteConfirm(false);
+      setAnaliseFeita(false);
     }
   }, [lead]);
 
@@ -194,8 +211,52 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     if (!lead || !profile) return;
     setAnalisandoIA(true);
     try {
+      const prompt = `Você é um assistente especializado em triagem de revendedoras para a Taliare Semijoias, uma empresa de semijoias em consignação que atua em Manaus, Manacapuru, Rio Preto da Eva e Presidente Figueiredo (AM).
+
+Analise o perfil abaixo e gere um score de triagem baseado nos critérios reais da empresa:
+
+CRITÉRIOS DE APROVAÇÃO:
+- Profissão com renda fixa ou estável (garante reposição em caso de calote no ciclo de consignação)
+- Profissão com acesso a público para revender (hospital, escola, salão, empresa grande, comércio, etc.)
+- Motivação empreendedora — quer crescer, já revendeu antes, leva a sério o negócio, menciona a marca Taliare
+- Idade madura (preferencialmente acima de 25 anos) — mais responsabilidade financeira
+- Cidade dentro da área de atuação (Manaus, Manacapuru, Rio Preto da Eva, Presidente Figueiredo)
+- Experiência prévia em vendas ou revendas
+- Respondeu todas as perguntas do formulário com honestidade e atenção
+
+CRITÉRIOS DE REPROVAÇÃO:
+- Motivação de desespero financeiro ("preciso muito de renda", "estou sem emprego", "para sustentar minha casa", "terminar meus estudos") — alto risco de calote
+- Muito jovem sem base financeira (abaixo de 20 anos)
+- Sem profissão ou profissão sem renda estável
+- Cidade fora da área de atuação
+- Linguagem que demonstra falta de seriedade ou comprometimento
+- Deixou campos importantes em branco ou respondeu de forma evasiva (especialmente a pergunta sobre restrição no Serasa — quando não responde, é sinal de desonestidade)
+- Formulário preenchido com dados incorretos (ex: colocou telefone no campo de motivação)
+
+IMPORTANTE SOBRE O SERASA: Ter restrição no Serasa não é critério de reprovação, pois a grande maioria das candidatas tem restrições. O que importa é quando ela NÃO responde essa pergunta — isso indica desonestidade.
+
+PERFIL DA CANDIDATA:
+- Nome: ${lead.nome}
+- Idade: ${lead.idade || 'Não informada'}
+- Profissão: ${lead.profissao || 'Não informada'}
+- Estado Civil: ${lead.estado_civil || 'Não informado'}
+- Cidade: ${lead.cidade || 'Não informada'}
+- Experiência em vendas: ${lead.experiencia_vendas || 'Não informada'}
+- Motivação: ${lead.motivacao || 'Não informada'}
+- Quantidade de filhos: ${lead.capital_inicial || 'Não informada'}
+- Tempo disponível para vendas: ${lead.tempo_disponivel || 'Não informado'}
+- Possui restrição no Serasa: ${lead.restricao_serasa || 'NÃO RESPONDEU (atenção)'}
+- Expectativa de venda: ${lead.expectativa_venda || 'Não informada'}
+
+Responda APENAS neste formato:
+RECOMENDAÇÃO: [APROVAR / REVISAR / REPROVAR]
+SCORE: [número de 0 a 100]
+RESUMO: [2 linhas explicando a recomendação]
+PONTOS POSITIVOS: [liste em tópicos, ou "Nenhum identificado"]
+PONTOS DE ATENÇÃO: [liste em tópicos, ou "Nenhum identificado"]`;
+
       const { data, error: fnError } = await supabase.functions.invoke("analyze-lead", {
-        body: { lead },
+        body: { lead, prompt },
       });
 
       if (fnError) throw new Error(fnError.message || "Erro ao chamar a função de análise");
@@ -214,7 +275,9 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: ["leads-observacoes", lead.id] });
+      queryClient.invalidateQueries({ queryKey: ["leads-observacoes-check", lead.id] });
       toast({ title: "✅ Análise concluída!", description: "O resultado foi salvo nas observações." });
+      setAnaliseFeita(true);
     } catch (err: any) {
       toast({ title: "Erro na análise", description: err.message, variant: "destructive" });
     } finally {
@@ -284,6 +347,38 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
               <>✨ Analisar com IA</>
             )}
           </Button>
+          {(analiseFeita || observacoes.length > 0) && !['ativa', 'reprovada'].includes(lead.status) && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => {
+                  updateLead.mutate({ status: 'ligar_referencias' });
+                  navigator.clipboard.writeText(
+                    `Olá! Temos uma ótima notícia — *seu perfil foi pré-aprovado pela equipe da TALIARE! 🎉*\nO próximo passo é um bate papo com nosso representante, para conhecer você melhor, tirar dúvidas e verificar suas respostas do formulário, ok?\nO nosso representante tem até 24 horas em dias úteis para entrar em contato com você, então peço que aguarde o contato por favor.\nQualquer dúvida, é só chamar aqui!`
+                  );
+                  toast({ title: '✅ Lead aprovado!', description: 'Movido para "Ligar para Referências". Mensagem copiada — cole no WhatsApp!' });
+                  onClose();
+                }}
+              >
+                ✅ Aprovar
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  updateLead.mutate({ status: 'reprovada' });
+                  navigator.clipboard.writeText(
+                    `Olá! \nPassando para agradecer muito pelo seu interesse em fazer parte da TALIARE. 🙏\nApós analisar seu cadastro com cuidado, identificamos que neste momento o seu perfil não se encaixa no que estamos buscando para nossa equipe de revendedoras.\nIsso não significa que a porta está fechada para sempre — perfis e momentos mudam. Se quiser, pode tentar novamente em um próximo ciclo de seleção.\nDesejamos muito sucesso na sua jornada! 😊`
+                  );
+                  toast({ title: '❌ Lead reprovado!', description: 'Movido para "Reprovadas". Mensagem copiada — cole no WhatsApp!' });
+                  onClose();
+                }}
+              >
+                ❌ Reprovar
+              </Button>
+            </div>
+          )}
           {/* Quick contact links */}
           <div className="space-y-2">
             <a
