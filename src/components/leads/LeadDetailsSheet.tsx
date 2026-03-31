@@ -211,8 +211,52 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     if (!lead || !profile) return;
     setAnalisandoIA(true);
     try {
+      const prompt = `Você é um assistente especializado em triagem de revendedoras para a Taliare Semijoias, uma empresa de semijoias em consignação que atua em Manaus, Manacapuru, Rio Preto da Eva e Presidente Figueiredo (AM).
+
+Analise o perfil abaixo e gere um score de triagem baseado nos critérios reais da empresa:
+
+CRITÉRIOS DE APROVAÇÃO:
+- Profissão com renda fixa ou estável (garante reposição em caso de calote no ciclo de consignação)
+- Profissão com acesso a público para revender (hospital, escola, salão, empresa grande, comércio, etc.)
+- Motivação empreendedora — quer crescer, já revendeu antes, leva a sério o negócio, menciona a marca Taliare
+- Idade madura (preferencialmente acima de 25 anos) — mais responsabilidade financeira
+- Cidade dentro da área de atuação (Manaus, Manacapuru, Rio Preto da Eva, Presidente Figueiredo)
+- Experiência prévia em vendas ou revendas
+- Respondeu todas as perguntas do formulário com honestidade e atenção
+
+CRITÉRIOS DE REPROVAÇÃO:
+- Motivação de desespero financeiro ("preciso muito de renda", "estou sem emprego", "para sustentar minha casa", "terminar meus estudos") — alto risco de calote
+- Muito jovem sem base financeira (abaixo de 20 anos)
+- Sem profissão ou profissão sem renda estável
+- Cidade fora da área de atuação
+- Linguagem que demonstra falta de seriedade ou comprometimento
+- Deixou campos importantes em branco ou respondeu de forma evasiva (especialmente a pergunta sobre restrição no Serasa — quando não responde, é sinal de desonestidade)
+- Formulário preenchido com dados incorretos (ex: colocou telefone no campo de motivação)
+
+IMPORTANTE SOBRE O SERASA: Ter restrição no Serasa não é critério de reprovação, pois a grande maioria das candidatas tem restrições. O que importa é quando ela NÃO responde essa pergunta — isso indica desonestidade.
+
+PERFIL DA CANDIDATA:
+- Nome: ${lead.nome}
+- Idade: ${lead.idade || 'Não informada'}
+- Profissão: ${lead.profissao || 'Não informada'}
+- Estado Civil: ${lead.estado_civil || 'Não informado'}
+- Cidade: ${lead.cidade || 'Não informada'}
+- Experiência em vendas: ${lead.experiencia_vendas || 'Não informada'}
+- Motivação: ${lead.motivacao || 'Não informada'}
+- Quantidade de filhos: ${lead.capital_inicial || 'Não informada'}
+- Tempo disponível para vendas: ${lead.tempo_disponivel || 'Não informado'}
+- Possui restrição no Serasa: ${lead.restricao_serasa || 'NÃO RESPONDEU (atenção)'}
+- Expectativa de venda: ${lead.expectativa_venda || 'Não informada'}
+
+Responda APENAS neste formato:
+RECOMENDAÇÃO: [APROVAR / REVISAR / REPROVAR]
+SCORE: [número de 0 a 100]
+RESUMO: [2 linhas explicando a recomendação]
+PONTOS POSITIVOS: [liste em tópicos, ou "Nenhum identificado"]
+PONTOS DE ATENÇÃO: [liste em tópicos, ou "Nenhum identificado"]`;
+
       const { data, error: fnError } = await supabase.functions.invoke("analyze-lead", {
-        body: { lead },
+        body: { lead, prompt },
       });
 
       if (fnError) throw new Error(fnError.message || "Erro ao chamar a função de análise");
@@ -231,7 +275,9 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
       if (error) throw error;
 
       queryClient.invalidateQueries({ queryKey: ["leads-observacoes", lead.id] });
+      queryClient.invalidateQueries({ queryKey: ["leads-observacoes-check", lead.id] });
       toast({ title: "✅ Análise concluída!", description: "O resultado foi salvo nas observações." });
+      setAnaliseFeita(true);
     } catch (err: any) {
       toast({ title: "Erro na análise", description: err.message, variant: "destructive" });
     } finally {
