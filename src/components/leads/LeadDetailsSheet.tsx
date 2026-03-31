@@ -290,6 +290,14 @@ PONTOS DE ATENÇÃO: [liste em tópicos, ou "Nenhum identificado"]`;
   const currentColumn = KANBAN_COLUMNS.find((c) => c.id === lead.status);
   const colorClass = currentColumn ? COLUMN_COLORS[currentColumn.color] : COLUMN_COLORS.blue;
 
+  const formatSerasaValue = (value: string | null): string => {
+    if (!value || value.trim() === '') return 'Não informado';
+    const lower = value.toLowerCase().trim();
+    if (lower === 'true' || lower === 'sim' || lower === 'yes') return 'Possui restrição';
+    if (lower === 'false' || lower === 'nao' || lower === 'não' || lower === 'no') return 'Não possui restrição';
+    return value;
+  };
+
   const allFields: FieldRow[] = [
     { label: "Nome", value: lead.nome },
     { label: "WhatsApp", value: lead.whatsapp },
@@ -302,9 +310,11 @@ PONTOS DE ATENÇÃO: [liste em tópicos, ou "Nenhum identificado"]`;
     { label: "Profissão", value: lead.profissao },
     { label: "Endereço", value: lead.endereco },
     { label: "Experiência em Vendas", value: lead.experiencia_vendas },
-    { label: "Capital Inicial", value: lead.capital_inicial },
-    { label: "Motivação", value: lead.motivacao },
-    { label: "Restrição Serasa", value: lead.restricao_serasa, formatBoolean: true },
+    { label: "Quantidade de Filhos", value: lead.capital_inicial },
+    { label: "Por que nos escolheu", value: lead.motivacao },
+    { label: "Sonho e Objetivo", value: lead.expectativa_venda },
+    { label: "Restrição Serasa", value: formatSerasaValue(lead.restricao_serasa) },
+    ...((lead as any).objetivo_financeiro_outro ? [{ label: "Detalhe da Restrição", value: (lead as any).objetivo_financeiro_outro }] : []),
     { label: "Tentativas", value: lead.tentativas },
     { label: "Último Envio", value: lead.ultimo_envio },
     { label: "Origem", value: lead.origem },
