@@ -347,6 +347,38 @@ PONTOS DE ATENÇÃO: [liste em tópicos, ou "Nenhum identificado"]`;
               <>✨ Analisar com IA</>
             )}
           </Button>
+          {(analiseFeita || observacoes.length > 0) && !['ativa', 'reprovada'].includes(lead.status) && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => {
+                  updateLead.mutate({ status: 'ligar_referencias' });
+                  navigator.clipboard.writeText(
+                    `Olá! Temos uma ótima notícia — *seu perfil foi pré-aprovado pela equipe da TALIARE! 🎉*\nO próximo passo é um bate papo com nosso representante, para conhecer você melhor, tirar dúvidas e verificar suas respostas do formulário, ok?\nO nosso representante tem até 24 horas em dias úteis para entrar em contato com você, então peço que aguarde o contato por favor.\nQualquer dúvida, é só chamar aqui!`
+                  );
+                  toast({ title: '✅ Lead aprovado!', description: 'Movido para "Ligar para Referências". Mensagem copiada — cole no WhatsApp!' });
+                  onClose();
+                }}
+              >
+                ✅ Aprovar
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  updateLead.mutate({ status: 'reprovada' });
+                  navigator.clipboard.writeText(
+                    `Olá! \nPassando para agradecer muito pelo seu interesse em fazer parte da TALIARE. 🙏\nApós analisar seu cadastro com cuidado, identificamos que neste momento o seu perfil não se encaixa no que estamos buscando para nossa equipe de revendedoras.\nIsso não significa que a porta está fechada para sempre — perfis e momentos mudam. Se quiser, pode tentar novamente em um próximo ciclo de seleção.\nDesejamos muito sucesso na sua jornada! 😊`
+                  );
+                  toast({ title: '❌ Lead reprovado!', description: 'Movido para "Reprovadas". Mensagem copiada — cole no WhatsApp!' });
+                  onClose();
+                }}
+              >
+                ❌ Reprovar
+              </Button>
+            </div>
+          )}
           {/* Quick contact links */}
           <div className="space-y-2">
             <a
