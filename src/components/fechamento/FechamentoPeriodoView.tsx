@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, CreditCard, Banknote, Wallet, TrendingDown, TrendingUp, CalendarDays, BarChart3, MessageSquare } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DollarSign, CreditCard, Banknote, Wallet, TrendingDown, TrendingUp, CalendarDays, BarChart3, MessageSquare, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatarValor } from '@/lib/utils';
@@ -34,6 +35,13 @@ interface FechamentoPeriodoViewProps {
   representantes: Profile[];
 }
 
+const FORMA_PAGAMENTO_LABELS: Record<string, string> = {
+  pix: 'PIX',
+  dinheiro: 'Dinheiro',
+  cartao: 'Cartão',
+  transferencia: 'Transferência',
+};
+
 export function FechamentoPeriodoView({
   periodoInicio,
   periodoFim,
@@ -41,6 +49,7 @@ export function FechamentoPeriodoView({
   representantes,
 }: FechamentoPeriodoViewProps) {
   const hasValidRange = periodoInicio && periodoFim && periodoInicio <= periodoFim;
+  const [openDays, setOpenDays] = useState<Record<string, boolean>>({});
 
   const { data: cobrancasPeriodo = [], isLoading } = useQuery({
     queryKey: ['fechamento-periodo', periodoInicio, periodoFim, selectedRepresentante],
@@ -50,6 +59,27 @@ export function FechamentoPeriodoView({
         .select('*')
         .gte('data', periodoInicio)
         .lte('data', periodoFim);
+
+      if (selectedRepresentante) {
+        query = query.eq('representante_id', selectedRepresentante);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: hasValidRange,
+  });
+
+  const { data: notasPeriodo = [] } = useQuery({
+    queryKey: ['notas-periodo', periodoInicio, periodoFim, selectedRepresentante],
+    queryFn: async () => {
+      let query = supabase
+        .from('notas_promissorias')
+        .select('*')
+        .gte('data', periodoInicio)
+        .lte('data', periodoFim)
+        .order('data', { ascending: false });
 
       if (selectedRepresentante) {
         query = query.eq('representante_id', selectedRepresentante);
@@ -141,6 +171,22 @@ export function FechamentoPeriodoView({
       }))
       .sort((a, b) => b.data.localeCompare(a.data));
   }, [cobrancasPeriodo, representantesMap]);
+
+  const notasAgrupadasPorDia = useMemo(() => {
+    const agrupado: Record<string, typeof notasPeriodo> = {};
+    for (const nota of notasPeriodo) {
+      if (!agrupado[nota.data]) {
+        agrupado[nota.data] = [];
+      }
+      agrupado[nota.data].push(nota);
+    }
+    return Object.entries(agrupado)
+      .sort(([a], [b]) => b.localeCompare(a));
+  }, [notasPeriodo]);
+
+  const toggleDay = (day: string) => {
+    setOpenDays(prev => ({ ...prev, [day]: !prev[day] }));
+  };
 
   if (!hasValidRange) {
     return (
@@ -334,6 +380,120 @@ export function FechamentoPeriodoView({
           </div>
         </CardContent>
       </Card>
+
+      {/* Notas Cobradas por Dia */}
+      {notasAgrupadasPorDia.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <FileText className="h-5 w-5 text-primary" />
+              Notas Cobradas por Dia ({notasPeriodo.length} notas)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {notasAgrupadasPorDia.map(([dia, notas]) => {
+              const totalDia = notas.reduce((sum, n) => sum + n.valor_total, 0);
+              const isOpen = openDays[dia] ?? false;
+
+              return (
+                <Collapsible key={dia} open={isOpen} onOpenChange={() => toggleDay(dia)}>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50 hover:bg-muted/80 transition-colors">
+                      <div className="flex items-center gap-3">
+                        {isOpen ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <Badge variant="outline" className="text-xs">
+                          {new Date(dia + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {notas.length} {notas.length === 1 ? 'nota' : 'notas'}
+                        </span>
+                      </div>
+                      <span className="text-sm font-bold text-primary">
+                        {formatarValor(totalDia)}
+                      </span>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-1 overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Código</TableHead>
+                            {!selectedRepresentante && (
+                              <TableHead className="text-xs hidden sm:table-cell">Representante</TableHead>
+                            )}
+                            <TableHead className="text-xs text-right">Valor</TableHead>
+                            <TableHead className="text-xs text-center">Pgto 1</TableHead>
+                            <TableHead className="text-xs text-right">Valor 1</TableHead>
+                            <TableHead className="text-xs text-center hidden sm:table-cell">Pgto 2</TableHead>
+                            <TableHead className="text-xs text-right hidden sm:table-cell">Valor 2</TableHead>
+                            <TableHead className="text-xs text-center">Devolveu</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {notas.map((nota) => (
+                            <TableRow key={nota.id}>
+                              <TableCell className="text-xs font-medium">{nota.codigo_nota}</TableCell>
+                              {!selectedRepresentante && (
+                                <TableCell className="text-xs hidden sm:table-cell">
+                                  {representantesMap[nota.representante_id] || '—'}
+                                </TableCell>
+                              )}
+                              <TableCell className="text-xs text-right font-semibold">
+                                {formatarValor(nota.valor_total)}
+                              </TableCell>
+                              <TableCell className="text-xs text-center">
+                                <Badge variant="secondary" className="text-[10px] px-1.5">
+                                  {FORMA_PAGAMENTO_LABELS[nota.forma_pagamento_1] || nota.forma_pagamento_1}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-right">
+                                {formatarValor(nota.valor_pagamento_1)}
+                              </TableCell>
+                              <TableCell className="text-xs text-center hidden sm:table-cell">
+                                {nota.forma_pagamento_2 ? (
+                                  <Badge variant="secondary" className="text-[10px] px-1.5">
+                                    {FORMA_PAGAMENTO_LABELS[nota.forma_pagamento_2] || nota.forma_pagamento_2}
+                                  </Badge>
+                                ) : '—'}
+                              </TableCell>
+                              <TableCell className="text-xs text-right hidden sm:table-cell">
+                                {nota.valor_pagamento_2 ? formatarValor(nota.valor_pagamento_2) : '—'}
+                              </TableCell>
+                              <TableCell className="text-xs text-center">
+                                {nota.devolveu_tudo ? (
+                                  <Badge variant="destructive" className="text-[10px] px-1.5">Sim</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px] px-1.5">Não</Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                        <TableFooter>
+                          <TableRow>
+                            <TableCell colSpan={selectedRepresentante ? 1 : 2} className="text-xs font-bold">
+                              Total do dia
+                            </TableCell>
+                            <TableCell className="text-xs text-right font-bold text-primary">
+                              {formatarValor(totalDia)}
+                            </TableCell>
+                            <TableCell colSpan={5} />
+                          </TableRow>
+                        </TableFooter>
+                      </Table>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Observações do Período */}
       {observacoesDoPeriodo.length > 0 && (
