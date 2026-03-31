@@ -187,6 +187,7 @@ Deno.serve(async (req) => {
       restricao_serasa: lead.restricao_serasa || null,
       possui_veiculo: lead.possui_veiculo || null,
       expectativa_venda: lead.expectativa_venda || null,
+      objetivo_financeiro_outro: lead.objetivo_financeiro_outro || null,
     }));
 
     // 5. Inserir novos leads em batch
