@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
       bairro: lead.bairro || null,
       restricao_serasa: lead.restricao_serasa || null,
       possui_veiculo: lead.possui_veiculo || null,
-      expectativa_venda: lead.expectativa_venda || null,
+      expectativa_venda: lead.expectativa_renda || null,
       objetivo_financeiro_outro: lead.objetivo_financeiro_outro || null,
     }));
 
