@@ -89,9 +89,11 @@ function LeadFieldsTable({ fields }: { fields: FieldRow[] }) {
 
 export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
   const [responsavelId, setResponsavelId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [analisandoIA, setAnalisandoIA] = useState(false);
 
   const { data: admins = [] } = useQuery({
     queryKey: ["admin-profiles"],
