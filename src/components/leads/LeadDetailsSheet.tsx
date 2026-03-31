@@ -190,7 +190,37 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     }
   };
 
-  if (!lead) return null;
+  const analisarComIA = async () => {
+    if (!lead || !profile) return;
+    setAnalisandoIA(true);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("analyze-lead", {
+        body: { lead },
+      });
+
+      if (fnError) throw new Error(fnError.message || "Erro ao chamar a função de análise");
+      if (data?.error) throw new Error(data.error);
+
+      const texto = data?.analysis;
+      if (!texto) throw new Error("Resposta vazia da IA");
+
+      const conteudo = `🤖 ANÁLISE DE IA\n\n${texto}`;
+      const { error } = await supabase.from("leads_observacoes").insert({
+        lead_id: lead.id,
+        autor_id: profile.id,
+        autor_nome: "IA Taliare",
+        conteudo,
+      });
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["leads-observacoes", lead.id] });
+      toast({ title: "✅ Análise concluída!", description: "O resultado foi salvo nas observações." });
+    } catch (err: any) {
+      toast({ title: "Erro na análise", description: err.message, variant: "destructive" });
+    } finally {
+      setAnalisandoIA(false);
+    }
+  };
 
   const currentColumn = KANBAN_COLUMNS.find((c) => c.id === lead.status);
   const colorClass = currentColumn ? COLUMN_COLORS[currentColumn.color] : COLUMN_COLORS.blue;
