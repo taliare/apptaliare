@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { profilesLimited } from "@/lib/profilesLimited";
@@ -88,9 +89,11 @@ function LeadFieldsTable({ fields }: { fields: FieldRow[] }) {
 
 export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
   const [responsavelId, setResponsavelId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [analisandoIA, setAnalisandoIA] = useState(false);
 
   const { data: admins = [] } = useQuery({
     queryKey: ["admin-profiles"],
@@ -187,7 +190,37 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     }
   };
 
-  if (!lead) return null;
+  const analisarComIA = async () => {
+    if (!lead || !profile) return;
+    setAnalisandoIA(true);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("analyze-lead", {
+        body: { lead },
+      });
+
+      if (fnError) throw new Error(fnError.message || "Erro ao chamar a função de análise");
+      if (data?.error) throw new Error(data.error);
+
+      const texto = data?.analysis;
+      if (!texto) throw new Error("Resposta vazia da IA");
+
+      const conteudo = `🤖 ANÁLISE DE IA\n\n${texto}`;
+      const { error } = await supabase.from("leads_observacoes").insert({
+        lead_id: lead.id,
+        autor_id: profile.id,
+        autor_nome: "IA Taliare",
+        conteudo,
+      });
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["leads-observacoes", lead.id] });
+      toast({ title: "✅ Análise concluída!", description: "O resultado foi salvo nas observações." });
+    } catch (err: any) {
+      toast({ title: "Erro na análise", description: err.message, variant: "destructive" });
+    } finally {
+      setAnalisandoIA(false);
+    }
+  };
 
   const currentColumn = KANBAN_COLUMNS.find((c) => c.id === lead.status);
   const colorClass = currentColumn ? COLUMN_COLORS[currentColumn.color] : COLUMN_COLORS.blue;
@@ -232,6 +265,22 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
           >
             {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileDown className="h-4 w-4 mr-2" />}
             Exportar PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={analisarComIA}
+            disabled={analisandoIA}
+            className="w-full border-primary/30 text-primary hover:bg-primary/10"
+          >
+            {analisandoIA ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Analisando perfil...
+              </>
+            ) : (
+              <>✨ Analisar com IA</>
+            )}
           </Button>
           {/* Quick contact links */}
           <div className="space-y-2">
