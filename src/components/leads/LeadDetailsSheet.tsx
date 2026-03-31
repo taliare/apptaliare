@@ -107,10 +107,26 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
     },
   });
 
+  const { data: observacoes = [] } = useQuery({
+    queryKey: ['leads-observacoes-check', lead?.id],
+    queryFn: async () => {
+      if (!lead) return [];
+      const { data } = await supabase
+        .from('leads_observacoes')
+        .select('conteudo')
+        .eq('lead_id', lead.id)
+        .ilike('conteudo', '%ANÁLISE DE IA%')
+        .limit(1);
+      return data || [];
+    },
+    enabled: !!lead?.id,
+  });
+
   useEffect(() => {
     if (lead) {
       setResponsavelId(lead.responsavel_id);
       setShowDeleteConfirm(false);
+      setAnaliseFeita(false);
     }
   }, [lead]);
 
