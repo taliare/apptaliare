@@ -644,6 +644,7 @@ export type Database = {
           instagram: string | null
           motivacao: string | null
           nome: string
+          objetivo_financeiro_outro: string | null
           observacao: string | null
           origem: string | null
           possui_veiculo: string | null
@@ -680,6 +681,7 @@ export type Database = {
           instagram?: string | null
           motivacao?: string | null
           nome: string
+          objetivo_financeiro_outro?: string | null
           observacao?: string | null
           origem?: string | null
           possui_veiculo?: string | null
@@ -716,6 +718,7 @@ export type Database = {
           instagram?: string | null
           motivacao?: string | null
           nome?: string
+          objetivo_financeiro_outro?: string | null
           observacao?: string | null
           origem?: string | null
           possui_veiculo?: string | null

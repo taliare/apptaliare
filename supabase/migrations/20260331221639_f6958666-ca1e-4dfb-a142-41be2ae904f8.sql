@@ -1,0 +1,1 @@
+ALTER TABLE public.leads_revendedoras ADD COLUMN IF NOT EXISTS objetivo_financeiro_outro text;

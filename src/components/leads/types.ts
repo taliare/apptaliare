@@ -32,6 +32,7 @@ export interface LeadRevendedora {
   restricao_serasa: string | null;
   possui_veiculo: string | null;
   expectativa_venda: string | null;
+  objetivo_financeiro_outro: string | null;
 }
 
 export interface LeadStatusHistorico {

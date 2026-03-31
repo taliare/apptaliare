@@ -290,12 +290,14 @@ PONTOS DE ATENÇÃO: [liste em tópicos, ou "Nenhum identificado"]`;
   const currentColumn = KANBAN_COLUMNS.find((c) => c.id === lead.status);
   const colorClass = currentColumn ? COLUMN_COLORS[currentColumn.color] : COLUMN_COLORS.blue;
 
-  const formatSerasaValue = (value: string | null): string => {
-    if (!value || value.trim() === '') return 'Não informado';
-    const lower = value.toLowerCase().trim();
+  const formatSerasaValue = (value: string | boolean | null | undefined): string => {
+    if (value === null || value === undefined || value === '') return 'Não informado';
+    if (value === true) return 'Possui restrição';
+    if (value === false) return 'Não possui restrição';
+    const lower = String(value).toLowerCase().trim();
     if (lower === 'true' || lower === 'sim' || lower === 'yes') return 'Possui restrição';
     if (lower === 'false' || lower === 'nao' || lower === 'não' || lower === 'no') return 'Não possui restrição';
-    return value;
+    return String(value);
   };
 
   const allFields: FieldRow[] = [
@@ -314,7 +316,7 @@ PONTOS DE ATENÇÃO: [liste em tópicos, ou "Nenhum identificado"]`;
     { label: "Por que escolher você", value: lead.motivacao },
     { label: "Sonho e Objetivo", value: lead.expectativa_venda },
     { label: "Restrição Serasa", value: formatSerasaValue(lead.restricao_serasa) },
-    ...((lead as any).objetivo_financeiro_outro ? [{ label: "Detalhe da Restrição", value: (lead as any).objetivo_financeiro_outro }] : []),
+    ...(lead.objetivo_financeiro_outro ? [{ label: "Motivo da Restrição", value: lead.objetivo_financeiro_outro }] : []),
     { label: "Tentativas", value: lead.tentativas },
     { label: "Último Envio", value: lead.ultimo_envio },
     { label: "Origem", value: lead.origem },
