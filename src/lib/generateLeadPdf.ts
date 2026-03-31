@@ -250,11 +250,5 @@ export async function generateLeadPdf(
 
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `ficha-cadastro-${lead.nome.replace(/\s+/g, "-").toLowerCase()}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  window.open(url, "_blank");
 }
