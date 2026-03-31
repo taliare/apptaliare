@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
       capital_inicial: lead.capital_inicial,
       motivacao: lead.motivacao,
       origem: "site",
-      status: "leads_novos",
+      status: lead.status === "reprovada" ? "reprovada" : "leads_novos",
       utm_source: lead.utm_source,
       utm_medium: lead.utm_medium,
       utm_campaign: lead.utm_campaign,
