@@ -314,7 +314,7 @@ PONTOS DE ATENÇÃO: [liste em tópicos, ou "Nenhum identificado"]`;
     { label: "Por que escolher você", value: lead.motivacao },
     { label: "Sonho e Objetivo", value: lead.expectativa_venda },
     { label: "Restrição Serasa", value: formatSerasaValue(lead.restricao_serasa) },
-    ...((lead as any).objetivo_financeiro_outro ? [{ label: "Detalhe da Restrição", value: (lead as any).objetivo_financeiro_outro }] : []),
+    ...(lead.objetivo_financeiro_outro ? [{ label: "Motivo da Restrição", value: lead.objetivo_financeiro_outro }] : []),
     { label: "Tentativas", value: lead.tentativas },
     { label: "Último Envio", value: lead.ultimo_envio },
     { label: "Origem", value: lead.origem },
