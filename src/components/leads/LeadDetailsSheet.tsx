@@ -266,6 +266,22 @@ export function LeadDetailsSheet({ lead, onClose }: LeadDetailsSheetProps) {
             {isExporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileDown className="h-4 w-4 mr-2" />}
             Exportar PDF
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={analisarComIA}
+            disabled={analisandoIA}
+            className="w-full border-primary/30 text-primary hover:bg-primary/10"
+          >
+            {analisandoIA ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Analisando perfil...
+              </>
+            ) : (
+              <>✨ Analisar com IA</>
+            )}
+          </Button>
           {/* Quick contact links */}
           <div className="space-y-2">
             <a
