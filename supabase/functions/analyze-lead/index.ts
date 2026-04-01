@@ -6,6 +6,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function calcularIdade(dataNascimento: string): number {
+  const nascimento = new Date(dataNascimento);
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nascimento.getFullYear();
+  const mes = hoje.getMonth() - nascimento.getMonth();
+  if (mes < 0 || (mes === 0 && hoje.getDate() < nascimento.getDate())) idade--;
+  return idade;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -27,6 +36,8 @@ serve(async (req) => {
 
     const prompt = `Você é um assistente especializado em triagem de revendedoras para a Taliare Semijoias, uma empresa de semijoias em consignação que atua em Manaus, Manacapuru, Rio Preto da Eva e Presidente Figueiredo (AM).
 
+O campo Endereço completo sempre contém a cidade da candidata. Nunca aponte ausência de localização se este campo estiver preenchido. A idade da candidata já foi calculada a partir da data de nascimento — nunca aponte ausência de idade.
+
 Analise o perfil abaixo e gere um score de triagem baseado nos critérios reais da empresa:
 
 CRITÉRIOS DE APROVAÇÃO:
@@ -46,16 +57,14 @@ CRITÉRIOS DE REPROVAÇÃO:
 
 PERFIL DA CANDIDATA:
 - Nome: ${lead.nome}
-- Idade: ${lead.idade || "Não informada"}
-- Profissão: ${lead.profissao || "Não informada"}
-- Estado Civil: ${lead.estado_civil || "Não informado"}
-- Cidade: ${lead.cidade || "Não informada"}
-- Experiência em vendas: ${lead.experiencia_vendas || "Não informada"}
-- Motivação: ${lead.motivacao || "Não informada"}
-- Capital inicial: ${lead.capital_inicial || "Não informado"}
-- Tempo disponível: ${lead.tempo_disponivel || "Não informado"}
-- Restrição Serasa: ${lead.restricao_serasa || "Não informado"}
-- Expectativa de venda: ${lead.expectativa_venda || "Não informada"}
+- Idade: ${lead.data_nascimento ? calcularIdade(lead.data_nascimento) + ' anos' : 'Não informada'}
+- Endereço completo (contém bairro e cidade): ${lead.endereco || 'Não informado'}
+- Profissão/Trabalho atual: ${lead.profissao || 'Não informado'}
+- Instagram: ${lead.instagram ? '@' + lead.instagram : 'Não informado'}
+- Já teve experiência com vendas?: ${lead.experiencia_vendas || 'Não informado'}
+- Quantidade de filhos: ${lead.capital_inicial || 'Não informado'}
+- Por que deveríamos escolher você como revendedora?: ${lead.motivacao || 'Não informado'}
+- Qual é o seu sonho e objetivo de vida?: ${lead.expectativa_renda || 'Não informado'}
 
 Responda APENAS neste formato:
 RECOMENDAÇÃO: [APROVAR / REVISAR / REPROVAR]
