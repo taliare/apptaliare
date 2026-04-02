@@ -1564,7 +1564,7 @@ function CobrancaItem({
                 </div>
               ) : (
                 <p className="text-base font-bold text-foreground">
-                  {formatarValor(temAcrescimos ? cobranca.valor_previsto + totalAcrescimos : cobranca.valor_previsto)}
+                  {formatarValor(cobranca.valor_previsto)}
                 </p>
               )}
             </div>
