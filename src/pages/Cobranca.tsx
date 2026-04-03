@@ -1549,8 +1549,8 @@ function CobrancaItem({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
               <span className="font-semibold text-sm leading-tight">{cobranca.revendedora}</span>
-              <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", statusConfig[cobranca.status].color)}>
-                {statusConfig[cobranca.status].label}
+              <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", getSmartStatus(cobranca).color)}>
+                {getSmartStatus(cobranca).label}
               </Badge>
               {cobranca.tipo && (
                 <Badge variant="outline" className={cn(
