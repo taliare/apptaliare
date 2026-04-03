@@ -415,12 +415,6 @@ export default function GerenciarAgenda() {
       return false;
     }
     
-    // Filtro de tipo
-    if (filtroTipo !== 'todos') {
-      const tipoCobranca = c.tipo?.toLowerCase() || '';
-      if (filtroTipo === 'nova' && tipoCobranca === 'repasse') return false;
-      if (filtroTipo === 'repasse' && tipoCobranca !== 'repasse') return false;
-    }
     
     // Filtro de status
     if (filtroStatus !== 'todos' && c.status !== filtroStatus) {
