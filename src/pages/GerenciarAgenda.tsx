@@ -652,7 +652,6 @@ export default function GerenciarAgenda() {
                               <TableHead>Revendedora</TableHead>
                               <TableHead>Código</TableHead>
                               <TableHead>Valor do Kit</TableHead>
-                              <TableHead>Valor do Kit</TableHead>
                               <TableHead>Pago</TableHead>
                               <TableHead>Data Vencimento</TableHead>
                               <TableHead>Status</TableHead>
