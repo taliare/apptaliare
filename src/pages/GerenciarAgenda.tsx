@@ -673,13 +673,7 @@ export default function GerenciarAgenda() {
                                 <TableCell>
                                   <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
                                 </TableCell>
-                                <TableCell>
-                                  {cobranca.tipo ? (
-                                    <Badge variant="outline">{cobranca.tipo}</Badge>
-                                  ) : (
-                                    '-'
-                                  )}
-                                </TableCell>
+                                <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
                                 <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
                                 <TableCell>
                                   {((cobranca as any).valor_pago_acumulado || 0) > 0 
