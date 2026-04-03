@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +41,23 @@ export default function ApuracaoKits() {
   const [manualValor, setManualValor] = useState("");
   const [resumoFinal, setResumoFinal] = useState<any>(null);
   const inputBipRef = useRef<HTMLInputElement>(null);
+  const [listaExpandida, setListaExpandida] = useState(false);
+
+  const playBeep = useCallback((freq: number, duration: number) => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
+      osc.start();
+      osc.stop(ctx.currentTime + duration / 1000);
+    } catch {}
+  }, []);
 
   // Busca notas pelo código
   const { data: resultados = [], isFetching: buscando } = useQuery({
@@ -70,13 +87,6 @@ export default function ApuracaoKits() {
     const codigo = codigoBarras.trim();
     if (!codigo) return;
 
-    // Verificar duplicata
-    if (pecas.some((p) => p.codigo_barras === codigo)) {
-      toast({ title: "Peça já adicionada", description: `Código ${codigo} já está na lista.`, variant: "destructive" });
-      setCodigoBarras("");
-      return;
-    }
-
     const { data, error } = await supabase
       .from("produtos_taliare")
       .select("*")
@@ -84,12 +94,14 @@ export default function ApuracaoKits() {
       .maybeSingle();
 
     if (error) {
+      playBeep(300, 150);
       toast({ title: "Erro ao buscar produto", variant: "destructive" });
       setCodigoBarras("");
       return;
     }
 
     if (!data) {
+      playBeep(300, 150);
       toast({
         title: "Produto não encontrado",
         description: `Código "${codigo}" não existe no catálogo. Adicione manualmente.`,
@@ -99,10 +111,11 @@ export default function ApuracaoKits() {
       return;
     }
 
+    playBeep(800, 80);
     setPecas((prev) => [
       ...prev,
       {
-        id: data.id,
+        id: crypto.randomUUID(),
         codigo_barras: data.codigo_barras,
         referencia: data.referencia,
         descricao: data.descricao,
@@ -133,8 +146,8 @@ export default function ApuracaoKits() {
     inputBipRef.current?.focus();
   };
 
-  const removerPeca = (idx: number) => {
-    setPecas((prev) => prev.filter((_, i) => i !== idx));
+  const removerPeca = (id: string) => {
+    setPecas((prev) => prev.filter((p) => p.id !== id));
   };
 
   // Cálculos
@@ -322,8 +335,8 @@ export default function ApuracaoKits() {
             </CardHeader>
             <CardContent>
               <div className="divide-y divide-border">
-                {pecas.map((peca, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-2">
+                {(listaExpandida ? pecas : pecas.slice(-5)).map((peca) => (
+                  <div key={peca.id} className="flex items-center justify-between py-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         {peca.referencia && (
@@ -337,13 +350,23 @@ export default function ApuracaoKits() {
                     </div>
                     <div className="flex items-center gap-3 ml-2">
                       <span className="font-semibold text-sm whitespace-nowrap">R$ {fmt(peca.valor)}</span>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removerPeca(idx)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removerPeca(peca.id)}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
+              {pecas.length > 5 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-2 text-xs text-muted-foreground"
+                  onClick={() => setListaExpandida(!listaExpandida)}
+                >
+                  {listaExpandida ? "Recolher" : `Ver todas (${pecas.length} peças)`}
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
