@@ -335,8 +335,8 @@ export default function ApuracaoKits() {
             </CardHeader>
             <CardContent>
               <div className="divide-y divide-border">
-                {pecas.map((peca, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-2">
+                {(listaExpandida ? pecas : pecas.slice(-5)).map((peca) => (
+                  <div key={peca.id} className="flex items-center justify-between py-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         {peca.referencia && (
@@ -350,13 +350,23 @@ export default function ApuracaoKits() {
                     </div>
                     <div className="flex items-center gap-3 ml-2">
                       <span className="font-semibold text-sm whitespace-nowrap">R$ {fmt(peca.valor)}</span>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removerPeca(idx)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removerPeca(peca.id)}>
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
+              {pecas.length > 5 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full mt-2 text-xs text-muted-foreground"
+                  onClick={() => setListaExpandida(!listaExpandida)}
+                >
+                  {listaExpandida ? "Recolher" : `Ver todas (${pecas.length} peças)`}
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
