@@ -1293,11 +1293,40 @@ export default function FechamentoDiario() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              {nota.devolveu_tudo ? (
-                                <Badge variant="secondary">Devolveu</Badge>
-                              ) : (
-                                <Badge variant="default" className="bg-green-500">Pago</Badge>
-                              )}
+                              {(() => {
+                                const cobrancaTipo = nota.cobranca_id ? cobrancaIdMap[nota.cobranca_id]?.tipo : '';
+                                if (nota.devolveu_tudo) {
+                                  return (
+                                    <Badge className="bg-red-500/15 text-red-600 border border-red-500/30 text-[10px]">
+                                      Devolução total — tem devolução
+                                    </Badge>
+                                  );
+                                }
+                                if (nota.codigo_nota?.startsWith('ADT-')) {
+                                  return (
+                                    <Badge className="bg-yellow-500/15 text-yellow-600 border border-yellow-500/30 text-[10px]">
+                                      Adiantamento — sem devolução
+                                    </Badge>
+                                  );
+                                }
+                                if (cobrancaTipo === 'kit') {
+                                  return (
+                                    <Badge className="bg-blue-500/15 text-blue-600 border border-blue-500/30 text-[10px]">
+                                      Kit — tem devolução
+                                    </Badge>
+                                  );
+                                }
+                                if (cobrancaTipo === 'repasse') {
+                                  return (
+                                    <Badge className="bg-gray-500/15 text-gray-500 border border-gray-500/30 text-[10px]">
+                                      Repasse — sem devolução
+                                    </Badge>
+                                  );
+                                }
+                                return (
+                                  <Badge variant="outline" className="text-[10px]">—</Badge>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell className="text-center">
                               <Button
