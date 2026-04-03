@@ -1359,7 +1359,7 @@ export default function FechamentoDiario() {
               </AlertDialog>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {/* Dialog Buscar Nota (Adicionar Nota) */}
