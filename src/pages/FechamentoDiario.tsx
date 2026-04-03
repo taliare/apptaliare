@@ -1278,6 +1278,11 @@ export default function FechamentoDiario() {
                           }
                         }
 
+                        // Remove prefixo ADT- do nome (tipo já indicado pelo badge)
+                        if (revendedora?.startsWith('ADT-')) {
+                          revendedora = revendedora.substring(4);
+                        }
+
                         return (
                           <TableRow key={nota.id}>
                             <TableCell className="font-mono">{codigoPedido ? `Nota ${codigoPedido}` : '—'}</TableCell>
