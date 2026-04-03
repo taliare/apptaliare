@@ -52,7 +52,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
   if (cobranca.status === 'pago') return { label: 'Pago', color: 'bg-green-500/10 text-green-700 dark:text-green-400' };
-  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600 dark:text-blue-400' };
+  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' };
   if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' };
   if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-400' };
   if (cobranca.status === 'reagendado') {
