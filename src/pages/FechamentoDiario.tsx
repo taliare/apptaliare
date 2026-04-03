@@ -146,17 +146,19 @@ export default function FechamentoDiario() {
         .eq('data', dateStr);
       if (error) throw error;
 
-      // Buscar notas de todos os representantes nesse dia
+      // Buscar notas de todos os representantes nesse dia (com valor)
       const { data: todasNotas, error: notasError } = await supabase
         .from('notas_promissorias')
-        .select('representante_id')
+        .select('representante_id, valor_total')
         .eq('data', dateStr);
       if (notasError) throw notasError;
 
-      // Contar notas por representante
+      // Contar notas e somar valores por representante
       const notasCount: Record<string, number> = {};
+      const notasTotal: Record<string, number> = {};
       (todasNotas || []).forEach(n => {
         notasCount[n.representante_id] = (notasCount[n.representante_id] || 0) + 1;
+        notasTotal[n.representante_id] = (notasTotal[n.representante_id] || 0) + (n.valor_total || 0);
       });
 
       // Mapear cobranças por representante
@@ -170,7 +172,7 @@ export default function FechamentoDiario() {
         return {
           id: rep.id,
           nome: rep.nome,
-          totalCobrado: cob?.total_cobrado || 0,
+          totalCobrado: notasTotal[rep.id] || cob?.total_cobrado || 0,
           qtdNotas: notasCount[rep.id] || 0,
           finalizado: cob?.finalizado || false,
           temRegistro: !!cob || (notasCount[rep.id] || 0) > 0,
