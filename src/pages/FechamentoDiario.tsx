@@ -840,6 +840,7 @@ export default function FechamentoDiario() {
         />
       ) : !selectedRepresentante ? (
         /* ===== TABELA RESUMO DO DIA (sem representante selecionado) ===== */
+        <div key="resumo-dia">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base md:text-lg">
