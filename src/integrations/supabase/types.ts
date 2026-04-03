@@ -173,6 +173,7 @@ export type Database = {
       cobrancas_agendadas: {
         Row: {
           codigo_nota: string | null
+          contagem_reagendamentos: number | null
           criado_em: string | null
           data_agendada: string
           data_encaminhado_juridico: string | null
@@ -192,6 +193,7 @@ export type Database = {
         }
         Insert: {
           codigo_nota?: string | null
+          contagem_reagendamentos?: number | null
           criado_em?: string | null
           data_agendada: string
           data_encaminhado_juridico?: string | null
@@ -211,6 +213,7 @@ export type Database = {
         }
         Update: {
           codigo_nota?: string | null
+          contagem_reagendamentos?: number | null
           criado_em?: string | null
           data_agendada?: string
           data_encaminhado_juridico?: string | null
