@@ -41,6 +41,23 @@ export default function ApuracaoKits() {
   const [manualValor, setManualValor] = useState("");
   const [resumoFinal, setResumoFinal] = useState<any>(null);
   const inputBipRef = useRef<HTMLInputElement>(null);
+  const [listaExpandida, setListaExpandida] = useState(false);
+
+  const playBeep = useCallback((freq: number, duration: number) => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
+      osc.start();
+      osc.stop(ctx.currentTime + duration / 1000);
+    } catch {}
+  }, []);
 
   // Busca notas pelo código
   const { data: resultados = [], isFetching: buscando } = useQuery({
