@@ -172,6 +172,7 @@ export type Database = {
       }
       cobrancas_agendadas: {
         Row: {
+          apurado: boolean | null
           codigo_nota: string | null
           contagem_reagendamentos: number | null
           criado_em: string | null
@@ -192,6 +193,7 @@ export type Database = {
           vendedora_id: string | null
         }
         Insert: {
+          apurado?: boolean | null
           codigo_nota?: string | null
           contagem_reagendamentos?: number | null
           criado_em?: string | null
@@ -212,6 +214,7 @@ export type Database = {
           vendedora_id?: string | null
         }
         Update: {
+          apurado?: boolean | null
           codigo_nota?: string | null
           contagem_reagendamentos?: number | null
           criado_em?: string | null
