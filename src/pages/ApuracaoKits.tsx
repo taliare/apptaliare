@@ -207,46 +207,43 @@ export default function ApuracaoKits() {
     setResumoFinal(null);
   };
 
-  // Query: kits pendentes de apuração (pago/parcial, fechamento finalizado, sem "APURAÇÃO" nas obs)
+  // Query: kits pendentes de apuração (status pendente, fechamento finalizado >= 2026-04-01)
   const { data: kitsPendentes = [], isLoading: loadingPendentes } = useQuery({
     queryKey: ["apuracao-kits-pendentes"],
     queryFn: async () => {
-      // 1. Buscar notas pagas/parciais sem apuração
+      // 1. Buscar fechamentos finalizados a partir de 01/04/2026
+      const { data: fechamentos, error: errFech } = await supabase
+        .from("cobrancas_diarias")
+        .select("representante_id, data")
+        .eq("finalizado", true)
+        .gte("data", "2026-04-01");
+
+      if (errFech) throw errFech;
+      if (!fechamentos || fechamentos.length === 0) return [];
+
+      // Montar set de representante|data com fechamento finalizado
+      const fechamentoSet = new Set(
+        fechamentos.map((f: any) => `${f.representante_id}|${f.data}`)
+      );
+      const repIds = [...new Set(fechamentos.map((f: any) => f.representante_id))];
+
+      // 2. Buscar notas pendentes dos representantes que têm fechamentos
       const { data: notas, error } = await supabase
         .from("cobrancas_agendadas")
         .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome)")
-        .in("status", ["pago", "parcial"])
-        .gte("data_agendada", "2026-04-01")
+        .eq("status", "pendente")
+        .in("representante_id", repIds)
         .order("data_agendada", { ascending: false });
 
       if (error) throw error;
       if (!notas || notas.length === 0) return [];
 
-      // Filtrar: observacoes não contém "APURAÇÃO"
-      const semApuracao = notas.filter(
-        (n: any) => !n.observacoes || !n.observacoes.toUpperCase().includes("APURAÇÃO")
-      );
-
-      if (semApuracao.length === 0) return [];
-
-      // 2. Buscar fechamentos finalizados para verificar se o representante fechou o dia
-      const repDatas = [...new Set(semApuracao.map((n: any) => `${n.representante_id}|${n.data_agendada}`))];
-      const repIds = [...new Set(semApuracao.map((n: any) => n.representante_id))];
-      const datas = [...new Set(semApuracao.map((n: any) => n.data_agendada))];
-
-      const { data: fechamentos } = await supabase
-        .from("cobrancas_diarias")
-        .select("representante_id, data, finalizado")
-        .in("representante_id", repIds)
-        .in("data", datas)
-        .eq("finalizado", true);
-
-      const fechamentoSet = new Set(
-        (fechamentos || []).map((f: any) => `${f.representante_id}|${f.data}`)
-      );
-
-      // Filtrar apenas notas cujo fechamento do dia foi finalizado
-      return semApuracao.filter((n: any) => fechamentoSet.has(`${n.representante_id}|${n.data_agendada}`));
+      // 3. Filtrar: observacoes não contém "APURAÇÃO" E data_agendada tem fechamento finalizado
+      return notas.filter((n: any) => {
+        const semApuracao = !n.observacoes || !n.observacoes.toUpperCase().includes("APURAÇÃO");
+        const temFechamento = fechamentoSet.has(`${n.representante_id}|${n.data_agendada}`);
+        return semApuracao && temFechamento;
+      });
     },
     enabled: etapa === "busca",
   });
