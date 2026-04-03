@@ -708,8 +708,8 @@ export default function GerenciarAgenda() {
                                   {formatDateBR(cobranca.data_agendada)}
                                 </TableCell>
                                 <TableCell>
-                                  <Badge className={statusConfig[cobranca.status].color}>
-                                    {statusConfig[cobranca.status].label}
+                                  <Badge className={getSmartStatus(cobranca).color}>
+                                    {getSmartStatus(cobranca).label}
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
