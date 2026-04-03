@@ -72,7 +72,6 @@ export default function GerenciarAgenda() {
   
   // Filtros
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
-  const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [filtroStatus, setFiltroStatus] = useState<string>('pendente'); // Padrão: pendente
   
   // Filtro de mês/ano - padrão: mês atual
@@ -416,12 +415,6 @@ export default function GerenciarAgenda() {
       return false;
     }
     
-    // Filtro de tipo
-    if (filtroTipo !== 'todos') {
-      const tipoCobranca = c.tipo?.toLowerCase() || '';
-      if (filtroTipo === 'nova' && tipoCobranca === 'repasse') return false;
-      if (filtroTipo === 'repasse' && tipoCobranca !== 'repasse') return false;
-    }
     
     // Filtro de status
     if (filtroStatus !== 'todos' && c.status !== filtroStatus) {
@@ -526,16 +519,6 @@ export default function GerenciarAgenda() {
                     {representantes.map((rep) => (
                       <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-                <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos Tipos</SelectItem>
-                    <SelectItem value="nova">Nova</SelectItem>
-                    <SelectItem value="repasse">Repasse</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
@@ -668,7 +651,6 @@ export default function GerenciarAgenda() {
                               <TableHead>Representante</TableHead>
                               <TableHead>Revendedora</TableHead>
                               <TableHead>Código</TableHead>
-                              <TableHead>Tipo</TableHead>
                               <TableHead>Valor do Kit</TableHead>
                               <TableHead>Pago</TableHead>
                               <TableHead>Data Vencimento</TableHead>
@@ -691,13 +673,7 @@ export default function GerenciarAgenda() {
                                 <TableCell>
                                   <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
                                 </TableCell>
-                                <TableCell>
-                                  {cobranca.tipo ? (
-                                    <Badge variant="outline">{cobranca.tipo}</Badge>
-                                  ) : (
-                                    '-'
-                                  )}
-                                </TableCell>
+                                <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
                                 <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
                                 <TableCell>
                                   {((cobranca as any).valor_pago_acumulado || 0) > 0 

@@ -1515,25 +1515,25 @@ function CobrancaItem({
   animationDelay?: number;
 }) {
   const { profile } = useAuth();
+  const [modalAcrescimosDetalhes, setModalAcrescimosDetalhes] = useState(false);
+  const [modalAdiantamentosDetalhes, setModalAdiantamentosDetalhes] = useState(false);
 
   const acumulado = (cobranca as any).valor_pago_acumulado || 0;
   const adiantado = cobranca.valor_adiantado || 0;
   const saldo = Math.max(0, cobranca.valor_previsto - acumulado - adiantado);
   const temPagamentos = acumulado > 0;
   const totalAcrescimos = acrescimos.reduce((acc, a) => acc + a.valor, 0);
-  const temAcrescimos = acrescimos.length > 0 && cobranca.tipo === 'kit';
+  const temAcrescimos = acrescimos.length > 0;
+  const temAdiantamentos = adiantado > 0;
 
   const tipo = cobranca.tipo?.toLowerCase();
-  const isRepasse = tipo === 'repasse' || tipo === 'acrescimo';
-  const semKit = !isRepasse && !cobranca.kit_entregue_id && tipo !== 'kit';
-  const kitQuitado = tipo === 'kit' && cobranca.status === 'pago';
-  const bloqueadoAcrescimo = isRepasse || semKit || kitQuitado;
-  const razaoAcrescimo = isRepasse
-    ? 'Não permitido em notas de repasse.'
-    : semKit ? 'Nota sem kit vinculado.'
-    : 'Kit já quitado.';
+  const kitQuitado = cobranca.status === 'pago';
+  const semKit = !cobranca.kit_entregue_id;
+  const bloqueadoAcrescimo = semKit || kitQuitado;
+  const razaoAcrescimo = semKit ? 'Nota sem kit vinculado.' : 'Kit já quitado.';
 
   return (
+    <>
     <Card
       className={cn(
         "animate-fade-in w-full overflow-hidden transition-all duration-200",
@@ -1552,13 +1552,36 @@ function CobrancaItem({
               <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", getSmartStatus(cobranca).color)}>
                 {getSmartStatus(cobranca).label}
               </Badge>
-              {cobranca.tipo && (
-                <Badge variant="outline" className={cn(
-                  "text-[10px] px-1.5 py-0 shrink-0",
-                  cobranca.tipo === 'kit' ? 'border-primary/30 text-primary' : 'text-muted-foreground'
-                )}>
-                  {cobranca.tipo === 'acrescimo' ? 'ACRÉSCIMO' : cobranca.tipo.toUpperCase()}
-                </Badge>
+              {/* Ícones compactos de acréscimos e adiantamentos */}
+              {temAcrescimos && (
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setModalAcrescimosDetalhes(true)}
+                        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 hover:bg-amber-500/30 transition-colors"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Joias adicionais</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {temAdiantamentos && (
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setModalAdiantamentosDetalhes(true)}
+                        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/30 transition-colors"
+                      >
+                        <DollarSign className="h-3 w-3" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Adiantamentos registrados</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
           </div>
@@ -1641,7 +1664,6 @@ function CobrancaItem({
                     Jurídico
                   </DropdownMenuItem>
                   {cobranca.kit_entregue_id &&
-                    tipo === 'kit' &&
                     acumulado === 0 &&
                     adiantado === 0 &&
                     cobranca.status !== 'pago' &&
@@ -1666,24 +1688,44 @@ function CobrancaItem({
             )}
           </div>
         )}
-
-        {/* Acréscimos — só aparece se tiver */}
-        {temAcrescimos && (
-          <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5">
-            {acrescimos.map((a) => (
-              <div key={a.id} className="flex items-center justify-between text-xs">
-                <span className="text-amber-600">+ {a.descricao || 'Joia adicional'}</span>
-                <span className="text-amber-600 font-medium">{formatarValor(a.valor)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Observações — só aparece se tiver */}
-        {cobranca.observacoes && (
-          <p className="mt-2 text-xs text-muted-foreground italic">{cobranca.observacoes}</p>
-        )}
       </CardContent>
     </Card>
+
+    {/* Modal de detalhes de acréscimos */}
+    <Dialog open={modalAcrescimosDetalhes} onOpenChange={setModalAcrescimosDetalhes}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Joias Adicionais — {cobranca.revendedora}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          {acrescimos.map((a) => (
+            <div key={a.id} className="flex items-center justify-between p-3 bg-amber-500/10 rounded-lg">
+              <span className="text-sm text-amber-700 dark:text-amber-400">{a.descricao || 'Joia adicional'}</span>
+              <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">{formatarValor(a.valor)}</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <span className="text-sm font-medium">Total</span>
+            <span className="text-sm font-bold">{formatarValor(totalAcrescimos)}</span>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Modal de detalhes de adiantamentos */}
+    <Dialog open={modalAdiantamentosDetalhes} onOpenChange={setModalAdiantamentosDetalhes}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Adiantamentos — {cobranca.revendedora}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 bg-green-500/10 rounded-lg">
+            <span className="text-sm text-green-700 dark:text-green-400">Total adiantado</span>
+            <span className="text-sm font-semibold text-green-700 dark:text-green-400">{formatarValor(adiantado)}</span>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
