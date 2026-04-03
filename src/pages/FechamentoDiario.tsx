@@ -1196,6 +1196,25 @@ export default function FechamentoDiario() {
             </Card>
           )}
 
+          {/* Card de Devoluções Esperadas */}
+          {(() => {
+            const devolucoesEsperadas = notas.filter(nota => {
+              if (nota.devolveu_tudo) return true;
+              if (nota.cobranca_id && cobrancaIdMap[nota.cobranca_id]?.tipo === 'kit') return true;
+              return false;
+            }).length;
+            return devolucoesEsperadas > 0 ? (
+              <Card className={cn("border-2", devolucoesEsperadas > 0 ? "border-red-500/50 bg-red-500/5" : "")}>
+                <CardContent className="p-4 flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                  <span className="font-medium text-red-600">
+                    Devoluções esperadas hoje: {devolucoesEsperadas}
+                  </span>
+                </CardContent>
+              </Card>
+            ) : null;
+          })()}
+
           {/* Tabela de Notas com botão Adicionar e coluna Ações */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -1232,7 +1251,7 @@ export default function FechamentoDiario() {
                         <TableHead>Revendedora</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Pagamento</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Tipo</TableHead>
                         <TableHead className="text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
