@@ -44,7 +44,7 @@ interface CobrancaFormData {
 const statusConfig: Record<string, { label: string; color: string }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400' },
   pago: { label: 'Pago', color: 'bg-green-500/10 text-green-700 dark:text-green-400' },
-  parcial: { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600 dark:text-blue-400' },
+  parcial: { label: 'Parcial', color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' },
   reagendado: { label: 'Reagendado', color: 'bg-orange-500/10 text-orange-700 dark:text-orange-400' },
   juridico: { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' },
   cancelado: { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-400' },
@@ -52,7 +52,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
   if (cobranca.status === 'pago') return { label: 'Pago', color: 'bg-green-500/10 text-green-700 dark:text-green-400' };
-  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600 dark:text-blue-400' };
+  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' };
   if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' };
   if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-400' };
   if (cobranca.status === 'reagendado') {
@@ -1552,36 +1552,22 @@ function CobrancaItem({
               <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", getSmartStatus(cobranca).color)}>
                 {getSmartStatus(cobranca).label}
               </Badge>
-              {/* Ícones compactos de acréscimos e adiantamentos */}
+              {/* Badges clicáveis de acréscimos e adiantamentos */}
               {temAcrescimos && (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setModalAcrescimosDetalhes(true)}
-                        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 hover:bg-amber-500/30 transition-colors"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>Joias adicionais</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <button
+                  onClick={() => setModalAcrescimosDetalhes(true)}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors cursor-pointer"
+                >
+                  💎 +{acrescimos.length} {acrescimos.length === 1 ? 'joia' : 'joias'}
+                </button>
               )}
               {temAdiantamentos && (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setModalAdiantamentosDetalhes(true)}
-                        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/30 transition-colors"
-                      >
-                        <DollarSign className="h-3 w-3" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>Adiantamentos registrados</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <button
+                  onClick={() => setModalAdiantamentosDetalhes(true)}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30 hover:bg-green-500/30 transition-colors cursor-pointer"
+                >
+                  ADT: {formatarValor(adiantado)}
+                </button>
               )}
             </div>
           </div>
