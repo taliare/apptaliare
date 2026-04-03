@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus, MessageSquare, CalendarRange, Plus, Trash2, Eye, Search } from 'lucide-react';
+import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus, MessageSquare, CalendarRange, Plus, Trash2, Eye, Search, AlertTriangle } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -222,7 +222,7 @@ export default function FechamentoDiario() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('id, codigo_nota, revendedora')
+        .select('id, codigo_nota, revendedora, tipo')
         .eq('representante_id', selectedRepresentante);
       
       if (error) throw error;
@@ -296,10 +296,10 @@ export default function FechamentoDiario() {
   // Criar mapa de cobranca_id -> { codigo_nota, revendedora } para lookup reverso
   const cobrancaIdMap = cobrancasAgendadas.reduce((acc, item) => {
     if (item.id) {
-      acc[item.id] = { codigo_nota: item.codigo_nota || '', revendedora: item.revendedora };
+      acc[item.id] = { codigo_nota: item.codigo_nota || '', revendedora: item.revendedora, tipo: item.tipo || '' };
     }
     return acc;
-  }, {} as Record<string, { codigo_nota: string; revendedora: string }>);
+  }, {} as Record<string, { codigo_nota: string; revendedora: string; tipo: string }>);
 
   // Cálculos baseados nas notas
   const totais = useMemo(() => {
@@ -1196,6 +1196,25 @@ export default function FechamentoDiario() {
             </Card>
           )}
 
+          {/* Card de Devoluções Esperadas */}
+          {(() => {
+            const devolucoesEsperadas = notas.filter(nota => {
+              if (nota.devolveu_tudo) return true;
+              if (nota.cobranca_id && cobrancaIdMap[nota.cobranca_id]?.tipo === 'kit') return true;
+              return false;
+            }).length;
+            return devolucoesEsperadas > 0 ? (
+              <Card className={cn("border-2", devolucoesEsperadas > 0 ? "border-red-500/50 bg-red-500/5" : "")}>
+                <CardContent className="p-4 flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                  <span className="font-medium text-red-600">
+                    Devoluções esperadas hoje: {devolucoesEsperadas}
+                  </span>
+                </CardContent>
+              </Card>
+            ) : null;
+          })()}
+
           {/* Tabela de Notas com botão Adicionar e coluna Ações */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -1232,7 +1251,7 @@ export default function FechamentoDiario() {
                         <TableHead>Revendedora</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Pagamento</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Tipo</TableHead>
                         <TableHead className="text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1274,11 +1293,40 @@ export default function FechamentoDiario() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              {nota.devolveu_tudo ? (
-                                <Badge variant="secondary">Devolveu</Badge>
-                              ) : (
-                                <Badge variant="default" className="bg-green-500">Pago</Badge>
-                              )}
+                              {(() => {
+                                const cobrancaTipo = nota.cobranca_id ? cobrancaIdMap[nota.cobranca_id]?.tipo : '';
+                                if (nota.devolveu_tudo) {
+                                  return (
+                                    <Badge className="bg-red-500/15 text-red-600 border border-red-500/30 text-[10px]">
+                                      Devolução total — tem devolução
+                                    </Badge>
+                                  );
+                                }
+                                if (nota.codigo_nota?.startsWith('ADT-')) {
+                                  return (
+                                    <Badge className="bg-yellow-500/15 text-yellow-600 border border-yellow-500/30 text-[10px]">
+                                      Adiantamento — sem devolução
+                                    </Badge>
+                                  );
+                                }
+                                if (cobrancaTipo === 'kit') {
+                                  return (
+                                    <Badge className="bg-blue-500/15 text-blue-600 border border-blue-500/30 text-[10px]">
+                                      Kit — tem devolução
+                                    </Badge>
+                                  );
+                                }
+                                if (cobrancaTipo === 'repasse') {
+                                  return (
+                                    <Badge className="bg-gray-500/15 text-gray-500 border border-gray-500/30 text-[10px]">
+                                      Repasse — sem devolução
+                                    </Badge>
+                                  );
+                                }
+                                return (
+                                  <Badge variant="outline" className="text-[10px]">—</Badge>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell className="text-center">
                               <Button
