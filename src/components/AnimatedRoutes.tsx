@@ -43,6 +43,7 @@ import T2RepresentantesPerformance from '@/pages/T2RepresentantesPerformance';
 import T2Financeiro from '@/pages/T2Financeiro';
 import T2PainelRede from '@/pages/T2PainelRede';
 import T2MeusKits from '@/pages/T2MeusKits';
+import ApuracaoKits from '@/pages/ApuracaoKits';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -223,6 +224,13 @@ export function AnimatedRoutes() {
           <PermissionRoute menuKey="t2_financeiro">
             <T2Financeiro />
           </PermissionRoute>
+        } />
+        
+        {/* Apuração de Kits - admin only */}
+        <Route path="/apuracao" element={
+          <ProtectedRoute requiredRole="admin">
+            <ApuracaoKits />
+          </ProtectedRoute>
         } />
         
         {/* Histórico de Ações - representantes */}

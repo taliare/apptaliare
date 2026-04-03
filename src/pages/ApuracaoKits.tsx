@@ -1,0 +1,482 @@
+import { useState, useRef } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+import { Search, ScanBarcode, X, Plus, ArrowLeft, CheckCircle, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+interface PecaDevolvida {
+  id: string;
+  codigo_barras: string;
+  referencia: string | null;
+  descricao: string;
+  valor: number;
+  manual?: boolean;
+}
+
+function getComissaoFaixa(valorVendido: number) {
+  if (valorVendido >= 2000) return { percentual: 50, categoria: "Elite" };
+  if (valorVendido >= 1000) return { percentual: 40, categoria: "Destaque" };
+  if (valorVendido >= 300) return { percentual: 30, categoria: "Ativa" };
+  return { percentual: 20, categoria: "Inicial" };
+}
+
+const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+export default function ApuracaoKits() {
+  const { user } = useAuth();
+  const [etapa, setEtapa] = useState<"busca" | "bipagem" | "confirmado">("busca");
+  const [buscaCodigo, setBuscaCodigo] = useState("");
+  const [notaSelecionada, setNotaSelecionada] = useState<any>(null);
+  const [pecas, setPecas] = useState<PecaDevolvida[]>([]);
+  const [codigoBarras, setCodigoBarras] = useState("");
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualDescricao, setManualDescricao] = useState("");
+  const [manualValor, setManualValor] = useState("");
+  const [resumoFinal, setResumoFinal] = useState<any>(null);
+  const inputBipRef = useRef<HTMLInputElement>(null);
+
+  // Busca notas pelo código
+  const { data: resultados = [], isFetching: buscando } = useQuery({
+    queryKey: ["apuracao-busca-nota", buscaCodigo],
+    queryFn: async () => {
+      if (buscaCodigo.length < 2) return [];
+      const { data, error } = await supabase
+        .from("cobrancas_agendadas")
+        .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome)")
+        .ilike("codigo_nota", `%${buscaCodigo}%`)
+        .limit(10);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: buscaCodigo.length >= 2 && etapa === "busca",
+  });
+
+  const selecionarNota = (nota: any) => {
+    setNotaSelecionada(nota);
+    setPecas([]);
+    setEtapa("bipagem");
+    setTimeout(() => inputBipRef.current?.focus(), 100);
+  };
+
+  // Busca produto pelo código de barras
+  const biparPeca = async () => {
+    const codigo = codigoBarras.trim();
+    if (!codigo) return;
+
+    // Verificar duplicata
+    if (pecas.some((p) => p.codigo_barras === codigo)) {
+      toast({ title: "Peça já adicionada", description: `Código ${codigo} já está na lista.`, variant: "destructive" });
+      setCodigoBarras("");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("produtos_taliare")
+      .select("*")
+      .eq("codigo_barras", codigo)
+      .maybeSingle();
+
+    if (error) {
+      toast({ title: "Erro ao buscar produto", variant: "destructive" });
+      setCodigoBarras("");
+      return;
+    }
+
+    if (!data) {
+      toast({
+        title: "Produto não encontrado",
+        description: `Código "${codigo}" não existe no catálogo. Adicione manualmente.`,
+        variant: "destructive",
+      });
+      setManualOpen(true);
+      return;
+    }
+
+    setPecas((prev) => [
+      ...prev,
+      {
+        id: data.id,
+        codigo_barras: data.codigo_barras,
+        referencia: data.referencia,
+        descricao: data.descricao,
+        valor: Number(data.preco_varejo) || 0,
+      },
+    ]);
+    setCodigoBarras("");
+    inputBipRef.current?.focus();
+  };
+
+  const adicionarManual = () => {
+    if (!manualDescricao || !manualValor) return;
+    setPecas((prev) => [
+      ...prev,
+      {
+        id: `manual-${Date.now()}`,
+        codigo_barras: codigoBarras || `MANUAL-${Date.now()}`,
+        referencia: null,
+        descricao: manualDescricao,
+        valor: Number(manualValor) || 0,
+        manual: true,
+      },
+    ]);
+    setManualOpen(false);
+    setManualDescricao("");
+    setManualValor("");
+    setCodigoBarras("");
+    inputBipRef.current?.focus();
+  };
+
+  const removerPeca = (idx: number) => {
+    setPecas((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // Cálculos
+  const totalDevolvido = pecas.reduce((sum, p) => sum + p.valor, 0);
+  const valorKit = Number(notaSelecionada?.valor_previsto || 0);
+  const valorVendido = Math.max(0, valorKit - totalDevolvido);
+  const { percentual, categoria } = getComissaoFaixa(valorVendido);
+  const valorComissao = valorVendido * (percentual / 100);
+  const valorEmpresa = valorVendido - valorComissao;
+
+  // Finalizar apuração
+  const finalizarMutation = useMutation({
+    mutationFn: async () => {
+      if (!notaSelecionada || !user) throw new Error("Dados incompletos");
+
+      const resumo = `Apuração: ${pecas.length} peça(s) devolvida(s) (R$ ${fmt(totalDevolvido)}). Vendido: R$ ${fmt(valorVendido)}. Comissão ${percentual}%: R$ ${fmt(valorComissao)}. Valor empresa: R$ ${fmt(valorEmpresa)}.`;
+
+      // Atualizar cobrança
+      const { error: errUpdate } = await supabase
+        .from("cobrancas_agendadas")
+        .update({
+          status: "pago" as any,
+          valor_previsto: valorEmpresa,
+          data_quitacao: new Date().toISOString().split("T")[0],
+          observacoes: resumo,
+        })
+        .eq("id", notaSelecionada.id);
+
+      if (errUpdate) throw errUpdate;
+
+      return { resumo };
+    },
+    onSuccess: (data) => {
+      setResumoFinal({
+        pecas: pecas.length,
+        totalDevolvido,
+        valorVendido,
+        percentual,
+        categoria,
+        valorComissao,
+        valorEmpresa,
+        resumo: data.resumo,
+      });
+      setEtapa("confirmado");
+      toast({ title: "Apuração concluída com sucesso!" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao finalizar", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const resetar = () => {
+    setEtapa("busca");
+    setBuscaCodigo("");
+    setNotaSelecionada(null);
+    setPecas([]);
+    setResumoFinal(null);
+  };
+
+  // ============= ETAPA 1: BUSCA =============
+  if (etapa === "busca") {
+    return (
+      <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <ScanBarcode className="h-6 w-6 text-primary" />
+            Apuração de Kits
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Busque a nota pelo código para iniciar a apuração de devolução
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Buscar Nota</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Digite o código da nota (ex: 5731)"
+                className="pl-10"
+                value={buscaCodigo}
+                onChange={(e) => setBuscaCodigo(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            {buscando && (
+              <div className="text-sm text-muted-foreground flex items-center gap-2">
+                <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                Buscando...
+              </div>
+            )}
+
+            {resultados.length > 0 && (
+              <div className="space-y-2">
+                {resultados.map((nota: any) => (
+                  <div
+                    key={nota.id}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-foreground">{nota.codigo_nota}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {nota.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {nota.revendedora} • {nota.profiles_limited?.nome || "—"}
+                      </p>
+                      <p className="text-sm font-semibold text-foreground">
+                        Kit: R$ {fmt(Number(nota.valor_previsto))}
+                      </p>
+                    </div>
+                    <Button size="sm" onClick={() => selecionarNota(nota)}>
+                      Iniciar Apuração
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {buscaCodigo.length >= 2 && !buscando && resultados.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">Nenhuma nota encontrada</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ============= ETAPA 2: BIPAGEM =============
+  if (etapa === "bipagem") {
+    return (
+      <div className="p-4 md:p-6 space-y-4 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => setEtapa("busca")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <ScanBarcode className="h-5 w-5 text-primary" />
+              Nota {notaSelecionada?.codigo_nota}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {notaSelecionada?.revendedora} • Kit: R$ {fmt(valorKit)}
+            </p>
+          </div>
+        </div>
+
+        {/* Campo de bipagem */}
+        <Card>
+          <CardContent className="pt-4">
+            <Label className="text-sm font-medium">Bipar código de barras da peça</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                ref={inputBipRef}
+                placeholder="Leia ou digite o código de barras"
+                value={codigoBarras}
+                onChange={(e) => setCodigoBarras(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && biparPeca()}
+              />
+              <Button onClick={biparPeca} className="shrink-0">
+                <Plus className="h-4 w-4 mr-1" /> Adicionar
+              </Button>
+            </div>
+            <button
+              onClick={() => setManualOpen(true)}
+              className="text-xs text-primary underline mt-2"
+            >
+              Produto não encontrado? Adicionar manualmente
+            </button>
+          </CardContent>
+        </Card>
+
+        {/* Lista de peças */}
+        {pecas.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Peças Devolvidas ({pecas.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="divide-y divide-border">
+                {pecas.map((peca, idx) => (
+                  <div key={idx} className="flex items-center justify-between py-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        {peca.referencia && (
+                          <span className="font-mono text-xs text-muted-foreground">{peca.referencia}</span>
+                        )}
+                        {peca.manual && (
+                          <Badge variant="outline" className="text-[10px]">Manual</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm truncate">{peca.descricao}</p>
+                    </div>
+                    <div className="flex items-center gap-3 ml-2">
+                      <span className="font-semibold text-sm whitespace-nowrap">R$ {fmt(peca.valor)}</span>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removerPeca(idx)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Totais */}
+        <Card className="border-primary/30">
+          <CardContent className="pt-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Total Devolvido:</span>
+              <span className="font-semibold">R$ {fmt(totalDevolvido)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Valor do Kit:</span>
+              <span className="font-semibold">R$ {fmt(valorKit)}</span>
+            </div>
+            <div className="flex justify-between text-sm border-t border-border pt-2">
+              <span className="text-muted-foreground">Valor Vendido:</span>
+              <span className="font-bold text-foreground">R$ {fmt(valorVendido)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Categoria:</span>
+              <span className="font-semibold">{categoria}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Comissão ({percentual}%):</span>
+              <span className="font-semibold">R$ {fmt(valorComissao)}</span>
+            </div>
+            <div className="flex justify-between text-sm border-t border-border pt-2">
+              <span className="font-medium text-muted-foreground">Valor a Receber (Empresa):</span>
+              <span className="font-bold text-primary text-base">R$ {fmt(valorEmpresa)}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Botão finalizar */}
+        <Button
+          className="w-full"
+          size="lg"
+          disabled={pecas.length === 0 || finalizarMutation.isPending}
+          onClick={() => finalizarMutation.mutate()}
+        >
+          {finalizarMutation.isPending ? "Finalizando..." : "Confirmar Apuração"}
+        </Button>
+
+        {/* Modal adicionar manual */}
+        <Dialog open={manualOpen} onOpenChange={setManualOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Adicionar Peça Manualmente</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              {codigoBarras && (
+                <p className="text-sm text-muted-foreground">
+                  Código pesquisado: <span className="font-mono font-bold">{codigoBarras}</span>
+                </p>
+              )}
+              <div>
+                <Label>Descrição</Label>
+                <Input
+                  value={manualDescricao}
+                  onChange={(e) => setManualDescricao(e.target.value)}
+                  placeholder="Ex: Anel solitário dourado"
+                />
+              </div>
+              <div>
+                <Label>Valor (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={manualValor}
+                  onChange={(e) => setManualValor(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <Button className="w-full" disabled={!manualDescricao || !manualValor} onClick={adicionarManual}>
+                Adicionar Peça
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // ============= ETAPA 3: CONFIRMAÇÃO =============
+  return (
+    <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
+      <div className="text-center space-y-2">
+        <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
+        <h1 className="text-2xl font-bold text-foreground">Apuração Concluída</h1>
+        <p className="text-muted-foreground">Nota {notaSelecionada?.codigo_nota} processada com sucesso</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Resumo da Apuração</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Revendedora:</span>
+            <span className="font-semibold">{notaSelecionada?.revendedora}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Peças devolvidas:</span>
+            <span className="font-semibold">{resumoFinal?.pecas}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Total Devolvido:</span>
+            <span className="font-semibold">R$ {fmt(resumoFinal?.totalDevolvido || 0)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Valor Vendido:</span>
+            <span className="font-semibold">R$ {fmt(resumoFinal?.valorVendido || 0)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Categoria:</span>
+            <span className="font-semibold">{resumoFinal?.categoria}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Comissão ({resumoFinal?.percentual}%):</span>
+            <span className="font-semibold">R$ {fmt(resumoFinal?.valorComissao || 0)}</span>
+          </div>
+          <div className="flex justify-between text-sm border-t border-border pt-2">
+            <span className="font-medium">Valor Empresa:</span>
+            <span className="font-bold text-primary text-lg">R$ {fmt(resumoFinal?.valorEmpresa || 0)}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button className="w-full" size="lg" onClick={resetar}>
+        Nova Apuração
+      </Button>
+    </div>
+  );
+}
