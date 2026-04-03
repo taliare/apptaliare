@@ -207,11 +207,21 @@ export default function ApuracaoKits() {
     setResumoFinal(null);
   };
 
-  // Query: kits pendentes de apuração (status pendente, fechamento finalizado >= 2026-04-01)
+  // Query: kits pendentes de apuração via notas_promissorias
   const { data: kitsPendentes = [], isLoading: loadingPendentes } = useQuery({
     queryKey: ["apuracao-kits-pendentes"],
     queryFn: async () => {
-      // 1. Buscar fechamentos finalizados a partir de 01/04/2026
+      // 1. Buscar notas promissórias a partir de 01/04/2026 com cobranca_id preenchido
+      const { data: notas, error: errNotas } = await supabase
+        .from("notas_promissorias")
+        .select("*")
+        .gte("data", "2026-04-01")
+        .not("cobranca_id", "is", null);
+
+      if (errNotas) throw errNotas;
+      if (!notas || notas.length === 0) return [];
+
+      // 2. Buscar fechamentos finalizados a partir de 01/04/2026
       const { data: fechamentos, error: errFech } = await supabase
         .from("cobrancas_diarias")
         .select("representante_id, data")
@@ -219,30 +229,47 @@ export default function ApuracaoKits() {
         .gte("data", "2026-04-01");
 
       if (errFech) throw errFech;
-      if (!fechamentos || fechamentos.length === 0) return [];
-
-      // Montar set de representante|data com fechamento finalizado
       const fechamentoSet = new Set(
-        fechamentos.map((f: any) => `${f.representante_id}|${f.data}`)
+        (fechamentos || []).map((f: any) => `${f.representante_id}|${f.data}`)
       );
-      const repIds = [...new Set(fechamentos.map((f: any) => f.representante_id))];
 
-      // 2. Buscar notas pendentes dos representantes que têm fechamentos
-      const { data: notas, error } = await supabase
+      // 3. Buscar cobranças vinculadas
+      const cobrancaIds = [...new Set(notas.map((n: any) => n.cobranca_id))];
+      const { data: cobrancas, error: errCob } = await supabase
         .from("cobrancas_agendadas")
         .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome)")
-        .eq("status", "pendente")
-        .in("representante_id", repIds)
-        .order("data_agendada", { ascending: false });
+        .in("id", cobrancaIds);
 
-      if (error) throw error;
-      if (!notas || notas.length === 0) return [];
+      if (errCob) throw errCob;
+      const cobrancaMap = new Map((cobrancas || []).map((c: any) => [c.id, c]));
 
-      // 3. Filtrar: observacoes não contém "APURAÇÃO" E data_agendada tem fechamento finalizado
-      return notas.filter((n: any) => {
-        const semApuracao = !n.observacoes || !n.observacoes.toUpperCase().includes("APURAÇÃO");
-        const temFechamento = fechamentoSet.has(`${n.representante_id}|${n.data_agendada}`);
-        return semApuracao && temFechamento;
+      // 4. Filtrar notas elegíveis
+      return notas.filter((np: any) => {
+        const cobranca = cobrancaMap.get(np.cobranca_id);
+        if (!cobranca) return false;
+
+        // Status pago OU devolveu_tudo
+        const elegivel = cobranca.status === "pago" || np.devolveu_tudo === true;
+        if (!elegivel) return false;
+
+        // Excluir parcial
+        if (cobranca.status === "parcial") return false;
+
+        // Excluir já apuradas
+        if (cobranca.observacoes && cobranca.observacoes.toUpperCase().includes("APURAÇÃO")) return false;
+
+        // Verificar fechamento finalizado
+        const temFechamento = fechamentoSet.has(`${np.representante_id}|${np.data}`);
+        return temFechamento;
+      }).map((np: any) => {
+        const cobranca = cobrancaMap.get(np.cobranca_id)!;
+        return {
+          ...cobranca,
+          nota_promissoria_id: np.id,
+          codigo_nota_np: np.codigo_nota,
+          data_nota: np.data,
+          devolveu_tudo: np.devolveu_tudo,
+        };
       });
     },
     enabled: etapa === "busca",
@@ -315,7 +342,7 @@ export default function ApuracaoKits() {
                             </div>
                             <div className="flex items-center gap-3 mt-0.5">
                               <span className="text-xs font-semibold text-foreground">R$ {fmt(Number(nota.valor_previsto))}</span>
-                              <span className="text-xs text-muted-foreground">{nota.data_agendada}</span>
+                              <span className="text-xs text-muted-foreground">{nota.data_nota || nota.data_agendada}</span>
                             </div>
                           </div>
                           <Button size="sm" variant="default" className="shrink-0 ml-2" onClick={() => selecionarNota(nota)}>
