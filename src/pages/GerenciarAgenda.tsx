@@ -521,16 +521,6 @@ export default function GerenciarAgenda() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos Tipos</SelectItem>
-                    <SelectItem value="nova">Nova</SelectItem>
-                    <SelectItem value="repasse">Repasse</SelectItem>
-                  </SelectContent>
-                </Select>
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
                   <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder="Status" />
