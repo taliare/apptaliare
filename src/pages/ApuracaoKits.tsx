@@ -173,6 +173,7 @@ export default function ApuracaoKits() {
           valor_previsto: valorEmpresa,
           data_quitacao: new Date().toISOString().split("T")[0],
           observacoes: resumo,
+          apurado: true,
         })
         .eq("id", notaSelecionada.id);
 
