@@ -705,16 +705,6 @@ export default function GerenciarAgenda() {
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
-                                  {(() => {
-                                    const acumulado = (cobranca as any).valor_pago_acumulado || 0;
-                                    const adiantado = cobranca.valor_adiantado || 0;
-                                    const saldo = cobranca.valor_previsto - acumulado - adiantado;
-                                    return saldo > 0 && saldo < cobranca.valor_previsto 
-                                      ? <span className="text-orange-600 font-medium">{formatarValor(saldo)}</span>
-                                      : '-';
-                                  })()}
-                                </TableCell>
-                                <TableCell>
                                   {formatDateBR(cobranca.data_agendada)}
                                 </TableCell>
                                 <TableCell>
