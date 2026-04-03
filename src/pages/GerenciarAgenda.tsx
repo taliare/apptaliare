@@ -651,7 +651,7 @@ export default function GerenciarAgenda() {
                               <TableHead>Representante</TableHead>
                               <TableHead>Revendedora</TableHead>
                               <TableHead>Código</TableHead>
-                              <TableHead>Tipo</TableHead>
+                              <TableHead>Valor do Kit</TableHead>
                               <TableHead>Valor do Kit</TableHead>
                               <TableHead>Pago</TableHead>
                               <TableHead>Data Vencimento</TableHead>
