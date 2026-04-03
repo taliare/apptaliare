@@ -8,9 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus, MessageSquare, CalendarRange } from 'lucide-react';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus, MessageSquare, CalendarRange, Plus, Trash2, Eye, Search } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,7 +20,13 @@ import { registrarLog } from '@/lib/logOperacional';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn, formatarValor, getLocalDateString } from '@/lib/utils';
 import { FechamentoPeriodoView } from '@/components/fechamento/FechamentoPeriodoView';
-import { AdminDayActions } from '@/components/fechamento/AdminDayActions';
+import { RevendedoraSearchSelect } from '@/components/RevendedoraSearchSelect';
+import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
+import { sanitizeString } from '@/lib/validations';
+import type { Database } from '@/integrations/supabase/types';
+
+type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'];
+type FormaPagamento = 'pix' | 'dinheiro' | 'cartao' | 'transferencia';
 
 interface Profile {
   id: string;
@@ -68,7 +75,7 @@ interface CobrancaAgendadaKit {
   tipo: string | null;
 }
 
-const formaPagamentoLabels = {
+const formaPagamentoLabels: Record<string, string> = {
   pix: 'PIX',
   dinheiro: 'Dinheiro',
   cartao: 'Cartão',
@@ -88,6 +95,21 @@ export default function FechamentoDiario() {
   const [periodoInicio, setPeriodoInicio] = useState(getLocalDateString(startOfMonth(new Date())));
   const [periodoFim, setPeriodoFim] = useState(getLocalDateString(endOfMonth(new Date())));
 
+  // Estado para modal "Adicionar Nota" (buscar na agenda)
+  const [buscarNotaOpen, setBuscarNotaOpen] = useState(false);
+  const [codigoBusca, setCodigoBusca] = useState('');
+  const [buscandoNota, setBuscandoNota] = useState(false);
+  const [notaEncontrada, setNotaEncontrada] = useState<Cobranca | null>(null);
+  const [erroNota, setErroNota] = useState<string | null>(null);
+  const [cobrancaParaPagar, setCobrancaParaPagar] = useState<Cobranca | null>(null);
+
+  // Estado para deletar nota
+  const [notaParaDeletar, setNotaParaDeletar] = useState<NotaPromissoria | null>(null);
+
+  // Estado para edição de despesa quando finalizado
+  const [editandoDespesa, setEditandoDespesa] = useState(false);
+  const [despesaEditValue, setDespesaEditValue] = useState('');
+
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
   // Query para buscar representantes ativos
@@ -101,7 +123,6 @@ export default function FechamentoDiario() {
 
       if (error) throw error;
 
-      // Filtrar apenas representantes
       const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role')
@@ -112,6 +133,51 @@ export default function FechamentoDiario() {
       const representanteIds = new Set(roles?.map(r => r.user_id) || []);
       return (profiles || []).filter(p => representanteIds.has(p.id)) as Profile[];
     },
+  });
+
+  // Query para resumo do dia (todos os representantes) - quando nenhum rep selecionado
+  const { data: resumoDia = [] } = useQuery({
+    queryKey: ['resumo-dia-todos', dateStr],
+    queryFn: async () => {
+      // Buscar cobranças diárias de todos os representantes nesse dia
+      const { data: cobrancas, error } = await supabase
+        .from('cobrancas_diarias')
+        .select('*')
+        .eq('data', dateStr);
+      if (error) throw error;
+
+      // Buscar notas de todos os representantes nesse dia
+      const { data: todasNotas, error: notasError } = await supabase
+        .from('notas_promissorias')
+        .select('representante_id')
+        .eq('data', dateStr);
+      if (notasError) throw notasError;
+
+      // Contar notas por representante
+      const notasCount: Record<string, number> = {};
+      (todasNotas || []).forEach(n => {
+        notasCount[n.representante_id] = (notasCount[n.representante_id] || 0) + 1;
+      });
+
+      // Mapear cobranças por representante
+      const cobrancaMap: Record<string, CobrancaDiaria> = {};
+      (cobrancas || []).forEach(c => {
+        cobrancaMap[c.representante_id] = c as CobrancaDiaria;
+      });
+
+      return representantes.map(rep => {
+        const cob = cobrancaMap[rep.id];
+        return {
+          id: rep.id,
+          nome: rep.nome,
+          totalCobrado: cob?.total_cobrado || 0,
+          qtdNotas: notasCount[rep.id] || 0,
+          finalizado: cob?.finalizado || false,
+          temRegistro: !!cob || (notasCount[rep.id] || 0) > 0,
+        };
+      });
+    },
+    enabled: !selectedRepresentante && !modoPeriodo && representantes.length > 0,
   });
 
   // Query para notas do representante selecionado na data selecionada
@@ -295,11 +361,14 @@ export default function FechamentoDiario() {
 
   // Valor da despesa (do registro ou do input)
   const despesaValor = useMemo(() => {
-    if (cobrancaDiaria?.finalizado) {
+    if (cobrancaDiaria?.finalizado && !editandoDespesa) {
       return cobrancaDiaria.despesa_cobranca || 0;
     }
+    if (editandoDespesa) {
+      return parseValor(despesaEditValue);
+    }
     return parseValor(despesaCobranca);
-  }, [cobrancaDiaria, despesaCobranca]);
+  }, [cobrancaDiaria, despesaCobranca, editandoDespesa, despesaEditValue]);
 
   // Saldo do dia
   const saldoDoDia = totais.total - despesaValor;
@@ -310,7 +379,6 @@ export default function FechamentoDiario() {
       const despesa = parseValor(despesaCobranca);
 
       if (cobrancaDiaria) {
-        // Atualizar registro existente
         const { error } = await supabase
           .from('cobrancas_diarias')
           .update({
@@ -325,7 +393,6 @@ export default function FechamentoDiario() {
 
         if (error) throw error;
       } else {
-        // Criar novo registro
         const { error } = await supabase
           .from('cobrancas_diarias')
           .insert({
@@ -344,6 +411,7 @@ export default function FechamentoDiario() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cobranca-diaria-fechamento'] });
+      queryClient.invalidateQueries({ queryKey: ['resumo-dia-todos'] });
       toast.success('Dia finalizado com sucesso pelo admin!');
       const repNome = representantes.find(r => r.id === selectedRepresentante)?.nome || '';
       registrarLog({
@@ -372,6 +440,7 @@ export default function FechamentoDiario() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cobranca-diaria-fechamento'] });
+      queryClient.invalidateQueries({ queryKey: ['resumo-dia-todos'] });
       toast.success('Dia reaberto com sucesso!');
       const repNome = representantes.find(r => r.id === selectedRepresentante)?.nome || '';
       registrarLog({
@@ -384,6 +453,277 @@ export default function FechamentoDiario() {
       toast.error(`Erro ao reabrir dia: ${error.message}`);
     },
   });
+
+  // Mutation para excluir nota promissória
+  const excluirNotaMutation = useMutation({
+    mutationFn: async (notaId: string) => {
+      const { error } = await supabase
+        .from('notas_promissorias')
+        .delete()
+        .eq('id', notaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notas-representante-fechamento'] });
+      queryClient.invalidateQueries({ queryKey: ['cobranca-diaria-fechamento'] });
+      queryClient.invalidateQueries({ queryKey: ['resumo-dia-todos'] });
+      toast.success('Nota excluída com sucesso');
+      setNotaParaDeletar(null);
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao excluir nota: ${error.message}`);
+    },
+  });
+
+  // Mutation para atualizar despesa quando dia finalizado
+  const atualizarDespesaMutation = useMutation({
+    mutationFn: async (novaDespesa: number) => {
+      if (!cobrancaDiaria) throw new Error('Registro não encontrado');
+      const { error } = await supabase
+        .from('cobrancas_diarias')
+        .update({ despesa_cobranca: novaDespesa })
+        .eq('id', cobrancaDiaria.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobranca-diaria-fechamento'] });
+      toast.success('Despesa atualizada');
+      setEditandoDespesa(false);
+    },
+    onError: (error: any) => {
+      toast.error(`Erro: ${error.message}`);
+    },
+  });
+
+  // Buscar nota na agenda do representante
+  const handleBuscarNota = async () => {
+    if (!codigoBusca.trim()) {
+      setErroNota('Informe o código da nota ou nome da revendedora');
+      return;
+    }
+    setBuscandoNota(true);
+    setErroNota(null);
+    setNotaEncontrada(null);
+
+    try {
+      const termoBusca = codigoBusca.trim().toLowerCase();
+      const notaJaLancada = notas.find(n =>
+        n.codigo_nota.toLowerCase().includes(termoBusca) ||
+        termoBusca.includes(n.codigo_nota.toLowerCase())
+      );
+      if (notaJaLancada) {
+        setErroNota('Essa nota já foi lançada hoje');
+        setBuscandoNota(false);
+        return;
+      }
+
+      const { data: porCodigo } = await supabase
+        .from('cobrancas_agendadas')
+        .select('*')
+        .eq('representante_id', selectedRepresentante)
+        .ilike('codigo_nota', `%${codigoBusca.trim()}%`)
+        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .order('data_agendada', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (porCodigo) {
+        setNotaEncontrada(porCodigo);
+        setBuscandoNota(false);
+        return;
+      }
+
+      const { data: porRevendedora } = await supabase
+        .from('cobrancas_agendadas')
+        .select('*')
+        .eq('representante_id', selectedRepresentante)
+        .ilike('revendedora', `%${codigoBusca.trim()}%`)
+        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .order('data_agendada', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (porRevendedora) {
+        setNotaEncontrada(porRevendedora);
+      } else {
+        setErroNota('Nenhuma nota encontrada na agenda deste representante');
+      }
+    } catch (err: any) {
+      setErroNota(err.message);
+    } finally {
+      setBuscandoNota(false);
+    }
+  };
+
+  // Handler de pagamento completo
+  const handlePagamentoCompleto = async (dados: {
+    valor_venda: number;
+    comissao_percentual: number;
+    comissao_valor: number;
+    valor_devido_empresa: number;
+    pagamentos: Array<{ forma: FormaPagamento; valor: number }>;
+    tipo: 'completo' | 'devolucao';
+    dataNota: string;
+  }) => {
+    if (!cobrancaParaPagar) return;
+
+    const cobranca = cobrancaParaPagar;
+    const codigoNota = cobranca.codigo_nota || `ADMIN-${Date.now()}`;
+
+    try {
+      const { error: prestacaoError } = await supabase
+        .from('prestacoes_contas')
+        .insert({
+          cobranca_id: cobranca.id,
+          representante_id: selectedRepresentante,
+          revendedora: cobranca.revendedora || '',
+          total_venda: dados.valor_venda,
+          comissao_percentual: dados.comissao_percentual,
+          comissao_valor: dados.comissao_valor,
+          valor_devido_empresa: dados.valor_devido_empresa,
+          valor_pago: dados.valor_devido_empresa,
+          saldo_devedor: 0,
+          forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0].forma,
+          data_execucao: dados.dataNota,
+          codigo_nota_referencia: codigoNota,
+        });
+      if (prestacaoError) throw prestacaoError;
+
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert({
+          representante_id: selectedRepresentante,
+          codigo_nota: codigoNota,
+          data: dados.dataNota,
+          valor_total: dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
+          forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
+          valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : dados.pagamentos[0]?.valor || 0,
+          forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+          valor_pagamento_2: dados.pagamentos[1]?.valor || null,
+          devolveu_tudo: dados.tipo === 'devolucao',
+          cobranca_id: cobranca.id,
+        });
+      if (notaError) throw notaError;
+
+      const acumuladoAtual = cobranca.valor_pago_acumulado || 0;
+      const valorAdiantado = cobranca.valor_adiantado || 0;
+      const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
+      const saldoAberto = cobranca.valor_previsto - novoAcumulado - valorAdiantado;
+      
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update({
+          status: (saldoAberto <= 0 ? 'pago' : 'parcial') as any,
+          valor_pago_acumulado: novoAcumulado,
+          data_quitacao: saldoAberto <= 0 ? dados.dataNota : null,
+        })
+        .eq('id', cobranca.id);
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ['notas-representante-fechamento'] });
+      queryClient.invalidateQueries({ queryKey: ['cobranca-diaria-fechamento'] });
+      queryClient.invalidateQueries({ queryKey: ['resumo-dia-todos'] });
+      toast.success('Nota registrada com sucesso pelo admin');
+      setCobrancaParaPagar(null);
+      setBuscarNotaOpen(false);
+      setCodigoBusca('');
+      setNotaEncontrada(null);
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  // Handler de pagamento parcial
+  const handlePagamentoParcial = async (dados: {
+    valor_venda: number;
+    comissao_percentual: number;
+    comissao_valor: number;
+    valor_devido_empresa: number;
+    valor_recebido: number;
+    pagamentos: Array<{ forma: FormaPagamento; valor: number }>;
+    valor_repasse: number;
+    data_repasse: Date;
+    dataNota: string;
+  }) => {
+    if (!cobrancaParaPagar) return;
+
+    const cobranca = cobrancaParaPagar;
+    const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
+    const codigoNota = cobranca.codigo_nota || `ADMIN-${Date.now()}`;
+
+    try {
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert({
+          representante_id: selectedRepresentante,
+          codigo_nota: codigoNota,
+          data: dados.dataNota,
+          valor_total: dados.valor_recebido,
+          forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
+          valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
+          forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+          valor_pagamento_2: dados.pagamentos[1]?.valor || null,
+          cobranca_id: cobranca.id,
+        });
+      if (notaError) throw notaError;
+
+      if (!isRepasse) {
+        const { error: prestacaoError } = await supabase
+          .from('prestacoes_contas')
+          .insert({
+            cobranca_id: cobranca.id,
+            representante_id: selectedRepresentante,
+            revendedora: cobranca.revendedora || '',
+            total_venda: dados.valor_venda,
+            comissao_percentual: dados.comissao_percentual,
+            comissao_valor: dados.comissao_valor,
+            valor_devido_empresa: dados.valor_devido_empresa,
+            valor_pago: dados.valor_recebido,
+            saldo_devedor: dados.valor_repasse,
+            forma_pagamento: dados.pagamentos[0]?.forma || 'dinheiro',
+            data_execucao: dados.dataNota,
+            codigo_nota_referencia: codigoNota,
+          });
+        if (prestacaoError) throw prestacaoError;
+      }
+
+      const acumuladoAtual = cobranca.valor_pago_acumulado || 0;
+      const valorAdiantado = cobranca.valor_adiantado || 0;
+      let valorPrevistoEfetivo = cobranca.valor_previsto || 0;
+
+      const updateData: any = {
+        valor_pago_acumulado: acumuladoAtual + dados.valor_recebido,
+        data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
+      };
+
+      if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
+        valorPrevistoEfetivo = dados.valor_devido_empresa + dados.valor_recebido;
+        updateData.valor_previsto = valorPrevistoEfetivo;
+      }
+
+      const novoAcumulado = acumuladoAtual + dados.valor_recebido;
+      const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
+      updateData.status = saldoAberto <= 0 ? 'pago' : 'parcial';
+      if (saldoAberto <= 0) updateData.data_quitacao = dados.dataNota;
+
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update(updateData)
+        .eq('id', cobranca.id);
+      if (updateError) throw updateError;
+
+      queryClient.invalidateQueries({ queryKey: ['notas-representante-fechamento'] });
+      queryClient.invalidateQueries({ queryKey: ['cobranca-diaria-fechamento'] });
+      queryClient.invalidateQueries({ queryKey: ['resumo-dia-todos'] });
+      toast.success('Pagamento parcial registrado pelo admin');
+      setCobrancaParaPagar(null);
+      setBuscarNotaOpen(false);
+      setCodigoBusca('');
+      setNotaEncontrada(null);
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
 
   const isDiaFinalizado = cobrancaDiaria?.finalizado === true;
   const representanteSelecionado = representantes.find(r => r.id === selectedRepresentante);
@@ -423,13 +763,16 @@ export default function FechamentoDiario() {
 
         {/* Filtros */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Select value={selectedRepresentante} onValueChange={setSelectedRepresentante}>
+          <Select value={selectedRepresentante} onValueChange={(val) => setSelectedRepresentante(val === '__clear__' ? '' : val)}>
             <SelectTrigger className="w-full sm:w-[280px]">
               <SelectValue placeholder={modoPeriodo ? "Todos os representantes" : "Selecione um representante"} />
             </SelectTrigger>
             <SelectContent>
               {modoPeriodo && (
                 <SelectItem value="todos">Todos os representantes</SelectItem>
+              )}
+              {!modoPeriodo && selectedRepresentante && (
+                <SelectItem value="__clear__">← Voltar ao resumo</SelectItem>
               )}
               {representantes.map((rep) => (
                 <SelectItem key={rep.id} value={rep.id}>
@@ -496,10 +839,92 @@ export default function FechamentoDiario() {
           representantes={representantes}
         />
       ) : !selectedRepresentante ? (
-        <Card className="p-8 text-center">
-          <p className="text-muted-foreground">
-            Selecione um representante para visualizar o fechamento
-          </p>
+        /* ===== TABELA RESUMO DO DIA (sem representante selecionado) ===== */
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+              <Receipt className="h-5 w-5" />
+              Resumo do Dia — {format(selectedDate, "dd/MM/yyyy")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {representantes.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">Carregando representantes...</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Representante</TableHead>
+                      <TableHead className="text-right">Total Cobrado</TableHead>
+                      <TableHead className="text-center">Notas</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {resumoDia.map((rep) => (
+                      <TableRow key={rep.id}>
+                        <TableCell className="font-medium">{rep.nome}</TableCell>
+                        <TableCell className="text-right">
+                          {rep.totalCobrado > 0 ? formatarValor(rep.totalCobrado) : '—'}
+                        </TableCell>
+                        <TableCell className="text-center">{rep.qtdNotas}</TableCell>
+                        <TableCell className="text-center">
+                          {rep.finalizado ? (
+                            <Badge className="bg-green-500/15 text-green-600 border-green-500/30 hover:bg-green-500/20">
+                              <Lock className="h-3 w-3 mr-1" />
+                              Finalizado
+                            </Badge>
+                          ) : rep.temRegistro ? (
+                            <Badge variant="outline" className="border-yellow-500/50 text-yellow-600">
+                              Em aberto
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground">
+                              Sem registro
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedRepresentante(rep.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Ver detalhes
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {/* Totais do resumo */}
+                <div className="mt-4 pt-3 border-t flex flex-wrap gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Total geral: </span>
+                    <span className="font-bold text-primary">
+                      {formatarValor(resumoDia.reduce((s, r) => s + r.totalCobrado, 0))}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Finalizados: </span>
+                    <span className="font-bold text-green-600">
+                      {resumoDia.filter(r => r.finalizado).length}/{resumoDia.length}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Total de notas: </span>
+                    <span className="font-bold">
+                      {resumoDia.reduce((s, r) => s + r.qtdNotas, 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
         </Card>
       ) : (
         <>
@@ -529,12 +954,14 @@ export default function FechamentoDiario() {
                   </p>
                 </div>
               </div>
-              {isDiaFinalizado && (
-                <Badge variant="default" className="bg-green-500">
-                  <Lock className="h-3 w-3 mr-1" />
-                  Finalizado
-                </Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {isDiaFinalizado ? (
+                  <Badge variant="default" className="bg-green-500">
+                    <Lock className="h-3 w-3 mr-1" />
+                    Finalizado
+                  </Badge>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
 
@@ -611,7 +1038,7 @@ export default function FechamentoDiario() {
 
           {/* Resumo do Dia: Despesas, Kits e Saldo */}
           <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3">
-            {/* Despesas */}
+            {/* Despesas - EDITÁVEL para admin mesmo finalizado */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
                 <CardTitle className="text-xs md:text-sm font-medium">Despesas do Dia</CardTitle>
@@ -620,9 +1047,43 @@ export default function FechamentoDiario() {
                 </div>
               </CardHeader>
               <CardContent className="p-3 md:p-4 pt-0">
-                {isDiaFinalizado ? (
-                  <div className="text-lg md:text-xl font-bold text-red-500">
-                    - {formatarValor(cobrancaDiaria?.despesa_cobranca || 0)}
+                {isDiaFinalizado && !editandoDespesa ? (
+                  <div className="space-y-2">
+                    <div className="text-lg md:text-xl font-bold text-red-500">
+                      - {formatarValor(cobrancaDiaria?.despesa_cobranca || 0)}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => {
+                        setDespesaEditValue(((cobrancaDiaria?.despesa_cobranca || 0) * 100).toFixed(0).replace(/(\d+)/, (m) => (parseFloat(m) / 100).toFixed(2)));
+                        setEditandoDespesa(true);
+                      }}
+                    >
+                      Editar despesa
+                    </Button>
+                  </div>
+                ) : isDiaFinalizado && editandoDespesa ? (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="0.00"
+                      value={despesaEditValue}
+                      onChange={(e) => setDespesaEditValue(formatarValorInput(e.target.value))}
+                      className="h-9"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => atualizarDespesaMutation.mutate(parseValor(despesaEditValue))}
+                        disabled={atualizarDespesaMutation.isPending}
+                      >
+                        Salvar
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setEditandoDespesa(false)}>
+                        Cancelar
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -731,13 +1192,25 @@ export default function FechamentoDiario() {
             </Card>
           )}
 
-          {/* Tabela de Notas */}
+          {/* Tabela de Notas com botão Adicionar e coluna Ações */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                 <Receipt className="h-5 w-5" />
                 Notas do Dia ({notas.length})
               </CardTitle>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setBuscarNotaOpen(true);
+                  setCodigoBusca('');
+                  setNotaEncontrada(null);
+                  setErroNota(null);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Adicionar Nota
+              </Button>
             </CardHeader>
             <CardContent>
               {loadingNotas ? (
@@ -756,27 +1229,22 @@ export default function FechamentoDiario() {
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Pagamento</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {notas.map((nota) => {
-                        // Resolver revendedora e código do pedido real
                         let revendedora: string | undefined;
                         let codigoPedido: string | undefined;
 
-                        // 1. Tentar via cobranca_id (lookup reverso)
                         if (nota.cobranca_id && cobrancaIdMap[nota.cobranca_id]) {
                           const mapped = cobrancaIdMap[nota.cobranca_id];
                           revendedora = mapped.revendedora;
                           codigoPedido = mapped.codigo_nota;
-                        }
-                        // 2. Tentar via revendedoraMap (código curto direto)
-                        else if (revendedoraMap[nota.codigo_nota]) {
+                        } else if (revendedoraMap[nota.codigo_nota]) {
                           revendedora = revendedoraMap[nota.codigo_nota];
                           codigoPedido = nota.codigo_nota;
-                        }
-                        // 3. Código gerado com formato NOME-14digitos
-                        else if (nota.codigo_nota) {
+                        } else if (nota.codigo_nota) {
                           const match = nota.codigo_nota.match(/^(.+?)-\d{14}$/);
                           if (match) {
                             revendedora = match[1];
@@ -787,29 +1255,39 @@ export default function FechamentoDiario() {
                         }
 
                         return (
-                        <TableRow key={nota.id}>
-                          <TableCell className="font-mono">{codigoPedido ? `Nota ${codigoPedido}` : '—'}</TableCell>
-                          <TableCell>{revendedora || '-'}</TableCell>
-                          <TableCell className="text-right font-medium">
-                            {formatarValor(nota.valor_total)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-0.5 text-xs">
-                              <span>{formaPagamentoLabels[nota.forma_pagamento_1]}: {formatarValor(nota.valor_pagamento_1)}</span>
-                              {nota.forma_pagamento_2 && nota.valor_pagamento_2 && (
-                                <span>{formaPagamentoLabels[nota.forma_pagamento_2]}: {formatarValor(nota.valor_pagamento_2)}</span>
+                          <TableRow key={nota.id}>
+                            <TableCell className="font-mono">{codigoPedido ? `Nota ${codigoPedido}` : '—'}</TableCell>
+                            <TableCell>{revendedora || '-'}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatarValor(nota.valor_total)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-0.5 text-xs">
+                                <span>{formaPagamentoLabels[nota.forma_pagamento_1]}: {formatarValor(nota.valor_pagamento_1)}</span>
+                                {nota.forma_pagamento_2 && nota.valor_pagamento_2 && (
+                                  <span>{formaPagamentoLabels[nota.forma_pagamento_2]}: {formatarValor(nota.valor_pagamento_2)}</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {nota.devolveu_tudo ? (
+                                <Badge variant="secondary">Devolveu</Badge>
+                              ) : (
+                                <Badge variant="default" className="bg-green-500">Pago</Badge>
                               )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {nota.devolveu_tudo ? (
-                              <Badge variant="secondary">Devolveu</Badge>
-                            ) : (
-                              <Badge variant="default" className="bg-green-500">Pago</Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => setNotaParaDeletar(nota)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
                       })}
                     </TableBody>
                   </Table>
@@ -818,88 +1296,163 @@ export default function FechamentoDiario() {
             </CardContent>
           </Card>
 
-          {/* Ações do Admin */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Ações do Administrador</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <AdminDayActions
-                selectedRepresentante={selectedRepresentante}
-                representanteNome={representanteSelecionado?.nome || ''}
-                dateStr={dateStr}
-                selectedDate={selectedDate}
-                cobrancaDiariaId={cobrancaDiaria?.id || null}
-                isDiaFinalizado={isDiaFinalizado}
-                observacoesDia={cobrancaDiaria?.observacoes || null}
-                notas={notas}
-                userId={user!.id}
-                userNome={profile?.nome || ''}
-              />
-
-              <div className="border-t pt-4 flex flex-wrap gap-2">
-                {!isDiaFinalizado ? (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button disabled={finalizarDiaMutation.isPending}>
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Finalizar Dia pelo Representante
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
-                          <br /><br />
-                          <strong>Total Cobrado: {formatarValor(totais.total)}</strong>
-                          {despesaCobranca && (
-                            <>
-                              <br />
-                              Despesa: {formatarValor(parseValor(despesaCobranca))}
-                            </>
-                          )}
+          {/* Botões Finalizar/Reabrir */}
+          <div className="flex flex-wrap gap-2">
+            {!isDiaFinalizado ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button disabled={finalizarDiaMutation.isPending}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Finalizar Dia
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
+                      <br /><br />
+                      <strong>Total Cobrado: {formatarValor(totais.total)}</strong>
+                      {despesaCobranca && (
+                        <>
                           <br />
-                          <strong>Entregas de Kits: {kitsEntreguesDoDia.length} ({formatarValor(totalKits)})</strong>
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => finalizarDiaMutation.mutate()}>
-                          Confirmar Fechamento
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                ) : (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" disabled={reabrirDiaMutation.isPending}>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Reabrir Dia
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Reabrir Dia</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tem certeza que deseja reabrir o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}?
-                          Isso permitirá que novas notas sejam adicionadas.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => reabrirDiaMutation.mutate()}>
-                          Confirmar Reabertura
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                          Despesa: {formatarValor(parseValor(despesaCobranca))}
+                        </>
+                      )}
+                      <br />
+                      <strong>Entregas de Kits: {kitsEntreguesDoDia.length} ({formatarValor(totalKits)})</strong>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => finalizarDiaMutation.mutate()}>
+                      Confirmar Fechamento
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" disabled={reabrirDiaMutation.isPending}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Reabrir Dia
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reabrir Dia</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja reabrir o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}?
+                      Isso permitirá que novas notas sejam adicionadas.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => reabrirDiaMutation.mutate()}>
+                      Confirmar Reabertura
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </>
+      )}
+
+      {/* Dialog Buscar Nota (Adicionar Nota) */}
+      <Dialog open={buscarNotaOpen} onOpenChange={setBuscarNotaOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Adicionar Nota — {representanteSelecionado?.nome}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Busque pela nota na agenda do representante por código ou nome da revendedora.
+            </p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Código da nota ou nome da revendedora"
+                value={codigoBusca}
+                onChange={(e) => setCodigoBusca(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleBuscarNota()}
+              />
+              <Button onClick={handleBuscarNota} disabled={buscandoNota}>
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {erroNota && <p className="text-sm text-destructive">{erroNota}</p>}
+
+            {notaEncontrada && (
+              <Card>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">{notaEncontrada.revendedora}</span>
+                    <Badge variant="outline">{notaEncontrada.tipo || 'repasse'}</Badge>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Código: {notaEncontrada.codigo_nota}</span>
+                    <span className="font-bold">{formatarValor(notaEncontrada.valor_previsto)}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Vencimento: {notaEncontrada.data_agendada}
+                    {' • '}Status: {notaEncontrada.status}
+                  </div>
+                  <Button
+                    className="w-full mt-2"
+                    onClick={() => setCobrancaParaPagar(notaEncontrada)}
+                  >
+                    Cobrar
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Confirmar Exclusão de Nota */}
+      <AlertDialog open={!!notaParaDeletar} onOpenChange={(open) => { if (!open) setNotaParaDeletar(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Nota</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a nota <strong>{notaParaDeletar?.codigo_nota}</strong> no valor de <strong>{formatarValor(notaParaDeletar?.valor_total || 0)}</strong>?
+              <br /><br />
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => notaParaDeletar && excluirNotaMutation.mutate(notaParaDeletar.id)}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de Receber Cobrança */}
+      {cobrancaParaPagar && (
+        <ModalReceberCobranca
+          open={!!cobrancaParaPagar}
+          onOpenChange={(open) => { if (!open) setCobrancaParaPagar(null); }}
+          isAdmin={true}
+          cobranca={{
+            id: cobrancaParaPagar.id,
+            revendedora: cobrancaParaPagar.revendedora,
+            valor_previsto: cobrancaParaPagar.valor_previsto,
+            tipo: cobrancaParaPagar.tipo,
+            valor_adiantado: cobrancaParaPagar.valor_adiantado,
+          }}
+          valor_pago_acumulado={cobrancaParaPagar.valor_pago_acumulado || 0}
+          diasNaoFinalizados={[]}
+          onPagamentoCompleto={handlePagamentoCompleto}
+          onPagamentoParcial={handlePagamentoParcial}
+        />
       )}
     </div>
   );
