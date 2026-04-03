@@ -840,6 +840,7 @@ export default function FechamentoDiario() {
         />
       ) : !selectedRepresentante ? (
         /* ===== TABELA RESUMO DO DIA (sem representante selecionado) ===== */
+        <div key="resumo-dia">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base md:text-lg">
@@ -926,8 +927,9 @@ export default function FechamentoDiario() {
             )}
           </CardContent>
         </Card>
+        </div>
       ) : (
-        <>
+        <div key="detalhes-rep">
           {/* Status do Dia */}
           <Card className={cn(
             "border-2",
@@ -1357,7 +1359,7 @@ export default function FechamentoDiario() {
               </AlertDialog>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {/* Dialog Buscar Nota (Adicionar Nota) */}
