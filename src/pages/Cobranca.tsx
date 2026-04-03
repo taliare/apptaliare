@@ -1552,36 +1552,22 @@ function CobrancaItem({
               <Badge className={cn("text-[10px] px-1.5 py-0 shrink-0", getSmartStatus(cobranca).color)}>
                 {getSmartStatus(cobranca).label}
               </Badge>
-              {/* Ícones compactos de acréscimos e adiantamentos */}
+              {/* Badges clicáveis de acréscimos e adiantamentos */}
               {temAcrescimos && (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setModalAcrescimosDetalhes(true)}
-                        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 hover:bg-amber-500/30 transition-colors"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>Joias adicionais</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <button
+                  onClick={() => setModalAcrescimosDetalhes(true)}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors cursor-pointer"
+                >
+                  💎 +{acrescimos.length} {acrescimos.length === 1 ? 'joia' : 'joias'}
+                </button>
               )}
               {temAdiantamentos && (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setModalAdiantamentosDetalhes(true)}
-                        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/30 transition-colors"
-                      >
-                        <DollarSign className="h-3 w-3" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>Adiantamentos registrados</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <button
+                  onClick={() => setModalAdiantamentosDetalhes(true)}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30 hover:bg-green-500/30 transition-colors cursor-pointer"
+                >
+                  ADT: {formatarValor(adiantado)}
+                </button>
               )}
             </div>
           </div>
