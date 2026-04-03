@@ -216,6 +216,7 @@ export default function ApuracaoKits() {
         .from("cobrancas_agendadas")
         .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome)")
         .in("status", ["pago", "parcial"])
+        .gte("data_agendada", "2026-04-01")
         .order("data_agendada", { ascending: false });
 
       if (error) throw error;
