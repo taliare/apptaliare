@@ -87,13 +87,6 @@ export default function ApuracaoKits() {
     const codigo = codigoBarras.trim();
     if (!codigo) return;
 
-    // Verificar duplicata
-    if (pecas.some((p) => p.codigo_barras === codigo)) {
-      toast({ title: "Peça já adicionada", description: `Código ${codigo} já está na lista.`, variant: "destructive" });
-      setCodigoBarras("");
-      return;
-    }
-
     const { data, error } = await supabase
       .from("produtos_taliare")
       .select("*")
@@ -101,12 +94,14 @@ export default function ApuracaoKits() {
       .maybeSingle();
 
     if (error) {
+      playBeep(300, 150);
       toast({ title: "Erro ao buscar produto", variant: "destructive" });
       setCodigoBarras("");
       return;
     }
 
     if (!data) {
+      playBeep(300, 150);
       toast({
         title: "Produto não encontrado",
         description: `Código "${codigo}" não existe no catálogo. Adicione manualmente.`,
@@ -116,10 +111,11 @@ export default function ApuracaoKits() {
       return;
     }
 
+    playBeep(800, 80);
     setPecas((prev) => [
       ...prev,
       {
-        id: data.id,
+        id: crypto.randomUUID(),
         codigo_barras: data.codigo_barras,
         referencia: data.referencia,
         descricao: data.descricao,
