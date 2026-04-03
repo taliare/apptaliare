@@ -927,8 +927,9 @@ export default function FechamentoDiario() {
             )}
           </CardContent>
         </Card>
+        </div>
       ) : (
-        <>
+        <div key="detalhes-rep">
           {/* Status do Dia */}
           <Card className={cn(
             "border-2",
