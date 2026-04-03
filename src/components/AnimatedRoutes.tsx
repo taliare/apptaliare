@@ -226,6 +226,13 @@ export function AnimatedRoutes() {
           </PermissionRoute>
         } />
         
+        {/* Apuração de Kits - admin only */}
+        <Route path="/apuracao" element={
+          <ProtectedRoute requiredRole="admin">
+            <ApuracaoKits />
+          </ProtectedRoute>
+        } />
+        
         {/* Histórico de Ações - representantes */}
         <Route path="/historico-acoes" element={<HistoricoAcoes />} />
         

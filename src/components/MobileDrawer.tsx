@@ -146,6 +146,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         { title: 'Fechamento Diário', url: '/fechamento-diario', icon: CalendarCheck },
         { title: 'Metas', url: '/metas', icon: Target },
         { title: 'Gerenciar Agenda', url: '/gerenciar-agenda', icon: Calendar },
+        { title: 'Apuração de Kits', url: '/apuracao', icon: PackageCheck },
         { title: 'Jurídico', url: '/juridico', icon: Scale },
         { title: 'Resumo DRE', url: '/dre-resumo', icon: TrendingUp },
         { title: 'Despesas', url: '/dre-despesas', icon: Receipt },
