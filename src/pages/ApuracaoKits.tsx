@@ -244,33 +244,41 @@ export default function ApuracaoKits() {
       if (errCob) throw errCob;
       const cobrancaMap = new Map((cobrancas || []).map((c: any) => [c.id, c]));
 
-      // 4. Filtrar notas elegíveis
-      return notas.filter((np: any) => {
+      // 4. Filtrar notas elegíveis e deduplificar por cobranca_id
+      const seen = new Set<string>();
+      const resultado: any[] = [];
+
+      for (const np of notas) {
+        // Deduplificar por cobranca_id
+        if (seen.has(np.cobranca_id)) continue;
+
         const cobranca = cobrancaMap.get(np.cobranca_id);
-        if (!cobranca) return false;
+        if (!cobranca) continue;
 
         // Status deve ser pago ou parcial
-        if (cobranca.status !== "pago" && cobranca.status !== "parcial") return false;
+        if (cobranca.status !== "pago" && cobranca.status !== "parcial") continue;
 
         // Excluir já apuradas (campo apurado = true)
-        if (cobranca.apurado === true) return false;
+        if (cobranca.apurado === true) continue;
 
         // Excluir devolução total — não precisa de apuração de peças
-        if (np.devolveu_tudo === true) return false;
+        if (np.devolveu_tudo === true) continue;
 
-        // Verificar fechamento finalizado
+        // Verificar fechamento finalizado NA MESMA DATA da nota promissória
         const temFechamento = fechamentoSet.has(`${np.representante_id}|${np.data}`);
-        return temFechamento;
-      }).map((np: any) => {
-        const cobranca = cobrancaMap.get(np.cobranca_id)!;
-        return {
+        if (!temFechamento) continue;
+
+        seen.add(np.cobranca_id);
+        resultado.push({
           ...cobranca,
           nota_promissoria_id: np.id,
           codigo_nota_np: np.codigo_nota,
           data_nota: np.data,
           devolveu_tudo: np.devolveu_tudo,
-        };
-      });
+        });
+      }
+
+      return resultado;
     },
     enabled: etapa === "busca",
   });
