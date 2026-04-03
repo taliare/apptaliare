@@ -1296,36 +1296,28 @@ export default function FechamentoDiario() {
                             <TableCell>
                               {(() => {
                                 const cobrancaTipo = nota.cobranca_id ? cobrancaIdMap[nota.cobranca_id]?.tipo : '';
+                                let label = '—';
+                                let tip = '';
+                                let cls = '';
                                 if (nota.devolveu_tudo) {
-                                  return (
-                                    <Badge className="bg-red-500/15 text-red-600 border border-red-500/30 text-[10px]">
-                                      Devolução total — tem devolução
-                                    </Badge>
-                                  );
+                                  label = 'Devolução total'; tip = 'Tem devolução'; cls = 'bg-destructive/15 text-destructive border-destructive/30';
+                                } else if (nota.codigo_nota?.startsWith('ADT-')) {
+                                  label = 'Adiantamento'; tip = 'Sem devolução'; cls = 'bg-warning/15 text-warning border-warning/30';
+                                } else if (cobrancaTipo === 'kit') {
+                                  label = 'Kit'; tip = 'Tem devolução'; cls = 'bg-info/15 text-info border-info/30';
+                                } else if (cobrancaTipo === 'repasse') {
+                                  label = 'Repasse'; tip = 'Sem devolução'; cls = 'bg-muted text-muted-foreground border-border';
                                 }
-                                if (nota.codigo_nota?.startsWith('ADT-')) {
-                                  return (
-                                    <Badge className="bg-yellow-500/15 text-yellow-600 border border-yellow-500/30 text-[10px]">
-                                      Adiantamento — sem devolução
-                                    </Badge>
-                                  );
-                                }
-                                if (cobrancaTipo === 'kit') {
-                                  return (
-                                    <Badge className="bg-blue-500/15 text-blue-600 border border-blue-500/30 text-[10px]">
-                                      Kit — tem devolução
-                                    </Badge>
-                                  );
-                                }
-                                if (cobrancaTipo === 'repasse') {
-                                  return (
-                                    <Badge className="bg-gray-500/15 text-gray-500 border border-gray-500/30 text-[10px]">
-                                      Repasse — sem devolução
-                                    </Badge>
-                                  );
-                                }
+                                if (!tip) return <Badge variant="outline">—</Badge>;
                                 return (
-                                  <Badge variant="outline" className="text-[10px]">—</Badge>
+                                  <TooltipProvider delayDuration={200}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge className={`border ${cls}`}>{label}</Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top"><p>{tip}</p></TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 );
                               })()}
                             </TableCell>
