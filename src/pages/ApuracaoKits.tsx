@@ -248,15 +248,14 @@ export default function ApuracaoKits() {
         const cobranca = cobrancaMap.get(np.cobranca_id);
         if (!cobranca) return false;
 
-        // Status pago OU devolveu_tudo
-        const elegivel = cobranca.status === "pago" || np.devolveu_tudo === true;
-        if (!elegivel) return false;
+        // Status deve ser pago ou parcial
+        if (cobranca.status !== "pago" && cobranca.status !== "parcial") return false;
 
-        // Excluir parcial
-        if (cobranca.status === "parcial") return false;
+        // Excluir já apuradas (campo apurado = true)
+        if (cobranca.apurado === true) return false;
 
-        // Excluir já apuradas
-        if (cobranca.observacoes && cobranca.observacoes.toUpperCase().includes("APURAÇÃO")) return false;
+        // Excluir devolução total — não precisa de apuração de peças
+        if (np.devolveu_tudo === true) return false;
 
         // Verificar fechamento finalizado
         const temFechamento = fechamentoSet.has(`${np.representante_id}|${np.data}`);
