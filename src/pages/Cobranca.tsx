@@ -661,9 +661,14 @@ export default function Cobranca() {
 
   const reagendarMutation = useMutation({
     mutationFn: async ({ id, novaData }: { id: string; novaData: string }) => {
+      const cobranca = cobrancas.find(c => c.id === id);
       const { error } = await supabase
         .from('cobrancas_agendadas')
-        .update({ data_agendada: novaData })
+        .update({ 
+          data_agendada: novaData,
+          status: 'reagendado' as any,
+          contagem_reagendamentos: ((cobranca?.contagem_reagendamentos || 0) + 1)
+        })
         .eq('id', id);
       
       if (error) throw error;
