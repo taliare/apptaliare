@@ -172,7 +172,7 @@ export default function FechamentoDiario() {
         return {
           id: rep.id,
           nome: rep.nome,
-          totalCobrado: cob?.total_cobrado || 0,
+          totalCobrado: notasTotal[rep.id] || cob?.total_cobrado || 0,
           qtdNotas: notasCount[rep.id] || 0,
           finalizado: cob?.finalizado || false,
           temRegistro: !!cob || (notasCount[rep.id] || 0) > 0,
