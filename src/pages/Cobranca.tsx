@@ -44,11 +44,28 @@ interface CobrancaFormData {
 const statusConfig: Record<string, { label: string; color: string }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400' },
   pago: { label: 'Pago', color: 'bg-green-500/10 text-green-700 dark:text-green-400' },
-  parcial: { label: 'Parcial', color: 'bg-blue-500/10 text-blue-700 dark:text-blue-400' },
+  parcial: { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600 dark:text-blue-400' },
   reagendado: { label: 'Reagendado', color: 'bg-orange-500/10 text-orange-700 dark:text-orange-400' },
   juridico: { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' },
   cancelado: { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-400' },
 };
+
+function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
+  if (cobranca.status === 'pago') return { label: 'Pago', color: 'bg-green-500/10 text-green-700 dark:text-green-400' };
+  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600 dark:text-blue-400' };
+  if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' };
+  if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-400' };
+  if (cobranca.status === 'reagendado') {
+    const n = cobranca.contagem_reagendamentos || 1;
+    return { label: `Reagendada (${n}x)`, color: 'bg-orange-500/10 text-orange-700 dark:text-orange-400' };
+  }
+  // pendente
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const dataCobranca = parseLocalDate(cobranca.data_agendada);
+  if (dataCobranca < hoje) return { label: 'Vencida', color: 'bg-red-500/10 text-red-700 dark:text-red-400' };
+  return { label: 'A vencer', color: 'bg-blue-500/10 text-blue-700 dark:text-blue-400' };
+}
 
 export default function Cobranca() {
   const { toast } = useToast();
