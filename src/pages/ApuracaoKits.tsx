@@ -146,8 +146,8 @@ export default function ApuracaoKits() {
     inputBipRef.current?.focus();
   };
 
-  const removerPeca = (idx: number) => {
-    setPecas((prev) => prev.filter((_, i) => i !== idx));
+  const removerPeca = (id: string) => {
+    setPecas((prev) => prev.filter((p) => p.id !== id));
   };
 
   // Cálculos
