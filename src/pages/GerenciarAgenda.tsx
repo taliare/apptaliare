@@ -30,11 +30,28 @@ type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'] & {
 const statusConfig: Record<string, { label: string; color: string }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-500/10 text-yellow-700' },
   pago: { label: 'Pago', color: 'bg-green-500/10 text-green-700' },
-  parcial: { label: 'Parcial', color: 'bg-blue-500/10 text-blue-700' },
+  parcial: { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600' },
   reagendado: { label: 'Reagendado', color: 'bg-orange-500/10 text-orange-700' },
   juridico: { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700' },
   cancelado: { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700' },
 };
+
+function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
+  if (cobranca.status === 'pago') return { label: 'Pago', color: 'bg-green-500/10 text-green-700' };
+  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600' };
+  if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700' };
+  if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700' };
+  if (cobranca.status === 'reagendado') {
+    const n = cobranca.contagem_reagendamentos || 1;
+    return { label: `Reagendada (${n}x)`, color: 'bg-orange-500/10 text-orange-700' };
+  }
+  // pendente
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const dataCobranca = new Date(cobranca.data_agendada + 'T12:00:00');
+  if (dataCobranca < hoje) return { label: 'Vencida', color: 'bg-red-500/10 text-red-700' };
+  return { label: 'A vencer', color: 'bg-blue-500/10 text-blue-700' };
+}
 
 export default function GerenciarAgenda() {
   const { toast } = useToast();
@@ -652,9 +669,8 @@ export default function GerenciarAgenda() {
                               <TableHead>Revendedora</TableHead>
                               <TableHead>Código</TableHead>
                               <TableHead>Tipo</TableHead>
-                              <TableHead>Valor Previsto</TableHead>
+                              <TableHead>Valor do Kit</TableHead>
                               <TableHead>Pago</TableHead>
-                              <TableHead>Saldo</TableHead>
                               <TableHead>Data Vencimento</TableHead>
                               <TableHead>Status</TableHead>
                               <TableHead className="text-right">Ações</TableHead>
@@ -689,21 +705,11 @@ export default function GerenciarAgenda() {
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
-                                  {(() => {
-                                    const acumulado = (cobranca as any).valor_pago_acumulado || 0;
-                                    const adiantado = cobranca.valor_adiantado || 0;
-                                    const saldo = cobranca.valor_previsto - acumulado - adiantado;
-                                    return saldo > 0 && saldo < cobranca.valor_previsto 
-                                      ? <span className="text-orange-600 font-medium">{formatarValor(saldo)}</span>
-                                      : '-';
-                                  })()}
-                                </TableCell>
-                                <TableCell>
                                   {formatDateBR(cobranca.data_agendada)}
                                 </TableCell>
                                 <TableCell>
-                                  <Badge className={statusConfig[cobranca.status].color}>
-                                    {statusConfig[cobranca.status].label}
+                                  <Badge className={getSmartStatus(cobranca).color}>
+                                    {getSmartStatus(cobranca).label}
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
