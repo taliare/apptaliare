@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -207,6 +207,62 @@ export default function ApuracaoKits() {
     setResumoFinal(null);
   };
 
+  // Query: kits pendentes de apuração (pago/parcial, fechamento finalizado, sem "APURAÇÃO" nas obs)
+  const { data: kitsPendentes = [], isLoading: loadingPendentes } = useQuery({
+    queryKey: ["apuracao-kits-pendentes"],
+    queryFn: async () => {
+      // 1. Buscar notas pagas/parciais sem apuração
+      const { data: notas, error } = await supabase
+        .from("cobrancas_agendadas")
+        .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome)")
+        .in("status", ["pago", "parcial"])
+        .order("data_agendada", { ascending: false });
+
+      if (error) throw error;
+      if (!notas || notas.length === 0) return [];
+
+      // Filtrar: observacoes não contém "APURAÇÃO"
+      const semApuracao = notas.filter(
+        (n: any) => !n.observacoes || !n.observacoes.toUpperCase().includes("APURAÇÃO")
+      );
+
+      if (semApuracao.length === 0) return [];
+
+      // 2. Buscar fechamentos finalizados para verificar se o representante fechou o dia
+      const repDatas = [...new Set(semApuracao.map((n: any) => `${n.representante_id}|${n.data_agendada}`))];
+      const repIds = [...new Set(semApuracao.map((n: any) => n.representante_id))];
+      const datas = [...new Set(semApuracao.map((n: any) => n.data_agendada))];
+
+      const { data: fechamentos } = await supabase
+        .from("cobrancas_diarias")
+        .select("representante_id, data, finalizado")
+        .in("representante_id", repIds)
+        .in("data", datas)
+        .eq("finalizado", true);
+
+      const fechamentoSet = new Set(
+        (fechamentos || []).map((f: any) => `${f.representante_id}|${f.data}`)
+      );
+
+      // Filtrar apenas notas cujo fechamento do dia foi finalizado
+      return semApuracao.filter((n: any) => fechamentoSet.has(`${n.representante_id}|${n.data_agendada}`));
+    },
+    enabled: etapa === "busca",
+  });
+
+  // Agrupar por representante
+  const gruposRepresentante = useMemo(() => {
+    const map: Record<string, { nome: string; notas: any[] }> = {};
+    for (const nota of kitsPendentes) {
+      const repId = nota.representante_id;
+      if (!map[repId]) {
+        map[repId] = { nome: (nota as any).profiles_limited?.nome || "Sem nome", notas: [] };
+      }
+      map[repId].notas.push(nota);
+    }
+    return Object.values(map);
+  }, [kitsPendentes]);
+
   // ============= ETAPA 1: BUSCA =============
   if (etapa === "busca") {
     return (
@@ -217,13 +273,70 @@ export default function ApuracaoKits() {
             Apuração de Kits
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Busque a nota pelo código para iniciar a apuração de devolução
+            Selecione um kit para apurar ou busque manualmente pelo código
           </p>
         </div>
 
+        {/* Seção: Kits para Apurar */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              Kits para Apurar
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingPendentes ? (
+              <div className="text-sm text-muted-foreground flex items-center gap-2 py-4">
+                <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                Carregando...
+              </div>
+            ) : gruposRepresentante.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Nenhum kit aguardando apuração
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {gruposRepresentante.map((grupo, idx) => (
+                  <div key={idx}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-semibold text-foreground">{grupo.nome}</span>
+                      <Badge variant="secondary" className="text-xs">{grupo.notas.length} kit{grupo.notas.length > 1 ? "s" : ""}</Badge>
+                    </div>
+                    <div className="space-y-1.5">
+                      {grupo.notas.map((nota: any) => (
+                        <div
+                          key={nota.id}
+                          className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-sm text-foreground">{nota.codigo_nota}</span>
+                              <span className="text-xs text-muted-foreground">•</span>
+                              <span className="text-sm text-muted-foreground truncate">{nota.revendedora}</span>
+                            </div>
+                            <div className="flex items-center gap-3 mt-0.5">
+                              <span className="text-xs font-semibold text-foreground">R$ {fmt(Number(nota.valor_previsto))}</span>
+                              <span className="text-xs text-muted-foreground">{nota.data_agendada}</span>
+                            </div>
+                          </div>
+                          <Button size="sm" variant="default" className="shrink-0 ml-2" onClick={() => selecionarNota(nota)}>
+                            Apurar
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Busca manual */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Buscar Nota</CardTitle>
+            <CardTitle className="text-base">Buscar Nota Manualmente</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="relative">
@@ -233,7 +346,6 @@ export default function ApuracaoKits() {
                 className="pl-10"
                 value={buscaCodigo}
                 onChange={(e) => setBuscaCodigo(e.target.value)}
-                autoFocus
               />
             </div>
 
