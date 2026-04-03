@@ -1151,6 +1151,39 @@ export type Database = {
         }
         Relationships: []
       }
+      produtos_taliare: {
+        Row: {
+          categoria: string | null
+          codigo_barras: string
+          criado_em: string | null
+          descricao: string
+          id: string
+          preco_varejo: number | null
+          referencia: string | null
+          status: string | null
+        }
+        Insert: {
+          categoria?: string | null
+          codigo_barras: string
+          criado_em?: string | null
+          descricao: string
+          id?: string
+          preco_varejo?: number | null
+          referencia?: string | null
+          status?: string | null
+        }
+        Update: {
+          categoria?: string | null
+          codigo_barras?: string
+          criado_em?: string | null
+          descricao?: string
+          id?: string
+          preco_varejo?: number | null
+          referencia?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ativo: boolean | null
