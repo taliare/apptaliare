@@ -660,9 +660,9 @@ export default function GerenciarAgenda() {
                         {/* Resumo de status por semana */}
                         <div className="flex items-center gap-1">
                           {(() => {
-                            const pendentes = notasSemana.filter(c => c.status === 'pendente').length;
-                            const pagas = notasSemana.filter(c => c.status === 'pago').length;
-                            const juridico = notasSemana.filter(c => c.status === 'juridico').length;
+                            const pendentes = notasGrupo.filter(c => c.status === 'pendente').length;
+                             const pagas = notasGrupo.filter(c => c.status === 'pago').length;
+                             const juridico = notasGrupo.filter(c => c.status === 'juridico').length;
                             return (
                               <>
                                 {pendentes > 0 && (
