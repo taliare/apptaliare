@@ -104,7 +104,7 @@ export default function T2Revendedoras() {
   const { data: pagamentos = [] } = useQuery({
     queryKey: ['t2-pagamentos-rev', selectedId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_pagamentos')
         .select('*')
         .in('apuracao_id', apuracaoIds);
