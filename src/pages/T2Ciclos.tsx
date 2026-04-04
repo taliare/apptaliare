@@ -50,7 +50,7 @@ export default function T2Ciclos() {
   const { data: ciclos = [], isLoading } = useQuery({
     queryKey: ['t2-ciclos'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_ciclos')
         .select('*, t2_revendedoras(id, nome_completo, nome_exibicao, telefone, cidade, endereco_rua, endereco_numero, endereco_complemento, endereco_bairro, endereco_cep, endereco_estado), t2_pedidos(codigo_pedido)')
         .order('data_cobranca' as any, { ascending: true });
