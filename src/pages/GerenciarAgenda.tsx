@@ -123,16 +123,30 @@ export default function GerenciarAgenda() {
     staleTime: 0,
     refetchOnMount: true,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cobrancas_agendadas')
-        .select(`
-          *,
-          profiles:representante_id(nome)
-        `)
-        .order('data_agendada', { ascending: true });
+      let allData: Cobranca[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        const { data, error } = await supabase
+          .from('cobrancas_agendadas')
+          .select(`
+            *,
+            profiles:representante_id(nome)
+          `)
+          .order('data_agendada', { ascending: true })
+          .range(from, from + pageSize - 1);
 
-      if (error) throw error;
-      return data as Cobranca[];
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        
+        allData = [...allData, ...data as Cobranca[]];
+        
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      
+      return allData;
     },
   });
 
