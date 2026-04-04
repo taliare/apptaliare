@@ -20,11 +20,10 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
   const queryClient = useQueryClient();
   const [valorDevolvido, setValorDevolvido] = useState("");
 
-  // Buscar total de adiantamentos do ciclo
   const { data: totalAdiantamentos = 0 } = useQuery({
     queryKey: ["t2-adiantamentos-total", ciclo?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("t2_adiantamentos").select("valor").eq("ciclo_id", ciclo.id);
+      const { data, error } = await (supabase as any).from("t2_adiantamentos").select("valor").eq("ciclo_id", ciclo.id);
       if (error) throw error;
       return data.reduce((sum: number, a: any) => sum + Number(a.valor), 0);
     },
@@ -44,7 +43,7 @@ export function ApuracaoDialog({ open, onOpenChange, ciclo }: ApuracaoDialogProp
   const mutation = useMutation({
     mutationFn: async () => {
       if (isInvalid) throw new Error("Valor devolvido inválido");
-      const { error } = await supabase.from("t2_apuracoes").insert({
+      const { error } = await (supabase as any).from("t2_apuracoes").insert({
         ciclo_id: ciclo.id,
         valor_kit: valorKit,
         valor_devolvido: devolvido,

@@ -34,7 +34,7 @@ export function PagamentoDialog({ open, onOpenChange, apuracao }: PagamentoDialo
   const mutation = useMutation({
     mutationFn: async () => {
       if (isInvalid) throw new Error('Valor inválido');
-      const { data, error } = await supabase.from('t2_pagamentos').insert({
+      const { data, error } = await (supabase as any).from('t2_pagamentos').insert({
         apuracao_id: apuracao.id,
         valor_pago: pago,
         forma_pagamento: formaPagamento || null,
@@ -46,9 +46,9 @@ export function PagamentoDialog({ open, onOpenChange, apuracao }: PagamentoDialo
 
       // If partial payment, update data_cobranca on the ciclo
       if (isPartial && novaDataCobranca) {
-        const { error: updateError } = await supabase
+        const { error: updateError } = await (supabase as any)
           .from('t2_ciclos')
-          .update({ data_cobranca: novaDataCobranca } as any)
+          .update({ data_cobranca: novaDataCobranca })
           .eq('id', apuracao.ciclo_id);
         if (updateError) {
           console.error("t2_ciclos UPDATE data_cobranca ERROR:", updateError);
