@@ -653,7 +653,7 @@ export default function GerenciarAgenda() {
                       <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                         <div className="text-right hidden sm:block">
                           <span className="text-sm font-medium text-foreground">
-                            {formatarValor(totalSemana)}
+                            {formatarValor(totalGrupo)}
                           </span>
                           <span className="text-xs text-muted-foreground block">previsto</span>
                         </div>
