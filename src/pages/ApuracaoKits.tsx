@@ -66,7 +66,7 @@ export default function ApuracaoKits() {
       if (buscaCodigo.length < 2) return [];
       const { data, error } = await supabase
         .from("cobrancas_agendadas")
-        .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome)")
+        .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome), prestacoes_contas!prestacoes_contas_cobranca_id_fkey(total_venda)")
         .ilike("codigo_nota", `%${buscaCodigo}%`)
         .limit(10);
       if (error) throw error;
