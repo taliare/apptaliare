@@ -208,77 +208,18 @@ export default function ApuracaoKits() {
     setResumoFinal(null);
   };
 
-  // Query: kits pendentes de apuração via notas_promissorias
+  // Query: kits pendentes de apuração direto de cobrancas_agendadas
   const { data: kitsPendentes = [], isLoading: loadingPendentes } = useQuery({
     queryKey: ["apuracao-kits-pendentes"],
     queryFn: async () => {
-      // 1. Buscar notas promissórias a partir de 01/04/2026 com cobranca_id preenchido
-      const { data: notas, error: errNotas } = await supabase
-        .from("notas_promissorias")
-        .select("*")
-        .gte("data", "2026-04-01")
-        .not("cobranca_id", "is", null);
-
-      if (errNotas) throw errNotas;
-      if (!notas || notas.length === 0) return [];
-
-      // 2. Buscar fechamentos finalizados a partir de 01/04/2026
-      const { data: fechamentos, error: errFech } = await supabase
-        .from("cobrancas_diarias")
-        .select("representante_id, data")
-        .eq("finalizado", true)
-        .gte("data", "2026-04-01");
-
-      if (errFech) throw errFech;
-      const fechamentoSet = new Set(
-        (fechamentos || []).map((f: any) => `${f.representante_id}|${f.data}`)
-      );
-
-      // 3. Buscar cobranças vinculadas
-      const cobrancaIds = [...new Set(notas.map((n: any) => n.cobranca_id))];
-      const { data: cobrancas, error: errCob } = await supabase
+      const { data, error } = await supabase
         .from("cobrancas_agendadas")
         .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome)")
-        .in("id", cobrancaIds);
+        .eq("apurado", false)
+        .eq("status", "pago" as any);
 
-      if (errCob) throw errCob;
-      const cobrancaMap = new Map((cobrancas || []).map((c: any) => [c.id, c]));
-
-      // 4. Filtrar notas elegíveis e deduplificar por cobranca_id
-      const seen = new Set<string>();
-      const resultado: any[] = [];
-
-      for (const np of notas) {
-        // Deduplificar por cobranca_id
-        if (seen.has(np.cobranca_id)) continue;
-
-        const cobranca = cobrancaMap.get(np.cobranca_id);
-        if (!cobranca) continue;
-
-        // Status deve ser pago ou parcial
-        if (cobranca.status !== "pago" && cobranca.status !== "parcial") continue;
-
-        // Excluir já apuradas (campo apurado = true)
-        if (cobranca.apurado === true) continue;
-
-        // Excluir devolução total — não precisa de apuração de peças
-        if (np.devolveu_tudo === true) continue;
-
-        // Verificar fechamento finalizado NA MESMA DATA da nota promissória
-        const temFechamento = fechamentoSet.has(`${np.representante_id}|${np.data}`);
-        if (!temFechamento) continue;
-
-        seen.add(np.cobranca_id);
-        resultado.push({
-          ...cobranca,
-          nota_promissoria_id: np.id,
-          codigo_nota_np: np.codigo_nota,
-          data_nota: np.data,
-          devolveu_tudo: np.devolveu_tudo,
-        });
-      }
-
-      return resultado;
+      if (error) throw error;
+      return data || [];
     },
     enabled: etapa === "busca",
   });
