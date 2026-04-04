@@ -1265,6 +1265,13 @@ export default function FechamentoDiario() {
                           const mapped = cobrancaIdMap[nota.cobranca_id];
                           revendedora = mapped.revendedora;
                           codigoPedido = mapped.codigo_nota;
+                        } else if (nota.codigo_nota?.startsWith('ADT-')) {
+                          // Adiantamento sem cobranca_id vinculado
+                          codigoPedido = undefined;
+                          const match = nota.codigo_nota.match(/^ADT-(.+?)-\d{14}$/);
+                          if (match) {
+                            revendedora = match[1];
+                          }
                         } else if (revendedoraMap[nota.codigo_nota]) {
                           revendedora = revendedoraMap[nota.codigo_nota];
                           codigoPedido = nota.codigo_nota;
