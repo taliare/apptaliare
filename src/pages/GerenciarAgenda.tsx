@@ -648,14 +648,15 @@ export default function GerenciarAgenda() {
                                   aria-label={`Selecionar semana ${semana}`}
                                 />
                               </TableHead>
-                              <TableHead>Representante</TableHead>
-                              <TableHead>Revendedora</TableHead>
-                              <TableHead>Código</TableHead>
-                              <TableHead>Valor do Kit</TableHead>
-                              <TableHead>Pago</TableHead>
-                              <TableHead>Data Vencimento</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Ações</TableHead>
+                              <TableHead className="min-w-[130px]">Representante</TableHead>
+                              <TableHead className="min-w-[130px]">Revendedora</TableHead>
+                              <TableHead className="min-w-[90px]">Código</TableHead>
+                              <TableHead className="min-w-[110px]">Valor do Kit</TableHead>
+                              <TableHead className="min-w-[100px]">Pago</TableHead>
+                              <TableHead className="min-w-[130px]">Saldo</TableHead>
+                              <TableHead className="min-w-[110px]">Data Vencimento</TableHead>
+                              <TableHead className="min-w-[120px]">Status</TableHead>
+                              <TableHead className="text-right min-w-[90px]">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
