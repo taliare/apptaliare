@@ -55,7 +55,7 @@ export default function T2PainelRede() {
 
       if (cycleIds.length > 0) {
         // Pagamentos via apuracoes
-        const { data: apurs } = await supabase
+        const { data: apurs } = await (supabase as any)
           .from("t2_apuracoes")
           .select("ciclo_id, id")
           .in("ciclo_id", cycleIds);
