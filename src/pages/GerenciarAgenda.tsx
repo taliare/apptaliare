@@ -552,22 +552,22 @@ export default function GerenciarAgenda() {
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Mês/Ano" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {(() => {
-                      const meses = [];
-                      const hoje = new Date();
-                      // Gerar 6 meses para trás e 6 meses para frente
-                      for (let i = -6; i <= 6; i++) {
-                        const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
-                        const valor = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
-                        const label = format(data, "MMMM/yyyy", { locale: ptBR });
-                        meses.push({ valor, label: label.charAt(0).toUpperCase() + label.slice(1) });
-                      }
-                      return meses.map((m) => (
-                        <SelectItem key={m.valor} value={m.valor}>{m.label}</SelectItem>
-                      ));
-                    })()}
-                  </SelectContent>
+                 <SelectContent>
+                     <SelectItem value="todas">Todas as notas</SelectItem>
+                     {(() => {
+                       const meses = [];
+                       const hoje = new Date();
+                       for (let i = -6; i <= 6; i++) {
+                         const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+                         const valor = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+                         const label = format(data, "MMMM/yyyy", { locale: ptBR });
+                         meses.push({ valor, label: label.charAt(0).toUpperCase() + label.slice(1) });
+                       }
+                       return meses.map((m) => (
+                         <SelectItem key={m.valor} value={m.valor}>{m.label}</SelectItem>
+                       ));
+                     })()}
+                   </SelectContent>
                 </Select>
                 <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
                   <SelectTrigger className="w-[180px]">
