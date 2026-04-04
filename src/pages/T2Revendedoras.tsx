@@ -47,7 +47,7 @@ export default function T2Revendedoras() {
   const { data: revendedoras = [], isLoading } = useQuery({
     queryKey: ['t2-revendedoras'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_revendedoras')
         .select('*')
         .order('data_cadastro', { ascending: false });
@@ -73,7 +73,7 @@ export default function T2Revendedoras() {
   const { data: ciclosRevendedora = [] } = useQuery({
     queryKey: ['t2-ciclos-rev', selectedId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_ciclos')
         .select('*, t2_pedidos(codigo_pedido)')
         .eq('revendedora_id', selectedId!)
@@ -89,7 +89,7 @@ export default function T2Revendedoras() {
   const { data: apuracoes = [] } = useQuery({
     queryKey: ['t2-apuracoes-rev', selectedId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_apuracoes')
         .select('*')
         .in('ciclo_id', cicloIds);
@@ -104,7 +104,7 @@ export default function T2Revendedoras() {
   const { data: pagamentos = [] } = useQuery({
     queryKey: ['t2-pagamentos-rev', selectedId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_pagamentos')
         .select('*')
         .in('apuracao_id', apuracaoIds);
@@ -117,7 +117,7 @@ export default function T2Revendedoras() {
   const { data: adiantamentos = [] } = useQuery({
     queryKey: ['t2-adiantamentos-rev', selectedId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_adiantamentos')
         .select('*')
         .in('ciclo_id', cicloIds);

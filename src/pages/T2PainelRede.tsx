@@ -23,7 +23,7 @@ export default function T2PainelRede() {
     setLoading(true);
     try {
       // 1. Ciclos ativos (status ativo ou apurado)
-      const { data: ciclos } = await supabase
+      const { data: ciclos } = await (supabase as any)
         .from("t2_ciclos")
         .select("id, revendedora_id, status, valor_empresa")
         .in("status", ["ativo", "apurado"]);
@@ -32,7 +32,7 @@ export default function T2PainelRede() {
       const uniqueResellers = new Set(activeCycles.map((c) => c.revendedora_id));
 
       // 2. Total vendido (sum de apuracoes.valor_vendido)
-      const { data: apuracoes } = await supabase
+      const { data: apuracoes } = await (supabase as any)
         .from("t2_apuracoes")
         .select("valor_vendido");
 
@@ -42,7 +42,7 @@ export default function T2PainelRede() {
       );
 
       // 3. Total a receber: para ciclos não encerrados, calcular saldo
-      const { data: allNonClosed } = await supabase
+      const { data: allNonClosed } = await (supabase as any)
         .from("t2_ciclos")
         .select("id, valor_empresa")
         .neq("status", "encerrado");
@@ -55,7 +55,7 @@ export default function T2PainelRede() {
 
       if (cycleIds.length > 0) {
         // Pagamentos via apuracoes
-        const { data: apurs } = await supabase
+        const { data: apurs } = await (supabase as any)
           .from("t2_apuracoes")
           .select("ciclo_id, id")
           .in("ciclo_id", cycleIds);
@@ -63,7 +63,7 @@ export default function T2PainelRede() {
         const apurIds = (apurs || []).map((a) => a.id);
 
         if (apurIds.length > 0) {
-          const { data: pags } = await supabase
+          const { data: pags } = await (supabase as any)
             .from("t2_pagamentos")
             .select("valor_pago, apuracao_id")
             .in("apuracao_id", apurIds);
@@ -74,7 +74,7 @@ export default function T2PainelRede() {
           );
         }
 
-        const { data: adiants } = await supabase
+        const { data: adiants } = await (supabase as any)
           .from("t2_adiantamentos")
           .select("valor, ciclo_id")
           .in("ciclo_id", cycleIds);

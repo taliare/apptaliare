@@ -34,7 +34,7 @@ export default function T2MeusKits() {
   const { data: pedidos = [], isLoading } = useQuery({
     queryKey: ['t2-meus-kits', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_pedidos')
         .select('*')
         .eq('representante_id', user?.id)
@@ -48,7 +48,7 @@ export default function T2MeusKits() {
   const { data: revendedoras = [] } = useQuery({
     queryKey: ['t2-revendedoras-para-entrega'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_revendedoras')
         .select('id, nome_completo, nome_exibicao');
       if (error) throw error;
@@ -100,7 +100,7 @@ export default function T2MeusKits() {
       }
       const valorKit = valorTotalSelecionado;
 
-      const { data: cicloData, error: cicloError } = await supabase
+      const { data: cicloData, error: cicloError } = await (supabase as any)
         .from('t2_ciclos')
         .insert({
           pedido_id: selectedPedidoIds[0],

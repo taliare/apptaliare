@@ -50,7 +50,7 @@ export default function T2Ciclos() {
   const { data: ciclos = [], isLoading } = useQuery({
     queryKey: ['t2-ciclos'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_ciclos')
         .select('*, t2_revendedoras(id, nome_completo, nome_exibicao, telefone, cidade, endereco_rua, endereco_numero, endereco_complemento, endereco_bairro, endereco_cep, endereco_estado), t2_pedidos(codigo_pedido)')
         .order('data_cobranca' as any, { ascending: true });
@@ -77,7 +77,7 @@ export default function T2Ciclos() {
   const { data: apuracoes = [] } = useQuery({
     queryKey: ['t2-apuracoes-for-ciclos'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_apuracoes')
         .select('id, ciclo_id, valor_empresa');
       if (error) throw error;
@@ -92,7 +92,7 @@ export default function T2Ciclos() {
     queryFn: async () => {
       if (apuracoes.length === 0) return [];
       const ids = apuracoes.map((a: any) => a.id);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_pagamentos')
         .select('apuracao_id, valor_pago')
         .in('apuracao_id', ids);
@@ -105,7 +105,7 @@ export default function T2Ciclos() {
   const { data: allAdiantamentos = [] } = useQuery({
     queryKey: ['t2-adiantamentos-all'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_adiantamentos')
         .select('ciclo_id, valor');
       if (error) throw error;
@@ -141,7 +141,7 @@ export default function T2Ciclos() {
   const { data: pedidosDisponiveis = [] } = useQuery({
     queryKey: ['t2-pedidos-disponiveis', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_pedidos')
         .select('id, codigo_pedido, valor_total')
         .eq('status', 'disponivel')
