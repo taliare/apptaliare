@@ -604,7 +604,8 @@ export default function Cobranca() {
           forma_pagamento_1: forma as any,
           valor_pagamento_1: valor,
           forma_pagamento_2: null,
-          valor_pagamento_2: null
+          valor_pagamento_2: null,
+          cobranca_id: cobrancaId
         });
 
       if (notaError) throw notaError;
