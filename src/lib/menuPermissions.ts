@@ -19,15 +19,6 @@ export const ASSIGNABLE_MENUS = [
   { key: 'relatorios', label: 'Relatórios', route: '/relatorios' },
   { key: 'usuarios', label: 'Usuários', route: '/usuarios' },
   { key: 'auditoria_geral', label: 'Auditoria Geral', route: '/auditoria-geral' },
-  { key: 't2_producao', label: 'T2 Produção', route: '/t2-producao' },
-  { key: 't2_revendedoras', label: 'T2 Revendedoras', route: '/t2-revendedoras' },
-  { key: 't2_ciclos', label: 'T2 Ciclos', route: '/t2-ciclos' },
-  { key: 't2_ranking', label: 'Ranking T2', route: '/t2-ranking' },
-  { key: 't2_radar', label: 'Radar da Rede', route: '/t2-radar' },
-  { key: 't2_inadimplencia', label: 'Inadimplência T2', route: '/t2-inadimplencia' },
-  { key: 't2_representantes_performance', label: 'Performance Reps', route: '/t2-representantes-performance' },
-  { key: 't2_financeiro', label: 'Financeiro T2', route: '/t2-financeiro' },
-  { key: 't2_painel_rede', label: 'Painel da Rede', route: '/t2-painel-rede' },
 ] as const;
 
 export type MenuKey = typeof ASSIGNABLE_MENUS[number]['key'];
@@ -53,15 +44,6 @@ export const MENU_EXTRA_CONFIG: Record<string, { iconName: string; category: str
   relatorios: { iconName: 'FileText', category: 'RELATÓRIOS' },
   usuarios: { iconName: 'Users', category: 'GESTÃO' },
   auditoria_geral: { iconName: 'ClipboardList', category: 'RELATÓRIOS' },
-  t2_producao: { iconName: 'Package', category: 'TALIARE 2.0' },
-  t2_revendedoras: { iconName: 'Users', category: 'TALIARE 2.0' },
-  t2_ciclos: { iconName: 'Target', category: 'TALIARE 2.0' },
-  t2_ranking: { iconName: 'TrendingUp', category: 'TALIARE 2.0' },
-  t2_radar: { iconName: 'BarChart3', category: 'TALIARE 2.0' },
-  t2_inadimplencia: { iconName: 'AlertTriangle', category: 'TALIARE 2.0' },
-  t2_representantes_performance: { iconName: 'LineChart', category: 'TALIARE 2.0' },
-  t2_financeiro: { iconName: 'Wallet', category: 'TALIARE 2.0' },
-  t2_painel_rede: { iconName: 'BarChart3', category: 'TALIARE 2.0' },
 };
 
 // Função para obter a chave do menu a partir da rota

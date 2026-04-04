@@ -89,15 +89,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         { title: 'Histórico de Ações', url: '/historico-acoes', icon: ClipboardList },
       ],
     },
-    {
-      label: "TALIARE 2.0",
-      items: [
-        { title: 'Revendedoras T2', url: '/t2-revendedoras', icon: Users },
-        { title: 'Meus Kits', url: '/t2-meus-kits', icon: Package },
-        { title: 'Ciclos T2', url: '/t2-ciclos', icon: Target },
-        { title: 'Produção T2', url: '/t2-producao', icon: Package },
-      ],
-    },
   ];
 
   const producaoCategories: MenuCategory[] = [
@@ -161,20 +152,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         { title: 'Auditoria Geral', url: '/auditoria-geral', icon: ClipboardList },
         { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload },
         { title: 'Relatórios', url: '/relatorios', icon: FileText },
-      ],
-    },
-    {
-      label: "TALIARE 2.0",
-      items: [
-        { title: 'Painel da Rede', url: '/t2-painel-rede', icon: Home },
-        { title: 'Produção T2', url: '/t2-producao', icon: Package },
-        { title: 'Revendedoras T2', url: '/t2-revendedoras', icon: Users },
-        { title: 'Ciclos T2', url: '/t2-ciclos', icon: Target },
-        { title: 'Ranking T2', url: '/t2-ranking', icon: TrendingUp },
-        { title: 'Radar da Rede', url: '/t2-radar', icon: BarChart3 },
-        { title: 'Performance Reps', url: '/t2-representantes-performance', icon: LineChart },
-        { title: 'Financeiro T2', url: '/t2-financeiro', icon: Wallet },
-        { title: 'Inadimplência', url: '/t2-inadimplencia', icon: AlertTriangle },
       ],
     },
   ];
