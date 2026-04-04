@@ -105,7 +105,7 @@ export default function T2Ciclos() {
   const { data: allAdiantamentos = [] } = useQuery({
     queryKey: ['t2-adiantamentos-all'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_adiantamentos')
         .select('ciclo_id, valor');
       if (error) throw error;
