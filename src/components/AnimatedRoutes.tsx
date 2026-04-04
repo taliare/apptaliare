@@ -33,16 +33,6 @@ import DreCategorias from '@/pages/DreCategorias';
 import AnaliseComercial from '@/pages/AnaliseComercial';
 import HistoricoAcoes from '@/pages/HistoricoAcoes';
 import AuditoriaGeral from '@/pages/AuditoriaGeral';
-import T2Producao from '@/pages/T2Producao';
-import T2Revendedoras from '@/pages/T2Revendedoras';
-import T2Ciclos from '@/pages/T2Ciclos';
-import T2Ranking from '@/pages/T2Ranking';
-import T2Inadimplencia from '@/pages/T2Inadimplencia';
-import T2RadarRede from '@/pages/T2RadarRede';
-import T2RepresentantesPerformance from '@/pages/T2RepresentantesPerformance';
-import T2Financeiro from '@/pages/T2Financeiro';
-import T2PainelRede from '@/pages/T2PainelRede';
-import T2MeusKits from '@/pages/T2MeusKits';
 import ApuracaoKits from '@/pages/ApuracaoKits';
 
 export function AnimatedRoutes() {
