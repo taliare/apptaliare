@@ -200,6 +200,8 @@ export default function ApuracaoKits() {
         valorComissao,
         valorEmpresa,
         resumo: data.resumo,
+        vendidoRepresentante,
+        divergencia,
       });
       setEtapa("confirmado");
       toast({ title: "Apuração concluída com sucesso!" });
