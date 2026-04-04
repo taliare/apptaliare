@@ -214,7 +214,7 @@ export default function ApuracaoKits() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cobrancas_agendadas")
-        .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome)")
+        .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome), prestacoes_contas!prestacoes_contas_cobranca_id_fkey(total_venda)")
         .eq("apurado", false)
         .eq("status", "pago" as any);
 
@@ -292,6 +292,13 @@ export default function ApuracaoKits() {
                             <div className="flex items-center gap-3 mt-0.5">
                               <span className="text-xs font-semibold text-foreground">R$ {fmt(Number(nota.valor_previsto))}</span>
                               <span className="text-xs text-muted-foreground">{nota.data_agendada}</span>
+                              <span className="text-xs text-amber-600 font-medium">
+                                Devolvido: R$ {fmt(
+                                  (nota as any).prestacoes_contas && (nota as any).prestacoes_contas.length > 0
+                                    ? Math.max(0, Number(nota.valor_previsto) - Number((nota as any).prestacoes_contas[0].total_venda))
+                                    : Number(nota.valor_previsto)
+                                )}
+                              </span>
                             </div>
                           </div>
                           <Button size="sm" variant="default" className="shrink-0 ml-2" onClick={() => selecionarNota(nota)}>
