@@ -27,7 +27,7 @@ export function AdiantamentoDialog({ open, onOpenChange, ciclo }: AdiantamentoDi
   const { data: totalAdiantamentos = 0 } = useQuery({
     queryKey: ['t2-adiantamentos-total', ciclo?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_adiantamentos')
         .select('valor')
         .eq('ciclo_id', ciclo.id);
@@ -45,7 +45,7 @@ export function AdiantamentoDialog({ open, onOpenChange, ciclo }: AdiantamentoDi
   const mutation = useMutation({
     mutationFn: async () => {
       if (isInvalid) throw new Error('Valor inválido');
-      const { data, error } = await supabase.from('t2_adiantamentos').insert({
+      const { data, error } = await (supabase as any).from('t2_adiantamentos').insert({
         ciclo_id: ciclo.id,
         revendedora_id: ciclo.revendedora_id,
         representante_id: ciclo.representante_id,

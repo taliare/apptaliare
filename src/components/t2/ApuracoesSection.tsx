@@ -18,7 +18,7 @@ export function ApuracoesSection({ cicloId }: ApuracoesSectionProps) {
   const { data: apuracoes = [] } = useQuery({
     queryKey: ['t2-apuracoes', cicloId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_apuracoes')
         .select('*')
         .eq('ciclo_id', cicloId)
@@ -33,7 +33,7 @@ export function ApuracoesSection({ cicloId }: ApuracoesSectionProps) {
     queryFn: async () => {
       if (apuracoes.length === 0) return [];
       const ids = apuracoes.map((a: any) => a.id);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_pagamentos')
         .select('*')
         .in('apuracao_id', ids)

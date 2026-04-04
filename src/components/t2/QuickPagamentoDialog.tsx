@@ -29,7 +29,7 @@ export function QuickPagamentoDialog({ open, onOpenChange, ciclo }: QuickPagamen
   const { data: apuracao } = useQuery({
     queryKey: ['t2-apuracao-ciclo', ciclo?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_apuracoes')
         .select('id, ciclo_id, valor_empresa, saldo_a_receber')
         .eq('ciclo_id', ciclo.id)
@@ -51,7 +51,7 @@ export function QuickPagamentoDialog({ open, onOpenChange, ciclo }: QuickPagamen
     mutationFn: async () => {
       if (!apuracao) throw new Error('Ciclo sem apuração');
       if (isInvalid) throw new Error('Valor inválido');
-      const { error } = await supabase.from('t2_pagamentos').insert({
+      const { error } = await (supabase as any).from('t2_pagamentos').insert({
         apuracao_id: apuracao.id,
         valor_pago: pago,
         forma_pagamento: formaPagamento || null,
@@ -61,9 +61,9 @@ export function QuickPagamentoDialog({ open, onOpenChange, ciclo }: QuickPagamen
       if (error) throw error;
 
       if (isPartial && novaDataCobranca) {
-        await supabase
+        await (supabase as any)
           .from('t2_ciclos')
-          .update({ data_cobranca: novaDataCobranca } as any)
+          .update({ data_cobranca: novaDataCobranca })
           .eq('id', ciclo.id);
       }
     },
