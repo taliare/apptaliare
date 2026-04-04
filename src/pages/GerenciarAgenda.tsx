@@ -625,29 +625,30 @@ export default function GerenciarAgenda() {
             </div>
           ) : (
             <div className="space-y-4">
-              {semanasOrdenadas.map((semana) => {
-                const isOpen = openWeeks[semana] ?? false;
-                const notasSemana = cobrancasPorSemana[semana];
-                const totalSemana = notasSemana.reduce((sum, c) => sum + c.valor_previsto, 0);
-                
-                return (
-                  <Collapsible 
-                    key={semana} 
-                    open={isOpen} 
-                    onOpenChange={() => toggleWeek(semana)}
-                    className="group"
-                  >
-                    <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 bg-card border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <ChevronRight 
-                          className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} 
-                        />
-                        <div className="flex flex-col items-start">
-                          <span className="font-semibold text-foreground">Semana {semana}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {notasSemana.length} nota{notasSemana.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
+              {gruposOrdenados.map((grupoKey) => {
+                 const isOpen = openGroups[grupoKey] ?? false;
+                 const notasGrupo = cobrancasPorGrupo[grupoKey];
+                 const totalGrupo = notasGrupo.reduce((sum, c) => sum + c.valor_previsto, 0);
+                 const grupoLabel = grupoLabels[grupoKey];
+                 
+                 return (
+                   <Collapsible 
+                     key={grupoKey} 
+                     open={isOpen} 
+                     onOpenChange={() => toggleGroup(grupoKey)}
+                     className="group"
+                   >
+                     <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 bg-card border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                       <div className="flex items-center gap-3">
+                         <ChevronRight 
+                           className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} 
+                         />
+                         <div className="flex flex-col items-start">
+                           <span className="font-semibold text-foreground">{grupoLabel}</span>
+                           <span className="text-xs text-muted-foreground">
+                             {notasGrupo.length} nota{notasGrupo.length !== 1 ? 's' : ''}
+                           </span>
+                         </div>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                         <div className="text-right hidden sm:block">
