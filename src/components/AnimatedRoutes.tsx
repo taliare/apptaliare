@@ -168,53 +168,6 @@ export function AnimatedRoutes() {
           </PermissionRoute>
         } />
         
-        {/* TALIARE 2.0 routes */}
-        <Route path="/t2-meus-kits" element={<T2MeusKits />} />
-        <Route path="/t2-painel-rede" element={
-          <PermissionRoute menuKey="t2_painel_rede">
-            <T2PainelRede />
-          </PermissionRoute>
-        } />
-        <Route path="/t2-producao" element={
-          <PermissionRoute menuKey="t2_producao">
-            <T2Producao />
-          </PermissionRoute>
-        } />
-        <Route path="/t2-revendedoras" element={
-          <PermissionRoute menuKey="t2_revendedoras">
-            <T2Revendedoras />
-          </PermissionRoute>
-        } />
-        <Route path="/t2-ciclos" element={
-          <PermissionRoute menuKey="t2_ciclos">
-            <T2Ciclos />
-          </PermissionRoute>
-        } />
-        <Route path="/t2-ranking" element={
-          <PermissionRoute menuKey="t2_ranking">
-            <T2Ranking />
-          </PermissionRoute>
-        } />
-        <Route path="/t2-radar" element={
-          <PermissionRoute menuKey="t2_radar">
-            <T2RadarRede />
-          </PermissionRoute>
-        } />
-        <Route path="/t2-representantes-performance" element={
-          <PermissionRoute menuKey="t2_representantes_performance">
-            <T2RepresentantesPerformance />
-          </PermissionRoute>
-        } />
-        <Route path="/t2-inadimplencia" element={
-          <PermissionRoute menuKey="t2_inadimplencia">
-            <T2Inadimplencia />
-          </PermissionRoute>
-        } />
-        <Route path="/t2-financeiro" element={
-          <PermissionRoute menuKey="t2_financeiro">
-            <T2Financeiro />
-          </PermissionRoute>
-        } />
         
         {/* Apuração de Kits - admin only */}
         <Route path="/apuracao" element={
