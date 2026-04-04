@@ -15,7 +15,7 @@ import { profilesLimited } from '@/lib/profilesLimited';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDate, getDay, startOfMonth, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Edit, Search, Plus, Trash2, CheckSquare, ChevronRight, Scale } from 'lucide-react';
+import { Edit, Search, Plus, Trash2, CheckSquare, ChevronRight, Scale, RefreshCw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, formatDateBR, parseLocalDate, getLocalDateString } from '@/lib/utils';
