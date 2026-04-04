@@ -19,15 +19,6 @@ export const ASSIGNABLE_MENUS = [
   { key: 'relatorios', label: 'Relatórios', route: '/relatorios' },
   { key: 'usuarios', label: 'Usuários', route: '/usuarios' },
   { key: 'auditoria_geral', label: 'Auditoria Geral', route: '/auditoria-geral' },
-  { key: 't2_producao', label: 'T2 Produção', route: '/t2-producao' },
-  { key: 't2_revendedoras', label: 'T2 Revendedoras', route: '/t2-revendedoras' },
-  { key: 't2_ciclos', label: 'T2 Ciclos', route: '/t2-ciclos' },
-  { key: 't2_ranking', label: 'Ranking T2', route: '/t2-ranking' },
-  { key: 't2_radar', label: 'Radar da Rede', route: '/t2-radar' },
-  { key: 't2_inadimplencia', label: 'Inadimplência T2', route: '/t2-inadimplencia' },
-  { key: 't2_representantes_performance', label: 'Performance Reps', route: '/t2-representantes-performance' },
-  { key: 't2_financeiro', label: 'Financeiro T2', route: '/t2-financeiro' },
-  { key: 't2_painel_rede', label: 'Painel da Rede', route: '/t2-painel-rede' },
 ] as const;
 
 export type MenuKey = typeof ASSIGNABLE_MENUS[number]['key'];
