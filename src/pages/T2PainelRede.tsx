@@ -32,7 +32,7 @@ export default function T2PainelRede() {
       const uniqueResellers = new Set(activeCycles.map((c) => c.revendedora_id));
 
       // 2. Total vendido (sum de apuracoes.valor_vendido)
-      const { data: apuracoes } = await supabase
+      const { data: apuracoes } = await (supabase as any)
         .from("t2_apuracoes")
         .select("valor_vendido");
 
