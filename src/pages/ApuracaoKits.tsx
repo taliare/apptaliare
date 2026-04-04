@@ -158,6 +158,15 @@ export default function ApuracaoKits() {
   const valorComissao = valorVendido * (percentual / 100);
   const valorEmpresa = valorVendido - valorComissao;
 
+  // Valor registrado pelo representante via prestação de contas
+  const vendidoRepresentante = useMemo(() => {
+    const pc = (notaSelecionada as any)?.prestacoes_contas;
+    if (pc && pc.length > 0) return Number(pc[0].total_venda);
+    return null;
+  }, [notaSelecionada]);
+
+  const divergencia = vendidoRepresentante !== null ? Math.abs(valorVendido - vendidoRepresentante) : null;
+
   // Finalizar apuração
   const finalizarMutation = useMutation({
     mutationFn: async () => {
