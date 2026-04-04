@@ -63,7 +63,7 @@ export default function T2PainelRede() {
         const apurIds = (apurs || []).map((a) => a.id);
 
         if (apurIds.length > 0) {
-          const { data: pags } = await supabase
+          const { data: pags } = await (supabase as any)
             .from("t2_pagamentos")
             .select("valor_pago, apuracao_id")
             .in("apuracao_id", apurIds);
