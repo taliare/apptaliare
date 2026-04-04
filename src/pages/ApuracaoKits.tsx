@@ -174,11 +174,12 @@ export default function ApuracaoKits() {
 
       const resumo = `Apuração: ${pecas.length} peça(s) devolvida(s) (R$ ${fmt(totalDevolvido)}). Vendido: R$ ${fmt(valorVendido)}. Comissão ${percentual}%: R$ ${fmt(valorComissao)}. Valor empresa: R$ ${fmt(valorEmpresa)}.`;
 
-      // Atualizar cobrança
+      // Salvar valor_kit_original ANTES de sobrescrever valor_previsto
       const { error: errUpdate } = await supabase
         .from("cobrancas_agendadas")
         .update({
           status: "pago" as any,
+          valor_kit_original: Number(notaSelecionada.valor_previsto),
           valor_previsto: valorEmpresa,
           data_quitacao: new Date().toISOString().split("T")[0],
           observacoes: resumo,

@@ -674,7 +674,11 @@ export default function GerenciarAgenda() {
                                 <TableCell>
                                   <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
                                 </TableCell>
-                                <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
+                                <TableCell>
+                                  {cobranca.status === 'pendente' || cobranca.status === 'reagendado'
+                                    ? formatarValor(cobranca.valor_kit_original || cobranca.valor_previsto)
+                                    : '-'}
+                                </TableCell>
                                 <TableCell>
                                   {(cobranca.valor_pago_acumulado || 0) > 0 
                                     ? formatarValor(cobranca.valor_pago_acumulado || 0) 
