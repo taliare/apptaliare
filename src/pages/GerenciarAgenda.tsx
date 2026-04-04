@@ -59,6 +59,11 @@ export default function GerenciarAgenda() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [detailCobranca, setDetailCobranca] = useState<Cobranca | null>(null);
+  const [detailPrestacao, setDetailPrestacao] = useState<any>(null);
+  const [detailNotas, setDetailNotas] = useState<any[]>([]);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   
   // Seleção em massa
