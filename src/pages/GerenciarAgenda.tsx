@@ -423,17 +423,19 @@ export default function GerenciarAgenda() {
     return weekNumber;
   };
 
-  // Filtrar cobranças por mês/ano primeiro e depois por outros filtros
-  const cobrancasFiltradas = cobrancas.filter((c) => {
-    // Filtro de mês/ano (principal)
-    const [anoFiltro, mesFiltro] = filtroMesAno.split('-').map(Number);
-    const dataCobranca = new Date(c.data_agendada + 'T12:00:00');
-    const mesCobranca = dataCobranca.getMonth() + 1;
-    const anoCobranca = dataCobranca.getFullYear();
-    
-    if (anoCobranca !== anoFiltro || mesCobranca !== mesFiltro) {
-      return false;
-    }
+   // Filtrar cobranças por mês/ano primeiro e depois por outros filtros
+   const cobrancasFiltradas = cobrancas.filter((c) => {
+     // Filtro de mês/ano (principal)
+     if (filtroMesAno !== 'todas') {
+       const [anoFiltro, mesFiltro] = filtroMesAno.split('-').map(Number);
+       const dataCobranca = new Date(c.data_agendada + 'T12:00:00');
+       const mesCobranca = dataCobranca.getMonth() + 1;
+       const anoCobranca = dataCobranca.getFullYear();
+       
+       if (anoCobranca !== anoFiltro || mesCobranca !== mesFiltro) {
+         return false;
+       }
+     }
     
     // Filtro de busca
     if (searchTerm) {
@@ -459,34 +461,53 @@ export default function GerenciarAgenda() {
     return true;
   });
 
-  // Agrupar cobranças por semana
-  const cobrancasPorSemana = cobrancasFiltradas.reduce((acc: Record<number, Cobranca[]>, cobranca) => {
-    const semana = getWeekOfMonth(cobranca.data_agendada);
-    if (!acc[semana]) {
-      acc[semana] = [];
-    }
-    acc[semana].push(cobranca);
-    return acc;
-  }, {});
+   // Agrupar cobranças por semana ou por mês (quando filtro = "todas")
+   const cobrancasPorGrupo: Record<string, Cobranca[]> = {};
+   const grupoLabels: Record<string, string> = {};
 
-  // Ordenar cada semana por data
-  Object.keys(cobrancasPorSemana).forEach(semana => {
-    cobrancasPorSemana[Number(semana)].sort((a, b) => 
-      parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime()
-    );
-  });
+   if (filtroMesAno === 'todas') {
+     // Agrupar por mês/ano
+     cobrancasFiltradas.forEach(cobranca => {
+       const d = new Date(cobranca.data_agendada + 'T12:00:00');
+       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+       if (!cobrancasPorGrupo[key]) {
+         cobrancasPorGrupo[key] = [];
+         const labelRaw = format(d, "MMMM 'de' yyyy", { locale: ptBR });
+         grupoLabels[key] = labelRaw.charAt(0).toUpperCase() + labelRaw.slice(1);
+       }
+       cobrancasPorGrupo[key].push(cobranca);
+     });
+   } else {
+     // Agrupar por semana do mês
+     cobrancasFiltradas.forEach(cobranca => {
+       const semana = getWeekOfMonth(cobranca.data_agendada);
+       const key = String(semana);
+       if (!cobrancasPorGrupo[key]) {
+         cobrancasPorGrupo[key] = [];
+         grupoLabels[key] = `Semana ${semana}`;
+       }
+       cobrancasPorGrupo[key].push(cobranca);
+     });
+   }
 
-  const semanasOrdenadas = Object.keys(cobrancasPorSemana).map(Number).sort((a, b) => a - b);
+   // Ordenar cada grupo por data
+   Object.keys(cobrancasPorGrupo).forEach(key => {
+     cobrancasPorGrupo[key].sort((a, b) => 
+       parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime()
+     );
+   });
 
-  // Estado para controlar quais semanas estão abertas - TODAS FECHADAS por padrão
-  const [openWeeks, setOpenWeeks] = useState<Record<number, boolean>>({});
+   const gruposOrdenados = Object.keys(cobrancasPorGrupo).sort();
 
-  const toggleWeek = (week: number) => {
-    setOpenWeeks(prev => ({
-      ...prev,
-      [week]: !prev[week]
-    }));
-  };
+   // Estado para controlar quais grupos estão abertos - TODOS FECHADOS por padrão
+   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+   const toggleGroup = (key: string) => {
+     setOpenGroups(prev => ({
+       ...prev,
+       [key]: !prev[key]
+     }));
+   };
 
   return (
     <div className="space-y-6">
@@ -504,13 +525,16 @@ export default function GerenciarAgenda() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            Agenda de {(() => {
-              const [ano, mes] = filtroMesAno.split('-').map(Number);
-              const data = new Date(ano, mes - 1, 1);
-              const label = format(data, "MMMM 'de' yyyy", { locale: ptBR });
-              return label.charAt(0).toUpperCase() + label.slice(1);
-            })()}
-          </CardTitle>
+             {filtroMesAno === 'todas'
+               ? 'Todas as Cobranças'
+               : (() => {
+                   const [ano, mes] = filtroMesAno.split('-').map(Number);
+                   const data = new Date(ano, mes - 1, 1);
+                   const label = format(data, "MMMM 'de' yyyy", { locale: ptBR });
+                   return 'Agenda de ' + label.charAt(0).toUpperCase() + label.slice(1);
+                 })()
+             }
+           </CardTitle>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex items-center gap-2 flex-1">
@@ -528,22 +552,22 @@ export default function GerenciarAgenda() {
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Mês/Ano" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {(() => {
-                      const meses = [];
-                      const hoje = new Date();
-                      // Gerar 6 meses para trás e 6 meses para frente
-                      for (let i = -6; i <= 6; i++) {
-                        const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
-                        const valor = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
-                        const label = format(data, "MMMM/yyyy", { locale: ptBR });
-                        meses.push({ valor, label: label.charAt(0).toUpperCase() + label.slice(1) });
-                      }
-                      return meses.map((m) => (
-                        <SelectItem key={m.valor} value={m.valor}>{m.label}</SelectItem>
-                      ));
-                    })()}
-                  </SelectContent>
+                 <SelectContent>
+                     <SelectItem value="todas">Todas as notas</SelectItem>
+                     {(() => {
+                       const meses = [];
+                       const hoje = new Date();
+                       for (let i = -6; i <= 6; i++) {
+                         const data = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+                         const valor = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+                         const label = format(data, "MMMM/yyyy", { locale: ptBR });
+                         meses.push({ valor, label: label.charAt(0).toUpperCase() + label.slice(1) });
+                       }
+                       return meses.map((m) => (
+                         <SelectItem key={m.valor} value={m.valor}>{m.label}</SelectItem>
+                       ));
+                     })()}
+                   </SelectContent>
                 </Select>
                 <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
                   <SelectTrigger className="w-[180px]">
@@ -601,43 +625,44 @@ export default function GerenciarAgenda() {
             </div>
           ) : (
             <div className="space-y-4">
-              {semanasOrdenadas.map((semana) => {
-                const isOpen = openWeeks[semana] ?? false;
-                const notasSemana = cobrancasPorSemana[semana];
-                const totalSemana = notasSemana.reduce((sum, c) => sum + c.valor_previsto, 0);
-                
-                return (
-                  <Collapsible 
-                    key={semana} 
-                    open={isOpen} 
-                    onOpenChange={() => toggleWeek(semana)}
-                    className="group"
-                  >
-                    <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 bg-card border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer">
-                      <div className="flex items-center gap-3">
-                        <ChevronRight 
-                          className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} 
-                        />
-                        <div className="flex flex-col items-start">
-                          <span className="font-semibold text-foreground">Semana {semana}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {notasSemana.length} nota{notasSemana.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
+              {gruposOrdenados.map((grupoKey) => {
+                 const isOpen = openGroups[grupoKey] ?? false;
+                 const notasGrupo = cobrancasPorGrupo[grupoKey];
+                 const totalGrupo = notasGrupo.reduce((sum, c) => sum + c.valor_previsto, 0);
+                 const grupoLabel = grupoLabels[grupoKey];
+                 
+                 return (
+                   <Collapsible 
+                     key={grupoKey} 
+                     open={isOpen} 
+                     onOpenChange={() => toggleGroup(grupoKey)}
+                     className="group"
+                   >
+                     <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 bg-card border border-border rounded-lg shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer">
+                       <div className="flex items-center gap-3">
+                         <ChevronRight 
+                           className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`} 
+                         />
+                         <div className="flex flex-col items-start">
+                           <span className="font-semibold text-foreground">{grupoLabel}</span>
+                           <span className="text-xs text-muted-foreground">
+                             {notasGrupo.length} nota{notasGrupo.length !== 1 ? 's' : ''}
+                           </span>
+                         </div>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
                         <div className="text-right hidden sm:block">
                           <span className="text-sm font-medium text-foreground">
-                            {formatarValor(totalSemana)}
+                            {formatarValor(totalGrupo)}
                           </span>
                           <span className="text-xs text-muted-foreground block">previsto</span>
                         </div>
                         {/* Resumo de status por semana */}
                         <div className="flex items-center gap-1">
                           {(() => {
-                            const pendentes = notasSemana.filter(c => c.status === 'pendente').length;
-                            const pagas = notasSemana.filter(c => c.status === 'pago').length;
-                            const juridico = notasSemana.filter(c => c.status === 'juridico').length;
+                            const pendentes = notasGrupo.filter(c => c.status === 'pendente').length;
+                             const pagas = notasGrupo.filter(c => c.status === 'pago').length;
+                             const juridico = notasGrupo.filter(c => c.status === 'juridico').length;
                             return (
                               <>
                                 {pendentes > 0 && (
@@ -668,19 +693,19 @@ export default function GerenciarAgenda() {
                             <TableRow className="hover:bg-transparent">
                               <TableHead className="w-[50px]">
                                 <Checkbox
-                                  checked={notasSemana.every(c => selectedIds.has(c.id))}
-                                  onCheckedChange={() => {
-                                    const weekIds = notasSemana.map(c => c.id);
-                                    const allSelected = weekIds.every(id => selectedIds.has(id));
-                                    const newSelected = new Set(selectedIds);
-                                    if (allSelected) {
-                                      weekIds.forEach(id => newSelected.delete(id));
-                                    } else {
-                                      weekIds.forEach(id => newSelected.add(id));
-                                    }
+                                  checked={notasGrupo.every(c => selectedIds.has(c.id))}
+                                   onCheckedChange={() => {
+                                     const groupIds = notasGrupo.map(c => c.id);
+                                    const allSelected = groupIds.every(id => selectedIds.has(id));
+                                     const newSelected = new Set(selectedIds);
+                                     if (allSelected) {
+                                       groupIds.forEach(id => newSelected.delete(id));
+                                     } else {
+                                       groupIds.forEach(id => newSelected.add(id));
+                                     }
                                     setSelectedIds(newSelected);
                                   }}
-                                  aria-label={`Selecionar semana ${semana}`}
+                                  aria-label={`Selecionar grupo ${grupoLabel}`}
                                 />
                               </TableHead>
                               <TableHead className="min-w-[130px]">Representante</TableHead>
@@ -695,7 +720,7 @@ export default function GerenciarAgenda() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {notasSemana.map((cobranca) => (
+                            {notasGrupo.map((cobranca) => (
                               <TableRow key={cobranca.id} className={`cursor-pointer ${selectedIds.has(cobranca.id) ? 'bg-primary/5' : ''}`} onClick={() => handleOpenDetail(cobranca)}>
                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                   <Checkbox
