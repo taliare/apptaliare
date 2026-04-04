@@ -92,7 +92,7 @@ export default function T2Ciclos() {
     queryFn: async () => {
       if (apuracoes.length === 0) return [];
       const ids = apuracoes.map((a: any) => a.id);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_pagamentos')
         .select('apuracao_id, valor_pago')
         .in('apuracao_id', ids);
