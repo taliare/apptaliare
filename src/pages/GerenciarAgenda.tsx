@@ -525,13 +525,16 @@ export default function GerenciarAgenda() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">
-            Agenda de {(() => {
-              const [ano, mes] = filtroMesAno.split('-').map(Number);
-              const data = new Date(ano, mes - 1, 1);
-              const label = format(data, "MMMM 'de' yyyy", { locale: ptBR });
-              return label.charAt(0).toUpperCase() + label.slice(1);
-            })()}
-          </CardTitle>
+             {filtroMesAno === 'todas'
+               ? 'Todas as Cobranças'
+               : (() => {
+                   const [ano, mes] = filtroMesAno.split('-').map(Number);
+                   const data = new Date(ano, mes - 1, 1);
+                   const label = format(data, "MMMM 'de' yyyy", { locale: ptBR });
+                   return 'Agenda de ' + label.charAt(0).toUpperCase() + label.slice(1);
+                 })()
+             }
+           </CardTitle>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex items-center gap-2 flex-1">
