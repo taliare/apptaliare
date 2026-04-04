@@ -59,6 +59,11 @@ export default function GerenciarAgenda() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [detailCobranca, setDetailCobranca] = useState<Cobranca | null>(null);
+  const [detailPrestacao, setDetailPrestacao] = useState<any>(null);
+  const [detailNotas, setDetailNotas] = useState<any[]>([]);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   
   // Seleção em massa
@@ -297,6 +302,36 @@ export default function GerenciarAgenda() {
       toast({ title: 'Erro ao encaminhar ao jurídico', variant: 'destructive' });
     },
   });
+
+  const handleOpenDetail = async (cobranca: Cobranca) => {
+    setDetailCobranca(cobranca);
+    setIsDetailOpen(true);
+    setLoadingDetail(true);
+    setDetailPrestacao(null);
+    setDetailNotas([]);
+
+    try {
+      // Buscar prestação de contas
+      const { data: pc } = await supabase
+        .from('prestacoes_contas')
+        .select('*')
+        .eq('cobranca_id', cobranca.id);
+
+      // Buscar notas promissórias
+      const { data: notas } = await supabase
+        .from('notas_promissorias')
+        .select('*')
+        .eq('cobranca_id', cobranca.id)
+        .order('data', { ascending: true });
+
+      setDetailPrestacao(pc && pc.length > 0 ? pc[0] : null);
+      setDetailNotas(notas || []);
+    } catch (err) {
+      console.error('Erro ao buscar detalhes:', err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
 
   const handleEdit = (cobranca: Cobranca) => {
     setEditingCobranca(cobranca);
@@ -661,8 +696,8 @@ export default function GerenciarAgenda() {
                           </TableHeader>
                           <TableBody>
                             {notasSemana.map((cobranca) => (
-                              <TableRow key={cobranca.id} className={selectedIds.has(cobranca.id) ? 'bg-primary/5' : ''}>
-                                <TableCell>
+                              <TableRow key={cobranca.id} className={`cursor-pointer ${selectedIds.has(cobranca.id) ? 'bg-primary/5' : ''}`} onClick={() => handleOpenDetail(cobranca)}>
+                                <TableCell onClick={(e) => e.stopPropagation()}>
                                   <Checkbox
                                     checked={selectedIds.has(cobranca.id)}
                                     onCheckedChange={() => toggleSelect(cobranca.id)}
@@ -674,7 +709,11 @@ export default function GerenciarAgenda() {
                                 <TableCell>
                                   <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
                                 </TableCell>
-                                <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
+                                <TableCell>
+                                  {cobranca.status === 'pendente' || cobranca.status === 'reagendado'
+                                    ? formatarValor(cobranca.valor_kit_original || cobranca.valor_previsto)
+                                    : '-'}
+                                </TableCell>
                                 <TableCell>
                                   {(cobranca.valor_pago_acumulado || 0) > 0 
                                     ? formatarValor(cobranca.valor_pago_acumulado || 0) 
@@ -705,7 +744,7 @@ export default function GerenciarAgenda() {
                                     );
                                   })()}
                                 </TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center justify-end gap-1">
                                     {['pendente', 'parcial', 'reagendado'].includes(cobranca.status) && (
                                       <TooltipProvider>
@@ -1031,6 +1070,122 @@ export default function GerenciarAgenda() {
               Alterar Status
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Detalhamento da Nota */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalhamento da Nota {detailCobranca?.codigo_nota || ''}</DialogTitle>
+          </DialogHeader>
+          {detailCobranca && (
+            <div className="space-y-5">
+              {/* Info geral */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Revendedora</span>
+                  <p className="font-medium">{detailCobranca.revendedora}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Representante</span>
+                  <p className="font-medium">{(detailCobranca.profiles as any)?.nome || 'N/A'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Valor Original do Kit</span>
+                  <p className="font-semibold">{formatarValor(detailCobranca.valor_kit_original || detailCobranca.valor_previsto)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Status</span>
+                  <div className="mt-0.5">
+                    {(() => {
+                      const smart = getSmartStatus(detailCobranca);
+                      return <Badge className={`${smart.color} border-0`}>{smart.label}</Badge>;
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Prestação de contas */}
+              {loadingDetail ? (
+                <div className="text-sm text-muted-foreground flex items-center gap-2 py-4">
+                  <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                  Carregando detalhes...
+                </div>
+              ) : (
+                <>
+                  {detailPrestacao && (
+                    <div className="border border-border rounded-lg p-4 space-y-2">
+                      <h3 className="text-sm font-semibold text-foreground">Prestação de Contas</h3>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Comissão</span>
+                          <p className="font-medium">{detailPrestacao.comissao_percentual}% — {formatarValor(detailPrestacao.comissao_valor)}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Total Vendido</span>
+                          <p className="font-medium">{formatarValor(detailPrestacao.total_venda)}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Valor Devido à Empresa</span>
+                          <p className="font-semibold">{formatarValor(detailPrestacao.valor_devido_empresa)}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Forma de Pagamento</span>
+                          <p className="font-medium capitalize">{detailPrestacao.forma_pagamento}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Histórico de pagamentos */}
+                  {detailNotas.length > 0 && (
+                    <div className="border border-border rounded-lg p-4 space-y-2">
+                      <h3 className="text-sm font-semibold text-foreground">Histórico de Pagamentos</h3>
+                      <div className="divide-y divide-border">
+                        {detailNotas.map((nota: any) => (
+                          <div key={nota.id} className="flex items-center justify-between py-2 text-sm">
+                            <div>
+                              <span className="font-mono text-xs text-muted-foreground mr-2">{nota.codigo_nota}</span>
+                              <span>{formatDateBR(nota.data)}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="capitalize text-xs text-muted-foreground">{nota.forma_pagamento_1}</span>
+                              <span className="font-semibold">{formatarValor(nota.valor_pagamento_1)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Resumo financeiro */}
+                  <div className="border border-border rounded-lg p-4 space-y-2 bg-muted/30">
+                    <h3 className="text-sm font-semibold text-foreground">Resumo Financeiro</h3>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Total Recebido</span>
+                        <p className="font-semibold text-green-700">
+                          {formatarValor((detailCobranca.valor_pago_acumulado || 0) + (detailCobranca.valor_adiantado || 0))}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Saldo Restante</span>
+                        <p className="font-semibold">
+                          {detailCobranca.status === 'pago'
+                            ? '-'
+                            : detailCobranca.status === 'parcial'
+                              ? formatarValor(Math.max(0, detailCobranca.valor_previsto - (detailCobranca.valor_pago_acumulado || 0) - (detailCobranca.valor_adiantado || 0)))
+                              : <span className="text-muted-foreground italic font-normal">Apuração pendente</span>
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
