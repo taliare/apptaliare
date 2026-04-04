@@ -693,9 +693,9 @@ export default function GerenciarAgenda() {
                             <TableRow className="hover:bg-transparent">
                               <TableHead className="w-[50px]">
                                 <Checkbox
-                                  checked={notasSemana.every(c => selectedIds.has(c.id))}
-                                  onCheckedChange={() => {
-                                    const weekIds = notasSemana.map(c => c.id);
+                                  checked={notasGrupo.every(c => selectedIds.has(c.id))}
+                                   onCheckedChange={() => {
+                                     const groupIds = notasGrupo.map(c => c.id);
                                     const allSelected = weekIds.every(id => selectedIds.has(id));
                                     const newSelected = new Set(selectedIds);
                                     if (allSelected) {
