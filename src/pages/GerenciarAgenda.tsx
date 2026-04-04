@@ -423,17 +423,19 @@ export default function GerenciarAgenda() {
     return weekNumber;
   };
 
-  // Filtrar cobranças por mês/ano primeiro e depois por outros filtros
-  const cobrancasFiltradas = cobrancas.filter((c) => {
-    // Filtro de mês/ano (principal)
-    const [anoFiltro, mesFiltro] = filtroMesAno.split('-').map(Number);
-    const dataCobranca = new Date(c.data_agendada + 'T12:00:00');
-    const mesCobranca = dataCobranca.getMonth() + 1;
-    const anoCobranca = dataCobranca.getFullYear();
-    
-    if (anoCobranca !== anoFiltro || mesCobranca !== mesFiltro) {
-      return false;
-    }
+   // Filtrar cobranças por mês/ano primeiro e depois por outros filtros
+   const cobrancasFiltradas = cobrancas.filter((c) => {
+     // Filtro de mês/ano (principal)
+     if (filtroMesAno !== 'todas') {
+       const [anoFiltro, mesFiltro] = filtroMesAno.split('-').map(Number);
+       const dataCobranca = new Date(c.data_agendada + 'T12:00:00');
+       const mesCobranca = dataCobranca.getMonth() + 1;
+       const anoCobranca = dataCobranca.getFullYear();
+       
+       if (anoCobranca !== anoFiltro || mesCobranca !== mesFiltro) {
+         return false;
+       }
+     }
     
     // Filtro de busca
     if (searchTerm) {
