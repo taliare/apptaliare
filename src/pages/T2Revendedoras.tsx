@@ -117,7 +117,7 @@ export default function T2Revendedoras() {
   const { data: adiantamentos = [] } = useQuery({
     queryKey: ['t2-adiantamentos-rev', selectedId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_adiantamentos')
         .select('*')
         .in('ciclo_id', cicloIds);

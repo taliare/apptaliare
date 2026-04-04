@@ -90,7 +90,7 @@ export default function T2Producao() {
   const distribuirMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPedido || !selectedRepresentante) throw new Error('Selecione um representante');
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('t2_pedidos')
         .update({ representante_id: selectedRepresentante, status: 'disponivel' })
         .eq('id', selectedPedido.id);

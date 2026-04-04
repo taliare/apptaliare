@@ -74,7 +74,7 @@ export default function T2PainelRede() {
           );
         }
 
-        const { data: adiants } = await supabase
+        const { data: adiants } = await (supabase as any)
           .from("t2_adiantamentos")
           .select("valor, ciclo_id")
           .in("ciclo_id", cycleIds);

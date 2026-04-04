@@ -100,7 +100,7 @@ export default function T2MeusKits() {
       }
       const valorKit = valorTotalSelecionado;
 
-      const { data: cicloData, error: cicloError } = await supabase
+      const { data: cicloData, error: cicloError } = await (supabase as any)
         .from('t2_ciclos')
         .insert({
           pedido_id: selectedPedidoIds[0],
