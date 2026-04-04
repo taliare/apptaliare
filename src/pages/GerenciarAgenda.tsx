@@ -720,7 +720,7 @@ export default function GerenciarAgenda() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {notasSemana.map((cobranca) => (
+                            {notasGrupo.map((cobranca) => (
                               <TableRow key={cobranca.id} className={`cursor-pointer ${selectedIds.has(cobranca.id) ? 'bg-primary/5' : ''}`} onClick={() => handleOpenDetail(cobranca)}>
                                 <TableCell onClick={(e) => e.stopPropagation()}>
                                   <Checkbox
