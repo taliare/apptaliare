@@ -120,6 +120,8 @@ export default function GerenciarAgenda() {
 
   const { data: cobrancas = [], isLoading } = useQuery({
     queryKey: ['todas-cobrancas-admin'],
+    staleTime: 0,
+    refetchOnMount: true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
