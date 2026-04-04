@@ -77,7 +77,7 @@ export default function T2Ciclos() {
   const { data: apuracoes = [] } = useQuery({
     queryKey: ['t2-apuracoes-for-ciclos'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_apuracoes')
         .select('id, ciclo_id, valor_empresa');
       if (error) throw error;
