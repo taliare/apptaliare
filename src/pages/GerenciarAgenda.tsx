@@ -696,13 +696,13 @@ export default function GerenciarAgenda() {
                                   checked={notasGrupo.every(c => selectedIds.has(c.id))}
                                    onCheckedChange={() => {
                                      const groupIds = notasGrupo.map(c => c.id);
-                                    const allSelected = weekIds.every(id => selectedIds.has(id));
-                                    const newSelected = new Set(selectedIds);
-                                    if (allSelected) {
-                                      weekIds.forEach(id => newSelected.delete(id));
-                                    } else {
-                                      weekIds.forEach(id => newSelected.add(id));
-                                    }
+                                    const allSelected = groupIds.every(id => selectedIds.has(id));
+                                     const newSelected = new Set(selectedIds);
+                                     if (allSelected) {
+                                       groupIds.forEach(id => newSelected.delete(id));
+                                     } else {
+                                       groupIds.forEach(id => newSelected.add(id));
+                                     }
                                     setSelectedIds(newSelected);
                                   }}
                                   aria-label={`Selecionar semana ${semana}`}
