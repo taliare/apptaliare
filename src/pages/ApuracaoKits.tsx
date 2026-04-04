@@ -291,7 +291,7 @@ export default function ApuracaoKits() {
                             </div>
                             <div className="flex items-center gap-3 mt-0.5">
                               <span className="text-xs font-semibold text-foreground">R$ {fmt(Number(nota.valor_previsto))}</span>
-                              <span className="text-xs text-muted-foreground">{nota.data_nota || nota.data_agendada}</span>
+                              <span className="text-xs text-muted-foreground">{nota.data_agendada}</span>
                             </div>
                           </div>
                           <Button size="sm" variant="default" className="shrink-0 ml-2" onClick={() => selecionarNota(nota)}>
