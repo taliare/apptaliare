@@ -696,7 +696,7 @@ export default function GerenciarAgenda() {
                           </TableHeader>
                           <TableBody>
                             {notasSemana.map((cobranca) => (
-                              <TableRow key={cobranca.id} className={selectedIds.has(cobranca.id) ? 'bg-primary/5' : ''}>
+                              <TableRow key={cobranca.id} className={`cursor-pointer ${selectedIds.has(cobranca.id) ? 'bg-primary/5' : ''}`} onClick={() => handleOpenDetail(cobranca)}>
                                 <TableCell>
                                   <Checkbox
                                     checked={selectedIds.has(cobranca.id)}
