@@ -461,24 +461,43 @@ export default function GerenciarAgenda() {
     return true;
   });
 
-  // Agrupar cobranças por semana
-  const cobrancasPorSemana = cobrancasFiltradas.reduce((acc: Record<number, Cobranca[]>, cobranca) => {
-    const semana = getWeekOfMonth(cobranca.data_agendada);
-    if (!acc[semana]) {
-      acc[semana] = [];
-    }
-    acc[semana].push(cobranca);
-    return acc;
-  }, {});
+   // Agrupar cobranças por semana ou por mês (quando filtro = "todas")
+   const cobrancasPorGrupo: Record<string, Cobranca[]> = {};
+   const grupoLabels: Record<string, string> = {};
 
-  // Ordenar cada semana por data
-  Object.keys(cobrancasPorSemana).forEach(semana => {
-    cobrancasPorSemana[Number(semana)].sort((a, b) => 
-      parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime()
-    );
-  });
+   if (filtroMesAno === 'todas') {
+     // Agrupar por mês/ano
+     cobrancasFiltradas.forEach(cobranca => {
+       const d = new Date(cobranca.data_agendada + 'T12:00:00');
+       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+       if (!cobrancasPorGrupo[key]) {
+         cobrancasPorGrupo[key] = [];
+         const labelRaw = format(d, "MMMM 'de' yyyy", { locale: ptBR });
+         grupoLabels[key] = labelRaw.charAt(0).toUpperCase() + labelRaw.slice(1);
+       }
+       cobrancasPorGrupo[key].push(cobranca);
+     });
+   } else {
+     // Agrupar por semana do mês
+     cobrancasFiltradas.forEach(cobranca => {
+       const semana = getWeekOfMonth(cobranca.data_agendada);
+       const key = String(semana);
+       if (!cobrancasPorGrupo[key]) {
+         cobrancasPorGrupo[key] = [];
+         grupoLabels[key] = `Semana ${semana}`;
+       }
+       cobrancasPorGrupo[key].push(cobranca);
+     });
+   }
 
-  const semanasOrdenadas = Object.keys(cobrancasPorSemana).map(Number).sort((a, b) => a - b);
+   // Ordenar cada grupo por data
+   Object.keys(cobrancasPorGrupo).forEach(key => {
+     cobrancasPorGrupo[key].sort((a, b) => 
+       parseLocalDate(a.data_agendada).getTime() - parseLocalDate(b.data_agendada).getTime()
+     );
+   });
+
+   const gruposOrdenados = Object.keys(cobrancasPorGrupo).sort();
 
   // Estado para controlar quais semanas estão abertas - TODAS FECHADAS por padrão
   const [openWeeks, setOpenWeeks] = useState<Record<number, boolean>>({});
