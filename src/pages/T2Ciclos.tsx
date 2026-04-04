@@ -141,7 +141,7 @@ export default function T2Ciclos() {
   const { data: pedidosDisponiveis = [] } = useQuery({
     queryKey: ['t2-pedidos-disponiveis', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_pedidos')
         .select('id, codigo_pedido, valor_total')
         .eq('status', 'disponivel')
