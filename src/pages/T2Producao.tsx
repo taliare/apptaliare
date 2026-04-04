@@ -64,7 +64,7 @@ export default function T2Producao() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.from('t2_pedidos').insert({
+      const { data, error } = await (supabase as any).from('t2_pedidos').insert({
         codigo_pedido: form.codigo_pedido.trim(),
         valor_total: parseFloat(form.valor_total),
         observacao: form.observacao || null,

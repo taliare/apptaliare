@@ -132,7 +132,7 @@ export default function T2Ciclos() {
   const { data: revendedoras = [] } = useQuery({
     queryKey: ['t2-revendedoras-para-ciclo'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('t2_revendedoras').select('id, nome_completo, nome_exibicao');
+      const { data, error } = await (supabase as any).from('t2_revendedoras').select('id, nome_completo, nome_exibicao');
       if (error) throw error;
       return data;
     },
@@ -180,7 +180,7 @@ export default function T2Ciclos() {
       const valorKit = valorTotalSelecionado;
       const comissaoPerc = Number(comissao);
       const valorEmpresa = valorKit * (1 - comissaoPerc / 100);
-      const { data: cicloData, error: cicloError } = await supabase.from('t2_ciclos').insert({
+      const { data: cicloData, error: cicloError } = await (supabase as any).from('t2_ciclos').insert({
         pedido_id: selectedPedidoIds[0],
         revendedora_id: selectedRevendedora,
         representante_id: user?.id,
@@ -199,10 +199,10 @@ export default function T2Ciclos() {
       }
       const cicloId = cicloData[0].id;
       const junctionRows = selectedPedidoIds.map(pid => ({ ciclo_id: cicloId, pedido_id: pid }));
-      const { error: junctionError } = await supabase.from('t2_ciclo_pedidos' as any).insert(junctionRows);
+      const { error: junctionError } = await (supabase as any).from('t2_ciclo_pedidos').insert(junctionRows);
       if (junctionError) throw junctionError;
       for (const pid of selectedPedidoIds) {
-        const { error: updateError } = await supabase.from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', pid);
+        const { error: updateError } = await (supabase as any).from('t2_pedidos').update({ status: 'em_ciclo' }).eq('id', pid);
         if (updateError) throw updateError;
       }
     },
