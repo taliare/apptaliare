@@ -47,7 +47,7 @@ export default function T2Revendedoras() {
   const { data: revendedoras = [], isLoading } = useQuery({
     queryKey: ['t2-revendedoras'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_revendedoras')
         .select('*')
         .order('data_cadastro', { ascending: false });
