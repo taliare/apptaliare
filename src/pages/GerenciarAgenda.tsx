@@ -705,7 +705,7 @@ export default function GerenciarAgenda() {
                                      }
                                     setSelectedIds(newSelected);
                                   }}
-                                  aria-label={`Selecionar semana ${semana}`}
+                                  aria-label={`Selecionar grupo ${grupoLabel}`}
                                 />
                               </TableHead>
                               <TableHead className="min-w-[130px]">Representante</TableHead>
