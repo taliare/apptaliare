@@ -303,6 +303,36 @@ export default function GerenciarAgenda() {
     },
   });
 
+  const handleOpenDetail = async (cobranca: Cobranca) => {
+    setDetailCobranca(cobranca);
+    setIsDetailOpen(true);
+    setLoadingDetail(true);
+    setDetailPrestacao(null);
+    setDetailNotas([]);
+
+    try {
+      // Buscar prestação de contas
+      const { data: pc } = await supabase
+        .from('prestacoes_contas')
+        .select('*')
+        .eq('cobranca_id', cobranca.id);
+
+      // Buscar notas promissórias
+      const { data: notas } = await supabase
+        .from('notas_promissorias')
+        .select('*')
+        .eq('cobranca_id', cobranca.id)
+        .order('data', { ascending: true });
+
+      setDetailPrestacao(pc && pc.length > 0 ? pc[0] : null);
+      setDetailNotas(notas || []);
+    } catch (err) {
+      console.error('Erro ao buscar detalhes:', err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
   const handleEdit = (cobranca: Cobranca) => {
     setEditingCobranca(cobranca);
     setFormData({
