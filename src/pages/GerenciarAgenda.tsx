@@ -37,20 +37,20 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
-  if (cobranca.status === 'pago') return { label: 'Pago', color: 'bg-green-500/10 text-green-700' };
-  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600' };
-  if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700' };
-  if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700' };
+  if (cobranca.status === 'pago') return { label: 'Pago', color: 'bg-green-500/15 text-green-700' };
+  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-amber-500/15 text-amber-700' };
+  if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/15 text-purple-700' };
+  if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/15 text-gray-700' };
   if (cobranca.status === 'reagendado') {
     const n = cobranca.contagem_reagendamentos || 1;
-    return { label: `Reagendada (${n}x)`, color: 'bg-orange-500/10 text-orange-700' };
+    return { label: `Reagendada (${n}x)`, color: 'bg-orange-500/15 text-orange-700' };
   }
   // pendente
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const dataCobranca = new Date(cobranca.data_agendada + 'T12:00:00');
-  if (dataCobranca < hoje) return { label: 'Vencida', color: 'bg-red-500/10 text-red-700' };
-  return { label: 'A vencer', color: 'bg-blue-500/10 text-blue-700' };
+  if (dataCobranca < hoje) return { label: 'Vencida', color: 'bg-red-500/15 text-red-700' };
+  return { label: 'A vencer', color: 'bg-blue-500/15 text-blue-700' };
 }
 
 export default function GerenciarAgenda() {
