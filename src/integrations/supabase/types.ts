@@ -187,6 +187,7 @@ export type Database = {
           status: Database["public"]["Enums"]["status_cobranca"] | null
           tipo: string | null
           valor_adiantado: number | null
+          valor_kit_original: number | null
           valor_pago_acumulado: number | null
           valor_previsto: number
           vendedora: string | null
@@ -208,6 +209,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_cobranca"] | null
           tipo?: string | null
           valor_adiantado?: number | null
+          valor_kit_original?: number | null
           valor_pago_acumulado?: number | null
           valor_previsto: number
           vendedora?: string | null
@@ -229,6 +231,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["status_cobranca"] | null
           tipo?: string | null
           valor_adiantado?: number | null
+          valor_kit_original?: number | null
           valor_pago_acumulado?: number | null
           valor_previsto?: number
           vendedora?: string | null
