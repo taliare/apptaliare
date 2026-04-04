@@ -514,9 +514,19 @@ export default function GerenciarAgenda() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Gerenciar Agenda de Cobranças</h1>
-          <p className="text-muted-foreground">Visualize, edite e cadastre cobranças do sistema</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Gerenciar Agenda de Cobranças</h1>
+            <p className="text-muted-foreground">Visualize, edite e cadastre cobranças do sistema</p>
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] })}
+            title="Atualizar dados"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
         <Button onClick={() => setIsCreateDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
