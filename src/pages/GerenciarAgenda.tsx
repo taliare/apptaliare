@@ -675,19 +675,35 @@ export default function GerenciarAgenda() {
                                   <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
                                 </TableCell>
                                 <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
-                                <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
                                 <TableCell>
-                                  {((cobranca as any).valor_pago_acumulado || 0) > 0 
-                                    ? formatarValor((cobranca as any).valor_pago_acumulado) 
+                                  {(cobranca.valor_pago_acumulado || 0) > 0 
+                                    ? formatarValor(cobranca.valor_pago_acumulado || 0) 
                                     : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {(() => {
+                                    const status = cobranca.status;
+                                    if (status === 'pago') return '-';
+                                    if (status === 'parcial') {
+                                      const saldo = cobranca.valor_previsto - (cobranca.valor_pago_acumulado || 0) - (cobranca.valor_adiantado || 0);
+                                      return formatarValor(Math.max(0, saldo));
+                                    }
+                                    // pendente (A vencer / Vencida)
+                                    return <span className="text-muted-foreground italic text-xs">Apuração pendente</span>;
+                                  })()}
                                 </TableCell>
                                 <TableCell>
                                   {formatDateBR(cobranca.data_agendada)}
                                 </TableCell>
                                 <TableCell>
-                                  <Badge className={getSmartStatus(cobranca).color}>
-                                    {getSmartStatus(cobranca).label}
-                                  </Badge>
+                                  {(() => {
+                                    const smart = getSmartStatus(cobranca);
+                                    return (
+                                      <Badge className={`${smart.color} border-0 whitespace-nowrap`}>
+                                        {smart.label}
+                                      </Badge>
+                                    );
+                                  })()}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex items-center justify-end gap-1">
