@@ -34,7 +34,7 @@ export default function T2MeusKits() {
   const { data: pedidos = [], isLoading } = useQuery({
     queryKey: ['t2-meus-kits', user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('t2_pedidos')
         .select('*')
         .eq('representante_id', user?.id)
