@@ -42,7 +42,7 @@ export default function T2PainelRede() {
       );
 
       // 3. Total a receber: para ciclos não encerrados, calcular saldo
-      const { data: allNonClosed } = await supabase
+      const { data: allNonClosed } = await (supabase as any)
         .from("t2_ciclos")
         .select("id, valor_empresa")
         .neq("status", "encerrado");
