@@ -23,7 +23,7 @@ export default function T2PainelRede() {
     setLoading(true);
     try {
       // 1. Ciclos ativos (status ativo ou apurado)
-      const { data: ciclos } = await supabase
+      const { data: ciclos } = await (supabase as any)
         .from("t2_ciclos")
         .select("id, revendedora_id, status, valor_empresa")
         .in("status", ["ativo", "apurado"]);
