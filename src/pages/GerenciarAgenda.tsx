@@ -37,20 +37,20 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
-  if (cobranca.status === 'pago') return { label: 'Pago', color: 'bg-green-500/10 text-green-700' };
-  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600' };
-  if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700' };
-  if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700' };
+  if (cobranca.status === 'pago') return { label: 'Pago', color: 'bg-green-500/15 text-green-700' };
+  if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-amber-500/15 text-amber-700' };
+  if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/15 text-purple-700' };
+  if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/15 text-gray-700' };
   if (cobranca.status === 'reagendado') {
     const n = cobranca.contagem_reagendamentos || 1;
-    return { label: `Reagendada (${n}x)`, color: 'bg-orange-500/10 text-orange-700' };
+    return { label: `Reagendada (${n}x)`, color: 'bg-orange-500/15 text-orange-700' };
   }
   // pendente
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const dataCobranca = new Date(cobranca.data_agendada + 'T12:00:00');
-  if (dataCobranca < hoje) return { label: 'Vencida', color: 'bg-red-500/10 text-red-700' };
-  return { label: 'A vencer', color: 'bg-blue-500/10 text-blue-700' };
+  if (dataCobranca < hoje) return { label: 'Vencida', color: 'bg-red-500/15 text-red-700' };
+  return { label: 'A vencer', color: 'bg-blue-500/15 text-blue-700' };
 }
 
 export default function GerenciarAgenda() {
@@ -648,14 +648,15 @@ export default function GerenciarAgenda() {
                                   aria-label={`Selecionar semana ${semana}`}
                                 />
                               </TableHead>
-                              <TableHead>Representante</TableHead>
-                              <TableHead>Revendedora</TableHead>
-                              <TableHead>Código</TableHead>
-                              <TableHead>Valor do Kit</TableHead>
-                              <TableHead>Pago</TableHead>
-                              <TableHead>Data Vencimento</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Ações</TableHead>
+                              <TableHead className="min-w-[130px]">Representante</TableHead>
+                              <TableHead className="min-w-[130px]">Revendedora</TableHead>
+                              <TableHead className="min-w-[90px]">Código</TableHead>
+                              <TableHead className="min-w-[110px]">Valor do Kit</TableHead>
+                              <TableHead className="min-w-[100px]">Pago</TableHead>
+                              <TableHead className="min-w-[130px]">Saldo</TableHead>
+                              <TableHead className="min-w-[110px]">Data Vencimento</TableHead>
+                              <TableHead className="min-w-[120px]">Status</TableHead>
+                              <TableHead className="text-right min-w-[90px]">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -674,19 +675,35 @@ export default function GerenciarAgenda() {
                                   <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
                                 </TableCell>
                                 <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
-                                <TableCell>{formatarValor(cobranca.valor_previsto)}</TableCell>
                                 <TableCell>
-                                  {((cobranca as any).valor_pago_acumulado || 0) > 0 
-                                    ? formatarValor((cobranca as any).valor_pago_acumulado) 
+                                  {(cobranca.valor_pago_acumulado || 0) > 0 
+                                    ? formatarValor(cobranca.valor_pago_acumulado || 0) 
                                     : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {(() => {
+                                    const status = cobranca.status;
+                                    if (status === 'pago') return '-';
+                                    if (status === 'parcial') {
+                                      const saldo = cobranca.valor_previsto - (cobranca.valor_pago_acumulado || 0) - (cobranca.valor_adiantado || 0);
+                                      return formatarValor(Math.max(0, saldo));
+                                    }
+                                    // pendente (A vencer / Vencida)
+                                    return <span className="text-muted-foreground italic text-xs">Apuração pendente</span>;
+                                  })()}
                                 </TableCell>
                                 <TableCell>
                                   {formatDateBR(cobranca.data_agendada)}
                                 </TableCell>
                                 <TableCell>
-                                  <Badge className={getSmartStatus(cobranca).color}>
-                                    {getSmartStatus(cobranca).label}
-                                  </Badge>
+                                  {(() => {
+                                    const smart = getSmartStatus(cobranca);
+                                    return (
+                                      <Badge className={`${smart.color} border-0 whitespace-nowrap`}>
+                                        {smart.label}
+                                      </Badge>
+                                    );
+                                  })()}
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex items-center justify-end gap-1">
