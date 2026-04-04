@@ -744,7 +744,7 @@ export default function GerenciarAgenda() {
                                     );
                                   })()}
                                 </TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center justify-end gap-1">
                                     {['pendente', 'parcial', 'reagendado'].includes(cobranca.status) && (
                                       <TooltipProvider>
