@@ -635,6 +635,38 @@ export default function ApuracaoKits() {
         </CardContent>
       </Card>
 
+      {/* Comparação representante vs apuração */}
+      <Card className={resumoFinal?.vendidoRepresentante !== null && resumoFinal?.divergencia !== null && resumoFinal?.divergencia > 0 ? "border-amber-500/50" : "border-green-500/50"}>
+        <CardContent className="pt-4 space-y-2">
+          <p className="text-sm font-semibold text-foreground mb-2">Comparação</p>
+          {resumoFinal?.vendidoRepresentante !== null ? (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Vendido pelo representante:</span>
+                <span className="font-semibold">R$ {fmt(resumoFinal?.vendidoRepresentante || 0)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Vendido pela apuração:</span>
+                <span className="font-semibold">R$ {fmt(resumoFinal?.valorVendido || 0)}</span>
+              </div>
+              {resumoFinal?.divergencia !== null && resumoFinal?.divergencia <= 0 ? (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-green-500/10">
+                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                  <span className="text-sm text-green-700 dark:text-green-400">Apuração confirmada — valores conferem</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                  <span className="text-sm text-amber-700 dark:text-amber-400">Divergência de R$ {fmt(resumoFinal?.divergencia || 0)} — verifique com o representante</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sem prestação de contas registrada para comparação.</p>
+          )}
+        </CardContent>
+      </Card>
+
       <Button className="w-full" size="lg" onClick={resetar}>
         Nova Apuração
       </Button>
