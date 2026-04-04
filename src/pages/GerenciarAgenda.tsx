@@ -499,15 +499,15 @@ export default function GerenciarAgenda() {
 
    const gruposOrdenados = Object.keys(cobrancasPorGrupo).sort();
 
-  // Estado para controlar quais semanas estão abertas - TODAS FECHADAS por padrão
-  const [openWeeks, setOpenWeeks] = useState<Record<number, boolean>>({});
+   // Estado para controlar quais grupos estão abertos - TODOS FECHADOS por padrão
+   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  const toggleWeek = (week: number) => {
-    setOpenWeeks(prev => ({
-      ...prev,
-      [week]: !prev[week]
-    }));
-  };
+   const toggleGroup = (key: string) => {
+     setOpenGroups(prev => ({
+       ...prev,
+       [key]: !prev[key]
+     }));
+   };
 
   return (
     <div className="space-y-6">
