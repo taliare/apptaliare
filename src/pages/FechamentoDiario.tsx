@@ -613,12 +613,18 @@ export default function FechamentoDiario() {
       const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
       const saldoAberto = cobranca.valor_previsto - novoAcumulado - valorAdiantado;
       
+      // apurado = true se não é o primeiro pagamento de kit, ou se é repasse
+      const isKitPrimeiroPagamento = 
+        cobranca.tipo?.toLowerCase() === 'kit' && 
+        (cobranca.valor_pago_acumulado || 0) === 0;
+
       const { error: updateError } = await supabase
         .from('cobrancas_agendadas')
         .update({
           status: (saldoAberto <= 0 ? 'pago' : 'parcial') as any,
           valor_pago_acumulado: novoAcumulado,
           data_quitacao: saldoAberto <= 0 ? dados.dataNota : null,
+          apurado: !isKitPrimeiroPagamento,
         })
         .eq('id', cobranca.id);
       if (updateError) throw updateError;
@@ -708,6 +714,12 @@ export default function FechamentoDiario() {
       const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
       updateData.status = saldoAberto <= 0 ? 'pago' : 'parcial';
       if (saldoAberto <= 0) updateData.data_quitacao = dados.dataNota;
+
+      // apurado = true se não é o primeiro pagamento de kit, ou se é repasse
+      const isKitPrimeiroPagamento = 
+        cobranca.tipo?.toLowerCase() === 'kit' && 
+        (cobranca.valor_pago_acumulado || 0) === 0;
+      updateData.apurado = !isKitPrimeiroPagamento;
 
       const { error: updateError } = await supabase
         .from('cobrancas_agendadas')
