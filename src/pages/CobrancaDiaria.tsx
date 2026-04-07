@@ -1179,7 +1179,7 @@ export default function CobrancaDiaria() {
             {isBlocked && (
               <Badge variant="default" className="text-xs">
                 <Lock className="h-3 w-3 mr-1" />
-                Finalizado
+                {isDiaFinalizado ? 'Finalizado' : 'Bloqueado'}
               </Badge>
             )}
           </h1>
@@ -1204,6 +1204,16 @@ export default function CobrancaDiaria() {
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Banner de dia bloqueado */}
+      {isReadOnly && !isDiaFinalizado && (
+        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 flex items-center gap-3">
+          <Lock className="h-5 w-5 text-yellow-600 shrink-0" />
+          <p className="text-sm text-yellow-700 dark:text-yellow-400">
+            Este dia está bloqueado. Apenas o administrador pode reabrir para edição.
+          </p>
+        </div>
+      )}
 
       {/* Etapa 1 — Cobranças */}
       <div className="rounded-xl border border-border overflow-hidden">
