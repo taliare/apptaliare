@@ -156,7 +156,8 @@ export default function ApuracaoKits() {
   const valorVendido = Math.max(0, valorKit - totalDevolvido);
   const { percentual, categoria } = getComissaoFaixa(valorVendido);
   const valorComissao = valorVendido * (percentual / 100);
-  const valorEmpresa = valorVendido - valorComissao;
+  const valorAdiantado = Number(notaSelecionada?.valor_adiantado || 0);
+  const valorEmpresa = Math.max(0, valorVendido - valorComissao - valorAdiantado);
 
   // Valor registrado pelo representante via prestação de contas
   const vendidoRepresentante = useMemo(() => {
@@ -172,7 +173,7 @@ export default function ApuracaoKits() {
     mutationFn: async () => {
       if (!notaSelecionada || !user) throw new Error("Dados incompletos");
 
-      const resumo = `Apuração: ${pecas.length} peça(s) devolvida(s) (R$ ${fmt(totalDevolvido)}). Vendido: R$ ${fmt(valorVendido)}. Comissão ${percentual}%: R$ ${fmt(valorComissao)}. Valor empresa: R$ ${fmt(valorEmpresa)}.`;
+      const resumo = `Apuração: ${pecas.length} peça(s) devolvida(s) (R$ ${fmt(totalDevolvido)}). Vendido: R$ ${fmt(valorVendido)}. Comissão ${percentual}%: R$ ${fmt(valorComissao)}.${valorAdiantado > 0 ? ` Adiantamento: R$ ${fmt(valorAdiantado)}.` : ''} Valor empresa: R$ ${fmt(valorEmpresa)}.`;
 
       // Salvar valor_kit_original ANTES de sobrescrever valor_previsto
       const novoStatus = valorEmpresa <= 0 ? 'pago' : 'parcial';
@@ -202,6 +203,7 @@ export default function ApuracaoKits() {
         percentual,
         categoria,
         valorComissao,
+        valorAdiantado,
         valorEmpresa,
         resumo: data.resumo,
         vendidoRepresentante,
@@ -502,6 +504,12 @@ export default function ApuracaoKits() {
               <span className="text-muted-foreground">Comissão ({percentual}%):</span>
               <span className="font-semibold">R$ {fmt(valorComissao)}</span>
             </div>
+            {valorAdiantado > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Adiantamento abatido:</span>
+                <span className="font-semibold text-green-600">- R$ {fmt(valorAdiantado)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm border-t border-border pt-2">
               <span className="font-medium text-muted-foreground">Valor a Receber (Empresa):</span>
               <span className="font-bold text-primary text-base">R$ {fmt(valorEmpresa)}</span>
@@ -632,6 +640,12 @@ export default function ApuracaoKits() {
             <span className="text-muted-foreground">Comissão ({resumoFinal?.percentual}%):</span>
             <span className="font-semibold">R$ {fmt(resumoFinal?.valorComissao || 0)}</span>
           </div>
+          {(resumoFinal?.valorAdiantado || 0) > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Adiantamento abatido:</span>
+              <span className="font-semibold text-green-600">- R$ {fmt(resumoFinal?.valorAdiantado || 0)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm border-t border-border pt-2">
             <span className="font-medium">Valor Empresa:</span>
             <span className="font-bold text-primary text-lg">R$ {fmt(resumoFinal?.valorEmpresa || 0)}</span>
