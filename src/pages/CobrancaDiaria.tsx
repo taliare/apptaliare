@@ -1176,7 +1176,7 @@ export default function CobrancaDiaria() {
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
             Fechamento do Dia
-            {isDiaFinalizado && (
+            {isBlocked && (
               <Badge variant="default" className="text-xs">
                 <Lock className="h-3 w-3 mr-1" />
                 Finalizado
@@ -1254,7 +1254,7 @@ export default function CobrancaDiaria() {
                       <span className={cn("font-semibold text-sm", isDevolveuTudo ? "text-orange-500" : "text-primary")}>
                         {formatarValor(nota.valor_total)}
                       </span>
-                      {!isDiaFinalizado && (
+                      {!isBlocked && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -1283,7 +1283,7 @@ export default function CobrancaDiaria() {
               })}
             </div>
           )}
-          {!isDiaFinalizado && (
+          {!isBlocked && (
             <Dialog open={isBuscarNotaDialogOpen} onOpenChange={(open) => { setIsBuscarNotaDialogOpen(open); if (!open) resetBuscarNotaForm(); }}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="w-full mt-1">
@@ -1353,7 +1353,7 @@ export default function CobrancaDiaria() {
                         <p key={a.id} className="text-xs text-amber-600">+ {a.descricao || 'Joia adicional'}: {formatarValor(a.valor)}</p>
                       ))}
                     </div>
-                    {!isDiaFinalizado && (
+                    {!isBlocked && (
                       <div className="flex items-center gap-1 ml-2 shrink-0">
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-amber-600" onClick={() => { setCobrancaParaAcrescimo({ id: entrega.id, kit_entregue_id: entrega.id, revendedora: entrega.revendedora, codigo_nota: entrega.codigo_nota, representante_id: user?.id || '', data_agendada: '', valor_previsto: 0, status: 'pendente' } as any); setModalAcrescimoOpen(true); }}>
                           <Plus className="h-3.5 w-3.5" />
@@ -1374,7 +1374,7 @@ export default function CobrancaDiaria() {
               })}
             </div>
           )}
-          {!isDiaFinalizado && (
+          {!isBlocked && (
             <Dialog open={isKitEntregaDialogOpen} onOpenChange={setIsKitEntregaDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="w-full mt-1" onClick={resetKitEntregaForm} disabled={kitsEstoque.length === 0}>
@@ -1437,7 +1437,7 @@ export default function CobrancaDiaria() {
             <Label className="text-xs">Despesas do dia</Label>
             <div className="relative mt-1">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-              <Input type="text" value={despesaCobranca} onChange={(e) => handleValorChange(e.target.value, setDespesaCobranca)} placeholder="0,00" className="pl-9" disabled={isDiaFinalizado} />
+              <Input type="text" value={despesaCobranca} onChange={(e) => handleValorChange(e.target.value, setDespesaCobranca)} placeholder="0,00" className="pl-9" disabled={isBlocked} />
             </div>
           </div>
           <div className="flex items-center justify-between pt-2 border-t">
@@ -1448,7 +1448,7 @@ export default function CobrancaDiaria() {
       </div>
 
       {/* Etapa 4 — Observações */}
-      {!isDiaFinalizado && (
+      {!isBlocked && (
         <div className="rounded-xl border border-border overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 bg-muted/40 border-b border-border">
             <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">4</div>
@@ -1462,7 +1462,7 @@ export default function CobrancaDiaria() {
       )}
 
       {/* Botão Finalizar */}
-      {!isDiaFinalizado && (() => {
+      {!isBlocked && (() => {
         const hoje = getLocalDateString(new Date());
         const ontem = getLocalDateString(new Date(new Date().setDate(new Date().getDate() - 1)));
         const podeFinalizar = dateStr === hoje || dateStr === ontem;
