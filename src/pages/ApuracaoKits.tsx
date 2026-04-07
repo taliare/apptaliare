@@ -175,13 +175,16 @@ export default function ApuracaoKits() {
       const resumo = `Apuração: ${pecas.length} peça(s) devolvida(s) (R$ ${fmt(totalDevolvido)}). Vendido: R$ ${fmt(valorVendido)}. Comissão ${percentual}%: R$ ${fmt(valorComissao)}. Valor empresa: R$ ${fmt(valorEmpresa)}.`;
 
       // Salvar valor_kit_original ANTES de sobrescrever valor_previsto
+      const novoStatus = valorEmpresa <= 0 ? 'pago' : 'parcial';
+
       const { error: errUpdate } = await supabase
         .from("cobrancas_agendadas")
         .update({
-          status: "pago" as any,
+          status: novoStatus as any,
           valor_kit_original: Number(notaSelecionada.valor_previsto),
           valor_previsto: valorEmpresa,
-          data_quitacao: new Date().toISOString().split("T")[0],
+          valor_pago_acumulado: 0,
+          data_quitacao: novoStatus === 'pago' ? new Date().toISOString().split("T")[0] : null,
           observacoes: resumo,
           apurado: true,
         })
@@ -228,7 +231,7 @@ export default function ApuracaoKits() {
         .from("cobrancas_agendadas")
         .select("*, profiles_limited!cobrancas_agendadas_representante_id_fkey(nome), prestacoes_contas!prestacoes_contas_cobranca_id_fkey(total_venda)")
         .eq("apurado", false)
-        .eq("status", "pago" as any);
+        .in("status", ["pago", "parcial"] as any);
 
       if (error) throw error;
       return data || [];
