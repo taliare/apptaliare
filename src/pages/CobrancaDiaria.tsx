@@ -1156,6 +1156,13 @@ export default function CobrancaDiaria() {
 
   const isDiaFinalizado = cobrancaDiaria?.finalizado === true;
 
+  // Bloqueio por data: dias anteriores são read-only para representantes
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const dataSelecionada = new Date(dateStr + 'T00:00:00');
+  const isReadOnly = dataSelecionada < hoje;
+  const isBlocked = isDiaFinalizado || isReadOnly;
+
   const handleOpenHistoricoDialog = (data: string) => {
     setSelectedHistoricoDate(data);
     setHistoricoDialogOpen(true);
