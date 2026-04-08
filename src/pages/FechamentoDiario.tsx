@@ -223,7 +223,7 @@ export default function FechamentoDiario() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('id, codigo_nota, revendedora, tipo')
+        .select('id, codigo_nota, revendedora, tipo, apurado')
         .eq('representante_id', selectedRepresentante);
       
       if (error) throw error;
@@ -1209,7 +1209,10 @@ export default function FechamentoDiario() {
           {(() => {
             const devolucoesEsperadas = notas.filter(nota => {
               if (nota.devolveu_tudo) return true;
-              if (nota.cobranca_id && cobrancaIdMap[nota.cobranca_id]?.tipo === 'kit') return true;
+              if (nota.cobranca_id) {
+                const cobranca = cobrancasAgendadas.find(c => c.id === nota.cobranca_id);
+                if (cobranca && cobranca.tipo === 'kit' && !cobranca.apurado) return true;
+              }
               return false;
             }).length;
             return devolucoesEsperadas > 0 ? (
