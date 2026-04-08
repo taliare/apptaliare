@@ -307,14 +307,14 @@ export default function ApuracaoKits() {
                               <span className="text-sm text-muted-foreground truncate">{nota.revendedora}</span>
                             </div>
                             <div className="flex items-center gap-3 mt-0.5">
-                              <span className="text-xs font-semibold text-foreground">R$ {fmt(Number(nota.valor_previsto))}</span>
+                              <span className="text-xs font-semibold text-foreground">R$ {fmt(Number((nota as any).valor_kit_original || nota.valor_previsto))}</span>
                               <span className="text-xs text-muted-foreground">{nota.data_agendada}</span>
                               <span className="text-xs text-amber-600 font-medium">
-                                Devolvido: R$ {fmt(
-                                  (nota as any).prestacoes_contas && (nota as any).prestacoes_contas.length > 0
-                                    ? Math.max(0, Number(nota.valor_previsto) - Number((nota as any).prestacoes_contas[0].total_venda))
-                                    : Number(nota.valor_previsto)
-                                )}
+                                Devolvido: R$ {fmt((() => {
+                                  const vk = Number((nota as any).valor_kit_original || nota.valor_previsto);
+                                  const tv = (nota as any).prestacoes_contas?.[0]?.total_venda;
+                                  return tv !== undefined ? Math.max(0, vk - Number(tv)) : vk;
+                                })())}
                               </span>
                             </div>
                           </div>
@@ -372,7 +372,7 @@ export default function ApuracaoKits() {
                         {nota.revendedora} • {nota.profiles_limited?.nome || "—"}
                       </p>
                       <p className="text-sm font-semibold text-foreground">
-                        Kit: R$ {fmt(Number(nota.valor_previsto))}
+                        Kit: R$ {fmt(Number((nota as any).valor_kit_original || nota.valor_previsto))}
                       </p>
                     </div>
                     <Button size="sm" onClick={() => selecionarNota(nota)}>
