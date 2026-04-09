@@ -1528,6 +1528,7 @@ export default function FechamentoDiario() {
             valor_previsto: cobrancaParaPagar.valor_previsto,
             tipo: cobrancaParaPagar.tipo,
             valor_adiantado: cobrancaParaPagar.valor_adiantado,
+            status: cobrancaParaPagar.status,
           }}
           valor_pago_acumulado={cobrancaParaPagar.valor_pago_acumulado || 0}
           diasNaoFinalizados={[]}
