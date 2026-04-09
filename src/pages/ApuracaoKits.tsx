@@ -153,7 +153,7 @@ export default function ApuracaoKits() {
   // Cálculos
   const totalDevolvido = pecas.reduce((sum, p) => sum + p.valor, 0);
   const valorKit = Number(notaSelecionada?.valor_kit_original || notaSelecionada?.valor_previsto || 0);
-  const valorVendido = Math.max(0, valorKit - totalDevolvido);
+  const valorVendido = valorKit - totalDevolvido;
   const { percentual, categoria } = getComissaoFaixa(valorVendido);
   const valorComissao = valorVendido * (percentual / 100);
   const valorAdiantado = Number(notaSelecionada?.valor_adiantado || 0);
@@ -166,7 +166,7 @@ export default function ApuracaoKits() {
     return null;
   }, [notaSelecionada]);
 
-  const divergencia = vendidoRepresentante !== null ? Math.abs(valorVendido - vendidoRepresentante) : null;
+  const divergencia = vendidoRepresentante !== null ? valorVendido - vendidoRepresentante : null;
 
   // Finalizar apuração
   const finalizarMutation = useMutation({
@@ -517,9 +517,19 @@ export default function ApuracaoKits() {
           </CardContent>
         </Card>
 
+        {/* Alerta valor vendido negativo */}
+        {valorVendido < 0 && (
+          <div className="flex items-center gap-2 p-2 rounded-md bg-red-500/10">
+            <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+            <span className="text-sm text-red-700">
+              Total devolvido (R$ {fmt(totalDevolvido)}) supera o valor do kit (R$ {fmt(valorKit)}) em R$ {fmt(Math.abs(valorVendido))} — verifique os itens bipados
+            </span>
+          </div>
+        )}
+
         {/* Comparação representante vs apuração */}
         {pecas.length > 0 && (
-          <Card className={vendidoRepresentante !== null && divergencia !== null && divergencia > 0 ? "border-amber-500/50" : "border-green-500/50"}>
+          <Card className={vendidoRepresentante !== null && divergencia !== null && divergencia !== 0 ? "border-amber-500/50" : "border-green-500/50"}>
             <CardContent className="pt-4 space-y-2">
               <p className="text-sm font-semibold text-foreground mb-2">Comparação</p>
               {vendidoRepresentante !== null ? (
@@ -532,17 +542,21 @@ export default function ApuracaoKits() {
                     <span className="text-muted-foreground">Vendido pela apuração:</span>
                     <span className="font-semibold">R$ {fmt(valorVendido)}</span>
                   </div>
-                  {divergencia !== null && divergencia <= 0 ? (
+                  {divergencia !== null && divergencia === 0 ? (
                     <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-green-500/10">
                       <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
                       <span className="text-sm text-green-700 dark:text-green-400">Apuração confirmada — valores conferem</span>
                     </div>
-                  ) : (
+                  ) : divergencia !== null ? (
                     <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-amber-500/10">
                       <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-                      <span className="text-sm text-amber-700 dark:text-amber-400">Divergência de R$ {fmt(divergencia || 0)} — verifique com o representante</span>
+                      <span className="text-sm text-amber-700 dark:text-amber-400">
+                        {divergencia > 0
+                          ? `Apuração física aponta R$ ${fmt(Math.abs(divergencia))} a MAIS que o representante registrou — verifique se faltou bipar alguma peça`
+                          : `Apuração física aponta R$ ${fmt(Math.abs(divergencia))} a MENOS que o representante registrou — verifique se foi bipado algo a mais`}
+                      </span>
                     </div>
-                  )}
+                  ) : null}
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">Sem prestação de contas registrada para comparação.</p>
