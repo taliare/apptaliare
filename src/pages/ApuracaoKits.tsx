@@ -152,7 +152,7 @@ export default function ApuracaoKits() {
 
   // Cálculos
   const totalDevolvido = pecas.reduce((sum, p) => sum + p.valor, 0);
-  const valorKit = Number(notaSelecionada?.valor_previsto || 0);
+  const valorKit = Number(notaSelecionada?.valor_kit_original || notaSelecionada?.valor_previsto || 0);
   const valorVendido = Math.max(0, valorKit - totalDevolvido);
   const { percentual, categoria } = getComissaoFaixa(valorVendido);
   const valorComissao = valorVendido * (percentual / 100);
