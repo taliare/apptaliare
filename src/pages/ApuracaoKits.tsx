@@ -481,52 +481,6 @@ export default function ApuracaoKits() {
           </Card>
         )}
 
-        {/* Totais */}
-        <Card className="border-primary/30">
-          <CardContent className="pt-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Total Devolvido:</span>
-              <span className="font-semibold">R$ {fmt(totalDevolvido)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Valor do Kit:</span>
-              <span className="font-semibold">R$ {fmt(valorKit)}</span>
-            </div>
-            <div className="flex justify-between text-sm border-t border-border pt-2">
-              <span className="text-muted-foreground">Valor Vendido:</span>
-              <span className="font-bold text-foreground">R$ {fmt(valorVendido)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Categoria:</span>
-              <span className="font-semibold">{categoria}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Comissão ({percentual}%):</span>
-              <span className="font-semibold">R$ {fmt(valorComissao)}</span>
-            </div>
-            {valorAdiantado > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Adiantamento abatido:</span>
-                <span className="font-semibold text-green-600">- R$ {fmt(valorAdiantado)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-sm border-t border-border pt-2">
-              <span className="font-medium text-muted-foreground">Valor a Receber (Empresa):</span>
-              <span className="font-bold text-primary text-base">R$ {fmt(valorEmpresa)}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Alerta valor vendido negativo */}
-        {valorVendido < 0 && (
-          <div className="flex items-center gap-2 p-2 rounded-md bg-red-500/10">
-            <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-            <span className="text-sm text-red-700">
-              Total devolvido (R$ {fmt(totalDevolvido)}) supera o valor do kit (R$ {fmt(valorKit)}) em R$ {fmt(Math.abs(valorVendido))} — verifique os itens bipados
-            </span>
-          </div>
-        )}
-
         {/* Comparação representante vs apuração */}
         {pecas.length > 0 && (
           <Card className={vendidoRepresentante !== null && divergencia !== null && divergencia !== 0 ? "border-amber-500/50" : "border-green-500/50"}>
@@ -564,6 +518,52 @@ export default function ApuracaoKits() {
             </CardContent>
           </Card>
         )}
+
+        {/* Alerta valor vendido negativo */}
+        {valorVendido < 0 && (
+          <div className="flex items-center gap-2 p-2 rounded-md bg-red-500/10">
+            <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+            <span className="text-sm text-red-700">
+              Total devolvido (R$ {fmt(totalDevolvido)}) supera o valor do kit (R$ {fmt(valorKit)}) em R$ {fmt(Math.abs(valorVendido))} — verifique os itens bipados
+            </span>
+          </div>
+        )}
+
+        {/* Totais */}
+        <Card className="border-primary/30">
+          <CardContent className="pt-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Total Devolvido:</span>
+              <span className="font-semibold">R$ {fmt(totalDevolvido)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Valor do Kit:</span>
+              <span className="font-semibold">R$ {fmt(valorKit)}</span>
+            </div>
+            <div className="flex justify-between text-sm border-t border-border pt-2">
+              <span className="text-muted-foreground">Valor Vendido:</span>
+              <span className="font-bold text-foreground">R$ {fmt(valorVendido)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Categoria:</span>
+              <span className="font-semibold">{categoria}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Comissão ({percentual}%):</span>
+              <span className="font-semibold">R$ {fmt(valorComissao)}</span>
+            </div>
+            {valorAdiantado > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Adiantamento abatido:</span>
+                <span className="font-semibold text-green-600">- R$ {fmt(valorAdiantado)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm border-t border-border pt-2">
+              <span className="font-medium text-muted-foreground">Valor a Receber (Empresa):</span>
+              <span className="font-bold text-primary text-base">R$ {fmt(valorEmpresa)}</span>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Botão finalizar */}
         <Button
