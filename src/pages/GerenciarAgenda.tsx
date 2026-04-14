@@ -1195,15 +1195,26 @@ export default function GerenciarAgenda() {
                       <h3 className="text-sm font-semibold text-foreground">Histórico de Pagamentos</h3>
                       <div className="divide-y divide-border">
                         {detailNotas.map((nota: any) => (
-                          <div key={nota.id} className="flex items-center justify-between py-2 text-sm">
-                            <div>
-                              <span className="font-mono text-xs text-muted-foreground mr-2">{nota.codigo_nota}</span>
-                              <span>{formatDateBR(nota.data)}</span>
+                          <div key={nota.id} className="flex flex-col py-2 text-sm">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="font-mono text-xs text-muted-foreground mr-2">{nota.codigo_nota}</span>
+                                <span>{formatDateBR(nota.data)}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="capitalize text-xs text-muted-foreground">{nota.forma_pagamento_1}</span>
+                                <span className="font-semibold">{formatarValor(nota.valor_pagamento_1)}</span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <span className="capitalize text-xs text-muted-foreground">{nota.forma_pagamento_1}</span>
-                              <span className="font-semibold">{formatarValor(nota.valor_pagamento_1)}</span>
-                            </div>
+                            {nota.forma_pagamento_2 && nota.valor_pagamento_2 && (
+                              <div className="flex items-center justify-between mt-1 pl-2">
+                                <span className="text-xs text-muted-foreground">+ segundo pagamento</span>
+                                <div className="flex items-center gap-3">
+                                  <span className="capitalize text-xs text-muted-foreground">{nota.forma_pagamento_2}</span>
+                                  <span className="font-semibold">{formatarValor(nota.valor_pagamento_2)}</span>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
