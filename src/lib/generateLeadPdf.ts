@@ -249,13 +249,14 @@ export async function generateLeadPdf(
   }
 
   const nomeArquivo = `${lead.nome.trim().replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, "").replace(/\s+/g, "_")}.pdf`;
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nomeArquivo;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+  try {
+    doc.save(nomeArquivo);
+  } catch {
+    // Fallback: open in new tab if save fails (e.g. in sandboxed iframes)
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
 }
