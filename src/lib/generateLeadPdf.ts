@@ -250,13 +250,23 @@ export async function generateLeadPdf(
 
   const nomeArquivo = `${lead.nome.trim().replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, "").replace(/\s+/g, "_")}.pdf`;
 
-  try {
+  // Safari doesn't support the download attribute on anchor elements
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  if (isSafari) {
+    // Safari fallback: open PDF inline so user can save manually
+    const pdfDataUri = doc.output("datauristring");
+    const newWindow = window.open();
+    if (newWindow) {
+      newWindow.document.write(
+        `<html><head><title>${nomeArquivo}</title></head><body style="margin:0"><iframe src="${pdfDataUri}" style="width:100%;height:100%;border:none"></iframe></body></html>`
+      );
+      newWindow.document.close();
+    } else {
+      // If popup blocked, fallback to dataurl
+      doc.output("dataurlnewwindow");
+    }
+  } else {
     doc.save(nomeArquivo);
-  } catch {
-    // Fallback: open in new tab if save fails (e.g. in sandboxed iframes)
-    const blob = doc.output("blob");
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 }
