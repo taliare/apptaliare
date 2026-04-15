@@ -248,7 +248,14 @@ export async function generateLeadPdf(
     doc.text(`Página ${i} de ${totalPages}`, PAGE_WIDTH - MARGIN - 25, 290);
   }
 
+  const nomeArquivo = `${lead.nome.trim().replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, "").replace(/\s+/g, "_")}.pdf`;
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
