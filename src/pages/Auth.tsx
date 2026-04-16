@@ -77,116 +77,11 @@ export default function Auth() {
   const showLoading = isSubmitting || (user && !profile);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Background com luzes animadas */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Orb principal vermelho - canto superior direito */}
-        <div 
-          className="absolute -top-[20%] -right-[15%] w-[500px] h-[500px] md:w-[600px] md:h-[600px] animate-orb-float-slow"
-          style={{ animationDelay: '0s' }}
-        >
-          <div className={`w-full h-full rounded-full animate-glow-pulse ${isDark ? 'bg-primary/40' : 'bg-primary/55'}`} />
-        </div>
-        
-        {/* Orb secundário vermelho - canto inferior esquerdo */}
-        <div 
-          className="absolute -bottom-[25%] -left-[20%] w-[400px] h-[400px] md:w-[500px] md:h-[500px] animate-orb-float-medium"
-          style={{ animationDelay: '-5s' }}
-        >
-          <div 
-            className={`w-full h-full rounded-full animate-glow-breathe ${isDark ? 'bg-primary/35' : 'bg-primary/50'}`}
-            style={{ animationDelay: '-2s' }} 
-          />
-        </div>
-        
-        {/* Orb terciário vermelho - centro-esquerda */}
-        <div 
-          className="absolute top-[30%] -left-[10%] w-[300px] h-[300px] md:w-[400px] md:h-[400px] animate-orb-float-fast"
-          style={{ animationDelay: '-3s' }}
-        >
-          <div 
-            className={`w-full h-full rounded-full animate-glow-pulse ${isDark ? 'bg-primary/30' : 'bg-primary/45'}`}
-            style={{ animationDelay: '-1s' }} 
-          />
-        </div>
-        
-        {/* Orb quaternário vermelho - topo centro */}
-        <div 
-          className="absolute -top-[10%] left-[25%] w-[280px] h-[280px] md:w-[350px] md:h-[350px] animate-orb-float-medium"
-          style={{ animationDelay: '-8s' }}
-        >
-          <div 
-            className={`w-full h-full rounded-full animate-glow-breathe ${isDark ? 'bg-primary/32' : 'bg-primary/48'}`}
-            style={{ animationDelay: '-4s' }} 
-          />
-        </div>
-        
-        {/* Orb pequeno vermelho - inferior direito */}
-        <div 
-          className="absolute bottom-[20%] right-[10%] w-[200px] h-[200px] md:w-[250px] md:h-[250px] animate-orb-float-slow"
-          style={{ animationDelay: '-10s' }}
-        >
-          <div 
-            className={`w-full h-full rounded-full animate-glow-fade ${isDark ? 'bg-primary/38' : 'bg-primary/52'}`}
-            style={{ animationDelay: '-3s' }} 
-          />
-        </div>
-        
-        {/* Orb extra vermelho - centro direito */}
-        <div 
-          className="absolute top-[50%] -right-[5%] w-[180px] h-[180px] md:w-[220px] md:h-[220px] animate-orb-float-fast"
-          style={{ animationDelay: '-7s' }}
-        >
-          <div 
-            className={`w-full h-full rounded-full animate-glow-pulse ${isDark ? 'bg-primary/28' : 'bg-primary/42'}`}
-            style={{ animationDelay: '-5s' }} 
-          />
-        </div>
-
-        {/* Orb bege - superior esquerdo */}
-        <div 
-          className="absolute -top-[15%] -left-[10%] w-[350px] h-[350px] md:w-[450px] md:h-[450px] animate-orb-float-medium"
-          style={{ animationDelay: '-4s' }}
-        >
-          <div 
-            className={`w-full h-full rounded-full animate-glow-breathe ${isDark ? 'bg-[#F5F0E8]/40' : 'bg-[#8B4D6B]/30'}`}
-            style={{ animationDelay: '-1s' }} 
-          />
-        </div>
-
-        {/* Orb bege - centro */}
-        <div 
-          className="absolute top-[45%] left-[40%] w-[250px] h-[250px] md:w-[320px] md:h-[320px] animate-orb-float-slow"
-          style={{ animationDelay: '-6s' }}
-        >
-          <div 
-            className={`w-full h-full rounded-full animate-glow-pulse ${isDark ? 'bg-[#EDE5D8]/35' : 'bg-[#8B4D6B]/25'}`}
-            style={{ animationDelay: '-2s' }} 
-          />
-        </div>
-
-        {/* Orb bege - inferior centro */}
-        <div 
-          className="absolute -bottom-[10%] left-[35%] w-[280px] h-[280px] md:w-[350px] md:h-[350px] animate-orb-float-fast"
-          style={{ animationDelay: '-9s' }}
-        >
-          <div 
-            className={`w-full h-full rounded-full animate-glow-fade ${isDark ? 'bg-[#F8F4ED]/38' : 'bg-[#8B4D6B]/28'}`}
-            style={{ animationDelay: '-4s' }} 
-          />
-        </div>
-
-        {/* Orb bege pequeno - direita */}
-        <div 
-          className="absolute top-[15%] right-[25%] w-[180px] h-[180px] md:w-[220px] md:h-[220px] animate-orb-float-medium"
-          style={{ animationDelay: '-11s' }}
-        >
-          <div 
-            className={`w-full h-full rounded-full animate-glow-breathe ${isDark ? 'bg-[#F2EBE0]/32' : 'bg-[#8B4D6B]/22'}`}
-            style={{ animationDelay: '-6s' }} 
-          />
-        </div>
-      </div>
+    <div className="relative overflow-hidden flex min-h-screen items-center justify-center p-4" style={{ background: '#0D0305' }}>
+      {/* Background com focos de luz animados */}
+      <div style={{ position:'absolute',width:520,height:520,background:'#6A2931',borderRadius:'50%',filter:'blur(90px)',mixBlendMode:'screen',top:-100,left:-80,animation:'drift1 10s ease-in-out infinite',pointerEvents:'none' }} />
+      <div style={{ position:'absolute',width:460,height:460,background:'#531B24',borderRadius:'50%',filter:'blur(90px)',mixBlendMode:'screen',bottom:-80,right:-60,animation:'drift2 12s ease-in-out infinite',pointerEvents:'none' }} />
+      <div style={{ position:'absolute',width:320,height:320,background:'#6A2931',borderRadius:'50%',filter:'blur(90px)',mixBlendMode:'screen',top:'40%',left:'40%',opacity:0.5,animation:'drift3 9s ease-in-out infinite',pointerEvents:'none' }} />
 
       {/* Transition Overlay */}
       <div 
@@ -249,11 +144,6 @@ export default function Auth() {
               />
             </div>
             
-            <div className="text-center">
-              <CardDescription className={isDark ? "text-muted-foreground" : "text-white/70"}>
-                Sistema Interno de Gestão
-              </CardDescription>
-            </div>
           </CardHeader>
 
           <CardContent>
