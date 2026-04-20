@@ -525,7 +525,7 @@ export default function FechamentoDiario() {
         .select('*')
         .eq('representante_id', selectedRepresentante)
         .ilike('codigo_nota', `%${codigoBusca.trim()}%`)
-        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -541,7 +541,7 @@ export default function FechamentoDiario() {
         .select('*')
         .eq('representante_id', selectedRepresentante)
         .ilike('revendedora', `%${codigoBusca.trim()}%`)
-        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true })
         .limit(1)
         .maybeSingle();

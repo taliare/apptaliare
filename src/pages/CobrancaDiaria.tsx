@@ -890,7 +890,7 @@ export default function CobrancaDiaria() {
         .select('*')
         .eq('representante_id', user?.id)
         .ilike('codigo_nota', `%${codigoBusca.trim()}%`)
-        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true })
         .limit(1)
         .maybeSingle();
@@ -908,7 +908,7 @@ export default function CobrancaDiaria() {
         .select('*')
         .eq('representante_id', user?.id)
         .ilike('revendedora', `%${codigoBusca.trim()}%`)
-        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true })
         .limit(1)
         .maybeSingle();

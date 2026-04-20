@@ -31,7 +31,6 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-500/10 text-yellow-700' },
   pago: { label: 'Pago', color: 'bg-green-500/10 text-green-700' },
   parcial: { label: 'Parcial', color: 'bg-blue-400/10 text-blue-600' },
-  reagendado: { label: 'Reagendado', color: 'bg-orange-500/10 text-orange-700' },
   juridico: { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700' },
   cancelado: { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700' },
 };
@@ -41,10 +40,6 @@ function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
   if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-amber-500/15 text-amber-700' };
   if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/15 text-purple-700' };
   if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/15 text-gray-700' };
-  if (cobranca.status === 'reagendado') {
-    const n = cobranca.contagem_reagendamentos || 1;
-    return { label: `Reagendada (${n}x)`, color: 'bg-orange-500/15 text-orange-700' };
-  }
   // pendente
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -615,7 +610,6 @@ export default function GerenciarAgenda() {
                     <SelectItem value="pendente">Pendente</SelectItem>
                     <SelectItem value="pago">Pago</SelectItem>
                     <SelectItem value="parcial">Parcial</SelectItem>
-                    <SelectItem value="reagendado">Reagendado</SelectItem>
                     <SelectItem value="juridico">Jurídico</SelectItem>
                   </SelectContent>
                 </Select>
@@ -761,7 +755,7 @@ export default function GerenciarAgenda() {
                                   <span className="font-mono text-xs">{cobranca.codigo_nota || '-'}</span>
                                 </TableCell>
                                 <TableCell>
-                                  {cobranca.status === 'pendente' || cobranca.status === 'reagendado'
+                                  {cobranca.status === 'pendente'
                                     ? formatarValor(cobranca.valor_kit_original || cobranca.valor_previsto)
                                     : '-'}
                                 </TableCell>
@@ -797,7 +791,7 @@ export default function GerenciarAgenda() {
                                 </TableCell>
                                 <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex items-center justify-end gap-1">
-                                    {['pendente', 'parcial', 'reagendado'].includes(cobranca.status) && (
+                                    {['pendente', 'parcial'].includes(cobranca.status) && (
                                       <TooltipProvider>
                                         <Tooltip>
                                           <TooltipTrigger asChild>
@@ -890,7 +884,6 @@ export default function GerenciarAgenda() {
                     <SelectItem value="pendente">Pendente</SelectItem>
                     <SelectItem value="parcial">Parcial</SelectItem>
                     <SelectItem value="pago">Pago</SelectItem>
-                    <SelectItem value="reagendado">Reagendado</SelectItem>
                     <SelectItem value="juridico">Jurídico</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1107,7 +1100,6 @@ export default function GerenciarAgenda() {
                   <SelectItem value="pendente">Pendente</SelectItem>
                   <SelectItem value="parcial">Parcial</SelectItem>
                   <SelectItem value="pago">Pago</SelectItem>
-                  <SelectItem value="reagendado">Reagendado</SelectItem>
                   <SelectItem value="juridico">Jurídico</SelectItem>
                 </SelectContent>
               </Select>
