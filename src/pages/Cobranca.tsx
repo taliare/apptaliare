@@ -65,7 +65,7 @@ function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
 export default function Cobranca() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [userId, setUserId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
