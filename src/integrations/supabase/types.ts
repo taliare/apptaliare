@@ -192,6 +192,7 @@ export type Database = {
           valor_previsto: number
           vendedora: string | null
           vendedora_id: string | null
+          vigente: boolean
         }
         Insert: {
           apurado?: boolean | null
@@ -214,6 +215,7 @@ export type Database = {
           valor_previsto: number
           vendedora?: string | null
           vendedora_id?: string | null
+          vigente?: boolean
         }
         Update: {
           apurado?: boolean | null
@@ -236,6 +238,7 @@ export type Database = {
           valor_previsto?: number
           vendedora?: string | null
           vendedora_id?: string | null
+          vigente?: boolean
         }
         Relationships: [
           {
