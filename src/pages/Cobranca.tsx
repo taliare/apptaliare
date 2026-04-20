@@ -124,10 +124,14 @@ export default function Cobranca() {
   };
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id || null);
-    });
-  }, []);
+    if (user?.id) {
+      setUserId(user.id);
+    } else {
+      supabase.auth.getUser().then(({ data }) => {
+        setUserId(data.user?.id || null);
+      });
+    }
+  }, [user?.id]);
 
   const { data: cobrancas = [], isLoading } = useQuery({
     queryKey: ['cobrancas-agendadas', userId],
@@ -140,6 +144,8 @@ export default function Cobranca() {
         .eq('representante_id', userId)
         .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true });
+
+      console.log('[Cobranca] Query result:', { userId, count: data?.length ?? 0, error, sample: data?.slice(0, 3) });
 
       if (error) throw error;
       return data || [];
