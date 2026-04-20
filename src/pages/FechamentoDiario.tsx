@@ -224,7 +224,8 @@ export default function FechamentoDiario() {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
         .select('id, codigo_nota, revendedora, tipo, apurado')
-        .eq('representante_id', selectedRepresentante);
+        .eq('representante_id', selectedRepresentante)
+        .eq('vigente', true);
       
       if (error) throw error;
       return data;
@@ -264,6 +265,7 @@ export default function FechamentoDiario() {
         .from('cobrancas_agendadas')
         .select('codigo_nota, revendedora, valor_previsto, tipo')
         .eq('representante_id', selectedRepresentante)
+        .eq('vigente', true)
         .eq('tipo', 'kit')
         .in('codigo_nota', codigosKitsDoDia);
       
@@ -524,6 +526,7 @@ export default function FechamentoDiario() {
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', selectedRepresentante)
+        .eq('vigente', true)
         .ilike('codigo_nota', `%${codigoBusca.trim()}%`)
         .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true })
@@ -540,6 +543,7 @@ export default function FechamentoDiario() {
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', selectedRepresentante)
+        .eq('vigente', true)
         .ilike('revendedora', `%${codigoBusca.trim()}%`)
         .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true })

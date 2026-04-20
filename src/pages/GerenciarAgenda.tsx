@@ -129,6 +129,7 @@ export default function GerenciarAgenda() {
             *,
             profiles:representante_id(nome)
           `)
+          .eq('vigente', true)
           .order('data_agendada', { ascending: true })
           .range(from, from + pageSize - 1);
 

@@ -57,6 +57,7 @@ export default function Juridico() {
           representante_id,
           profiles:representante_id (nome)
         `)
+        .eq('vigente', true)
         .eq('status', 'juridico')
         .order('data_agendada', { ascending: true });
 

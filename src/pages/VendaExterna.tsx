@@ -109,6 +109,7 @@ export default function VendaExterna() {
           tipo,
           valor_previsto
         `)
+        .eq('vigente', true)
         .not('vendedora_id', 'is', null)
         .in('codigo_nota', codigoNotas);
       

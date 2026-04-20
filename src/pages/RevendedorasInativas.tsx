@@ -88,6 +88,7 @@ export default function RevendedorasInativas() {
         .from('cobrancas_agendadas')
         .select('id, revendedora, valor_previsto, valor_pago_acumulado, valor_adiantado, data_agendada, status, codigo_nota, tipo')
         .eq('representante_id', user!.id)
+        .eq('vigente', true)
         .in('status', ['pendente', 'parcial'])
         .order('revendedora');
       if (error) throw error;
@@ -163,6 +164,7 @@ export default function RevendedorasInativas() {
         .from('cobrancas_agendadas')
         .select('revendedora')
         .eq('representante_id', user!.id)
+        .eq('vigente', true)
         .in('status', ['pendente', 'parcial']);
       if (cobError) throw cobError;
 
@@ -179,6 +181,7 @@ export default function RevendedorasInativas() {
           .from('cobrancas_agendadas')
           .select('revendedora')
           .eq('representante_id', user!.id)
+          .eq('vigente', true)
           .in('id', repasseCobrancaIds);
         revendedorasComRepasse = cobrancasRepasse?.map(c => c.revendedora) || [];
       }

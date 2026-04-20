@@ -287,7 +287,8 @@ export default function CobrancaDiaria() {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
         .select('id, codigo_nota, revendedora')
-        .eq('representante_id', user?.id);
+        .eq('representante_id', user?.id)
+        .eq('vigente', true);
       
       if (error) throw error;
       return data;
@@ -412,6 +413,7 @@ export default function CobrancaDiaria() {
         .from('cobrancas_agendadas')
         .select('codigo_nota, revendedora, valor_previsto')
         .eq('representante_id', user?.id)
+        .eq('vigente', true)
         .eq('tipo', 'kit')
         .in('codigo_nota', codigosKitsDoDia);
       
@@ -672,6 +674,7 @@ export default function CobrancaDiaria() {
           .select('*')
           .eq('representante_id', user?.id)
           .eq('codigo_nota', nota.codigo_nota)
+          .eq('vigente', true)
           .maybeSingle();
         cobrancaOriginal = data;
       }
@@ -889,6 +892,7 @@ export default function CobrancaDiaria() {
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', user?.id)
+        .eq('vigente', true)
         .ilike('codigo_nota', `%${codigoBusca.trim()}%`)
         .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true })
@@ -907,6 +911,7 @@ export default function CobrancaDiaria() {
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', user?.id)
+        .eq('vigente', true)
         .ilike('revendedora', `%${codigoBusca.trim()}%`)
         .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true })

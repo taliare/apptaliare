@@ -142,6 +142,7 @@ export default function Cobranca() {
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', userId)
+        .eq('vigente', true)
         .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true });
 
