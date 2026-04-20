@@ -237,7 +237,7 @@ export function AdminDayActions({
         .select('*')
         .eq('representante_id', selectedRepresentante)
         .ilike('revendedora', `%${codigoBusca.trim()}%`)
-        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true })
         .limit(1)
         .maybeSingle();
