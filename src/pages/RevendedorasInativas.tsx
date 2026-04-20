@@ -88,7 +88,7 @@ export default function RevendedorasInativas() {
         .from('cobrancas_agendadas')
         .select('id, revendedora, valor_previsto, valor_pago_acumulado, valor_adiantado, data_agendada, status, codigo_nota, tipo')
         .eq('representante_id', user!.id)
-        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .in('status', ['pendente', 'parcial'])
         .order('revendedora');
       if (error) throw error;
 
@@ -163,7 +163,7 @@ export default function RevendedorasInativas() {
         .from('cobrancas_agendadas')
         .select('revendedora')
         .eq('representante_id', user!.id)
-        .in('status', ['pendente', 'parcial', 'reagendado']);
+        .in('status', ['pendente', 'parcial']);
       if (cobError) throw cobError;
 
       const { data: repassesPendentes, error: repError } = await supabase

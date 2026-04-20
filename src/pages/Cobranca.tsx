@@ -45,7 +45,6 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   pendente: { label: 'Pendente', color: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400' },
   pago: { label: 'Pago', color: 'bg-green-500/10 text-green-700 dark:text-green-400' },
   parcial: { label: 'Parcial', color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' },
-  reagendado: { label: 'Reagendado', color: 'bg-orange-500/10 text-orange-700 dark:text-orange-400' },
   juridico: { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' },
   cancelado: { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-400' },
 };
@@ -55,10 +54,6 @@ function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
   if (cobranca.status === 'parcial') return { label: 'Parcial', color: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' };
   if (cobranca.status === 'juridico') return { label: 'Jurídico', color: 'bg-purple-500/10 text-purple-700 dark:text-purple-400' };
   if (cobranca.status === 'cancelado') return { label: 'Cancelado', color: 'bg-gray-500/10 text-gray-700 dark:text-gray-400' };
-  if (cobranca.status === 'reagendado') {
-    const n = cobranca.contagem_reagendamentos || 1;
-    return { label: `Reagendada (${n}x)`, color: 'bg-orange-500/10 text-orange-700 dark:text-orange-400' };
-  }
   // pendente
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
@@ -143,7 +138,7 @@ export default function Cobranca() {
         .from('cobrancas_agendadas')
         .select('*')
         .eq('representante_id', userId)
-        .in('status', ['pendente', 'parcial', 'reagendado'])
+        .in('status', ['pendente', 'parcial'])
         .order('data_agendada', { ascending: true });
 
       if (error) throw error;
@@ -667,7 +662,6 @@ export default function Cobranca() {
         .from('cobrancas_agendadas')
         .update({ 
           data_agendada: novaData,
-          status: 'reagendado' as any,
           contagem_reagendamentos: ((cobranca?.contagem_reagendamentos || 0) + 1)
         })
         .eq('id', id);

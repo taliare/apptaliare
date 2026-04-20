@@ -33,7 +33,7 @@ export const cobrancaInsertSchema = z.object({
   data_agendada: dateStringSchema,
   observacoes: longTextSchema.nullable().optional(),
   representante_id: uuidSchema,
-  status: z.enum(['pendente', 'pago', 'parcial', 'reagendado', 'juridico']).default('pendente'),
+  status: z.enum(['pendente', 'pago', 'parcial', 'juridico', 'cancelado']).default('pendente'),
   vendedora: shortTextSchema.nullable().optional(),
   vendedora_id: uuidSchema.nullable().optional(),
   valor_adiantado: monetaryValueSchema.nullable().optional(),
