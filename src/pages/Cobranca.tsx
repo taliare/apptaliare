@@ -417,7 +417,8 @@ export default function Cobranca() {
     try {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
       const dataNota = dados.dataNota;
-      const codigoNota = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
+      // SEMPRE usar o codigo_nota da cobrança selecionada. Fallback genérico apenas se ausente.
+      const codigoNota = cobranca?.codigo_nota || `AUTO-${Date.now()}`;
       
       // 1. Criar nota promissória para alimentar a Cobrança Diária (sempre criar, mesmo com valor 0)
       const notaData: any = {
