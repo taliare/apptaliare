@@ -322,6 +322,17 @@ export default function GerenciarAgenda() {
     setDetailNotas([]);
 
     try {
+      // Re-fetch cobrança para garantir status atualizado direto do banco
+      const { data: fresh } = await supabase
+        .from('cobrancas_agendadas')
+        .select('*, profiles:representante_id(nome)')
+        .eq('id', cobranca.id)
+        .maybeSingle();
+
+      if (fresh) {
+        setDetailCobranca(fresh as any);
+      }
+
       // Buscar prestação de contas
       const { data: pc } = await supabase
         .from('prestacoes_contas')
