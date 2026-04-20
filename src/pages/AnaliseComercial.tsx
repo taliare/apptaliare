@@ -157,6 +157,7 @@ export default function AnaliseComercial() {
       const { data } = await supabase
         .from("cobrancas_agendadas")
         .select("id, revendedora, data_agendada, valor_previsto, tipo, status")
+        .eq("vigente", true)
         .in("status", ["pendente", "parcial"])
         .eq("tipo", "repasse");
       return data || [];

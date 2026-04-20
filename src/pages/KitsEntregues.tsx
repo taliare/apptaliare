@@ -80,6 +80,7 @@ export default function KitsEntregues() {
         .from('cobrancas_agendadas')
         .select('codigo_nota, revendedora, valor_previsto, data_agendada')
         .eq('representante_id', userId)
+        .eq('vigente', true)
         .eq('tipo', 'kit')
         .in('codigo_nota', codigoKits);
 
