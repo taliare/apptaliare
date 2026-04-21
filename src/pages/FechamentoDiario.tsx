@@ -1280,7 +1280,7 @@ export default function FechamentoDiario() {
                         <TableHead>Revendedora</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead>Pagamento</TableHead>
-                        <TableHead>Tipo</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
                         <TableHead className="text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1288,11 +1288,13 @@ export default function FechamentoDiario() {
                       {notas.map((nota) => {
                         let revendedora: string | undefined;
                         let codigoPedido: string | undefined;
+                        let cobrancaStatus: string | undefined;
 
                         if (nota.cobranca_id && cobrancaIdMap[nota.cobranca_id]) {
                           const mapped = cobrancaIdMap[nota.cobranca_id];
                           revendedora = mapped.revendedora;
                           codigoPedido = mapped.codigo_nota;
+                          cobrancaStatus = mapped.status;
                         } else if (nota.codigo_nota?.startsWith('ADT-')) {
                           // Adiantamento sem cobranca_id vinculado
                           codigoPedido = undefined;
@@ -1318,6 +1320,18 @@ export default function FechamentoDiario() {
                           revendedora = revendedora.substring(4);
                         }
 
+                        // Determinar badge de status
+                        let statusBadge = <Badge variant="outline">—</Badge>;
+                        if (cobrancaStatus) {
+                          if (cobrancaStatus === 'pago') {
+                            statusBadge = <Badge className="bg-success/15 text-success border border-success/30">Pago</Badge>;
+                          } else if (cobrancaStatus === 'parcial') {
+                            statusBadge = <Badge className="bg-warning/15 text-warning border border-warning/30">Parcial</Badge>;
+                          } else if (cobrancaStatus === 'pendente') {
+                            statusBadge = <Badge className="bg-destructive/15 text-destructive border border-destructive/30">Pendente</Badge>;
+                          }
+                        }
+
                         return (
                           <TableRow key={nota.id}>
                             <TableCell className="font-mono">{codigoPedido ? `Nota ${codigoPedido}` : '—'}</TableCell>
@@ -1333,33 +1347,8 @@ export default function FechamentoDiario() {
                                 )}
                               </div>
                             </TableCell>
-                            <TableCell>
-                              {(() => {
-                                const cobrancaTipo = nota.cobranca_id ? cobrancaIdMap[nota.cobranca_id]?.tipo : '';
-                                let label = '—';
-                                let tip = '';
-                                let cls = '';
-                                if (nota.devolveu_tudo) {
-                                  label = 'Devolução total'; tip = 'Tem devolução'; cls = 'bg-destructive/15 text-destructive border-destructive/30';
-                                } else if (nota.codigo_nota?.startsWith('ADT-')) {
-                                  label = 'Adiantamento'; tip = 'Sem devolução'; cls = 'bg-warning/15 text-warning border-warning/30';
-                                } else if (cobrancaTipo === 'kit') {
-                                  label = 'Kit'; tip = 'Tem devolução'; cls = 'bg-info/15 text-info border-info/30';
-                                } else if (cobrancaTipo === 'repasse') {
-                                  label = 'Repasse'; tip = 'Sem devolução'; cls = 'bg-muted text-muted-foreground border-border';
-                                }
-                                if (!tip) return <Badge variant="outline">—</Badge>;
-                                return (
-                                  <TooltipProvider delayDuration={200}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Badge className={`border ${cls}`}>{label}</Badge>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top"><p>{tip}</p></TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                );
-                              })()}
+                            <TableCell className="text-center">
+                              {statusBadge}
                             </TableCell>
                             <TableCell className="text-center">
                               <Button
