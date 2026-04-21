@@ -92,6 +92,39 @@ export function FechamentoPeriodoView({
     enabled: hasValidRange,
   });
 
+  // Buscar dados das cobranças agendadas vinculadas (codigo_nota, revendedora, status, apurado)
+  const cobrancaIds = useMemo(
+    () => Array.from(new Set(notasPeriodo.map((n) => n.cobranca_id).filter(Boolean) as string[])),
+    [notasPeriodo],
+  );
+
+  const { data: cobrancasMap = {} } = useQuery({
+    queryKey: ['notas-cobrancas-info', cobrancaIds],
+    queryFn: async () => {
+      if (cobrancaIds.length === 0) return {};
+      // Fetch in batches of 100 to avoid URI limits
+      const result: Record<string, { codigo_nota: string | null; revendedora: string; status: string | null; apurado: boolean | null }> = {};
+      for (let i = 0; i < cobrancaIds.length; i += 100) {
+        const batch = cobrancaIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from('cobrancas_agendadas')
+          .select('id, codigo_nota, revendedora, status, apurado')
+          .in('id', batch);
+        if (error) throw error;
+        for (const c of data || []) {
+          result[c.id] = {
+            codigo_nota: c.codigo_nota,
+            revendedora: c.revendedora,
+            status: c.status,
+            apurado: c.apurado,
+          };
+        }
+      }
+      return result;
+    },
+    enabled: cobrancaIds.length > 0,
+  });
+
   const representantesMap = useMemo(() => {
     return representantes.reduce((acc, r) => {
       acc[r.id] = r.nome;
@@ -422,7 +455,7 @@ export function FechamentoPeriodoView({
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="text-xs">Código</TableHead>
+                            <TableHead className="text-xs">Revendedora / Código</TableHead>
                             {!selectedRepresentante && (
                               <TableHead className="text-xs hidden sm:table-cell">Representante</TableHead>
                             )}
@@ -431,48 +464,81 @@ export function FechamentoPeriodoView({
                             <TableHead className="text-xs text-right">Valor 1</TableHead>
                             <TableHead className="text-xs text-center hidden sm:table-cell">Pgto 2</TableHead>
                             <TableHead className="text-xs text-right hidden sm:table-cell">Valor 2</TableHead>
-                            <TableHead className="text-xs text-center">Devolveu</TableHead>
+                            <TableHead className="text-xs text-center">Status</TableHead>
+                            <TableHead className="text-xs text-center">Kit p/ Apurar</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {notas.map((nota) => (
-                            <TableRow key={nota.id}>
-                              <TableCell className="text-xs font-medium">{nota.codigo_nota}</TableCell>
-                              {!selectedRepresentante && (
-                                <TableCell className="text-xs hidden sm:table-cell">
-                                  {representantesMap[nota.representante_id] || '—'}
+                          {notas.map((nota) => {
+                            const cobInfo = nota.cobranca_id ? cobrancasMap[nota.cobranca_id] : undefined;
+                            const codigoExibido = cobInfo?.codigo_nota || nota.codigo_nota;
+                            const revendedoraNome = cobInfo?.revendedora;
+                            const status = cobInfo?.status;
+                            const apurado = cobInfo?.apurado;
+
+                            return (
+                              <TableRow key={nota.id}>
+                                <TableCell className="text-xs">
+                                  <div className="flex flex-col">
+                                    <span className="font-semibold">{revendedoraNome || '—'}</span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                      #{codigoExibido || '—'}
+                                    </span>
+                                  </div>
                                 </TableCell>
-                              )}
-                              <TableCell className="text-xs text-right font-semibold">
-                                {formatarValor(nota.valor_total)}
-                              </TableCell>
-                              <TableCell className="text-xs text-center">
-                                <Badge variant="secondary" className="text-[10px] px-1.5">
-                                  {FORMA_PAGAMENTO_LABELS[nota.forma_pagamento_1] || nota.forma_pagamento_1}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-xs text-right">
-                                {formatarValor(nota.valor_pagamento_1)}
-                              </TableCell>
-                              <TableCell className="text-xs text-center hidden sm:table-cell">
-                                {nota.forma_pagamento_2 ? (
-                                  <Badge variant="secondary" className="text-[10px] px-1.5">
-                                    {FORMA_PAGAMENTO_LABELS[nota.forma_pagamento_2] || nota.forma_pagamento_2}
-                                  </Badge>
-                                ) : '—'}
-                              </TableCell>
-                              <TableCell className="text-xs text-right hidden sm:table-cell">
-                                {nota.valor_pagamento_2 ? formatarValor(nota.valor_pagamento_2) : '—'}
-                              </TableCell>
-                              <TableCell className="text-xs text-center">
-                                {nota.devolveu_tudo ? (
-                                  <Badge variant="destructive" className="text-[10px] px-1.5">Sim</Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-[10px] px-1.5">Não</Badge>
+                                {!selectedRepresentante && (
+                                  <TableCell className="text-xs hidden sm:table-cell">
+                                    {representantesMap[nota.representante_id] || '—'}
+                                  </TableCell>
                                 )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                <TableCell className="text-xs text-right font-semibold">
+                                  {formatarValor(nota.valor_total)}
+                                </TableCell>
+                                <TableCell className="text-xs text-center">
+                                  <Badge variant="secondary" className="text-[10px] px-1.5">
+                                    {FORMA_PAGAMENTO_LABELS[nota.forma_pagamento_1] || nota.forma_pagamento_1}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-xs text-right">
+                                  {formatarValor(nota.valor_pagamento_1)}
+                                </TableCell>
+                                <TableCell className="text-xs text-center hidden sm:table-cell">
+                                  {nota.forma_pagamento_2 ? (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5">
+                                      {FORMA_PAGAMENTO_LABELS[nota.forma_pagamento_2] || nota.forma_pagamento_2}
+                                    </Badge>
+                                  ) : '—'}
+                                </TableCell>
+                                <TableCell className="text-xs text-right hidden sm:table-cell">
+                                  {nota.valor_pagamento_2 ? formatarValor(nota.valor_pagamento_2) : '—'}
+                                </TableCell>
+                                <TableCell className="text-xs text-center">
+                                  {status === 'pago' ? (
+                                    <Badge className="text-[10px] px-1.5 bg-green-500/15 text-green-600 border border-green-500/30 hover:bg-green-500/20">
+                                      Pago
+                                    </Badge>
+                                  ) : status === 'parcial' ? (
+                                    <Badge className="text-[10px] px-1.5 bg-amber-500/15 text-amber-600 border border-amber-500/30 hover:bg-amber-500/20">
+                                      Parcial
+                                    </Badge>
+                                  ) : status ? (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 capitalize">
+                                      {status}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs text-center">
+                                  {apurado === false ? (
+                                    <Badge variant="destructive" className="text-[10px] px-1.5">Sim</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px] px-1.5">Não</Badge>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                         <TableFooter>
                           <TableRow>
@@ -482,7 +548,7 @@ export function FechamentoPeriodoView({
                             <TableCell className="text-xs text-right font-bold text-primary">
                               {formatarValor(totalDia)}
                             </TableCell>
-                            <TableCell colSpan={5} />
+                            <TableCell colSpan={6} />
                           </TableRow>
                         </TableFooter>
                       </Table>
