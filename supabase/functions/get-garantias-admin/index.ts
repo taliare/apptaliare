@@ -44,41 +44,37 @@ Deno.serve(async (req) => {
 
     console.log(`[get-garantias-admin] ${garantias?.length || 0} garantias encontradas`);
 
-    // Buscar clientes relacionados
-    const clienteIds = [...new Set((garantias || []).map(g => g.cliente_id).filter(Boolean))];
-    
-    let clientes: any[] = [];
-    if (clienteIds.length > 0) {
-      const { data: clientesData, error: clientesError } = await supabaseAdmin
-        .from('clientes_garantia')
-        .select('*')
-        .in('id', clienteIds);
-
-      if (clientesError) {
-        console.error('[get-garantias-admin] Erro ao buscar clientes:', clientesError);
-      } else {
-        clientes = clientesData || [];
+    // Helper para buscar em lotes (evita URI Too Large quando há muitos IDs)
+    const fetchInBatches = async (table: string, ids: string[], select: string, batchSize = 100) => {
+      const results: any[] = [];
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        const { data, error } = await supabaseAdmin
+          .from(table)
+          .select(select)
+          .in('id', batch);
+        if (error) {
+          console.error(`[get-garantias-admin] Erro ao buscar ${table} (lote ${i}):`, error);
+          continue;
+        }
+        if (data) results.push(...data);
       }
-    }
+      return results;
+    };
+
+    // Buscar clientes relacionados (em lotes)
+    const clienteIds = [...new Set((garantias || []).map(g => g.cliente_id).filter(Boolean))];
+    const clientes = clienteIds.length > 0
+      ? await fetchInBatches('clientes_garantia', clienteIds, '*')
+      : [];
 
     console.log(`[get-garantias-admin] ${clientes.length} clientes encontrados`);
 
-    // Buscar revendedoras relacionadas
+    // Buscar revendedoras relacionadas (em lotes)
     const revendedoraIds = [...new Set((garantias || []).map(g => g.revendedora_id).filter(Boolean))];
-    
-    let revendedoras: any[] = [];
-    if (revendedoraIds.length > 0) {
-      const { data: revendedorasData, error: revendedorasError } = await supabaseAdmin
-        .from('profiles')
-        .select('id, nome')
-        .in('id', revendedoraIds);
-
-      if (revendedorasError) {
-        console.error('[get-garantias-admin] Erro ao buscar revendedoras:', revendedorasError);
-      } else {
-        revendedoras = revendedorasData || [];
-      }
-    }
+    const revendedoras = revendedoraIds.length > 0
+      ? await fetchInBatches('profiles', revendedoraIds, 'id, nome')
+      : [];
 
     console.log(`[get-garantias-admin] ${revendedoras.length} revendedoras encontradas`);
 
