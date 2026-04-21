@@ -66,7 +66,7 @@ export default function Cobranca() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile, user } = useAuth();
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = user?.id ?? profile?.id ?? null;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
   const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'vencidas' | 'hoje' | 'semana'>('hoje');
