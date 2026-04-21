@@ -857,9 +857,25 @@ export default function Garantias() {
                                               </div>
                                             </div>
                                             
-                                            <div className="mt-3 pt-3 border-t flex items-center gap-2">
-                                              <Clock className="h-4 w-4 text-muted-foreground" />
-                                              {renderDiasRestantes(diasRestantes)}
+                                            <div className="mt-3 pt-3 border-t flex items-center justify-between gap-2 flex-wrap">
+                                              <div className="flex items-center gap-2">
+                                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                                {renderDiasRestantes(diasRestantes)}
+                                              </div>
+                                              {isAdmin && (
+                                                <Button
+                                                  variant="destructive"
+                                                  size="sm"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDeleteGarantia(garantia);
+                                                  }}
+                                                  className="h-8"
+                                                >
+                                                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                                                  Excluir
+                                                </Button>
+                                              )}
                                             </div>
                                           </div>
                                         );
