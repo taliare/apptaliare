@@ -601,6 +601,13 @@ export default function FechamentoDiario() {
         });
       if (prestacaoError) throw prestacaoError;
 
+      // Buscar status atual da cobrança para snapshot fiel no fechamento
+      const { data: cobAtualSnap } = await supabase
+        .from('cobrancas_agendadas')
+        .select('status')
+        .eq('id', cobranca.id)
+        .maybeSingle();
+
       const { error: notaError } = await supabase
         .from('notas_promissorias')
         .insert({
@@ -614,6 +621,7 @@ export default function FechamentoDiario() {
           valor_pagamento_2: dados.pagamentos[1]?.valor || null,
           devolveu_tudo: dados.tipo === 'devolucao',
           cobranca_id: cobranca.id,
+          status_no_pagamento: cobAtualSnap?.status ?? null,
         });
       if (notaError) throw notaError;
 
@@ -676,6 +684,13 @@ export default function FechamentoDiario() {
     const codigoNota = cobranca.codigo_nota || `ADMIN-${Date.now()}`;
 
     try {
+      // Buscar status atual da cobrança para snapshot fiel no fechamento
+      const { data: cobAtualSnap } = await supabase
+        .from('cobrancas_agendadas')
+        .select('status')
+        .eq('id', cobranca.id)
+        .maybeSingle();
+
       const { error: notaError } = await supabase
         .from('notas_promissorias')
         .insert({
@@ -688,6 +703,7 @@ export default function FechamentoDiario() {
           forma_pagamento_2: dados.pagamentos[1]?.forma || null,
           valor_pagamento_2: dados.pagamentos[1]?.valor || null,
           cobranca_id: cobranca.id,
+          status_no_pagamento: cobAtualSnap?.status ?? null,
         });
       if (notaError) throw notaError;
 

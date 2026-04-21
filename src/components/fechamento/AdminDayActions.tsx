@@ -292,6 +292,13 @@ export function AdminDayActions({
       if (prestacaoError) throw prestacaoError;
 
       // 2. Criar nota promissória em nome do representante
+      // Buscar status atual da cobrança para snapshot fiel no fechamento
+      const { data: cobAtualSnap } = await supabase
+        .from('cobrancas_agendadas')
+        .select('status')
+        .eq('id', cobranca.id)
+        .maybeSingle();
+
       const { error: notaError } = await supabase
         .from('notas_promissorias')
         .insert({
@@ -305,6 +312,7 @@ export function AdminDayActions({
           valor_pagamento_2: dados.pagamentos[1]?.valor || null,
           devolveu_tudo: dados.tipo === 'devolucao',
           cobranca_id: cobranca.id,
+          status_no_pagamento: cobAtualSnap?.status ?? null,
         });
       if (notaError) throw notaError;
 
@@ -356,6 +364,13 @@ export function AdminDayActions({
 
     try {
       // 1. Criar nota promissória
+      // Buscar status atual da cobrança para snapshot fiel no fechamento
+      const { data: cobAtualSnap } = await supabase
+        .from('cobrancas_agendadas')
+        .select('status')
+        .eq('id', cobranca.id)
+        .maybeSingle();
+
       const { error: notaError } = await supabase
         .from('notas_promissorias')
         .insert({
@@ -368,6 +383,7 @@ export function AdminDayActions({
           forma_pagamento_2: dados.pagamentos[1]?.forma || null,
           valor_pagamento_2: dados.pagamentos[1]?.valor || null,
           cobranca_id: cobranca.id,
+          status_no_pagamento: cobAtualSnap?.status ?? null,
         });
       if (notaError) throw notaError;
 

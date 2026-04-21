@@ -473,7 +473,9 @@ export function FechamentoPeriodoView({
                             const cobInfo = nota.cobranca_id ? cobrancasMap[nota.cobranca_id] : undefined;
                             const codigoExibido = cobInfo?.codigo_nota || nota.codigo_nota;
                             const revendedoraNome = cobInfo?.revendedora;
-                            const status = cobInfo?.status;
+                            // Snapshot fiel: usar o status gravado no momento do pagamento
+                            // (não o status atual da cobrança, que pode ter mudado depois)
+                            const status = (nota as any).status_no_pagamento ?? cobInfo?.status;
                             const apurado = cobInfo?.apurado;
 
                             return (

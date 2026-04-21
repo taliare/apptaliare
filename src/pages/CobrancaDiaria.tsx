@@ -991,6 +991,13 @@ export default function CobrancaDiaria() {
     if (prestacaoError) throw prestacaoError;
 
     // 2. Criar nota promissória para alimentar a Cobrança Diária
+    // Buscar status atual da cobrança para snapshot fiel no fechamento
+    const { data: cobAtualSnap } = await supabase
+      .from('cobrancas_agendadas')
+      .select('status')
+      .eq('id', cobranca.id)
+      .maybeSingle();
+
     const { error: notaError } = await supabase
       .from('notas_promissorias')
       .insert({
@@ -1003,7 +1010,8 @@ export default function CobrancaDiaria() {
         valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : dados.pagamentos[0]?.valor || 0,
         forma_pagamento_2: dados.pagamentos[1]?.forma || null,
         valor_pagamento_2: dados.pagamentos[1]?.valor || null,
-        devolveu_tudo: dados.tipo === 'devolucao'
+        devolveu_tudo: dados.tipo === 'devolucao',
+        status_no_pagamento: cobAtualSnap?.status ?? null,
       });
 
     if (notaError) throw notaError;
@@ -1052,6 +1060,13 @@ export default function CobrancaDiaria() {
     const codigoNota = cobranca.codigo_nota || `${cobranca.revendedora}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
     
     // 1. Criar nota promissória para alimentar a Cobrança Diária (sempre criar, mesmo com valor 0)
+    // Buscar status atual da cobrança para snapshot fiel no fechamento
+    const { data: cobAtualSnap } = await supabase
+      .from('cobrancas_agendadas')
+      .select('status')
+      .eq('id', cobranca.id)
+      .maybeSingle();
+
     const notaData: any = {
       representante_id: user.id,
       codigo_nota: codigoNota,
@@ -1061,7 +1076,8 @@ export default function CobrancaDiaria() {
       forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
       valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
       forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-      valor_pagamento_2: dados.pagamentos[1]?.valor || null
+      valor_pagamento_2: dados.pagamentos[1]?.valor || null,
+      status_no_pagamento: cobAtualSnap?.status ?? null,
     };
 
     const { error: notaError } = await supabase

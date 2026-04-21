@@ -962,6 +962,7 @@ export type Database = {
             | null
           id: string
           representante_id: string
+          status_no_pagamento: string | null
           valor_pagamento_1: number
           valor_pagamento_2: number | null
           valor_total: number
@@ -978,6 +979,7 @@ export type Database = {
             | null
           id?: string
           representante_id: string
+          status_no_pagamento?: string | null
           valor_pagamento_1: number
           valor_pagamento_2?: number | null
           valor_total: number
@@ -994,6 +996,7 @@ export type Database = {
             | null
           id?: string
           representante_id?: string
+          status_no_pagamento?: string | null
           valor_pagamento_1?: number
           valor_pagamento_2?: number | null
           valor_total?: number
