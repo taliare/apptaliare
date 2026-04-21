@@ -66,6 +66,7 @@ export default function Cobranca() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile, user } = useAuth();
+  // IMPORTANTE: userId deve vir SEMPRE do AuthContext. NAO usar useEffect com supabase.auth.getUser() — causa race condition que zera a agenda dos representantes.
   const userId = user?.id ?? profile?.id ?? null;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
