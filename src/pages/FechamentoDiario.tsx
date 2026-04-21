@@ -296,13 +296,18 @@ export default function FechamentoDiario() {
     return acc;
   }, {} as Record<string, string>);
 
-  // Criar mapa de cobranca_id -> { codigo_nota, revendedora } para lookup reverso
+  // Criar mapa de cobranca_id -> { codigo_nota, revendedora, status } para lookup reverso
   const cobrancaIdMap = cobrancasAgendadas.reduce((acc, item) => {
     if (item.id) {
-      acc[item.id] = { codigo_nota: item.codigo_nota || '', revendedora: item.revendedora, tipo: item.tipo || '' };
+      acc[item.id] = { 
+        codigo_nota: item.codigo_nota || '', 
+        revendedora: item.revendedora, 
+        tipo: item.tipo || '',
+        status: item.status || ''
+      };
     }
     return acc;
-  }, {} as Record<string, { codigo_nota: string; revendedora: string; tipo: string }>);
+  }, {} as Record<string, { codigo_nota: string; revendedora: string; tipo: string; status: string }>);
 
   // Cálculos baseados nas notas
   const totais = useMemo(() => {
