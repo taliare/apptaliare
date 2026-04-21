@@ -136,6 +136,7 @@ export default function Garantias() {
   // Modais de inativar/excluir
   const [toggleAtivoRevendedora, setToggleAtivoRevendedora] = useState<Revendedora | null>(null);
   const [deleteRevendedora, setDeleteRevendedora] = useState<Revendedora | null>(null);
+  const [deleteGarantia, setDeleteGarantia] = useState<Garantia | null>(null);
 
   const toggleRevendedora = (revendedoraId: string) => {
     setOpenRevendedoras(prev => {
