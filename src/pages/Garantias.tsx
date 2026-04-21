@@ -355,7 +355,25 @@ export default function Garantias() {
     }
   });
 
-  // Aplicar filtros
+  // Mutation para excluir garantia individual (admin only)
+  const deleteGarantiaMutation = useMutation({
+    mutationFn: async ({ garantiaId }: { garantiaId: string }) => {
+      const { data, error } = await supabase.functions.invoke('delete-garantia-external', {
+        body: { garantiaId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Garantia excluída com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['garantias-admin'] });
+      setDeleteGarantia(null);
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao excluir garantia: ${error.message}`);
+    },
+  });
   const revendedorasFiltradas = useMemo(() => {
     if (!dadosGarantias?.length) return [];
 
