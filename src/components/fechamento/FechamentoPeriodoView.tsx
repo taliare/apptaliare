@@ -92,6 +92,39 @@ export function FechamentoPeriodoView({
     enabled: hasValidRange,
   });
 
+  // Buscar dados das cobranças agendadas vinculadas (codigo_nota, revendedora, status, apurado)
+  const cobrancaIds = useMemo(
+    () => Array.from(new Set(notasPeriodo.map((n) => n.cobranca_id).filter(Boolean) as string[])),
+    [notasPeriodo],
+  );
+
+  const { data: cobrancasMap = {} } = useQuery({
+    queryKey: ['notas-cobrancas-info', cobrancaIds],
+    queryFn: async () => {
+      if (cobrancaIds.length === 0) return {};
+      // Fetch in batches of 100 to avoid URI limits
+      const result: Record<string, { codigo_nota: string | null; revendedora: string; status: string | null; apurado: boolean | null }> = {};
+      for (let i = 0; i < cobrancaIds.length; i += 100) {
+        const batch = cobrancaIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from('cobrancas_agendadas')
+          .select('id, codigo_nota, revendedora, status, apurado')
+          .in('id', batch);
+        if (error) throw error;
+        for (const c of data || []) {
+          result[c.id] = {
+            codigo_nota: c.codigo_nota,
+            revendedora: c.revendedora,
+            status: c.status,
+            apurado: c.apurado,
+          };
+        }
+      }
+      return result;
+    },
+    enabled: cobrancaIds.length > 0,
+  });
+
   const representantesMap = useMemo(() => {
     return representantes.reduce((acc, r) => {
       acc[r.id] = r.nome;
