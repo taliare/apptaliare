@@ -317,6 +317,14 @@ export default function Cobranca() {
 
       // 2. Criar nota promissória para alimentar a Cobrança Diária
       const codigoNotaGerado = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
+
+      // Buscar status atual da cobrança para snapshot fiel no fechamento
+      const { data: cobAtualSnap } = await supabase
+        .from('cobrancas_agendadas')
+        .select('status')
+        .eq('id', cobrancaId)
+        .maybeSingle();
+
       const { error: notaError } = await supabase
         .from('notas_promissorias')
         .insert({
@@ -329,7 +337,8 @@ export default function Cobranca() {
           valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : dados.pagamentos[0]?.valor || 0,
           forma_pagamento_2: dados.pagamentos[1]?.forma || null,
           valor_pagamento_2: dados.pagamentos[1]?.valor || null,
-          devolveu_tudo: dados.tipo === 'devolucao'
+          devolveu_tudo: dados.tipo === 'devolucao',
+          status_no_pagamento: cobAtualSnap?.status ?? null,
         });
 
       if (notaError) throw notaError;
@@ -415,6 +424,13 @@ export default function Cobranca() {
       const codigoNota = cobranca?.codigo_nota || `AUTO-${Date.now()}`;
       
       // 1. Criar nota promissória para alimentar a Cobrança Diária (sempre criar, mesmo com valor 0)
+      // Buscar status atual da cobrança para snapshot fiel no fechamento
+      const { data: cobAtualSnap } = await supabase
+        .from('cobrancas_agendadas')
+        .select('status')
+        .eq('id', cobrancaId)
+        .maybeSingle();
+
       const notaData: any = {
         representante_id: userId!,
         codigo_nota: codigoNota,
@@ -424,7 +440,8 @@ export default function Cobranca() {
         forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
         valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
         forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-        valor_pagamento_2: dados.pagamentos[1]?.valor || null
+        valor_pagamento_2: dados.pagamentos[1]?.valor || null,
+        status_no_pagamento: cobAtualSnap?.status ?? null,
       };
 
       const { error: notaError } = await supabase
@@ -590,6 +607,13 @@ export default function Cobranca() {
     mutationFn: async ({ cobrancaId, valor, forma, dataNota }: { cobrancaId: string; valor: number; forma: string; dataNota: string }) => {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
       
+      // Buscar status atual da cobrança para snapshot fiel no fechamento
+      const { data: cobAtualSnap } = await supabase
+        .from('cobrancas_agendadas')
+        .select('status')
+        .eq('id', cobrancaId)
+        .maybeSingle();
+
       // Criar nota promissória para o adiantamento
       const { error: notaError } = await supabase
         .from('notas_promissorias')
@@ -602,7 +626,8 @@ export default function Cobranca() {
           valor_pagamento_1: valor,
           forma_pagamento_2: null,
           valor_pagamento_2: null,
-          cobranca_id: cobrancaId
+          cobranca_id: cobrancaId,
+          status_no_pagamento: cobAtualSnap?.status ?? null,
         });
 
       if (notaError) throw notaError;
