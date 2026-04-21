@@ -111,6 +111,8 @@ const gerarSenhaAleatoria = (): string => {
 
 export default function Garantias() {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [activeTab, setActiveTab] = useState('garantias');
   
   // Filtros da aba Garantias
