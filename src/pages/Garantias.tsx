@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Interfaces
 interface Garantia {
@@ -110,6 +111,8 @@ const gerarSenhaAleatoria = (): string => {
 
 export default function Garantias() {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [activeTab, setActiveTab] = useState('garantias');
   
   // Filtros da aba Garantias
@@ -133,6 +136,7 @@ export default function Garantias() {
   // Modais de inativar/excluir
   const [toggleAtivoRevendedora, setToggleAtivoRevendedora] = useState<Revendedora | null>(null);
   const [deleteRevendedora, setDeleteRevendedora] = useState<Revendedora | null>(null);
+  const [deleteGarantia, setDeleteGarantia] = useState<Garantia | null>(null);
 
   const toggleRevendedora = (revendedoraId: string) => {
     setOpenRevendedoras(prev => {
@@ -351,7 +355,25 @@ export default function Garantias() {
     }
   });
 
-  // Aplicar filtros
+  // Mutation para excluir garantia individual (admin only)
+  const deleteGarantiaMutation = useMutation({
+    mutationFn: async ({ garantiaId }: { garantiaId: string }) => {
+      const { data, error } = await supabase.functions.invoke('delete-garantia-external', {
+        body: { garantiaId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Garantia excluída com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['garantias-admin'] });
+      setDeleteGarantia(null);
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao excluir garantia: ${error.message}`);
+    },
+  });
   const revendedorasFiltradas = useMemo(() => {
     if (!dadosGarantias?.length) return [];
 
@@ -835,9 +857,25 @@ export default function Garantias() {
                                               </div>
                                             </div>
                                             
-                                            <div className="mt-3 pt-3 border-t flex items-center gap-2">
-                                              <Clock className="h-4 w-4 text-muted-foreground" />
-                                              {renderDiasRestantes(diasRestantes)}
+                                            <div className="mt-3 pt-3 border-t flex items-center justify-between gap-2 flex-wrap">
+                                              <div className="flex items-center gap-2">
+                                                <Clock className="h-4 w-4 text-muted-foreground" />
+                                                {renderDiasRestantes(diasRestantes)}
+                                              </div>
+                                              {isAdmin && (
+                                                <Button
+                                                  variant="destructive"
+                                                  size="sm"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDeleteGarantia(garantia);
+                                                  }}
+                                                  className="h-8"
+                                                >
+                                                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                                                  Excluir
+                                                </Button>
+                                              )}
                                             </div>
                                           </div>
                                         );
@@ -1165,6 +1203,31 @@ export default function Garantias() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteRevendedoraMutation.isPending ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog: Confirmar Exclusão de Garantia */}
+      <AlertDialog open={!!deleteGarantia} onOpenChange={(open) => !open && setDeleteGarantia(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Excluir Garantia
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta garantia? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteGarantia && deleteGarantiaMutation.mutate({ garantiaId: deleteGarantia.id })}
+              disabled={deleteGarantiaMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteGarantiaMutation.isPending ? 'Excluindo...' : 'Excluir'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
