@@ -66,7 +66,7 @@ export default function Cobranca() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile, user } = useAuth();
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = user?.id ?? profile?.id ?? null;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCobranca, setEditingCobranca] = useState<Cobranca | null>(null);
   const [filtroAtivo, setFiltroAtivo] = useState<'todas' | 'vencidas' | 'hoje' | 'semana'>('hoje');
@@ -123,15 +123,8 @@ export default function Cobranca() {
     setFormData({ ...formData, valor_previsto: valorFormatado });
   };
 
-  useEffect(() => {
-    if (user?.id) {
-      setUserId(user.id);
-    } else {
-      supabase.auth.getUser().then(({ data }) => {
-        setUserId(data.user?.id || null);
-      });
-    }
-  }, [user?.id]);
+  // userId derivado direto do AuthContext (sem useEffect separado para evitar race condition)
+
 
   const { data: cobrancas = [], isLoading } = useQuery({
     queryKey: ['cobrancas-agendadas', userId],
