@@ -769,7 +769,127 @@ export default function Cobranca() {
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
-                      <div className="overflow-x-auto mt-2 border border-border rounded-lg bg-card/50">
+                      {/* MOBILE: Cards (< 768px) */}
+                      <div className="md:hidden mt-2 space-y-2">
+                        {notasGrupo.map(cobranca => {
+                          const smart = getSmartStatus(cobranca);
+                          const status = cobranca.status;
+                          const isAtivo = ['pendente', 'parcial'].includes(status as string);
+                          const valorKit = cobranca.valor_kit_original || cobranca.valor_previsto;
+                          const pago = cobranca.valor_pago_acumulado || 0;
+                          let saldoLabel: React.ReactNode;
+                          if (status === 'pago') {
+                            saldoLabel = formatarValor(0);
+                          } else if (status === 'parcial') {
+                            const saldo =
+                              cobranca.valor_previsto - pago - (cobranca.valor_adiantado || 0);
+                            saldoLabel = formatarValor(Math.max(0, saldo));
+                          } else {
+                            saldoLabel = (
+                              <span className="text-muted-foreground italic text-xs">
+                                Apuração pendente
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={cobranca.id}
+                              onClick={() => handleOpenDetail(cobranca)}
+                              className="border border-border rounded-lg p-3 bg-card/50 active:bg-card/80 transition-colors cursor-pointer space-y-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="font-semibold text-sm text-foreground leading-tight flex-1">
+                                  {cobranca.revendedora}
+                                </p>
+                                <Badge className={`${smart.color} border-0 whitespace-nowrap text-xs shrink-0`}>
+                                  {smart.label}
+                                </Badge>
+                              </div>
+
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span className="font-mono">
+                                  Cód: {cobranca.codigo_nota || '—'}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <CalendarIcon className="h-3 w-3" />
+                                  {formatDateBR(cobranca.data_agendada)}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2 text-xs pt-1 border-t border-border/50">
+                                <div>
+                                  <span className="text-muted-foreground block">Kit</span>
+                                  <span className="font-medium text-foreground">
+                                    {status === 'pendente' ? formatarValor(valorKit) : '—'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block">Pago</span>
+                                  <span className="font-medium text-foreground">
+                                    {pago > 0 ? formatarValor(pago) : '—'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block">Saldo</span>
+                                  <span className="font-semibold text-foreground">{saldoLabel}</span>
+                                </div>
+                              </div>
+
+                              {isAtivo && (
+                                <div
+                                  className="flex items-center gap-2 pt-2"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setCobrancaParaPagar(cobranca)}
+                                    className="flex-1 h-9"
+                                  >
+                                    <CreditCard className="h-4 w-4 mr-1.5" />
+                                    Cobrar
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button size="sm" variant="outline" className="h-9 w-9 p-0">
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                      <DropdownMenuItem onClick={() => handleReagendarClick(cobranca)}>
+                                        <CalendarIcon className="h-4 w-4 mr-2" />
+                                        Reagendar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleOpenAdiantamento(cobranca)}>
+                                        <Wallet className="h-4 w-4 mr-2" />
+                                        Adiantamento
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        disabled={!cobranca.kit_entregue_id}
+                                        onClick={() => handleOpenAcrescimo(cobranca)}
+                                      >
+                                        <Package className="h-4 w-4 mr-2" />
+                                        Encomendas
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => setCobrancaParaJuridico(cobranca)}
+                                        className="text-purple-700 focus:text-purple-700 focus:bg-purple-500/10"
+                                      >
+                                        <Scale className="h-4 w-4 mr-2" />
+                                        Jurídico
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* DESKTOP: Table (>= 768px) */}
+                      <div className="hidden md:block overflow-x-auto mt-2 border border-border rounded-lg bg-card/50">
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
@@ -780,7 +900,7 @@ export default function Cobranca() {
                               <TableHead className="min-w-[130px]">Saldo</TableHead>
                               <TableHead className="min-w-[110px]">Data Vencimento</TableHead>
                               <TableHead className="min-w-[110px]">Status</TableHead>
-                              <TableHead className="text-right min-w-[170px]">Ações</TableHead>
+                              <TableHead className="text-right min-w-[150px]">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -844,21 +964,44 @@ export default function Cobranca() {
                                       <>
                                         <Button
                                           size="sm"
-                                          variant="outline"
-                                          onClick={() => handleReagendarClick(cobranca)}
-                                          className="h-8"
-                                        >
-                                          <CalendarIcon className="h-3.5 w-3.5 sm:mr-1" />
-                                          <span className="hidden sm:inline">Reagendar</span>
-                                        </Button>
-                                        <Button
-                                          size="sm"
                                           onClick={() => setCobrancaParaPagar(cobranca)}
                                           className="h-8"
                                         >
-                                          <CreditCard className="h-3.5 w-3.5 sm:mr-1" />
-                                          <span className="hidden sm:inline">Cobrar</span>
+                                          <CreditCard className="h-3.5 w-3.5 mr-1" />
+                                          Cobrar
                                         </Button>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                                              <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end" className="w-48">
+                                            <DropdownMenuItem onClick={() => handleReagendarClick(cobranca)}>
+                                              <CalendarIcon className="h-4 w-4 mr-2" />
+                                              Reagendar
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleOpenAdiantamento(cobranca)}>
+                                              <Wallet className="h-4 w-4 mr-2" />
+                                              Adiantamento
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              disabled={!cobranca.kit_entregue_id}
+                                              onClick={() => handleOpenAcrescimo(cobranca)}
+                                            >
+                                              <Package className="h-4 w-4 mr-2" />
+                                              Encomendas
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                              onClick={() => setCobrancaParaJuridico(cobranca)}
+                                              className="text-purple-700 focus:text-purple-700 focus:bg-purple-500/10"
+                                            >
+                                              <Scale className="h-4 w-4 mr-2" />
+                                              Jurídico
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
                                       </>
                                     )}
                                   </div>
