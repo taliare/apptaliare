@@ -344,24 +344,27 @@ export default function Cobranca() {
       if (notaError) throw notaError;
 
       // 3. Atualizar cobrança: status pago + acumulado correto
+      // IMPORTANTE: valor_pago_acumulado SEMPRE soma o novo pagamento (nunca sobrescreve).
+      // valor_previsto SÓ é definido na PRIMEIRA prestação (acumuladoAtual === 0).
+      // Pagamentos subsequentes NÃO devem alterar valor_previsto.
       const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
       const valorAdiantado = cobranca?.valor_adiantado || 0;
       const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
-      
-      // Se é devolução, zerar valor_previsto
-      // Se é primeira cobrança de kit (acumulado=0), atualizar valor_previsto para valor_devido_empresa
+
       const updateData: any = {
         valor_pago_acumulado: novoAcumulado,
       };
-      
+
       let valorPrevistoEfetivo = cobranca?.valor_previsto || 0;
-      
+
       if (dados.tipo === 'devolucao') {
+        // Devolução zera o previsto independente de prestações anteriores
         updateData.valor_previsto = 0;
         valorPrevistoEfetivo = 0;
-      } else if (cobranca?.tipo?.toLowerCase() !== 'repasse') {
-        updateData.valor_previsto = dados.valor_devido_empresa + acumuladoAtual;
-        valorPrevistoEfetivo = dados.valor_devido_empresa + acumuladoAtual;
+      } else if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
+        // Primeira prestação de KIT: grava o valor real devido à empresa
+        updateData.valor_previsto = dados.valor_devido_empresa;
+        valorPrevistoEfetivo = dados.valor_devido_empresa;
       }
       
       const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
@@ -475,18 +478,21 @@ export default function Cobranca() {
       }
 
       // 3. Atualizar a MESMA cobrança - abater saldo (NÃO criar nova cobrança)
+      // IMPORTANTE: valor_pago_acumulado SEMPRE soma o novo pagamento (nunca sobrescreve).
+      // valor_previsto SÓ é definido na PRIMEIRA prestação (acumuladoAtual === 0).
+      // Pagamentos subsequentes NÃO devem alterar valor_previsto.
       const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
       const valorAdiantado = cobranca?.valor_adiantado || 0;
-      
-      // Se é primeira cobrança de KIT, atualizar valor_previsto para o total devido à empresa
+
       let valorPrevistoEfetivo = cobranca?.valor_previsto || 0;
-      
+
       const updateData: any = {
         valor_pago_acumulado: acumuladoAtual + dados.valor_recebido,
       };
-      
-      if (cobranca?.tipo?.toLowerCase() !== 'repasse') {
-        valorPrevistoEfetivo = dados.valor_devido_empresa + acumuladoAtual;
+
+      if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
+        // Primeira prestação de KIT: grava o valor real devido à empresa
+        valorPrevistoEfetivo = dados.valor_devido_empresa;
         updateData.valor_previsto = valorPrevistoEfetivo;
       }
       
