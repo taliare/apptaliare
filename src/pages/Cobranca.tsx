@@ -274,7 +274,9 @@ export default function Cobranca() {
     try {
       const cobranca = cobrancas.find(c => c.id === cobrancaId);
       const dataNota = dados.dataNota;
-      
+      // SEMPRE usar o codigo_nota da cobrança selecionada. Fallback genérico apenas se ausente.
+      const codigoNotaGerado = cobranca?.codigo_nota || `AUTO-${Date.now()}`;
+
       // 1. Criar prestação de contas
       const { error: prestacaoError } = await supabase
         .from('prestacoes_contas')
@@ -289,13 +291,13 @@ export default function Cobranca() {
           valor_pago: dados.valor_devido_empresa,
           saldo_devedor: 0,
           forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : (dados.pagamentos[0]?.forma || 'dinheiro'),
-          data_execucao: dataNota
+          data_execucao: dataNota,
+          codigo_nota_referencia: codigoNotaGerado,
         });
 
       if (prestacaoError) throw prestacaoError;
 
       // 2. Criar nota promissória para alimentar a Cobrança Diária
-      const codigoNotaGerado = `${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
 
       // Buscar status atual da cobrança para snapshot fiel no fechamento
       const { data: cobAtualSnap } = await supabase
