@@ -131,6 +131,19 @@ export default function Cobranca() {
   const [cobrancaParaReagendar, setCobrancaParaReagendar] = useState<Cobranca | null>(null);
   const [novaDataAgendada, setNovaDataAgendada] = useState<Date>();
 
+  // Modal adiantamento
+  const [modalAdiantamentoOpen, setModalAdiantamentoOpen] = useState(false);
+  const [cobrancaParaAdiantar, setCobrancaParaAdiantar] = useState<Cobranca | null>(null);
+  const [valorAdiantamento, setValorAdiantamento] = useState('');
+  const [obsAdiantamento, setObsAdiantamento] = useState('');
+
+  // Modal encomendas (acréscimo)
+  const [modalAcrescimoOpen, setModalAcrescimoOpen] = useState(false);
+  const [cobrancaParaAcrescimo, setCobrancaParaAcrescimo] = useState<Cobranca | null>(null);
+
+  // Confirmação jurídico
+  const [cobrancaParaJuridico, setCobrancaParaJuridico] = useState<Cobranca | null>(null);
+
   // Buscar dias não finalizados
   const { data: diasNaoFinalizados = [] } = useQuery({
     queryKey: ['dias-nao-finalizados', userId],
