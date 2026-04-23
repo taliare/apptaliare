@@ -1271,6 +1271,110 @@ export default function Cobranca() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Adiantamento */}
+      <Dialog
+        open={modalAdiantamentoOpen}
+        onOpenChange={(open) => {
+          setModalAdiantamentoOpen(open);
+          if (!open) {
+            setCobrancaParaAdiantar(null);
+            setValorAdiantamento('');
+            setObsAdiantamento('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Adiantamento</DialogTitle>
+          </DialogHeader>
+          {cobrancaParaAdiantar && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted rounded-lg space-y-1 text-sm">
+                <p><strong>Revendedora:</strong> {cobrancaParaAdiantar.revendedora}</p>
+                <p><strong>Código:</strong> {cobrancaParaAdiantar.codigo_nota || '—'}</p>
+                <p><strong>Valor previsto:</strong> {formatarValor(cobrancaParaAdiantar.valor_previsto)}</p>
+                {(cobrancaParaAdiantar.valor_adiantado || 0) > 0 && (
+                  <p>
+                    <strong>Já adiantado:</strong>{' '}
+                    {formatarValor(cobrancaParaAdiantar.valor_adiantado || 0)}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Valor do Adiantamento (R$)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={valorAdiantamento}
+                  onChange={(e) => setValorAdiantamento(e.target.value.replace(/[^\d,.]/g, ''))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Observação (opcional)</Label>
+                <Textarea
+                  placeholder="Ex.: pagamento parcial recebido em mãos"
+                  value={obsAdiantamento}
+                  onChange={(e) => setObsAdiantamento(e.target.value)}
+                  rows={2}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setModalAdiantamentoOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => adiantamentoMutation.mutate()}
+                  disabled={adiantamentoMutation.isPending || !valorAdiantamento}
+                >
+                  Registrar Adiantamento
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Encomendas / Acréscimo */}
+      {cobrancaParaAcrescimo && cobrancaParaAcrescimo.kit_entregue_id && (
+        <ModalRegistrarAcrescimo
+          open={modalAcrescimoOpen}
+          onOpenChange={(open) => {
+            setModalAcrescimoOpen(open);
+            if (!open) setCobrancaParaAcrescimo(null);
+          }}
+          kitEntregueId={cobrancaParaAcrescimo.kit_entregue_id}
+          revendedora={cobrancaParaAcrescimo.revendedora}
+          codigoKit={cobrancaParaAcrescimo.codigo_nota || ''}
+        />
+      )}
+
+      {/* Confirmação Jurídico */}
+      <AlertDialog
+        open={!!cobrancaParaJuridico}
+        onOpenChange={(open) => !open && setCobrancaParaJuridico(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encaminhar para o jurídico?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A nota de <strong>{cobrancaParaJuridico?.revendedora}</strong>{' '}
+              ({cobrancaParaJuridico?.codigo_nota || 's/cód.'}) será marcada como{' '}
+              <strong>Jurídico</strong> e sairá da agenda ativa de cobrança.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => cobrancaParaJuridico && juridicoMutation.mutate(cobrancaParaJuridico.id)}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              Encaminhar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
