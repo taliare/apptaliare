@@ -406,6 +406,101 @@ export default function Cobranca() {
     });
   };
 
+  // Mutation: Adiantamento (pagamento antes do acerto)
+  const adiantamentoMutation = useMutation({
+    mutationFn: async () => {
+      if (!cobrancaParaAdiantar || !userId) throw new Error('Dados incompletos');
+      const valor = parseFloat(valorAdiantamento.replace(',', '.'));
+      if (!valor || valor <= 0) throw new Error('Valor inválido');
+
+      const cobrancaId = cobrancaParaAdiantar.id;
+      const cobranca = cobrancas.find(c => c.id === cobrancaId);
+      const hoje = format(new Date(), 'yyyy-MM-dd');
+      const codigoNota = `ADT-${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
+
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert({
+          representante_id: userId,
+          codigo_nota: codigoNota,
+          cobranca_id: cobrancaId,
+          data: hoje,
+          valor_total: valor,
+          forma_pagamento_1: 'dinheiro',
+          valor_pagamento_1: valor,
+          status_no_pagamento: cobranca?.status ?? null,
+        });
+      if (notaError) throw notaError;
+
+      const adiantadoAtual = cobranca?.valor_adiantado || 0;
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update({
+          valor_adiantado: adiantadoAtual + valor,
+          observacoes: obsAdiantamento
+            ? `${cobranca?.observacoes || ''}\n[Adiantamento ${formatarValor(valor)}]: ${obsAdiantamento}`.trim()
+            : cobranca?.observacoes,
+        })
+        .eq('id', cobrancaId);
+      if (updateError) throw updateError;
+
+      registrarLog({
+        tipo_acao: 'REGISTRO_ADIANTAMENTO',
+        pedido_id: cobrancaId,
+        valor_antes: adiantadoAtual,
+        valor_depois: adiantadoAtual + valor,
+        descricao: `Adiantamento de ${formatarValor(valor)} registrado para ${cobranca?.revendedora || 'revendedora'}`,
+        user: { id: userId, nome: profile?.nome || '', papel: profile?.role || 'representante' },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+      toast({ title: 'Adiantamento registrado com sucesso!' });
+      setModalAdiantamentoOpen(false);
+      setCobrancaParaAdiantar(null);
+      setValorAdiantamento('');
+      setObsAdiantamento('');
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao registrar adiantamento', description: err?.message, variant: 'destructive' });
+    },
+  });
+
+  // Mutation: Encaminhar para o jurídico
+  const juridicoMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('cobrancas_agendadas')
+        .update({
+          status: 'juridico',
+          data_encaminhado_juridico: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      toast({ title: 'Cobrança encaminhada ao jurídico!' });
+      setCobrancaParaJuridico(null);
+    },
+    onError: () => {
+      toast({ title: 'Erro ao encaminhar ao jurídico', variant: 'destructive' });
+    },
+  });
+
+  const handleOpenAdiantamento = (cobranca: Cobranca) => {
+    setCobrancaParaAdiantar(cobranca);
+    setValorAdiantamento('');
+    setObsAdiantamento('');
+    setModalAdiantamentoOpen(true);
+  };
+
+  const handleOpenAcrescimo = (cobranca: Cobranca) => {
+    setCobrancaParaAcrescimo(cobranca);
+    setModalAcrescimoOpen(true);
+  };
+
   const handleOpenDetail = async (cobranca: Cobranca) => {
     setDetailCobranca(cobranca);
     setIsDetailOpen(true);
