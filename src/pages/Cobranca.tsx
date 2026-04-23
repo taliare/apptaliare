@@ -11,7 +11,30 @@ import {
   Search,
   ChevronRight,
   RefreshCw,
+  MoreVertical,
+  Wallet,
+  Package,
+  Scale,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Textarea } from '@/components/ui/textarea';
+import { ModalRegistrarAcrescimo } from '@/components/cobranca/ModalRegistrarAcrescimo';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -107,6 +130,19 @@ export default function Cobranca() {
   const [modalReagendarOpen, setModalReagendarOpen] = useState(false);
   const [cobrancaParaReagendar, setCobrancaParaReagendar] = useState<Cobranca | null>(null);
   const [novaDataAgendada, setNovaDataAgendada] = useState<Date>();
+
+  // Modal adiantamento
+  const [modalAdiantamentoOpen, setModalAdiantamentoOpen] = useState(false);
+  const [cobrancaParaAdiantar, setCobrancaParaAdiantar] = useState<Cobranca | null>(null);
+  const [valorAdiantamento, setValorAdiantamento] = useState('');
+  const [obsAdiantamento, setObsAdiantamento] = useState('');
+
+  // Modal encomendas (acréscimo)
+  const [modalAcrescimoOpen, setModalAcrescimoOpen] = useState(false);
+  const [cobrancaParaAcrescimo, setCobrancaParaAcrescimo] = useState<Cobranca | null>(null);
+
+  // Confirmação jurídico
+  const [cobrancaParaJuridico, setCobrancaParaJuridico] = useState<Cobranca | null>(null);
 
   // Buscar dias não finalizados
   const { data: diasNaoFinalizados = [] } = useQuery({
@@ -368,6 +404,101 @@ export default function Cobranca() {
       id: cobrancaParaReagendar.id,
       novaData: getLocalDateString(novaDataAgendada),
     });
+  };
+
+  // Mutation: Adiantamento (pagamento antes do acerto)
+  const adiantamentoMutation = useMutation({
+    mutationFn: async () => {
+      if (!cobrancaParaAdiantar || !userId) throw new Error('Dados incompletos');
+      const valor = parseFloat(valorAdiantamento.replace(',', '.'));
+      if (!valor || valor <= 0) throw new Error('Valor inválido');
+
+      const cobrancaId = cobrancaParaAdiantar.id;
+      const cobranca = cobrancas.find(c => c.id === cobrancaId);
+      const hoje = format(new Date(), 'yyyy-MM-dd');
+      const codigoNota = `ADT-${cobranca?.revendedora || ''}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
+
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert({
+          representante_id: userId,
+          codigo_nota: codigoNota,
+          cobranca_id: cobrancaId,
+          data: hoje,
+          valor_total: valor,
+          forma_pagamento_1: 'dinheiro',
+          valor_pagamento_1: valor,
+          status_no_pagamento: cobranca?.status ?? null,
+        });
+      if (notaError) throw notaError;
+
+      const adiantadoAtual = cobranca?.valor_adiantado || 0;
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update({
+          valor_adiantado: adiantadoAtual + valor,
+          observacoes: obsAdiantamento
+            ? `${cobranca?.observacoes || ''}\n[Adiantamento ${formatarValor(valor)}]: ${obsAdiantamento}`.trim()
+            : cobranca?.observacoes,
+        })
+        .eq('id', cobrancaId);
+      if (updateError) throw updateError;
+
+      registrarLog({
+        tipo_acao: 'REGISTRO_ADIANTAMENTO',
+        pedido_id: cobrancaId,
+        valor_antes: adiantadoAtual,
+        valor_depois: adiantadoAtual + valor,
+        descricao: `Adiantamento de ${formatarValor(valor)} registrado para ${cobranca?.revendedora || 'revendedora'}`,
+        user: { id: userId, nome: profile?.nome || '', papel: profile?.role || 'representante' },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+      toast({ title: 'Adiantamento registrado com sucesso!' });
+      setModalAdiantamentoOpen(false);
+      setCobrancaParaAdiantar(null);
+      setValorAdiantamento('');
+      setObsAdiantamento('');
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao registrar adiantamento', description: err?.message, variant: 'destructive' });
+    },
+  });
+
+  // Mutation: Encaminhar para o jurídico
+  const juridicoMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('cobrancas_agendadas')
+        .update({
+          status: 'juridico',
+          data_encaminhado_juridico: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      toast({ title: 'Cobrança encaminhada ao jurídico!' });
+      setCobrancaParaJuridico(null);
+    },
+    onError: () => {
+      toast({ title: 'Erro ao encaminhar ao jurídico', variant: 'destructive' });
+    },
+  });
+
+  const handleOpenAdiantamento = (cobranca: Cobranca) => {
+    setCobrancaParaAdiantar(cobranca);
+    setValorAdiantamento('');
+    setObsAdiantamento('');
+    setModalAdiantamentoOpen(true);
+  };
+
+  const handleOpenAcrescimo = (cobranca: Cobranca) => {
+    setCobrancaParaAcrescimo(cobranca);
+    setModalAcrescimoOpen(true);
   };
 
   const handleOpenDetail = async (cobranca: Cobranca) => {
@@ -638,7 +769,127 @@ export default function Cobranca() {
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
-                      <div className="overflow-x-auto mt-2 border border-border rounded-lg bg-card/50">
+                      {/* MOBILE: Cards (< 768px) */}
+                      <div className="md:hidden mt-2 space-y-2">
+                        {notasGrupo.map(cobranca => {
+                          const smart = getSmartStatus(cobranca);
+                          const status = cobranca.status;
+                          const isAtivo = ['pendente', 'parcial'].includes(status as string);
+                          const valorKit = cobranca.valor_kit_original || cobranca.valor_previsto;
+                          const pago = cobranca.valor_pago_acumulado || 0;
+                          let saldoLabel: React.ReactNode;
+                          if (status === 'pago') {
+                            saldoLabel = formatarValor(0);
+                          } else if (status === 'parcial') {
+                            const saldo =
+                              cobranca.valor_previsto - pago - (cobranca.valor_adiantado || 0);
+                            saldoLabel = formatarValor(Math.max(0, saldo));
+                          } else {
+                            saldoLabel = (
+                              <span className="text-muted-foreground italic text-xs">
+                                Apuração pendente
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={cobranca.id}
+                              onClick={() => handleOpenDetail(cobranca)}
+                              className="border border-border rounded-lg p-3 bg-card/50 active:bg-card/80 transition-colors cursor-pointer space-y-2"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="font-semibold text-sm text-foreground leading-tight flex-1">
+                                  {cobranca.revendedora}
+                                </p>
+                                <Badge className={`${smart.color} border-0 whitespace-nowrap text-xs shrink-0`}>
+                                  {smart.label}
+                                </Badge>
+                              </div>
+
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span className="font-mono">
+                                  Cód: {cobranca.codigo_nota || '—'}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <CalendarIcon className="h-3 w-3" />
+                                  {formatDateBR(cobranca.data_agendada)}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2 text-xs pt-1 border-t border-border/50">
+                                <div>
+                                  <span className="text-muted-foreground block">Kit</span>
+                                  <span className="font-medium text-foreground">
+                                    {status === 'pendente' ? formatarValor(valorKit) : '—'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block">Pago</span>
+                                  <span className="font-medium text-foreground">
+                                    {pago > 0 ? formatarValor(pago) : '—'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block">Saldo</span>
+                                  <span className="font-semibold text-foreground">{saldoLabel}</span>
+                                </div>
+                              </div>
+
+                              {isAtivo && (
+                                <div
+                                  className="flex items-center gap-2 pt-2"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Button
+                                    size="sm"
+                                    onClick={() => setCobrancaParaPagar(cobranca)}
+                                    className="flex-1 h-9"
+                                  >
+                                    <CreditCard className="h-4 w-4 mr-1.5" />
+                                    Cobrar
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button size="sm" variant="outline" className="h-9 w-9 p-0">
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                      <DropdownMenuItem onClick={() => handleReagendarClick(cobranca)}>
+                                        <CalendarIcon className="h-4 w-4 mr-2" />
+                                        Reagendar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleOpenAdiantamento(cobranca)}>
+                                        <Wallet className="h-4 w-4 mr-2" />
+                                        Adiantamento
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        disabled={!cobranca.kit_entregue_id}
+                                        onClick={() => handleOpenAcrescimo(cobranca)}
+                                      >
+                                        <Package className="h-4 w-4 mr-2" />
+                                        Encomendas
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => setCobrancaParaJuridico(cobranca)}
+                                        className="text-purple-700 focus:text-purple-700 focus:bg-purple-500/10"
+                                      >
+                                        <Scale className="h-4 w-4 mr-2" />
+                                        Jurídico
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* DESKTOP: Table (>= 768px) */}
+                      <div className="hidden md:block overflow-x-auto mt-2 border border-border rounded-lg bg-card/50">
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
@@ -649,7 +900,7 @@ export default function Cobranca() {
                               <TableHead className="min-w-[130px]">Saldo</TableHead>
                               <TableHead className="min-w-[110px]">Data Vencimento</TableHead>
                               <TableHead className="min-w-[110px]">Status</TableHead>
-                              <TableHead className="text-right min-w-[170px]">Ações</TableHead>
+                              <TableHead className="text-right min-w-[150px]">Ações</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -713,21 +964,44 @@ export default function Cobranca() {
                                       <>
                                         <Button
                                           size="sm"
-                                          variant="outline"
-                                          onClick={() => handleReagendarClick(cobranca)}
-                                          className="h-8"
-                                        >
-                                          <CalendarIcon className="h-3.5 w-3.5 sm:mr-1" />
-                                          <span className="hidden sm:inline">Reagendar</span>
-                                        </Button>
-                                        <Button
-                                          size="sm"
                                           onClick={() => setCobrancaParaPagar(cobranca)}
                                           className="h-8"
                                         >
-                                          <CreditCard className="h-3.5 w-3.5 sm:mr-1" />
-                                          <span className="hidden sm:inline">Cobrar</span>
+                                          <CreditCard className="h-3.5 w-3.5 mr-1" />
+                                          Cobrar
                                         </Button>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button size="sm" variant="outline" className="h-8 w-8 p-0">
+                                              <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end" className="w-48">
+                                            <DropdownMenuItem onClick={() => handleReagendarClick(cobranca)}>
+                                              <CalendarIcon className="h-4 w-4 mr-2" />
+                                              Reagendar
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleOpenAdiantamento(cobranca)}>
+                                              <Wallet className="h-4 w-4 mr-2" />
+                                              Adiantamento
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              disabled={!cobranca.kit_entregue_id}
+                                              onClick={() => handleOpenAcrescimo(cobranca)}
+                                            >
+                                              <Package className="h-4 w-4 mr-2" />
+                                              Encomendas
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                              onClick={() => setCobrancaParaJuridico(cobranca)}
+                                              className="text-purple-700 focus:text-purple-700 focus:bg-purple-500/10"
+                                            >
+                                              <Scale className="h-4 w-4 mr-2" />
+                                              Jurídico
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
                                       </>
                                     )}
                                   </div>
@@ -997,6 +1271,110 @@ export default function Cobranca() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Adiantamento */}
+      <Dialog
+        open={modalAdiantamentoOpen}
+        onOpenChange={(open) => {
+          setModalAdiantamentoOpen(open);
+          if (!open) {
+            setCobrancaParaAdiantar(null);
+            setValorAdiantamento('');
+            setObsAdiantamento('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Adiantamento</DialogTitle>
+          </DialogHeader>
+          {cobrancaParaAdiantar && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted rounded-lg space-y-1 text-sm">
+                <p><strong>Revendedora:</strong> {cobrancaParaAdiantar.revendedora}</p>
+                <p><strong>Código:</strong> {cobrancaParaAdiantar.codigo_nota || '—'}</p>
+                <p><strong>Valor previsto:</strong> {formatarValor(cobrancaParaAdiantar.valor_previsto)}</p>
+                {(cobrancaParaAdiantar.valor_adiantado || 0) > 0 && (
+                  <p>
+                    <strong>Já adiantado:</strong>{' '}
+                    {formatarValor(cobrancaParaAdiantar.valor_adiantado || 0)}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Valor do Adiantamento (R$)</Label>
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={valorAdiantamento}
+                  onChange={(e) => setValorAdiantamento(e.target.value.replace(/[^\d,.]/g, ''))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Observação (opcional)</Label>
+                <Textarea
+                  placeholder="Ex.: pagamento parcial recebido em mãos"
+                  value={obsAdiantamento}
+                  onChange={(e) => setObsAdiantamento(e.target.value)}
+                  rows={2}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setModalAdiantamentoOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => adiantamentoMutation.mutate()}
+                  disabled={adiantamentoMutation.isPending || !valorAdiantamento}
+                >
+                  Registrar Adiantamento
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Encomendas / Acréscimo */}
+      {cobrancaParaAcrescimo && cobrancaParaAcrescimo.kit_entregue_id && (
+        <ModalRegistrarAcrescimo
+          open={modalAcrescimoOpen}
+          onOpenChange={(open) => {
+            setModalAcrescimoOpen(open);
+            if (!open) setCobrancaParaAcrescimo(null);
+          }}
+          kitEntregueId={cobrancaParaAcrescimo.kit_entregue_id}
+          revendedora={cobrancaParaAcrescimo.revendedora}
+          codigoKit={cobrancaParaAcrescimo.codigo_nota || ''}
+        />
+      )}
+
+      {/* Confirmação Jurídico */}
+      <AlertDialog
+        open={!!cobrancaParaJuridico}
+        onOpenChange={(open) => !open && setCobrancaParaJuridico(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encaminhar para o jurídico?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A nota de <strong>{cobrancaParaJuridico?.revendedora}</strong>{' '}
+              ({cobrancaParaJuridico?.codigo_nota || 's/cód.'}) será marcada como{' '}
+              <strong>Jurídico</strong> e sairá da agenda ativa de cobrança.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => cobrancaParaJuridico && juridicoMutation.mutate(cobrancaParaJuridico.id)}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              Encaminhar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
