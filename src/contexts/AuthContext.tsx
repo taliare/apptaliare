@@ -125,10 +125,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     setIsLoggingOut(true);
-    
-    // Wait for animation to play
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
+
+    // Wait for full goodbye animation: 0.8s fade-in + 1.5s hold + 0.8s fade-out
+    await new Promise(resolve => setTimeout(resolve, 3100));
+
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
