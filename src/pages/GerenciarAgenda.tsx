@@ -1154,8 +1154,18 @@ export default function GerenciarAgenda() {
                   <span className="text-muted-foreground">Status</span>
                   <div className="mt-0.5">
                     {(() => {
-                      const smart = getSmartStatus(detailCobranca);
-                      return <Badge className={`${smart.color} border-0`}>{smart.label}</Badge>;
+                      // Status SEMPRE vem direto do banco (cobrancas_agendadas.status).
+                      // Triggers no DB garantem o valor correto. Sem recálculo local.
+                      const status = detailCobranca.status ?? 'pendente';
+                      const map: Record<string, { label: string; color: string }> = {
+                        pago: { label: 'Pago', color: 'bg-green-500/15 text-green-700' },
+                        parcial: { label: 'Parcial', color: 'bg-amber-500/15 text-amber-700' },
+                        juridico: { label: 'Jurídico', color: 'bg-purple-500/15 text-purple-700' },
+                        cancelado: { label: 'Cancelado', color: 'bg-gray-500/15 text-gray-700' },
+                        pendente: { label: 'Pendente', color: 'bg-blue-500/15 text-blue-700' },
+                      };
+                      const cfg = map[status] ?? map.pendente;
+                      return <Badge className={`${cfg.color} border-0`}>{cfg.label}</Badge>;
                     })()}
                   </div>
                 </div>
