@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cobrancaInsertSchema, cobrancaUpdateSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
+import { useAgendaCobrancas } from '@/hooks/useAgendaCobrancas';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'];
@@ -124,29 +125,7 @@ export default function Cobranca() {
     setFormData({ ...formData, valor_previsto: valorFormatado });
   };
 
-  // userId derivado direto do AuthContext (sem useEffect separado para evitar race condition)
-
-
-  const { data: cobrancas = [], isLoading } = useQuery({
-    queryKey: ['cobrancas-agendadas', userId],
-    queryFn: async () => {
-      if (!userId) return [];
-      
-      const { data, error } = await supabase
-        .from('cobrancas_agendadas')
-        .select('*')
-        .eq('representante_id', userId)
-        .eq('vigente', true)
-        .in('status', ['pendente', 'parcial'])
-        .order('data_agendada', { ascending: true });
-
-      console.log('[Cobranca] Query result:', { userId, count: data?.length ?? 0, error, sample: data?.slice(0, 3) });
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!userId,
-  });
+  // A query da agenda (cobrancas / isLoading / userId) é fornecida por useAgendaCobrancas() acima.
 
   // Query para buscar dias não finalizados (cobrança diária)
   const { data: diasNaoFinalizados = [] } = useQuery({
