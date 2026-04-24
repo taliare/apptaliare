@@ -717,28 +717,28 @@ export default function Garantias() {
                     <Card className="border-l-4 border-l-primary">
                       {/* Header da Revendedora */}
                       <CollapsibleTrigger asChild>
-                        <CardHeader className="pb-3 cursor-pointer hover:bg-muted/50 transition-colors">
+                        <CardHeader className="pb-3 p-3 sm:p-6 cursor-pointer hover:bg-muted/50 transition-colors">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                                <User className="h-6 w-6 text-primary" />
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                              <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                <User className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                               </div>
-                              <div>
-                                <CardTitle className="text-xl">{exibirCampo(revGroup.revendedora.nome)}</CardTitle>
-                                <p className="text-sm text-muted-foreground">
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className="text-sm sm:text-xl truncate">{exibirCampo(revGroup.revendedora.nome)}</CardTitle>
+                                <p className="text-xs text-muted-foreground">
                                   {revGroup.clientes.length} cliente{revGroup.clientes.length !== 1 ? 's' : ''}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary">
-                                {revGroup.totalGarantias} garantia{revGroup.totalGarantias !== 1 ? 's' : ''}
+                            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                              <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 sm:px-2.5">
+                                {revGroup.totalGarantias}<span className="hidden sm:inline">&nbsp;garantia{revGroup.totalGarantias !== 1 ? 's' : ''}</span>
                               </Badge>
-                              <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-                                {revGroup.garantiasAtivas} ativa{revGroup.garantiasAtivas !== 1 ? 's' : ''}
+                              <Badge variant="outline" className="bg-success/10 text-success border-success/30 text-[10px] sm:text-xs px-1.5 sm:px-2.5">
+                                {revGroup.garantiasAtivas}<span className="hidden sm:inline">&nbsp;ativa{revGroup.garantiasAtivas !== 1 ? 's' : ''}</span>
                               </Badge>
                               <ChevronDown className={cn(
-                                "h-5 w-5 text-muted-foreground transition-transform duration-200",
+                                "h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground transition-transform duration-200 shrink-0",
                                 isRevOpen && "rotate-180"
                               )} />
                             </div>

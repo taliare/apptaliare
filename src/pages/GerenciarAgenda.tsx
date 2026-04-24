@@ -534,24 +534,25 @@ export default function GerenciarAgenda() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Gerenciar Agenda de Cobranças</h1>
-            <p className="text-muted-foreground">Visualize, edite e cadastre cobranças do sistema</p>
+      <div className="flex justify-between items-center gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-bold text-foreground truncate">Gerenciar Agenda de Cobranças</h1>
+            <p className="text-xs sm:text-base text-muted-foreground hidden sm:block">Visualize, edite e cadastre cobranças do sistema</p>
           </div>
           <Button
             variant="outline"
             size="icon"
             onClick={() => queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] })}
             title="Atualizar dados"
+            className="shrink-0"
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Cadastrar Nova Nota
+        <Button onClick={() => setIsCreateDialogOpen(true)} size="icon" className="sm:size-default shrink-0">
+          <Plus className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Cadastrar Nova Nota</span>
         </Button>
       </div>
 
@@ -568,21 +569,21 @@ export default function GerenciarAgenda() {
                  })()
              }
            </CardTitle>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex items-center gap-2 flex-1">
-                <Search className="h-5 w-5 text-muted-foreground" />
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Search className="h-5 w-5 text-muted-foreground shrink-0" />
                 <Input
-                  placeholder="Pesquisar por revendedora, código da nota ou representante..."
+                  placeholder="Pesquisar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-md"
+                  className="md:max-w-md"
                 />
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div className="grid grid-cols-3 gap-2 md:flex md:flex-wrap">
                 {/* Filtro de Mês/Ano */}
                 <Select value={filtroMesAno} onValueChange={setFiltroMesAno}>
-                  <SelectTrigger className="w-[160px]">
+                  <SelectTrigger className="w-full md:w-[160px]">
                     <SelectValue placeholder="Mês/Ano" />
                   </SelectTrigger>
                  <SelectContent>
@@ -603,7 +604,7 @@ export default function GerenciarAgenda() {
                    </SelectContent>
                 </Select>
                 <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full md:w-[180px]">
                     <SelectValue placeholder="Representante" />
                   </SelectTrigger>
                   <SelectContent>
@@ -614,7 +615,7 @@ export default function GerenciarAgenda() {
                   </SelectContent>
                 </Select>
                 <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                  <SelectTrigger className="w-[150px]">
+                  <SelectTrigger className="w-full md:w-[150px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
