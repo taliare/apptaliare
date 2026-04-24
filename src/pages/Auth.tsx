@@ -58,13 +58,15 @@ export default function Auth() {
 
   return (
     <div
-      className="relative overflow-hidden flex min-h-screen items-center justify-center p-4"
+      className="relative overflow-hidden flex min-h-screen items-center justify-center"
       style={{ background: '#0D0305' }}
     >
-      {/* Background com focos de luz animados */}
-      <div style={{ position: 'absolute', width: 520, height: 520, background: '#6A2931', borderRadius: '50%', filter: 'blur(90px)', mixBlendMode: 'screen', top: -100, left: -80, animation: 'drift1 10s ease-in-out infinite', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', width: 460, height: 460, background: '#531B24', borderRadius: '50%', filter: 'blur(90px)', mixBlendMode: 'screen', bottom: -80, right: -60, animation: 'drift2 12s ease-in-out infinite', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', width: 320, height: 320, background: '#6A2931', borderRadius: '50%', filter: 'blur(90px)', mixBlendMode: 'screen', top: '40%', left: '40%', opacity: 0.5, animation: 'drift3 9s ease-in-out infinite', pointerEvents: 'none' }} />
+      {/* Background com focos de luz animados — sempre fullscreen, atrás de tudo */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div style={{ position: 'absolute', width: 520, height: 520, background: '#6A2931', borderRadius: '50%', filter: 'blur(90px)', mixBlendMode: 'screen', top: -100, left: -80, animation: 'drift1 10s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', width: 460, height: 460, background: '#531B24', borderRadius: '50%', filter: 'blur(90px)', mixBlendMode: 'screen', bottom: -80, right: -60, animation: 'drift2 12s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', width: 320, height: 320, background: '#6A2931', borderRadius: '50%', filter: 'blur(90px)', mixBlendMode: 'screen', top: '40%', left: '40%', opacity: 0.5, animation: 'drift3 9s ease-in-out infinite' }} />
+      </div>
 
       {/* Welcome animation */}
       <WelcomeOverlay
@@ -75,7 +77,7 @@ export default function Auth() {
       />
 
       {/* Login Form */}
-      <div className="w-full max-w-md relative z-10 animate-login-entrance">
+      <div className="w-full max-w-md mx-4 relative z-10 animate-login-entrance">
         <div className="rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
           <div className="p-6 sm:p-8 pb-2 flex justify-center">
             <img
