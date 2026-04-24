@@ -81,7 +81,7 @@ export default function Auth() {
             <img
               src={taliareLogoNovo}
               alt="Taliare Semijoias"
-              className="h-16 w-auto drop-shadow-lg"
+              className="h-12 w-auto drop-shadow-lg"
             />
           </div>
 

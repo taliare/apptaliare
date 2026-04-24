@@ -60,7 +60,7 @@ export function WelcomeOverlay({ show, nome, variant = 'welcome', onComplete }: 
       style={{ backgroundColor: '#0D0305' }}
     >
       <h1
-        className="font-thin text-4xl md:text-5xl tracking-wide text-center px-6 transition-opacity duration-[800ms] ease-out"
+        className="font-thin text-2xl tracking-wide text-center px-6 transition-opacity duration-[800ms] ease-out"
         style={{
           color: '#E7D8C3',
           opacity: visible && !fadingOut ? 1 : 0,
