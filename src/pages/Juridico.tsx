@@ -156,15 +156,15 @@ export default function Juridico() {
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Scale className="h-8 w-8" />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-3xl font-bold flex items-center gap-2">
+            <Scale className="h-5 w-5 sm:h-8 sm:w-8 shrink-0" />
             Jurídico
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Notas encaminhadas ao jurídico ({cobrancasFiltradas.length} {cobrancasFiltradas.length === 1 ? 'nota' : 'notas'})
           </p>
         </div>
@@ -172,16 +172,16 @@ export default function Juridico() {
 
       {/* Filtros */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
+        <CardHeader className="pb-3 p-3 sm:p-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
             <Filter className="h-4 w-4" />
             Filtros
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
+        <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-end">
             <div className="w-full sm:w-64">
-              <Label className="text-sm mb-2 block">Representante</Label>
+              <Label className="text-xs sm:text-sm mb-2 block">Representante</Label>
               <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os representantes" />
@@ -198,7 +198,7 @@ export default function Juridico() {
             </div>
 
             <div className="w-full sm:w-auto">
-              <Label className="text-sm mb-2 block">Data de Encaminhamento</Label>
+              <Label className="text-xs sm:text-sm mb-2 block">Data de Encaminhamento</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -208,18 +208,20 @@ export default function Juridico() {
                       !dateRange && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
-                        </>
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "dd/MM/yyyy")
+                        )
                       ) : (
-                        format(dateRange.from, "dd/MM/yyyy")
-                      )
-                    ) : (
-                      "Selecione o período"
-                    )}
+                        "Selecione o período"
+                      )}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -236,7 +238,7 @@ export default function Juridico() {
               </Popover>
             </div>
 
-            <Button variant="outline" onClick={limparFiltros}>
+            <Button variant="outline" onClick={limparFiltros} className="w-full sm:w-auto">
               Limpar Filtros
             </Button>
           </div>
@@ -260,58 +262,60 @@ export default function Juridico() {
         <div className="grid gap-4">
           {cobrancasFiltradas.map((cobranca) => (
             <Card key={cobranca.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex-1 space-y-2">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
+                  <div className="flex-1 space-y-2 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary" className="bg-purple-500/10 text-purple-700 dark:text-purple-400">
+                      <Badge variant="secondary" className="bg-purple-500/10 text-purple-700 dark:text-purple-400 text-xs">
                         Jurídico
                       </Badge>
-                      <span className="font-semibold text-lg">{cobranca.revendedora}</span>
+                      <span className="font-semibold text-base sm:text-lg truncate">{cobranca.revendedora}</span>
                     </div>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <User className="h-4 w-4" />
-                        <span>{cobranca.profiles?.nome || 'N/A'}</span>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 text-xs sm:text-sm">
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0">
+                        <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                        <span className="truncate">{cobranca.profiles?.nome || 'N/A'}</span>
                       </div>
                       
                       {cobranca.codigo_nota && (
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <FileText className="h-4 w-4" />
-                          <span>{cobranca.codigo_nota}</span>
+                        <div className="flex items-center gap-1.5 text-muted-foreground min-w-0">
+                          <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                          <span className="truncate">{cobranca.codigo_nota}</span>
                         </div>
                       )}
                       
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
-                        <CalendarIcon className="h-4 w-4" />
-                        <span>Venc: {formatDateBR(cobranca.data_agendada)}</span>
+                      <div className="flex items-center gap-1.5 text-muted-foreground min-w-0">
+                        <CalendarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                        <span className="truncate">Venc: {formatDateBR(cobranca.data_agendada)}</span>
                       </div>
                       
                       {cobranca.data_encaminhado_juridico && (
-                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>Enc: {format(parseISO(cobranca.data_encaminhado_juridico), 'dd/MM/yyyy')}</span>
+                        <div className="flex items-center gap-1.5 text-muted-foreground min-w-0">
+                          <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                          <span className="truncate">Enc: {format(parseISO(cobranca.data_encaminhado_juridico), 'dd/MM/yyyy')}</span>
                         </div>
                       )}
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">Valor</p>
-                      <p className="text-xl font-bold text-primary">
+                  <div className="flex items-center justify-between md:justify-end gap-3 md:gap-4 pt-2 md:pt-0 border-t md:border-t-0">
+                    <div className="text-left md:text-right">
+                      <p className="text-xs text-muted-foreground">Valor</p>
+                      <p className="text-lg sm:text-xl font-bold text-primary">
                         {formatarValor(cobranca.valor_previsto)}
                       </p>
                     </div>
                     
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => handleRetornarClick(cobranca)}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 sm:size-default"
                     >
                       <RotateCcw className="h-4 w-4" />
-                      Retornar para Agenda
+                      <span className="hidden sm:inline">Retornar para Agenda</span>
+                      <span className="sm:hidden">Retornar</span>
                     </Button>
                   </div>
                 </div>
