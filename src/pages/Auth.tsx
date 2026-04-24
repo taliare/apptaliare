@@ -120,7 +120,7 @@ export default function Auth() {
               <div className="animate-stagger-in animate-stagger-in-3 pt-2">
                 <Button
                   type="submit"
-                  className="w-full h-12 text-base font-normal normal-case rounded-xl text-white transition-all duration-200"
+                  className="w-full py-3 text-base font-normal normal-case rounded-lg text-white shadow-lg shadow-[#6A2931]/40 transition-all duration-200"
                   style={{ backgroundColor: '#6A2931' }}
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#531B24')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#6A2931')}
