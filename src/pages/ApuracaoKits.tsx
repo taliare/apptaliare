@@ -361,9 +361,14 @@ export default function ApuracaoKits() {
                               </span>
                             </div>
                           </div>
-                          <Button size="sm" variant="default" className="shrink-0 ml-2" onClick={() => selecionarNota(nota)}>
-                            Apurar
-                          </Button>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <Button size="sm" variant="outline" onClick={() => setQuickApurarNota(nota)}>
+                              <CheckCircle className="h-4 w-4 mr-1" /> Apurado
+                            </Button>
+                            <Button size="sm" variant="default" onClick={() => selecionarNota(nota)}>
+                              Apurar
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
