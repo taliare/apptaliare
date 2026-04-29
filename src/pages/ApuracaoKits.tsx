@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, useMemo } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,50 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 
 
 export default function ApuracaoKits() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [etapa, setEtapa] = useState<"busca" | "bipagem" | "confirmado">("busca");
+
+  // Modal de apuração rápida (sem bipagem)
+  const [quickApurarNota, setQuickApurarNota] = useState<any>(null);
+  const [quickTotalVendido, setQuickTotalVendido] = useState<string>("");
+
+  useEffect(() => {
+    if (quickApurarNota) {
+      const vk = Number((quickApurarNota as any).valor_kit_original || quickApurarNota.valor_previsto || 0);
+      const tvRegistrado = (quickApurarNota as any).prestacoes_contas?.[0]?.total_venda;
+      const valorVendidoBase = tvRegistrado !== undefined ? Number(tvRegistrado) : vk;
+      setQuickTotalVendido(valorVendidoBase.toFixed(2));
+    }
+  }, [quickApurarNota]);
+
+  const quickTotalVendidoNum = Number(quickTotalVendido) || 0;
+  const quickFaixa = getComissaoFaixa(quickTotalVendidoNum);
+  const quickComissao = quickTotalVendidoNum * (quickFaixa.percentual / 100);
+  const quickValorEmpresa = Math.max(0, quickTotalVendidoNum - quickComissao);
+
+  const quickApurarMutation = useMutation({
+    mutationFn: async () => {
+      if (!quickApurarNota) throw new Error("Nota não selecionada");
+      const { error } = await supabase
+        .from("cobrancas_agendadas")
+        .update({
+          valor_kit_original: Number(quickApurarNota.valor_previsto),
+          valor_previsto: quickValorEmpresa,
+          apurado: true,
+        })
+        .eq("id", quickApurarNota.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Apuração confirmada com sucesso!" });
+      setQuickApurarNota(null);
+      queryClient.invalidateQueries({ queryKey: ["apuracao-kits-pendentes"] });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao apurar", description: err.message, variant: "destructive" });
+    },
+  });
+
   const [buscaCodigo, setBuscaCodigo] = useState("");
   const [notaSelecionada, setNotaSelecionada] = useState<any>(null);
   const [pecas, setPecas] = useState<PecaDevolvida[]>([]);
@@ -318,9 +361,14 @@ export default function ApuracaoKits() {
                               </span>
                             </div>
                           </div>
-                          <Button size="sm" variant="default" className="shrink-0 ml-2" onClick={() => selecionarNota(nota)}>
-                            Apurar
-                          </Button>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            <Button size="sm" variant="outline" onClick={() => setQuickApurarNota(nota)}>
+                              <CheckCircle className="h-4 w-4 mr-1" /> Apurado
+                            </Button>
+                            <Button size="sm" variant="default" onClick={() => selecionarNota(nota)}>
+                              Apurar
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -388,6 +436,64 @@ export default function ApuracaoKits() {
             )}
           </CardContent>
         </Card>
+
+        {/* Modal de Apuração Rápida */}
+        <Dialog open={!!quickApurarNota} onOpenChange={(o) => !o && setQuickApurarNota(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-primary" />
+                Confirmar Apuração
+              </DialogTitle>
+            </DialogHeader>
+            {quickApurarNota && (
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  Nota <span className="font-mono font-bold text-foreground">{quickApurarNota.codigo_nota}</span> • {quickApurarNota.revendedora}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="quick-total-vendido">Total Vendido (R$)</Label>
+                  <Input
+                    id="quick-total-vendido"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quickTotalVendido}
+                    onChange={(e) => setQuickTotalVendido(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Comissão ({quickFaixa.categoria} - {quickFaixa.percentual}%)</Label>
+                  <Input value={`R$ ${fmt(quickComissao)}`} readOnly disabled />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Valor Devido à Empresa</Label>
+                  <Input
+                    value={`R$ ${fmt(quickValorEmpresa)}`}
+                    readOnly
+                    disabled
+                    className="font-bold text-base"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setQuickApurarNota(null)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => quickApurarMutation.mutate()}
+                    disabled={quickApurarMutation.isPending || quickTotalVendidoNum < 0}
+                  >
+                    {quickApurarMutation.isPending ? "Confirmando..." : "Confirmar Apuração"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
