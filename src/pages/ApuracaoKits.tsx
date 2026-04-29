@@ -436,6 +436,64 @@ export default function ApuracaoKits() {
             )}
           </CardContent>
         </Card>
+
+        {/* Modal de Apuração Rápida */}
+        <Dialog open={!!quickApurarNota} onOpenChange={(o) => !o && setQuickApurarNota(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-primary" />
+                Confirmar Apuração
+              </DialogTitle>
+            </DialogHeader>
+            {quickApurarNota && (
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  Nota <span className="font-mono font-bold text-foreground">{quickApurarNota.codigo_nota}</span> • {quickApurarNota.revendedora}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="quick-total-vendido">Total Vendido (R$)</Label>
+                  <Input
+                    id="quick-total-vendido"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quickTotalVendido}
+                    onChange={(e) => setQuickTotalVendido(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Comissão ({quickFaixa.categoria} - {quickFaixa.percentual}%)</Label>
+                  <Input value={`R$ ${fmt(quickComissao)}`} readOnly disabled />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Valor Devido à Empresa</Label>
+                  <Input
+                    value={`R$ ${fmt(quickValorEmpresa)}`}
+                    readOnly
+                    disabled
+                    className="font-bold text-base"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setQuickApurarNota(null)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => quickApurarMutation.mutate()}
+                    disabled={quickApurarMutation.isPending || quickTotalVendidoNum < 0}
+                  >
+                    {quickApurarMutation.isPending ? "Confirmando..." : "Confirmar Apuração"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
