@@ -673,6 +673,7 @@ export default function Usuarios() {
                   <TableHead>Email</TableHead>
                   <TableHead>WhatsApp</TableHead>
                   <TableHead>Perfil</TableHead>
+                  <TableHead>Departamento</TableHead>
                   <TableHead className="text-center">Ativo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
