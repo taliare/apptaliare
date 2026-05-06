@@ -13,7 +13,7 @@ interface Profile {
   avatar_url?: string | null;
   departamento: string | null;
   permissoes_customizadas: boolean | null;
-  role: 'admin' | 'representante' | 'producao'; // Combined from user_roles
+  role: 'admin' | 'representante' | 'producao' | 'equipe_interna'; // Combined from user_roles
 }
 
 interface AuthContextType {
@@ -31,7 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<(Profile & { role: 'admin' | 'representante' | 'producao' }) | null>(null);
+  const [profile, setProfile] = useState<(Profile & { role: 'admin' | 'representante' | 'producao' | 'equipe_interna' }) | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
