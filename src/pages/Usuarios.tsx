@@ -893,30 +893,69 @@ export default function Usuarios() {
               {/* Menu Permissions - Only show for non-admin users */}
               {role !== 'admin' && (
                 <div className="space-y-3 pt-4 border-t">
-                  <Label className="text-base font-semibold">Permissões de Menu</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Selecione os menus que este usuário pode acessar
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 pr-1">
-                    {ASSIGNABLE_MENUS.map(menu => (
-                      <div key={menu.key} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`perm-${menu.key}`}
-                          checked={selectedPermissions.includes(menu.key)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedPermissions([...selectedPermissions, menu.key]);
-                            } else {
-                              setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
-                          {menu.label}
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="permCustom" className="text-base font-semibold">
+                      Permissões personalizadas
+                    </Label>
+                    <Switch
+                      id="permCustom"
+                      checked={permissoesCustomizadas}
+                      onCheckedChange={setPermissoesCustomizadas}
+                    />
                   </div>
+                  {permissoesCustomizadas ? (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        Este usuário verá apenas os menus marcados abaixo
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pr-1">
+                        {ASSIGNABLE_MENUS.map(menu => (
+                          <div key={menu.key} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`perm-${menu.key}`}
+                              checked={selectedPermissions.includes(menu.key)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedPermissions([...selectedPermissions, menu.key]);
+                                } else {
+                                  setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
+                              {menu.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        Este usuário verá os menus padrão do perfil selecionado
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pr-1">
+                        {ASSIGNABLE_MENUS.map(menu => (
+                          <div key={menu.key} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`perm-${menu.key}`}
+                              checked={selectedPermissions.includes(menu.key)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedPermissions([...selectedPermissions, menu.key]);
+                                } else {
+                                  setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
+                              {menu.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
