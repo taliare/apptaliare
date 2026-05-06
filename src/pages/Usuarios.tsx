@@ -203,6 +203,8 @@ export default function Usuarios() {
     setHabilitarCobrancaDiaria(true);
     setSenha('');
     setSelectedPermissions([]);
+    setDepartamento('');
+    setPermissoesCustomizadas(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
