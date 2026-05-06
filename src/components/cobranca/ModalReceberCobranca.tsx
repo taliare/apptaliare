@@ -132,7 +132,7 @@ export function ModalReceberCobranca({
       const comissao = valor * (percentualForced / 100);
       setComissaoPercentual(percentualForced);
       setComissaoValor(comissao);
-      setValorAReceber(valor - comissao);
+      setValorAReceber(Math.max(0, valor - comissao - (cobranca.valor_adiantado || 0)));
       return;
     }
     
@@ -145,7 +145,7 @@ export function ModalReceberCobranca({
     const comissao = valor * (percentual / 100);
     setComissaoPercentual(percentual);
     setComissaoValor(comissao);
-    setValorAReceber(valor - comissao);
+    setValorAReceber(Math.max(0, valor - comissao - (cobranca.valor_adiantado || 0)));
   };
 
   const handleValorDevolvidoChange = (value: string) => {
