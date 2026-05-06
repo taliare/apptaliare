@@ -236,8 +236,8 @@ export default function Cobranca() {
       updateData.valor_previsto = 0;
       valorPrevistoEfetivo = 0;
     } else if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
-      updateData.valor_previsto = dados.valor_devido_empresa;
-      valorPrevistoEfetivo = dados.valor_devido_empresa;
+      updateData.valor_previsto = dados.valor_devido_empresa + valorAdiantado;
+      valorPrevistoEfetivo = dados.valor_devido_empresa + valorAdiantado;
     }
 
     const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
@@ -338,7 +338,7 @@ export default function Cobranca() {
     const updateData: any = { valor_pago_acumulado: acumuladoAtual + dados.valor_recebido };
 
     if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
-      valorPrevistoEfetivo = dados.valor_devido_empresa;
+      valorPrevistoEfetivo = dados.valor_devido_empresa + valorAdiantado;
       updateData.valor_previsto = valorPrevistoEfetivo;
     }
     updateData.data_agendada = format(dados.data_repasse, 'yyyy-MM-dd');
