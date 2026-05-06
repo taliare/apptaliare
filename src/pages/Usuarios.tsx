@@ -812,6 +812,16 @@ export default function Usuarios() {
               )}
 
               <div className="space-y-2">
+                <Label>Departamento (opcional)</Label>
+                <Input
+                  placeholder="Ex: Comercial, Financeiro, Closer..."
+                  value={departamento}
+                  onChange={(e) => setDepartamento(e.target.value)}
+                  maxLength={50}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="whatsapp">WhatsApp</Label>
                 <Input
                   id="whatsapp"
