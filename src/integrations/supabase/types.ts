@@ -1201,6 +1201,7 @@ export type Database = {
           ativo: boolean | null
           avatar_url: string | null
           criado_em: string | null
+          departamento: string | null
           email: string | null
           habilitar_cobranca_diaria: boolean | null
           habilitar_dashboard: boolean | null
@@ -1208,6 +1209,7 @@ export type Database = {
           id: string
           idioma: string | null
           nome: string
+          permissoes_customizadas: boolean
           tema: string | null
           whatsapp: string | null
         }
@@ -1215,6 +1217,7 @@ export type Database = {
           ativo?: boolean | null
           avatar_url?: string | null
           criado_em?: string | null
+          departamento?: string | null
           email?: string | null
           habilitar_cobranca_diaria?: boolean | null
           habilitar_dashboard?: boolean | null
@@ -1222,6 +1225,7 @@ export type Database = {
           id: string
           idioma?: string | null
           nome: string
+          permissoes_customizadas?: boolean
           tema?: string | null
           whatsapp?: string | null
         }
@@ -1229,6 +1233,7 @@ export type Database = {
           ativo?: boolean | null
           avatar_url?: string | null
           criado_em?: string | null
+          departamento?: string | null
           email?: string | null
           habilitar_cobranca_diaria?: boolean | null
           habilitar_dashboard?: boolean | null
@@ -1236,6 +1241,7 @@ export type Database = {
           id?: string
           idioma?: string | null
           nome?: string
+          permissoes_customizadas?: boolean
           tema?: string | null
           whatsapp?: string | null
         }
