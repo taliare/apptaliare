@@ -420,7 +420,9 @@ export default function Usuarios() {
           habilitar_dashboard: habilitarDashboard,
           habilitar_kanban: habilitarKanban,
           habilitar_cobranca_diaria: habilitarCobrancaDiaria,
-        })
+          departamento: departamento.trim() || null,
+          permissoes_customizadas: permissoesCustomizadas,
+        } as any)
         .eq('id', editingUser.id);
 
       if (profileError) throw profileError;
