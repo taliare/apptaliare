@@ -178,6 +178,8 @@ export function AppSidebar() {
   const baseCategories =
     profile?.role === "admin"
       ? adminCategories
+      : profile?.permissoes_customizadas
+      ? []
       : profile?.role === "producao"
       ? producaoCategories
       : representanteCategories;
