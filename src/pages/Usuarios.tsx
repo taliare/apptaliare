@@ -178,6 +178,8 @@ export default function Usuarios() {
     setHabilitarDashboard(user.habilitar_dashboard || false);
     setHabilitarKanban(user.habilitar_kanban || false);
     setHabilitarCobrancaDiaria(user.habilitar_cobranca_diaria || false);
+    setDepartamento((user as any).departamento || '');
+    setPermissoesCustomizadas((user as any).permissoes_customizadas || false);
     setSenha('');
     
     // Load permissions for non-admin users
