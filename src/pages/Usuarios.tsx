@@ -527,6 +527,7 @@ export default function Usuarios() {
       admin: 'Administrador',
       representante: 'Representante',
       producao: 'Produção',
+      equipe_interna: 'Equipe Interna',
     };
     return roles[role] || role;
   };
@@ -844,6 +845,7 @@ export default function Usuarios() {
                     <SelectItem value="representante">Representante</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="producao">Produção</SelectItem>
+                    <SelectItem value="equipe_interna">Equipe Interna</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -860,36 +862,40 @@ export default function Usuarios() {
                     onCheckedChange={setAtivo}
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="dashboard" className="font-normal">
-                    Habilitar Painel Geral
-                  </Label>
-                  <Switch
-                    id="dashboard"
-                    checked={habilitarDashboard}
-                    onCheckedChange={setHabilitarDashboard}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="kanban" className="font-normal">
-                    Habilitar Kanban
-                  </Label>
-                  <Switch
-                    id="kanban"
-                    checked={habilitarKanban}
-                    onCheckedChange={setHabilitarKanban}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="cobranca" className="font-normal">
-                    Habilitar Cobrança Diária
-                  </Label>
-                  <Switch
-                    id="cobranca"
-                    checked={habilitarCobrancaDiaria}
-                    onCheckedChange={setHabilitarCobrancaDiaria}
-                  />
-                </div>
+                {role === 'representante' && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="dashboard" className="font-normal">
+                        Habilitar Painel Geral
+                      </Label>
+                      <Switch
+                        id="dashboard"
+                        checked={habilitarDashboard}
+                        onCheckedChange={setHabilitarDashboard}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="kanban" className="font-normal">
+                        Habilitar Kanban
+                      </Label>
+                      <Switch
+                        id="kanban"
+                        checked={habilitarKanban}
+                        onCheckedChange={setHabilitarKanban}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="cobranca" className="font-normal">
+                        Habilitar Cobrança Diária
+                      </Label>
+                      <Switch
+                        id="cobranca"
+                        checked={habilitarCobrancaDiaria}
+                        onCheckedChange={setHabilitarCobrancaDiaria}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Menu Permissions - Only show for non-admin users */}
