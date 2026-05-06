@@ -176,7 +176,7 @@ export function ModalReceberCobranca({
       const valorVendaNum = parseInputMoeda(valorDevolvido);
       const valorVendido = Math.max(0, cobranca.valor_previsto - valorVendaNum);
       const valorAposComissao = valorVendido - comissaoValor;
-      setValorAReceber(valorAposComissao - descontoNum);
+      setValorAReceber(Math.max(0, valorAposComissao - descontoNum - (cobranca.valor_adiantado || 0)));
     }
   };
 
