@@ -86,6 +86,8 @@ export default function Usuarios() {
   const [senha, setSenha] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [departamento, setDepartamento] = useState('');
+  const [permissoesCustomizadas, setPermissoesCustomizadas] = useState(false);
 
   useEffect(() => {
     loadProfiles();
@@ -176,6 +178,8 @@ export default function Usuarios() {
     setHabilitarDashboard(user.habilitar_dashboard || false);
     setHabilitarKanban(user.habilitar_kanban || false);
     setHabilitarCobrancaDiaria(user.habilitar_cobranca_diaria || false);
+    setDepartamento((user as any).departamento || '');
+    setPermissoesCustomizadas((user as any).permissoes_customizadas || false);
     setSenha('');
     
     // Load permissions for non-admin users
@@ -199,6 +203,8 @@ export default function Usuarios() {
     setHabilitarCobrancaDiaria(true);
     setSenha('');
     setSelectedPermissions([]);
+    setDepartamento('');
+    setPermissoesCustomizadas(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -304,7 +310,9 @@ export default function Usuarios() {
           habilitar_dashboard: habilitarDashboard,
           habilitar_kanban: habilitarKanban,
           habilitar_cobranca_diaria: habilitarCobrancaDiaria,
-        })
+          departamento: departamento.trim() || null,
+          permissoes_customizadas: permissoesCustomizadas,
+        } as any)
         .eq('id', signUpData.user.id);
 
       if (profileError) throw profileError;
@@ -412,7 +420,9 @@ export default function Usuarios() {
           habilitar_dashboard: habilitarDashboard,
           habilitar_kanban: habilitarKanban,
           habilitar_cobranca_diaria: habilitarCobrancaDiaria,
-        })
+          departamento: departamento.trim() || null,
+          permissoes_customizadas: permissoesCustomizadas,
+        } as any)
         .eq('id', editingUser.id);
 
       if (profileError) throw profileError;
@@ -663,6 +673,7 @@ export default function Usuarios() {
                   <TableHead>Email</TableHead>
                   <TableHead>WhatsApp</TableHead>
                   <TableHead>Perfil</TableHead>
+                  <TableHead>Departamento</TableHead>
                   <TableHead className="text-center">Ativo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -688,6 +699,7 @@ export default function Usuarios() {
                       )}
                     </TableCell>
                     <TableCell>{getRoleName(profile.role)}</TableCell>
+                    <TableCell className="text-muted-foreground">{(profile as any).departamento || '-'}</TableCell>
                     <TableCell className="text-center">
                       <Switch
                         checked={profile.ativo || false}
@@ -802,6 +814,16 @@ export default function Usuarios() {
               )}
 
               <div className="space-y-2">
+                <Label>Departamento (opcional)</Label>
+                <Input
+                  placeholder="Ex: Comercial, Financeiro, Closer..."
+                  value={departamento}
+                  onChange={(e) => setDepartamento(e.target.value)}
+                  maxLength={50}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="whatsapp">WhatsApp</Label>
                 <Input
                   id="whatsapp"
@@ -873,30 +895,69 @@ export default function Usuarios() {
               {/* Menu Permissions - Only show for non-admin users */}
               {role !== 'admin' && (
                 <div className="space-y-3 pt-4 border-t">
-                  <Label className="text-base font-semibold">Permissões de Menu</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Selecione os menus que este usuário pode acessar
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 pr-1">
-                    {ASSIGNABLE_MENUS.map(menu => (
-                      <div key={menu.key} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`perm-${menu.key}`}
-                          checked={selectedPermissions.includes(menu.key)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedPermissions([...selectedPermissions, menu.key]);
-                            } else {
-                              setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
-                          {menu.label}
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="permCustom" className="text-base font-semibold">
+                      Permissões personalizadas
+                    </Label>
+                    <Switch
+                      id="permCustom"
+                      checked={permissoesCustomizadas}
+                      onCheckedChange={setPermissoesCustomizadas}
+                    />
                   </div>
+                  {permissoesCustomizadas ? (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        Este usuário verá apenas os menus marcados abaixo
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pr-1">
+                        {ASSIGNABLE_MENUS.map(menu => (
+                          <div key={menu.key} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`perm-${menu.key}`}
+                              checked={selectedPermissions.includes(menu.key)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedPermissions([...selectedPermissions, menu.key]);
+                                } else {
+                                  setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
+                              {menu.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground">
+                        Este usuário verá os menus padrão do perfil selecionado
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 pr-1">
+                        {ASSIGNABLE_MENUS.map(menu => (
+                          <div key={menu.key} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`perm-${menu.key}`}
+                              checked={selectedPermissions.includes(menu.key)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedPermissions([...selectedPermissions, menu.key]);
+                                } else {
+                                  setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
+                                }
+                              }}
+                            />
+                            <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
+                              {menu.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
