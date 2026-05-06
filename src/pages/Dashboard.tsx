@@ -41,6 +41,7 @@ import {
 import { formatarValor, formatarNumero } from "@/lib/utils";
 import { DateRangeFilterPopover } from "@/components/DateRangeFilterPopover";
 import { useMetaNotifications } from "@/hooks/useMetaNotifications";
+import { Navigate } from 'react-router-dom';
 
 interface CobrancaDiaria {
   data: string;
@@ -99,6 +100,11 @@ const getFraseMotivacional = () => {
 export default function Dashboard() {
 
   const { profile, user } = useAuth();
+
+  if (profile?.role === 'producao') {
+    return <Navigate to="/producao" replace />;
+  }
+
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [showGraficos, setShowGraficos] = useState(false);
