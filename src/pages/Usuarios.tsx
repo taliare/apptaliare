@@ -527,6 +527,7 @@ export default function Usuarios() {
       admin: 'Administrador',
       representante: 'Representante',
       producao: 'Produção',
+      equipe_interna: 'Equipe Interna',
     };
     return roles[role] || role;
   };
@@ -844,6 +845,7 @@ export default function Usuarios() {
                     <SelectItem value="representante">Representante</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="producao">Produção</SelectItem>
+                    <SelectItem value="equipe_interna">Equipe Interna</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
