@@ -1016,19 +1016,29 @@ export default function CobrancaDiaria() {
 
     if (notaError) throw notaError;
 
-    // 3. Atualizar cobrança: status pago + acumulado correto
     const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
     const valorAdiantado = cobranca.valor_adiantado || 0;
     const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
-    const saldoAberto = cobranca.valor_previsto - novoAcumulado - valorAdiantado;
-    
+
+    const updateDataCobranca: any = { valor_pago_acumulado: novoAcumulado };
+    let valorPrevistoEfetivo = cobranca.valor_previsto || 0;
+
+    if (dados.tipo === 'devolucao') {
+      updateDataCobranca.valor_previsto = 0;
+      valorPrevistoEfetivo = 0;
+    } else if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
+      valorPrevistoEfetivo = dados.valor_devido_empresa + valorAdiantado;
+      updateDataCobranca.valor_previsto = valorPrevistoEfetivo;
+    }
+
+    const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
+
+    updateDataCobranca.status = (saldoAberto <= 0 ? 'pago' : 'parcial') as any;
+    updateDataCobranca.data_quitacao = saldoAberto <= 0 ? dados.dataNota : null;
+
     const { error: updateError } = await supabase
       .from('cobrancas_agendadas')
-      .update({ 
-        status: (saldoAberto <= 0 ? 'pago' : 'parcial') as any,
-        valor_pago_acumulado: novoAcumulado,
-        data_quitacao: saldoAberto <= 0 ? dados.dataNota : null
-      })
+      .update(updateDataCobranca)
       .eq('id', cobranca.id);
 
     if (updateError) throw updateError;
