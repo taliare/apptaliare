@@ -86,6 +86,8 @@ export default function Usuarios() {
   const [senha, setSenha] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [departamento, setDepartamento] = useState('');
+  const [permissoesCustomizadas, setPermissoesCustomizadas] = useState(false);
 
   useEffect(() => {
     loadProfiles();
