@@ -412,10 +412,6 @@ export function ModalReceberCobranca({
           {/* Valor em Joias Devolvidas (só para KIT na primeira cobrança) */}
           {!isRepasse && !isSubsequente && (
             <div className="space-y-2">
-              <div className="p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">⚠️ ATENÇÃO: campo atualizado</p>
-                <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">Agora informe o valor em joias <strong>devolvidas</strong>, não o valor vendido.</p>
-              </div>
               <Label>Valor em Joias Devolvidas <span className="text-destructive">*</span></Label>
               <Input
                 type="text"
