@@ -105,6 +105,17 @@ export default function Dashboard() {
     return <Navigate to="/producao" replace />;
   }
 
+  if (profile?.role === 'equipe_interna') {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-semibold">Bem-vindo, {profile.nome}!</h2>
+          <p className="text-muted-foreground">Selecione uma opção no menu lateral para começar.</p>
+        </div>
+      </div>
+    );
+  }
+
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"));
   const [showGraficos, setShowGraficos] = useState(false);
