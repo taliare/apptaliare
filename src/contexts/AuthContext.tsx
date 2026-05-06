@@ -13,7 +13,7 @@ interface Profile {
   avatar_url?: string | null;
   departamento: string | null;
   permissoes_customizadas: boolean | null;
-  role: 'admin' | 'representante' | 'producao'; // Combined from user_roles
+  role: 'admin' | 'representante' | 'producao' | 'equipe_interna'; // Combined from user_roles
 }
 
 interface AuthContextType {
