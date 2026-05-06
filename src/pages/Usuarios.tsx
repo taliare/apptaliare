@@ -699,6 +699,7 @@ export default function Usuarios() {
                       )}
                     </TableCell>
                     <TableCell>{getRoleName(profile.role)}</TableCell>
+                    <TableCell className="text-muted-foreground">{(profile as any).departamento || '-'}</TableCell>
                     <TableCell className="text-center">
                       <Switch
                         checked={profile.ativo || false}
