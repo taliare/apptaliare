@@ -1120,8 +1120,7 @@ export default function CobrancaDiaria() {
     };
     
     if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
-      // Primeira cobrança: valor_previsto passa a ser o total devido à empresa
-      valorPrevistoEfetivo = dados.valor_devido_empresa + dados.valor_recebido;
+      valorPrevistoEfetivo = dados.valor_devido_empresa + (cobranca.valor_adiantado || 0);
       updateData.valor_previsto = valorPrevistoEfetivo;
     }
     
