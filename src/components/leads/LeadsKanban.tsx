@@ -62,6 +62,15 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
         grouped["leads_novos"].push(lead);
       }
     });
+
+    Object.keys(grouped).forEach(key => {
+      grouped[key].sort((a, b) => {
+        const dateA = new Date((a as any).status_updated_at || a.created_at).getTime();
+        const dateB = new Date((b as any).status_updated_at || b.created_at).getTime();
+        return dateB - dateA;
+      });
+    });
+
     return grouped;
   }, [leads]);
 
