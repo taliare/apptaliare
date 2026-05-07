@@ -665,6 +665,7 @@ export type Database = {
           responsavel_nome: string | null
           restricao_serasa: string | null
           status: string
+          status_updated_at: string
           telefone_alternativo: string | null
           tempo_disponivel: string | null
           tentativas: number | null
@@ -702,6 +703,7 @@ export type Database = {
           responsavel_nome?: string | null
           restricao_serasa?: string | null
           status?: string
+          status_updated_at?: string
           telefone_alternativo?: string | null
           tempo_disponivel?: string | null
           tentativas?: number | null
@@ -739,6 +741,7 @@ export type Database = {
           responsavel_nome?: string | null
           restricao_serasa?: string | null
           status?: string
+          status_updated_at?: string
           telefone_alternativo?: string | null
           tempo_disponivel?: string | null
           tentativas?: number | null
