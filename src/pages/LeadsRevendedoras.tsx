@@ -154,26 +154,6 @@ export default function LeadsRevendedoras() {
     return true;
   });
 
-  const gerarRelatorio = () => {
-    const periodo = (dataInicio || dataFim)
-      ? `${dataInicio ? format(new Date(dataInicio + 'T12:00:00'), 'dd/MM/yyyy') : '...'} - ${dataFim ? format(new Date(dataFim + 'T12:00:00'), 'dd/MM/yyyy') : '...'}`
-      : 'Período completo';
-
-    const contagem = (status: string) => leadsFiltrados.filter(l => l.status === status).length;
-
-    const relatorio = `📊 *Relatório Semanal - TALIARE*
-📅 *Período:* ${periodo}
-📋 *Total de Formulários:* ${leadsFiltrados.length}
-🔵 *Leads Pendentes:* ${contagem('leads_novos')}
-🟡 *Ligar para as Referências:* ${contagem('ligar_referencias')}
-🟠 *Aguardando Entrevista:* ${contagem('aguardando_entrevista')}
-🟢 *Para Entregar:* ${contagem('para_entregar')}
-💚 *Ativas:* ${contagem('ativas')}
-🔴 *Reprovadas:* ${contagem('reprovadas')}`;
-
-    navigator.clipboard.writeText(relatorio);
-    toast({ title: '✅ Relatório copiado!', description: 'Cole direto no WhatsApp.' });
-  };
 
   // Contadores
   const totalLeads = leads.length;
@@ -189,13 +169,6 @@ export default function LeadsRevendedoras() {
             <h1 className="text-xl font-semibold">CRM - Leads de Revendedoras</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={gerarRelatorio}
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Gerar Relatório
-            </Button>
             <Button
               variant="outline"
               onClick={() => syncMutation.mutate()}
