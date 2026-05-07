@@ -308,19 +308,26 @@ export default function LeadsRevendedoras() {
                   </Select>
                 </div>
 
-                {/* Semana */}
+                {/* Data Início */}
                 <div>
-                  <Label className="text-xs">Semana</Label>
-                  <Select value={semanaFiltro} onValueChange={setSemanaFiltro}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {semanas.map(s => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs">Data Início</Label>
+                  <Input
+                    type="date"
+                    value={dataInicio}
+                    onChange={(e) => setDataInicio(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+
+                {/* Data Fim */}
+                <div>
+                  <Label className="text-xs">Data Fim</Label>
+                  <Input
+                    type="date"
+                    value={dataFim}
+                    onChange={(e) => setDataFim(e.target.value)}
+                    className="mt-1"
+                  />
                 </div>
 
                 {/* Busca */}
