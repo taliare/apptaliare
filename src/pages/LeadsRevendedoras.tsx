@@ -45,25 +45,8 @@ export default function LeadsRevendedoras() {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
-  const [semanaFiltro, setSemanaFiltro] = useState('todas');
-
-  const semanas = useMemo(() => {
-    const opcoes: { value: string; label: string; inicio: string | null; fim: string | null }[] = [{ value: 'todas', label: 'Todas as semanas', inicio: null, fim: null }];
-    const hoje = new Date();
-    for (let i = 0; i < 8; i++) {
-      const fim = new Date(hoje);
-      fim.setDate(hoje.getDate() - (i * 7));
-      const inicio = new Date(fim);
-      inicio.setDate(fim.getDate() - 6);
-      opcoes.push({
-        value: `${format(inicio, 'yyyy-MM-dd')}_${format(fim, 'yyyy-MM-dd')}`,
-        label: `${format(inicio, 'dd/MM')} - ${format(fim, 'dd/MM/yyyy')}`,
-        inicio: format(inicio, 'yyyy-MM-dd'),
-        fim: format(fim, 'yyyy-MM-dd'),
-      });
-    }
-    return opcoes;
-  }, []);
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
 
   // Mutation para sincronizar leads do site externo
   const syncMutation = useMutation({
@@ -159,18 +142,18 @@ export default function LeadsRevendedoras() {
           !lead.instagram?.toLowerCase().includes(termoBusca) &&
           !lead.responsavel_nome?.toLowerCase().includes(termoBusca)) return false;
     }
-    if (semanaFiltro !== 'todas') {
-      const [inicio, fim] = semanaFiltro.split('_');
+    if (dataInicio || dataFim) {
       const dataCriacao = lead.created_at?.split('T')[0];
-      if (!dataCriacao || dataCriacao < inicio || dataCriacao > fim) return false;
+      if (!dataCriacao) return false;
+      if (dataInicio && dataCriacao < dataInicio) return false;
+      if (dataFim && dataCriacao > dataFim) return false;
     }
     return true;
   });
 
   const gerarRelatorio = () => {
-    const semana = semanas.find(s => s.value === semanaFiltro);
-    const periodo = semana?.inicio && semana?.fim
-      ? `${format(new Date(semana.inicio + 'T12:00:00'), 'dd/MM/yyyy')} - ${format(new Date(semana.fim + 'T12:00:00'), 'dd/MM/yyyy')}`
+    const periodo = (dataInicio || dataFim)
+      ? `${dataInicio ? format(new Date(dataInicio + 'T12:00:00'), 'dd/MM/yyyy') : '...'} - ${dataFim ? format(new Date(dataFim + 'T12:00:00'), 'dd/MM/yyyy') : '...'}`
       : 'Período completo';
 
     const contagem = (status: string) => leadsFiltrados.filter(l => l.status === status).length;
@@ -325,19 +308,26 @@ export default function LeadsRevendedoras() {
                   </Select>
                 </div>
 
-                {/* Semana */}
+                {/* Data Início */}
                 <div>
-                  <Label className="text-xs">Semana</Label>
-                  <Select value={semanaFiltro} onValueChange={setSemanaFiltro}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {semanas.map(s => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs">Data Início</Label>
+                  <Input
+                    type="date"
+                    value={dataInicio}
+                    onChange={(e) => setDataInicio(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+
+                {/* Data Fim */}
+                <div>
+                  <Label className="text-xs">Data Fim</Label>
+                  <Input
+                    type="date"
+                    value={dataFim}
+                    onChange={(e) => setDataFim(e.target.value)}
+                    className="mt-1"
+                  />
                 </div>
 
                 {/* Busca */}
