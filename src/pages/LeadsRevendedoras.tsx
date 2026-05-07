@@ -152,9 +152,8 @@ export default function LeadsRevendedoras() {
   });
 
   const gerarRelatorio = () => {
-    const semana = semanas.find(s => s.value === semanaFiltro);
-    const periodo = semana?.inicio && semana?.fim
-      ? `${format(new Date(semana.inicio + 'T12:00:00'), 'dd/MM/yyyy')} - ${format(new Date(semana.fim + 'T12:00:00'), 'dd/MM/yyyy')}`
+    const periodo = (dataInicio || dataFim)
+      ? `${dataInicio ? format(new Date(dataInicio + 'T12:00:00'), 'dd/MM/yyyy') : '...'} - ${dataFim ? format(new Date(dataFim + 'T12:00:00'), 'dd/MM/yyyy') : '...'}`
       : 'Período completo';
 
     const contagem = (status: string) => leadsFiltrados.filter(l => l.status === status).length;
