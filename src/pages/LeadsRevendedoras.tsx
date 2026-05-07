@@ -142,10 +142,11 @@ export default function LeadsRevendedoras() {
           !lead.instagram?.toLowerCase().includes(termoBusca) &&
           !lead.responsavel_nome?.toLowerCase().includes(termoBusca)) return false;
     }
-    if (semanaFiltro !== 'todas') {
-      const [inicio, fim] = semanaFiltro.split('_');
+    if (dataInicio || dataFim) {
       const dataCriacao = lead.created_at?.split('T')[0];
-      if (!dataCriacao || dataCriacao < inicio || dataCriacao > fim) return false;
+      if (!dataCriacao) return false;
+      if (dataInicio && dataCriacao < dataInicio) return false;
+      if (dataFim && dataCriacao > dataFim) return false;
     }
     return true;
   });
