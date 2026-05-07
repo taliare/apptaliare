@@ -86,7 +86,7 @@ export default function LeadsRevendedoras() {
       const { data, error } = await supabase
         .from("leads_revendedoras")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("status_updated_at", { ascending: false });
 
       if (error) throw error;
       return data as LeadRevendedora[];
