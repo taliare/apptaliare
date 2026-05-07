@@ -25,8 +25,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, Search, Filter, ChevronDown, Plus, UserPlus, FileSpreadsheet, RefreshCw } from "lucide-react";
+import { Users, Search, Filter, ChevronDown, Plus, UserPlus, FileSpreadsheet, RefreshCw, CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { LeadsKanban } from "@/components/leads/LeadsKanban";
 import { ImportLeadDialog } from "@/components/leads/ImportLeadDialog";
 import { BulkImportLeadsDialog } from "@/components/leads/BulkImportLeadsDialog";
@@ -311,23 +314,75 @@ export default function LeadsRevendedoras() {
                 {/* Data Início */}
                 <div>
                   <Label className="text-xs">Data Início</Label>
-                  <Input
-                    type="date"
-                    value={dataInicio}
-                    onChange={(e) => setDataInicio(e.target.value)}
-                    className="mt-1"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "mt-1 w-full justify-start text-left font-normal",
+                          !dataInicio && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dataInicio
+                          ? format(new Date(dataInicio + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })
+                          : <span>Selecionar data</span>}
+                        {dataInicio && (
+                          <X
+                            className="ml-auto h-4 w-4 opacity-60 hover:opacity-100"
+                            onClick={(e) => { e.stopPropagation(); setDataInicio(''); }}
+                          />
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dataInicio ? new Date(dataInicio + 'T12:00:00') : undefined}
+                        onSelect={(d) => setDataInicio(d ? format(d, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        locale={ptBR}
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 {/* Data Fim */}
                 <div>
                   <Label className="text-xs">Data Fim</Label>
-                  <Input
-                    type="date"
-                    value={dataFim}
-                    onChange={(e) => setDataFim(e.target.value)}
-                    className="mt-1"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "mt-1 w-full justify-start text-left font-normal",
+                          !dataFim && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dataFim
+                          ? format(new Date(dataFim + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })
+                          : <span>Selecionar data</span>}
+                        {dataFim && (
+                          <X
+                            className="ml-auto h-4 w-4 opacity-60 hover:opacity-100"
+                            onClick={(e) => { e.stopPropagation(); setDataFim(''); }}
+                          />
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dataFim ? new Date(dataFim + 'T12:00:00') : undefined}
+                        onSelect={(d) => setDataFim(d ? format(d, 'yyyy-MM-dd') : '')}
+                        initialFocus
+                        locale={ptBR}
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 {/* Busca */}
