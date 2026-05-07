@@ -44,15 +44,21 @@ serve(async (req) => {
       );
     }
 
-    // Create service role client for all operations
+    // Service role client for DB operations (external Supabase, where data lives)
     const supabaseAdmin = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Verify the user's JWT token
+    // Verify the user's JWT against the INTERNAL Supabase (which issued the token)
+    const INTERNAL_SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+    const INTERNAL_SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseAuth = createClient(INTERNAL_SUPABASE_URL, INTERNAL_SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+
     if (authError || !user) {
       console.error("Authentication failed:", authError?.message);
       return new Response(
