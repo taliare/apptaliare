@@ -591,6 +591,9 @@ export type Database = {
           pdf_detalhado_url: string | null
           pdf_resumido_url: string | null
           status: string
+          total_pecas: number
+          valor_custo: number
+          valor_varejo: number
         }
         Insert: {
           criado_em?: string
@@ -602,6 +605,9 @@ export type Database = {
           pdf_detalhado_url?: string | null
           pdf_resumido_url?: string | null
           status?: string
+          total_pecas?: number
+          valor_custo?: number
+          valor_varejo?: number
         }
         Update: {
           criado_em?: string
@@ -613,6 +619,9 @@ export type Database = {
           pdf_detalhado_url?: string | null
           pdf_resumido_url?: string | null
           status?: string
+          total_pecas?: number
+          valor_custo?: number
+          valor_varejo?: number
         }
         Relationships: []
       }
@@ -621,7 +630,9 @@ export type Database = {
           categoria_snapshot: string | null
           codigo_barras: string
           criado_em: string
+          custo_snapshot: number
           descricao_snapshot: string | null
+          foto_snapshot: string | null
           id: string
           kit_id: string
           preco_snapshot: number
@@ -632,7 +643,9 @@ export type Database = {
           categoria_snapshot?: string | null
           codigo_barras: string
           criado_em?: string
+          custo_snapshot?: number
           descricao_snapshot?: string | null
+          foto_snapshot?: string | null
           id?: string
           kit_id: string
           preco_snapshot?: number
@@ -643,7 +656,9 @@ export type Database = {
           categoria_snapshot?: string | null
           codigo_barras?: string
           criado_em?: string
+          custo_snapshot?: number
           descricao_snapshot?: string | null
+          foto_snapshot?: string | null
           id?: string
           kit_id?: string
           preco_snapshot?: number
@@ -1264,6 +1279,7 @@ export type Database = {
           descricao: string
           foto_url: string | null
           id: string
+          preco_custo: number
           preco_varejo: number
           referencia: string | null
           subcategoria: string | null
@@ -1279,6 +1295,7 @@ export type Database = {
           descricao: string
           foto_url?: string | null
           id?: string
+          preco_custo?: number
           preco_varejo?: number
           referencia?: string | null
           subcategoria?: string | null
@@ -1294,6 +1311,7 @@ export type Database = {
           descricao?: string
           foto_url?: string | null
           id?: string
+          preco_custo?: number
           preco_varejo?: number
           referencia?: string | null
           subcategoria?: string | null
