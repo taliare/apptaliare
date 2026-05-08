@@ -747,6 +747,10 @@ export default function FechamentoDiario() {
         data_agendada: format(dados.data_repasse, 'yyyy-MM-dd'),
       };
 
+      if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
+        valorPrevistoEfetivo = dados.valor_devido_empresa + valorAdiantado;
+        updateData.valor_previsto = valorPrevistoEfetivo;
+      }
 
       const novoAcumulado = acumuladoAtual + dados.valor_recebido;
       const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
