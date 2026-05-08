@@ -97,19 +97,25 @@ function KitCard({
       } ${isSelected ? "ring-2 ring-primary bg-primary/5" : ""}`}
       onClick={selectionMode ? () => onToggleSelect?.(kit.id) : undefined}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-2 min-w-0">
           {selectionMode && (
             <Checkbox 
               checked={isSelected} 
               onCheckedChange={() => onToggleSelect?.(kit.id)}
               onClick={(e) => e.stopPropagation()}
+              className="mt-0.5"
             />
           )}
-          <Package className="h-4 w-4 text-muted-foreground" />
-          <span className="font-mono text-sm font-medium">{kit.codigo}</span>
+          <Package className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <div className="font-mono text-sm font-medium truncate">{kit.codigo}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {kit.valor && kit.valor > 0 ? formatCurrency(kit.valor) : "—"}
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Badge className={tipoColors[kit.tipo] || "bg-gray-500"}>{kit.tipo}</Badge>
           {!selectionMode && onEdit && (
             <Button
