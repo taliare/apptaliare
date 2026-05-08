@@ -19,7 +19,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { formatarValor, formatarInputMoeda, parseInputMoeda } from "@/lib/utils";
-import { Plus, Upload, Pencil, Search, Package } from "lucide-react";
+import { Plus, Upload, Pencil, Search, Package, Image as ImageIcon, Loader2 } from "lucide-react";
 
 type Produto = {
   id: string;
@@ -31,13 +31,15 @@ type Produto = {
   cor: string | null;
   tamanho: string | null;
   preco_varejo: number;
+  preco_custo: number;
   foto_url: string | null;
   ativo: boolean;
 };
 
-type ProdutoForm = Omit<Produto, "id" | "preco_varejo"> & {
+type ProdutoForm = Omit<Produto, "id" | "preco_varejo" | "preco_custo"> & {
   id?: string;
   precoStr: string;
+  precoCustoStr: string;
 };
 
 const PAGE_SIZE = 20;
@@ -51,6 +53,7 @@ const emptyForm: ProdutoForm = {
   cor: "",
   tamanho: "",
   precoStr: "",
+  precoCustoStr: "",
   foto_url: "",
   ativo: true,
 };
@@ -66,6 +69,8 @@ export default function CatalogoProdutos() {
 
   const [openForm, setOpenForm] = useState(false);
   const [form, setForm] = useState<ProdutoForm>(emptyForm);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [openImport, setOpenImport] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -123,6 +128,8 @@ export default function CatalogoProdutos() {
         cor: f.cor?.trim() || null,
         tamanho: f.tamanho?.trim() || null,
         preco_varejo: parseInputMoeda(f.precoStr),
+        preco_custo: parseInputMoeda(f.precoCustoStr),
+        foto_url: f.foto_url || null,
         ativo: f.ativo,
         atualizado_em: new Date().toISOString(),
       };
@@ -166,10 +173,34 @@ export default function CatalogoProdutos() {
       precoStr: p.preco_varejo
         ? p.preco_varejo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : "",
+      precoCustoStr: p.preco_custo
+        ? p.preco_custo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : "",
       foto_url: p.foto_url ?? "",
       ativo: p.ativo,
     });
     setOpenForm(true);
+  };
+
+  const handlePhotoUpload = async (file: File) => {
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const fileName = `${form.id || form.codigo_barras || crypto.randomUUID()}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("produtos-fotos")
+        .upload(fileName, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("produtos-fotos").getPublicUrl(fileName);
+      setForm((prev) => ({ ...prev, foto_url: pub.publicUrl }));
+      toast({ title: "Foto enviada" });
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar foto", description: e.message, variant: "destructive" });
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
   };
 
   // CSV parser (separator ;, supports quoted fields)
@@ -335,6 +366,7 @@ export default function CatalogoProdutos() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-16">Foto</TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Referência</TableHead>
                 <TableHead>Descrição</TableHead>
@@ -342,17 +374,27 @@ export default function CatalogoProdutos() {
                 <TableHead>Cor</TableHead>
                 <TableHead>Tamanho</TableHead>
                 <TableHead className="text-right">Preço</TableHead>
+                <TableHead className="text-right">Custo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
               ) : pageItems.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum produto encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhum produto encontrado</TableCell></TableRow>
               ) : pageItems.map((p) => (
                 <TableRow key={p.id}>
+                  <TableCell>
+                    {p.foto_url ? (
+                      <img src={p.foto_url} alt={p.descricao} className="h-10 w-10 rounded object-cover" />
+                    ) : (
+                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{p.codigo_barras}</TableCell>
                   <TableCell>{p.referencia || "—"}</TableCell>
                   <TableCell className="max-w-xs truncate">{p.descricao}</TableCell>
@@ -360,6 +402,7 @@ export default function CatalogoProdutos() {
                   <TableCell>{p.cor || "—"}</TableCell>
                   <TableCell>{p.tamanho || "—"}</TableCell>
                   <TableCell className="text-right">{formatarValor(p.preco_varejo)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{formatarValor(p.preco_custo ?? 0)}</TableCell>
                   <TableCell>
                     <Badge variant={p.ativo ? "default" : "secondary"}>
                       {p.ativo ? "Ativo" : "Inativo"}
@@ -433,12 +476,63 @@ export default function CatalogoProdutos() {
               <Input value={form.tamanho ?? ""} onChange={(e) => setForm({ ...form, tamanho: e.target.value })} />
             </div>
             <div className="space-y-2">
+              <Label>Preço de Custo</Label>
+              <Input
+                value={form.precoCustoStr}
+                onChange={(e) => setForm({ ...form, precoCustoStr: formatarInputMoeda(e.target.value) })}
+                placeholder="0,00"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Preço Varejo</Label>
               <Input
                 value={form.precoStr}
                 onChange={(e) => setForm({ ...form, precoStr: formatarInputMoeda(e.target.value) })}
                 placeholder="0,00"
               />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Foto do Produto</Label>
+              <div className="flex items-center gap-3">
+                {form.foto_url ? (
+                  <img src={form.foto_url} alt="Preview" className="h-16 w-16 rounded object-cover border" />
+                ) : (
+                  <div className="h-16 w-16 rounded bg-muted flex items-center justify-center border">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                )}
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handlePhotoUpload(f);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingPhoto}
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  {uploadingPhoto ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Enviando...</>
+                  ) : form.foto_url ? "Trocar foto" : "Adicionar foto"}
+                </Button>
+                {form.foto_url && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setForm({ ...form, foto_url: "" })}
+                  >
+                    Remover
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3 md:col-span-2">
               <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />

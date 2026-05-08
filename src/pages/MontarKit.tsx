@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatarValor } from "@/lib/utils";
-import { Plus, ScanLine, X, CheckCircle2, Package, Trash2 } from "lucide-react";
+import { Plus, ScanLine, X, CheckCircle2, Package, Trash2, Image as ImageIcon } from "lucide-react";
 import {
   gerarPdfDetalhado, gerarPdfResumido, downloadBlob, type ItemKit,
 } from "@/lib/montarKitPdf";
@@ -33,6 +33,9 @@ type KitMontagem = {
   status: string;
   finalizado_em: string | null;
   criado_em: string;
+  total_pecas?: number | null;
+  valor_varejo?: number | null;
+  valor_custo?: number | null;
 };
 
 type KitItem = {
@@ -43,6 +46,8 @@ type KitItem = {
   descricao_snapshot: string | null;
   categoria_snapshot: string | null;
   preco_snapshot: number;
+  custo_snapshot: number;
+  foto_snapshot: string | null;
   quantidade: number;
   criado_em: string;
 };
@@ -107,6 +112,28 @@ export default function MontarKit() {
   // Contadores em tempo real
   const totalPecas = itens.reduce((s, i) => s + (i.quantidade || 1), 0);
   const totalValor = itens.reduce((s, i) => s + (i.preco_snapshot || 0) * (i.quantidade || 1), 0);
+  const totalCusto = itens.reduce((s, i) => s + (i.custo_snapshot || 0) * (i.quantidade || 1), 0);
+  const margemBruta = totalValor > 0 ? ((totalValor - totalCusto) / totalValor) * 100 : 0;
+
+  // Resumo por categoria
+  const resumoCategorias = useMemo(() => {
+    const map = new Map<string, { qtd: number; varejo: number; custo: number }>();
+    for (const it of itens) {
+      const cat = it.categoria_snapshot || "—";
+      const cur = map.get(cat) ?? { qtd: 0, varejo: 0, custo: 0 };
+      cur.qtd += it.quantidade || 1;
+      cur.varejo += (it.preco_snapshot || 0) * (it.quantidade || 1);
+      cur.custo += (it.custo_snapshot || 0) * (it.quantidade || 1);
+      map.set(cat, cur);
+    }
+    return Array.from(map.entries())
+      .map(([categoria, v]) => ({
+        categoria,
+        ...v,
+        margem: v.varejo > 0 ? ((v.varejo - v.custo) / v.varejo) * 100 : 0,
+      }))
+      .sort((a, b) => a.categoria.localeCompare(b.categoria));
+  }, [itens]);
 
   // Auto-focus quando kit ativo muda
   useEffect(() => {
@@ -215,13 +242,22 @@ export default function MontarKit() {
         descricao_snapshot: p.descricao,
         categoria_snapshot: p.categoria,
         preco_snapshot: p.preco_varejo ?? 0,
+        custo_snapshot: p.preco_custo ?? 0,
+        foto_snapshot: p.foto_url ?? null,
         quantidade: 1,
       });
       if (insErr) throw insErr;
       playBeep(800, 80);
       toast({
         title: "✓ Bipado",
-        description: `${p.descricao} — ${formatarValor(p.preco_varejo ?? 0)}`,
+        description: (
+          <div className="flex items-center gap-2">
+            {p.foto_url && (
+              <img src={p.foto_url} alt="" className="h-8 w-8 rounded object-cover" />
+            )}
+            <span>{p.descricao} — {formatarValor(p.preco_varejo ?? 0)}</span>
+          </div>
+        ) as any,
       });
       setCodigo("");
       await refetchItens();
@@ -251,7 +287,13 @@ export default function MontarKit() {
       const nowIso = new Date().toISOString();
       const { error } = await supabase
         .from("kits_montagem" as any)
-        .update({ status: "finalizado", finalizado_em: nowIso })
+        .update({
+          status: "finalizado",
+          finalizado_em: nowIso,
+          total_pecas: totalPecas,
+          valor_varejo: totalValor,
+          valor_custo: totalCusto,
+        })
         .eq("id", kitAtivo.id);
       if (error) throw error;
 
@@ -378,8 +420,13 @@ export default function MontarKit() {
                       {finalizado ? "Finalizado" : "Em montagem"}
                     </Badge>
                   </div>
-                  {k.descricao && (
-                    <p className="text-xs text-muted-foreground mt-1 truncate">{k.descricao}</p>
+                  {(k.descricao || k.total_pecas) && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {k.descricao}
+                      {k.descricao && (k.total_pecas ?? 0) > 0 && " • "}
+                      {(k.total_pecas ?? 0) > 0 && `${k.total_pecas} peças`}
+                      {(k.valor_varejo ?? 0) > 0 && ` • ${formatarValor(k.valor_varejo!)}`}
+                    </p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {new Date(k.criado_em).toLocaleString("pt-BR")}
@@ -446,15 +493,64 @@ export default function MontarKit() {
                   </Button>
                 </form>
 
-                <div className="mt-3 flex items-center justify-between text-sm bg-muted/40 rounded-lg p-3">
-                  <span>
-                    Total de peças: <strong className="text-foreground">{totalPecas}</strong>
-                  </span>
-                  <span>
-                    Valor total: <strong className="text-primary">{formatarValor(totalValor)}</strong>
-                  </span>
+                <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                    <div className="text-xl font-bold text-foreground">{totalPecas}</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Peças</div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                    <div className="text-xl font-bold text-primary">{formatarValor(totalValor)}</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Varejo</div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                    <div className="text-xl font-bold text-foreground">{formatarValor(totalCusto)}</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Custo</div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                    <div className="text-xl font-bold text-emerald-600">{margemBruta.toFixed(1)}%</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Margem</div>
+                  </div>
                 </div>
               </Card>
+
+              {resumoCategorias.length > 0 && (
+                <Card className="p-4">
+                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">
+                    Resumo por Categoria
+                  </h3>
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead className="text-right">Qtd</TableHead>
+                          <TableHead className="text-right">Varejo</TableHead>
+                          <TableHead className="text-right">Custo</TableHead>
+                          <TableHead className="text-right">Margem</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {resumoCategorias.map((c) => (
+                          <TableRow key={c.categoria}>
+                            <TableCell className="font-medium">{c.categoria}</TableCell>
+                            <TableCell className="text-right">{c.qtd}</TableCell>
+                            <TableCell className="text-right">{formatarValor(c.varejo)}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">{formatarValor(c.custo)}</TableCell>
+                            <TableCell className="text-right">{c.margem.toFixed(1)}%</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/50 font-bold">
+                          <TableCell>TOTAL</TableCell>
+                          <TableCell className="text-right">{totalPecas}</TableCell>
+                          <TableCell className="text-right">{formatarValor(totalValor)}</TableCell>
+                          <TableCell className="text-right">{formatarValor(totalCusto)}</TableCell>
+                          <TableCell className="text-right">{margemBruta.toFixed(1)}%</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </Card>
+              )}
 
               <Card className="p-4">
                 <h3 className="font-semibold mb-3">Itens bipados</h3>
@@ -463,6 +559,7 @@ export default function MontarKit() {
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
                         <TableHead className="w-12">#</TableHead>
+                        <TableHead className="w-16">Foto</TableHead>
                         <TableHead>Descrição</TableHead>
                         <TableHead>Categoria</TableHead>
                         <TableHead>Cód. Barras</TableHead>
@@ -473,16 +570,14 @@ export default function MontarKit() {
                     <TableBody>
                       {itens.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                             Nenhum item bipado ainda
                           </TableCell>
                         </TableRow>
                       ) : (
                         itens.map((it, idx) => {
-                          // Agrupamento visual: alternar fundo quando categoria muda
                           const prev = itens[idx - 1];
                           const newGroup = !prev || prev.categoria_snapshot !== it.categoria_snapshot;
-                          // Determinar índice do grupo para zebra
                           let groupIdx = 0;
                           for (let i = 0; i <= idx; i++) {
                             if (i === 0 || itens[i].categoria_snapshot !== itens[i - 1].categoria_snapshot) {
@@ -494,6 +589,15 @@ export default function MontarKit() {
                             <TableRow key={it.id} className={zebra ? "bg-muted/20" : ""}>
                               <TableCell className="text-xs text-muted-foreground">
                                 {itens.length - idx}
+                              </TableCell>
+                              <TableCell>
+                                {it.foto_snapshot ? (
+                                  <img src={it.foto_snapshot} alt="" className="h-10 w-10 rounded object-cover" />
+                                ) : (
+                                  <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className="font-medium">{it.descricao_snapshot}</TableCell>
                               <TableCell>
