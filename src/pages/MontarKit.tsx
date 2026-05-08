@@ -12,9 +12,16 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatarValor } from "@/lib/utils";
-import { Plus, ScanLine, X, CheckCircle2, Package } from "lucide-react";
+import { Plus, ScanLine, X, CheckCircle2, Package, Trash2 } from "lucide-react";
 import {
   gerarPdfDetalhado, gerarPdfResumido, downloadBlob, type ItemKit,
 } from "@/lib/montarKitPdf";
@@ -48,9 +55,16 @@ export default function MontarKit() {
   const [kitAtivoId, setKitAtivoId] = useState<string | null>(null);
   const [codigo, setCodigo] = useState("");
   const [openNew, setOpenNew] = useState(false);
-  const [novaDescricao, setNovaDescricao] = useState("");
+  const [tipoKit, setTipoKit] = useState<string>("");
   const [confirmFinalizar, setConfirmFinalizar] = useState(false);
+  const [confirmCancelar, setConfirmCancelar] = useState(false);
   const [processando, setProcessando] = useState(false);
+
+  const TIPO_LABELS: Record<string, string> = {
+    inicial: "Inicial",
+    especial: "Especial",
+    maleta_vip: "Maleta VIP",
+  };
 
   // Lista de kits (em_montagem ou finalizados últimos 7 dias)
   const { data: kits = [] } = useQuery({
@@ -122,7 +136,7 @@ export default function MontarKit() {
         .from("kits_montagem" as any)
         .insert({
           numero,
-          descricao: novaDescricao.trim() || null,
+          descricao: TIPO_LABELS[tipoKit] ?? null,
           status: "em_montagem",
           criado_por: userData.user?.id ?? null,
         })
@@ -135,7 +149,7 @@ export default function MontarKit() {
       toast({ title: `Kit #${kit.numero} criado` });
       qc.invalidateQueries({ queryKey: ["kits_montagem_lista"] });
       setOpenNew(false);
-      setNovaDescricao("");
+      setTipoKit("");
       setKitAtivoId(kit.id);
     },
     onError: (e: any) => {
@@ -237,6 +251,31 @@ export default function MontarKit() {
     }
   };
 
+  const cancelarMontagem = async () => {
+    if (!kitAtivo) return;
+    setProcessando(true);
+    try {
+      const { error: errItens } = await supabase
+        .from("kits_montagem_itens" as any)
+        .delete()
+        .eq("kit_id", kitAtivo.id);
+      if (errItens) throw errItens;
+      const { error: errKit } = await supabase
+        .from("kits_montagem" as any)
+        .update({ status: "cancelado" })
+        .eq("id", kitAtivo.id);
+      if (errKit) throw errKit;
+      toast({ title: `Kit #${kitAtivo.numero} cancelado.` });
+      qc.invalidateQueries({ queryKey: ["kits_montagem_lista"] });
+      setConfirmCancelar(false);
+      setKitAtivoId(null);
+    } catch (e: any) {
+      toast({ title: "Erro ao cancelar", description: e.message, variant: "destructive" });
+    } finally {
+      setProcessando(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -319,9 +358,12 @@ export default function MontarKit() {
                       <p className="text-sm text-muted-foreground">{kitAtivo.descricao}</p>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" onClick={() => setKitAtivoId(null)}>
                       Fechar
+                    </Button>
+                    <Button variant="destructive" onClick={() => setConfirmCancelar(true)}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Cancelar Montagem
                     </Button>
                     {itens.length > 0 && (
                       <Button onClick={() => setConfirmFinalizar(true)}>
@@ -448,18 +490,22 @@ export default function MontarKit() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label>Descrição (opcional)</Label>
-              <Input
-                value={novaDescricao}
-                onChange={(e) => setNovaDescricao(e.target.value)}
-                placeholder="Ex: Kit de mostruário primavera"
-                autoFocus
-              />
+              <Label>Tipo do Kit</Label>
+              <Select value={tipoKit} onValueChange={setTipoKit}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inicial">Inicial</SelectItem>
+                  <SelectItem value="especial">Especial</SelectItem>
+                  <SelectItem value="maleta_vip">Maleta VIP</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenNew(false)}>Cancelar</Button>
-            <Button onClick={() => criarKit.mutate()} disabled={criarKit.isPending}>
+            <Button onClick={() => criarKit.mutate()} disabled={criarKit.isPending || !tipoKit}>
               {criarKit.isPending ? "Criando..." : "Criar Kit"}
             </Button>
           </DialogFooter>
@@ -484,6 +530,27 @@ export default function MontarKit() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmCancelar} onOpenChange={setConfirmCancelar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar montagem</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cancelar a montagem do Kit #{kitAtivo?.numero}? Todos os itens bipados serão removidos e o kit será marcado como cancelado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processando}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); cancelarMontagem(); }}
+              disabled={processando}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {processando ? "Cancelando..." : "Confirmar Cancelamento"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
