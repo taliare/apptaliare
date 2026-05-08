@@ -35,6 +35,7 @@ import HistoricoAcoes from '@/pages/HistoricoAcoes';
 import AuditoriaGeral from '@/pages/AuditoriaGeral';
 import ApuracaoKits from '@/pages/ApuracaoKits';
 import CatalogoProdutos from '@/pages/CatalogoProdutos';
+import MontarKit from '@/pages/MontarKit';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -71,6 +72,7 @@ export function AnimatedRoutes() {
           </ProtectedRoute>
         } />
         <Route path="/catalogo-produtos" element={<CatalogoProdutos />} />
+        <Route path="/montar-kit" element={<MontarKit />} />
         
         {/* Admin routes - with permission control for non-admins */}
         <Route path="/dashboard-admin" element={
