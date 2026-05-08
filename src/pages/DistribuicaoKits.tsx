@@ -178,11 +178,16 @@ function DroppableColumn({
       data-column-id={id}
     >
       <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center justify-between">
-          <span className="truncate">{title}</span>
-          <Badge variant="secondary" className="ml-2">
-            {kits.length}
-          </Badge>
+        <CardTitle className="text-base">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate">{title}</span>
+            <Badge variant="secondary" className="ml-2">
+              {kits.length}
+            </Badge>
+          </div>
+          <div className="text-xs font-normal text-muted-foreground mt-1">
+            Total: {formatCurrency(kits.reduce((s, k) => s + (k.valor || 0), 0))}
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 flex-1 overflow-y-auto">
