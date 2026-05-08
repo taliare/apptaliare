@@ -1272,15 +1272,40 @@ export type Database = {
         Row: {
           ativo: boolean
           atualizado_em: string
+          banho_ouro: number | null
+          banho_prata: number | null
+          banho_rodio: number | null
+          banho_verniz: number | null
           categoria: string | null
+          cfop: string | null
           codigo_barras: string
+          codigo_barras_fornecedor: string | null
           cor: string | null
           criado_em: string
+          custo_compra_bruto: number | null
+          custo_insumos: number | null
           descricao: string
+          estoque_maximo: number | null
+          estoque_minimo: number | null
+          fcp_percentual: number | null
+          fornecedor: string | null
           foto_url: string | null
+          fotos_adicionais: string[] | null
           id: string
+          imposto: string | null
+          localizacao: string | null
+          lucro_varejo_percentual: number | null
+          numero_ean: string | null
+          numero_ncm: string | null
+          observacao: string | null
           preco_custo: number
           preco_varejo: number
+          qtd_cancelado: number | null
+          qtd_consignado: number | null
+          qtd_estoque: number | null
+          qtd_pendente: number | null
+          qtd_perdido: number | null
+          qtd_vendido: number | null
           referencia: string | null
           subcategoria: string | null
           tamanho: string | null
@@ -1288,15 +1313,40 @@ export type Database = {
         Insert: {
           ativo?: boolean
           atualizado_em?: string
+          banho_ouro?: number | null
+          banho_prata?: number | null
+          banho_rodio?: number | null
+          banho_verniz?: number | null
           categoria?: string | null
+          cfop?: string | null
           codigo_barras: string
+          codigo_barras_fornecedor?: string | null
           cor?: string | null
           criado_em?: string
+          custo_compra_bruto?: number | null
+          custo_insumos?: number | null
           descricao: string
+          estoque_maximo?: number | null
+          estoque_minimo?: number | null
+          fcp_percentual?: number | null
+          fornecedor?: string | null
           foto_url?: string | null
+          fotos_adicionais?: string[] | null
           id?: string
+          imposto?: string | null
+          localizacao?: string | null
+          lucro_varejo_percentual?: number | null
+          numero_ean?: string | null
+          numero_ncm?: string | null
+          observacao?: string | null
           preco_custo?: number
           preco_varejo?: number
+          qtd_cancelado?: number | null
+          qtd_consignado?: number | null
+          qtd_estoque?: number | null
+          qtd_pendente?: number | null
+          qtd_perdido?: number | null
+          qtd_vendido?: number | null
           referencia?: string | null
           subcategoria?: string | null
           tamanho?: string | null
@@ -1304,15 +1354,40 @@ export type Database = {
         Update: {
           ativo?: boolean
           atualizado_em?: string
+          banho_ouro?: number | null
+          banho_prata?: number | null
+          banho_rodio?: number | null
+          banho_verniz?: number | null
           categoria?: string | null
+          cfop?: string | null
           codigo_barras?: string
+          codigo_barras_fornecedor?: string | null
           cor?: string | null
           criado_em?: string
+          custo_compra_bruto?: number | null
+          custo_insumos?: number | null
           descricao?: string
+          estoque_maximo?: number | null
+          estoque_minimo?: number | null
+          fcp_percentual?: number | null
+          fornecedor?: string | null
           foto_url?: string | null
+          fotos_adicionais?: string[] | null
           id?: string
+          imposto?: string | null
+          localizacao?: string | null
+          lucro_varejo_percentual?: number | null
+          numero_ean?: string | null
+          numero_ncm?: string | null
+          observacao?: string | null
           preco_custo?: number
           preco_varejo?: number
+          qtd_cancelado?: number | null
+          qtd_consignado?: number | null
+          qtd_estoque?: number | null
+          qtd_pendente?: number | null
+          qtd_perdido?: number | null
+          qtd_vendido?: number | null
           referencia?: string | null
           subcategoria?: string | null
           tamanho?: string | null
