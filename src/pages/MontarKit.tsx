@@ -285,18 +285,28 @@ export default function MontarKit() {
       const p = produto as any;
       const qtd = Math.max(1, parseInt(quantidade || "1", 10) || 1);
       const precoUnit = tipoPreco === "custo" ? (p.preco_custo ?? 0) : (p.preco_varejo ?? 0);
-      const { error: insErr } = await supabase.from("kits_montagem_itens" as any).insert({
-        kit_id: kitAtivoId,
-        codigo_barras: p.codigo_barras,
-        produto_id: p.id,
-        descricao_snapshot: p.descricao,
-        categoria_snapshot: p.categoria,
-        preco_snapshot: precoUnit,
-        custo_snapshot: p.preco_custo ?? 0,
-        foto_snapshot: p.foto_url ?? null,
-        quantidade: qtd,
-      });
-      if (insErr) throw insErr;
+      const itemExistente = itens.find((i) => i.codigo_barras === p.codigo_barras);
+      if (itemExistente) {
+        const novaQtd = (itemExistente.quantidade || 1) + qtd;
+        const { error: updErr } = await supabase
+          .from("kits_montagem_itens" as any)
+          .update({ quantidade: novaQtd })
+          .eq("id", itemExistente.id);
+        if (updErr) throw updErr;
+      } else {
+        const { error: insErr } = await supabase.from("kits_montagem_itens" as any).insert({
+          kit_id: kitAtivoId,
+          codigo_barras: p.codigo_barras,
+          produto_id: p.id,
+          descricao_snapshot: p.descricao,
+          categoria_snapshot: p.categoria,
+          preco_snapshot: precoUnit,
+          custo_snapshot: p.preco_custo ?? 0,
+          foto_snapshot: p.foto_url ?? null,
+          quantidade: qtd,
+        });
+        if (insErr) throw insErr;
+      }
       playBeep(800, 80);
       setUltimoBipado({
         referencia: p.referencia ?? null,
