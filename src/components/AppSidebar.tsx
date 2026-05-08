@@ -113,18 +113,14 @@ export function AppSidebar() {
       items: [
         { title: "Produção Diária", url: "/producao-diaria", icon: Package },
         { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
+        { title: "Catálogo de Produtos", url: "/catalogo-produtos", icon: BookOpen },
+        { title: "Montar Kit", url: "/montar-kit", icon: ScanLine },
       ],
     },
     {
       label: "ENCOMENDAS",
       items: [
         { title: "Encomendas", url: "/encomendas-producao", icon: ShoppingBag },
-      ],
-    },
-    {
-      label: "CATÁLOGO",
-      items: [
-        { title: "Catálogo de Produtos", url: "/catalogo-produtos", icon: Package },
       ],
     },
   ];
@@ -144,7 +140,8 @@ export function AppSidebar() {
         { title: "Venda Externa", url: "/venda-externa", icon: Users },
         { title: "CRM", url: "/leads-revendedoras", icon: UserPlus, badge: newLeadsCount },
         { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
-        { title: "Catálogo de Produtos", url: "/catalogo-produtos", icon: Package },
+        { title: "Catálogo de Produtos", url: "/catalogo-produtos", icon: BookOpen },
+        { title: "Montar Kit", url: "/montar-kit", icon: ScanLine },
         { title: "Garantias", url: "/garantias", icon: Shield },
       ],
     },
