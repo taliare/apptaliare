@@ -109,11 +109,12 @@ export default function MontarKit() {
     mutationFn: async () => {
       const { data: ultimoKit, error: ultimoErr } = await supabase
         .from("kits_montagem" as any)
-        .select("numero")
+        .select("*")
         .order("numero", { ascending: false })
         .limit(1);
       if (ultimoErr) throw ultimoErr;
-      const ultimoNum = ultimoKit?.[0]?.numero ? parseInt(ultimoKit[0].numero) : 9999;
+      const u = (ultimoKit as any[])?.[0];
+      const ultimoNum = u?.numero ? parseInt(u.numero) : 9999;
       const proximo = Math.max(ultimoNum, 9999) + 1;
       const numero = String(proximo);
       const { data: userData } = await supabase.auth.getUser();
