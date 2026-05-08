@@ -287,7 +287,13 @@ export default function MontarKit() {
       const nowIso = new Date().toISOString();
       const { error } = await supabase
         .from("kits_montagem" as any)
-        .update({ status: "finalizado", finalizado_em: nowIso })
+        .update({
+          status: "finalizado",
+          finalizado_em: nowIso,
+          total_pecas: totalPecas,
+          valor_varejo: totalValor,
+          valor_custo: totalCusto,
+        })
         .eq("id", kitAtivo.id);
       if (error) throw error;
 
