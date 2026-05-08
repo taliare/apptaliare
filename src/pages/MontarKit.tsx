@@ -48,7 +48,6 @@ export default function MontarKit() {
   const [kitAtivoId, setKitAtivoId] = useState<string | null>(null);
   const [codigo, setCodigo] = useState("");
   const [openNew, setOpenNew] = useState(false);
-  const [novoNumero, setNovoNumero] = useState("");
   const [novaDescricao, setNovaDescricao] = useState("");
   const [confirmFinalizar, setConfirmFinalizar] = useState(false);
   const [processando, setProcessando] = useState(false);
@@ -70,6 +69,12 @@ export default function MontarKit() {
   });
 
   const kitAtivo = useMemo(() => kits.find((k) => k.id === kitAtivoId) ?? null, [kits, kitAtivoId]);
+
+  const proximoNumero = useMemo(() => {
+    if (kits.length === 0) return 10000;
+    const maxNum = Math.max(...kits.map((k) => parseInt(k.numero) || 0));
+    return Math.max(maxNum, 9999) + 1;
+  }, [kits]);
 
   const { data: itens = [], refetch: refetchItens } = useQuery({
     queryKey: ["kits_montagem_itens", kitAtivoId],
@@ -102,8 +107,15 @@ export default function MontarKit() {
 
   const criarKit = useMutation({
     mutationFn: async () => {
-      const numero = novoNumero.trim();
-      if (!numero) throw new Error("Número do kit é obrigatório");
+      const { data: ultimoKit, error: ultimoErr } = await supabase
+        .from("kits_montagem" as any)
+        .select("numero")
+        .order("numero", { ascending: false })
+        .limit(1);
+      if (ultimoErr) throw ultimoErr;
+      const ultimoNum = ultimoKit?.[0]?.numero ? parseInt(ultimoKit[0].numero) : 9999;
+      const proximo = Math.max(ultimoNum, 9999) + 1;
+      const numero = String(proximo);
       const { data: userData } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from("kits_montagem" as any)
@@ -122,7 +134,6 @@ export default function MontarKit() {
       toast({ title: `Kit #${kit.numero} criado` });
       qc.invalidateQueries({ queryKey: ["kits_montagem_lista"] });
       setOpenNew(false);
-      setNovoNumero("");
       setNovaDescricao("");
       setKitAtivoId(kit.id);
     },
@@ -430,30 +441,24 @@ export default function MontarKit() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Novo Kit</DialogTitle>
-            <DialogDescription>Informe o número único do kit para iniciar a montagem.</DialogDescription>
+            <DialogDescription>
+              Kit <strong>#{proximoNumero}</strong> será criado automaticamente.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-2">
-              <Label>Número do Kit *</Label>
-              <Input
-                value={novoNumero}
-                onChange={(e) => setNovoNumero(e.target.value)}
-                placeholder="Ex: 6050"
-                autoFocus
-              />
-            </div>
             <div className="space-y-2">
               <Label>Descrição (opcional)</Label>
               <Input
                 value={novaDescricao}
                 onChange={(e) => setNovaDescricao(e.target.value)}
                 placeholder="Ex: Kit de mostruário primavera"
+                autoFocus
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenNew(false)}>Cancelar</Button>
-            <Button onClick={() => criarKit.mutate()} disabled={criarKit.isPending || !novoNumero.trim()}>
+            <Button onClick={() => criarKit.mutate()} disabled={criarKit.isPending}>
               {criarKit.isPending ? "Criando..." : "Criar Kit"}
             </Button>
           </DialogFooter>
