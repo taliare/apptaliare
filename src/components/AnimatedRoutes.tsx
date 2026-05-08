@@ -34,6 +34,7 @@ import AnaliseComercial from '@/pages/AnaliseComercial';
 import HistoricoAcoes from '@/pages/HistoricoAcoes';
 import AuditoriaGeral from '@/pages/AuditoriaGeral';
 import ApuracaoKits from '@/pages/ApuracaoKits';
+import CatalogoProdutos from '@/pages/CatalogoProdutos';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -69,6 +70,7 @@ export function AnimatedRoutes() {
             <EncomendaProducao />
           </ProtectedRoute>
         } />
+        <Route path="/catalogo-produtos" element={<CatalogoProdutos />} />
         
         {/* Admin routes - with permission control for non-admins */}
         <Route path="/dashboard-admin" element={

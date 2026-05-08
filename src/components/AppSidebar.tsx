@@ -119,6 +119,12 @@ export function AppSidebar() {
         { title: "Encomendas", url: "/encomendas-producao", icon: ShoppingBag },
       ],
     },
+    {
+      label: "CATÁLOGO",
+      items: [
+        { title: "Catálogo de Produtos", url: "/catalogo-produtos", icon: Package },
+      ],
+    },
   ];
 
   const adminCategories: MenuCategory[] = [
@@ -136,6 +142,7 @@ export function AppSidebar() {
         { title: "Venda Externa", url: "/venda-externa", icon: Users },
         { title: "CRM", url: "/leads-revendedoras", icon: UserPlus, badge: newLeadsCount },
         { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
+        { title: "Catálogo de Produtos", url: "/catalogo-produtos", icon: Package },
         { title: "Garantias", url: "/garantias", icon: Shield },
       ],
     },
