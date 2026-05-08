@@ -12,9 +12,16 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatarValor } from "@/lib/utils";
-import { Plus, ScanLine, X, CheckCircle2, Package } from "lucide-react";
+import { Plus, ScanLine, X, CheckCircle2, Package, Trash2 } from "lucide-react";
 import {
   gerarPdfDetalhado, gerarPdfResumido, downloadBlob, type ItemKit,
 } from "@/lib/montarKitPdf";
