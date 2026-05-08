@@ -242,13 +242,22 @@ export default function MontarKit() {
         descricao_snapshot: p.descricao,
         categoria_snapshot: p.categoria,
         preco_snapshot: p.preco_varejo ?? 0,
+        custo_snapshot: p.preco_custo ?? 0,
+        foto_snapshot: p.foto_url ?? null,
         quantidade: 1,
       });
       if (insErr) throw insErr;
       playBeep(800, 80);
       toast({
         title: "✓ Bipado",
-        description: `${p.descricao} — ${formatarValor(p.preco_varejo ?? 0)}`,
+        description: (
+          <div className="flex items-center gap-2">
+            {p.foto_url && (
+              <img src={p.foto_url} alt="" className="h-8 w-8 rounded object-cover" />
+            )}
+            <span>{p.descricao} — {formatarValor(p.preco_varejo ?? 0)}</span>
+          </div>
+        ) as any,
       });
       setCodigo("");
       await refetchItens();
