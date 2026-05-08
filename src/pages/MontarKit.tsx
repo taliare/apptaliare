@@ -305,17 +305,6 @@ export default function MontarKit() {
         preco: precoUnit,
         foto: p.foto_url ?? null,
       });
-      toast({
-        title: "✓ Bipado",
-        description: (
-          <div className="flex items-center gap-2">
-            {p.foto_url && (
-              <img src={p.foto_url} alt="" className="h-8 w-8 rounded object-cover" />
-            )}
-            <span>{p.descricao} — {formatarValor(precoUnit)}</span>
-          </div>
-        ) as any,
-      });
       setCodigo("");
       setQuantidade("1");
       await refetchItens();
