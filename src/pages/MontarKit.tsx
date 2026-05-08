@@ -123,14 +123,22 @@ export default function MontarKit() {
     mutationFn: async () => {
       const { data: ultimoKit, error: ultimoErr } = await supabase
         .from("kits_montagem" as any)
-        .select("*")
+        .select("numero, status")
         .order("numero", { ascending: false })
         .limit(1);
       if (ultimoErr) throw ultimoErr;
-      const u = (ultimoKit as any[])?.[0];
-      const ultimoNum = u?.numero ? parseInt(u.numero) : 9999;
-      const proximo = Math.max(ultimoNum, 9999) + 1;
-      const numero = String(proximo);
+      const ultimo = (ultimoKit as any[])?.[0];
+      let numero: string;
+      if (ultimo && ultimo.status === "cancelado") {
+        await supabase
+          .from("kits_montagem" as any)
+          .delete()
+          .eq("numero", ultimo.numero);
+        numero = ultimo.numero;
+      } else {
+        const ultimoNum = ultimo?.numero ? parseInt(ultimo.numero) : 9999;
+        numero = String(Math.max(ultimoNum, 9999) + 1);
+      }
       const { data: userData } = await supabase.auth.getUser();
       const { data, error } = await supabase
         .from("kits_montagem" as any)
