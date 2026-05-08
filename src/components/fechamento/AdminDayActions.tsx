@@ -320,15 +320,26 @@ export function AdminDayActions({
       const acumuladoAtual = cobranca.valor_pago_acumulado || 0;
       const valorAdiantado = cobranca.valor_adiantado || 0;
       const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
-      const saldoAberto = cobranca.valor_previsto - novoAcumulado - valorAdiantado;
-      
+
+      let valorPrevistoEfetivoCompleto = cobranca.valor_previsto || 0;
+      const updateDataCompleto: any = { valor_pago_acumulado: novoAcumulado };
+
+      if (dados.tipo === 'devolucao') {
+        updateDataCompleto.valor_previsto = 0;
+        valorPrevistoEfetivoCompleto = 0;
+      } else if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
+        valorPrevistoEfetivoCompleto = dados.valor_devido_empresa + valorAdiantado;
+        updateDataCompleto.valor_previsto = valorPrevistoEfetivoCompleto;
+      }
+
+      const saldoAberto = valorPrevistoEfetivoCompleto - novoAcumulado - valorAdiantado;
+
+      updateDataCompleto.status = (saldoAberto <= 0 ? 'pago' : 'parcial') as any;
+      updateDataCompleto.data_quitacao = saldoAberto <= 0 ? dados.dataNota : null;
+
       const { error: updateError } = await supabase
         .from('cobrancas_agendadas')
-        .update({
-          status: (saldoAberto <= 0 ? 'pago' : 'parcial') as any,
-          valor_pago_acumulado: novoAcumulado,
-          data_quitacao: saldoAberto <= 0 ? dados.dataNota : null,
-        })
+        .update(updateDataCompleto)
         .eq('id', cobranca.id);
       if (updateError) throw updateError;
 
