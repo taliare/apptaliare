@@ -251,6 +251,31 @@ export default function MontarKit() {
     }
   };
 
+  const cancelarMontagem = async () => {
+    if (!kitAtivo) return;
+    setProcessando(true);
+    try {
+      const { error: errItens } = await supabase
+        .from("kits_montagem_itens" as any)
+        .delete()
+        .eq("kit_id", kitAtivo.id);
+      if (errItens) throw errItens;
+      const { error: errKit } = await supabase
+        .from("kits_montagem" as any)
+        .update({ status: "cancelado" })
+        .eq("id", kitAtivo.id);
+      if (errKit) throw errKit;
+      toast({ title: `Kit #${kitAtivo.numero} cancelado.` });
+      qc.invalidateQueries({ queryKey: ["kits_montagem_lista"] });
+      setConfirmCancelar(false);
+      setKitAtivoId(null);
+    } catch (e: any) {
+      toast({ title: "Erro ao cancelar", description: e.message, variant: "destructive" });
+    } finally {
+      setProcessando(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
