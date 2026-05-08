@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -165,6 +165,22 @@ export default function MontarKit() {
     },
   });
 
+  const playBeep = useCallback((freq: number, duration: number) => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = "sine";
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
+      osc.start();
+      osc.stop(ctx.currentTime + duration / 1000);
+    } catch {}
+  }, []);
+
   const bipar = async () => {
     const cod = codigo.trim();
     if (!cod || !kitAtivoId || processando) {
@@ -181,6 +197,7 @@ export default function MontarKit() {
         .maybeSingle();
       if (pErr) throw pErr;
       if (!produto) {
+        playBeep(300, 150);
         toast({
           title: "Produto não encontrado",
           description: cod,
@@ -201,6 +218,7 @@ export default function MontarKit() {
         quantidade: 1,
       });
       if (insErr) throw insErr;
+      playBeep(800, 80);
       toast({
         title: "✓ Bipado",
         description: `${p.descricao} — ${formatarValor(p.preco_varejo ?? 0)}`,
@@ -208,6 +226,7 @@ export default function MontarKit() {
       setCodigo("");
       await refetchItens();
     } catch (e: any) {
+      playBeep(300, 150);
       toast({ title: "Erro ao bipar", description: e.message, variant: "destructive" });
     } finally {
       setProcessando(false);
