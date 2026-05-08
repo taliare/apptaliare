@@ -69,6 +69,8 @@ export default function CatalogoProdutos() {
 
   const [openForm, setOpenForm] = useState(false);
   const [form, setForm] = useState<ProdutoForm>(emptyForm);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [openImport, setOpenImport] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
