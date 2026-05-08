@@ -580,6 +580,93 @@ export type Database = {
           },
         ]
       }
+      kits_montagem: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          descricao: string | null
+          finalizado_em: string | null
+          id: string
+          numero: string
+          pdf_detalhado_url: string | null
+          pdf_resumido_url: string | null
+          status: string
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          finalizado_em?: string | null
+          id?: string
+          numero: string
+          pdf_detalhado_url?: string | null
+          pdf_resumido_url?: string | null
+          status?: string
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          descricao?: string | null
+          finalizado_em?: string | null
+          id?: string
+          numero?: string
+          pdf_detalhado_url?: string | null
+          pdf_resumido_url?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      kits_montagem_itens: {
+        Row: {
+          categoria_snapshot: string | null
+          codigo_barras: string
+          criado_em: string
+          descricao_snapshot: string | null
+          id: string
+          kit_id: string
+          preco_snapshot: number
+          produto_id: string | null
+          quantidade: number
+        }
+        Insert: {
+          categoria_snapshot?: string | null
+          codigo_barras: string
+          criado_em?: string
+          descricao_snapshot?: string | null
+          id?: string
+          kit_id: string
+          preco_snapshot?: number
+          produto_id?: string | null
+          quantidade?: number
+        }
+        Update: {
+          categoria_snapshot?: string | null
+          codigo_barras?: string
+          criado_em?: string
+          descricao_snapshot?: string | null
+          id?: string
+          kit_id?: string
+          preco_snapshot?: number
+          produto_id?: string | null
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kits_montagem_itens_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "kits_montagem"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_montagem_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos_catalogo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads_external_deletados: {
         Row: {
           deletado_em: string
@@ -1163,6 +1250,54 @@ export type Database = {
           id?: string
           tipo?: string
           valor?: number | null
+        }
+        Relationships: []
+      }
+      produtos_catalogo: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          categoria: string | null
+          codigo_barras: string
+          cor: string | null
+          criado_em: string
+          descricao: string
+          foto_url: string | null
+          id: string
+          preco_varejo: number
+          referencia: string | null
+          subcategoria: string | null
+          tamanho: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          categoria?: string | null
+          codigo_barras: string
+          cor?: string | null
+          criado_em?: string
+          descricao: string
+          foto_url?: string | null
+          id?: string
+          preco_varejo?: number
+          referencia?: string | null
+          subcategoria?: string | null
+          tamanho?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          categoria?: string | null
+          codigo_barras?: string
+          cor?: string | null
+          criado_em?: string
+          descricao?: string
+          foto_url?: string | null
+          id?: string
+          preco_varejo?: number
+          referencia?: string | null
+          subcategoria?: string | null
+          tamanho?: string | null
         }
         Relationships: []
       }
