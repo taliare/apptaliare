@@ -226,6 +226,25 @@ export default function MontarKit() {
     }
     setProcessando(true);
     try {
+      if (acao === "remover") {
+        // Buscar último item com esse código no kit
+        const item = itens.find((i) => i.codigo_barras === cod);
+        if (!item) {
+          playBeep(300, 150);
+          toast({ title: "Item não encontrado no kit", description: cod, variant: "destructive" });
+          setCodigo("");
+          refocus();
+          return;
+        }
+        const { error } = await supabase.from("kits_montagem_itens" as any).delete().eq("id", item.id);
+        if (error) throw error;
+        playBeep(800, 80);
+        toast({ title: "✓ Removido", description: item.descricao_snapshot ?? cod });
+        setCodigo("");
+        await refetchItens();
+        return;
+      }
+
       const { data: produto, error: pErr } = await supabase
         .from("produtos_catalogo" as any)
         .select("*")
@@ -235,29 +254,34 @@ export default function MontarKit() {
       if (pErr) throw pErr;
       if (!produto) {
         playBeep(300, 150);
-        toast({
-          title: "Produto não encontrado",
-          description: cod,
-          variant: "destructive",
-        });
+        toast({ title: "Produto não encontrado", description: cod, variant: "destructive" });
         setCodigo("");
         refocus();
         return;
       }
       const p = produto as any;
+      const qtd = Math.max(1, parseInt(quantidade || "1", 10) || 1);
+      const precoUnit = tipoPreco === "custo" ? (p.preco_custo ?? 0) : (p.preco_varejo ?? 0);
       const { error: insErr } = await supabase.from("kits_montagem_itens" as any).insert({
         kit_id: kitAtivoId,
         codigo_barras: p.codigo_barras,
         produto_id: p.id,
         descricao_snapshot: p.descricao,
         categoria_snapshot: p.categoria,
-        preco_snapshot: p.preco_varejo ?? 0,
+        preco_snapshot: precoUnit,
         custo_snapshot: p.preco_custo ?? 0,
         foto_snapshot: p.foto_url ?? null,
-        quantidade: 1,
+        quantidade: qtd,
       });
       if (insErr) throw insErr;
       playBeep(800, 80);
+      setUltimoBipado({
+        referencia: p.referencia ?? null,
+        descricao: p.descricao ?? null,
+        quantidade: qtd,
+        preco: precoUnit,
+        foto: p.foto_url ?? null,
+      });
       toast({
         title: "✓ Bipado",
         description: (
@@ -265,11 +289,12 @@ export default function MontarKit() {
             {p.foto_url && (
               <img src={p.foto_url} alt="" className="h-8 w-8 rounded object-cover" />
             )}
-            <span>{p.descricao} — {formatarValor(p.preco_varejo ?? 0)}</span>
+            <span>{p.descricao} — {formatarValor(precoUnit)}</span>
           </div>
         ) as any,
       });
       setCodigo("");
+      setQuantidade("1");
       await refetchItens();
     } catch (e: any) {
       playBeep(300, 150);
@@ -278,6 +303,19 @@ export default function MontarKit() {
       setProcessando(false);
       refocus();
     }
+  };
+
+  const atualizarQuantidade = async (id: string, novaQtd: number) => {
+    const q = Math.max(1, Math.floor(novaQtd) || 1);
+    const { error } = await supabase
+      .from("kits_montagem_itens" as any)
+      .update({ quantidade: q })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+      return;
+    }
+    refetchItens();
   };
 
   const removerItem = async (id: string) => {
