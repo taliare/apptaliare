@@ -55,9 +55,16 @@ export default function MontarKit() {
   const [kitAtivoId, setKitAtivoId] = useState<string | null>(null);
   const [codigo, setCodigo] = useState("");
   const [openNew, setOpenNew] = useState(false);
-  const [novaDescricao, setNovaDescricao] = useState("");
+  const [tipoKit, setTipoKit] = useState<string>("");
   const [confirmFinalizar, setConfirmFinalizar] = useState(false);
+  const [confirmCancelar, setConfirmCancelar] = useState(false);
   const [processando, setProcessando] = useState(false);
+
+  const TIPO_LABELS: Record<string, string> = {
+    inicial: "Inicial",
+    especial: "Especial",
+    maleta_vip: "Maleta VIP",
+  };
 
   // Lista de kits (em_montagem ou finalizados últimos 7 dias)
   const { data: kits = [] } = useQuery({
