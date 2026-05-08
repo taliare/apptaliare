@@ -476,12 +476,63 @@ export default function CatalogoProdutos() {
               <Input value={form.tamanho ?? ""} onChange={(e) => setForm({ ...form, tamanho: e.target.value })} />
             </div>
             <div className="space-y-2">
+              <Label>Preço de Custo</Label>
+              <Input
+                value={form.precoCustoStr}
+                onChange={(e) => setForm({ ...form, precoCustoStr: formatarInputMoeda(e.target.value) })}
+                placeholder="0,00"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Preço Varejo</Label>
               <Input
                 value={form.precoStr}
                 onChange={(e) => setForm({ ...form, precoStr: formatarInputMoeda(e.target.value) })}
                 placeholder="0,00"
               />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Foto do Produto</Label>
+              <div className="flex items-center gap-3">
+                {form.foto_url ? (
+                  <img src={form.foto_url} alt="Preview" className="h-16 w-16 rounded object-cover border" />
+                ) : (
+                  <div className="h-16 w-16 rounded bg-muted flex items-center justify-center border">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                )}
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handlePhotoUpload(f);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingPhoto}
+                  onClick={() => photoInputRef.current?.click()}
+                >
+                  {uploadingPhoto ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Enviando...</>
+                  ) : form.foto_url ? "Trocar foto" : "Adicionar foto"}
+                </Button>
+                {form.foto_url && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setForm({ ...form, foto_url: "" })}
+                  >
+                    Remover
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-3 md:col-span-2">
               <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
