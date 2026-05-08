@@ -128,6 +128,8 @@ export default function CatalogoProdutos() {
         cor: f.cor?.trim() || null,
         tamanho: f.tamanho?.trim() || null,
         preco_varejo: parseInputMoeda(f.precoStr),
+        preco_custo: parseInputMoeda(f.precoCustoStr),
+        foto_url: f.foto_url || null,
         ativo: f.ativo,
         atualizado_em: new Date().toISOString(),
       };
