@@ -19,7 +19,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { formatarValor, formatarInputMoeda, parseInputMoeda } from "@/lib/utils";
-import { Plus, Upload, Pencil, Search, Package } from "lucide-react";
+import { Plus, Upload, Pencil, Search, Package, Image as ImageIcon, Loader2 } from "lucide-react";
 
 type Produto = {
   id: string;
@@ -31,13 +31,15 @@ type Produto = {
   cor: string | null;
   tamanho: string | null;
   preco_varejo: number;
+  preco_custo: number;
   foto_url: string | null;
   ativo: boolean;
 };
 
-type ProdutoForm = Omit<Produto, "id" | "preco_varejo"> & {
+type ProdutoForm = Omit<Produto, "id" | "preco_varejo" | "preco_custo"> & {
   id?: string;
   precoStr: string;
+  precoCustoStr: string;
 };
 
 const PAGE_SIZE = 20;
@@ -51,6 +53,7 @@ const emptyForm: ProdutoForm = {
   cor: "",
   tamanho: "",
   precoStr: "",
+  precoCustoStr: "",
   foto_url: "",
   ativo: true,
 };
