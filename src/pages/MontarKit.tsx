@@ -420,8 +420,13 @@ export default function MontarKit() {
                       {finalizado ? "Finalizado" : "Em montagem"}
                     </Badge>
                   </div>
-                  {k.descricao && (
-                    <p className="text-xs text-muted-foreground mt-1 truncate">{k.descricao}</p>
+                  {(k.descricao || k.total_pecas) && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">
+                      {k.descricao}
+                      {k.descricao && (k.total_pecas ?? 0) > 0 && " • "}
+                      {(k.total_pecas ?? 0) > 0 && `${k.total_pecas} peças`}
+                      {(k.valor_varejo ?? 0) > 0 && ` • ${formatarValor(k.valor_varejo!)}`}
+                    </p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
                     {new Date(k.criado_em).toLocaleString("pt-BR")}
