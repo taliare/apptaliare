@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatarValor } from "@/lib/utils";
-import { Plus, ScanLine, X, CheckCircle2, Package, Trash2 } from "lucide-react";
+import { Plus, ScanLine, X, CheckCircle2, Package, Trash2, Image as ImageIcon } from "lucide-react";
 import {
   gerarPdfDetalhado, gerarPdfResumido, downloadBlob, type ItemKit,
 } from "@/lib/montarKitPdf";
@@ -33,6 +33,9 @@ type KitMontagem = {
   status: string;
   finalizado_em: string | null;
   criado_em: string;
+  total_pecas?: number | null;
+  valor_varejo?: number | null;
+  valor_custo?: number | null;
 };
 
 type KitItem = {
@@ -43,6 +46,8 @@ type KitItem = {
   descricao_snapshot: string | null;
   categoria_snapshot: string | null;
   preco_snapshot: number;
+  custo_snapshot: number;
+  foto_snapshot: string | null;
   quantidade: number;
   criado_em: string;
 };
