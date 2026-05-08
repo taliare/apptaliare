@@ -112,6 +112,28 @@ export default function MontarKit() {
   // Contadores em tempo real
   const totalPecas = itens.reduce((s, i) => s + (i.quantidade || 1), 0);
   const totalValor = itens.reduce((s, i) => s + (i.preco_snapshot || 0) * (i.quantidade || 1), 0);
+  const totalCusto = itens.reduce((s, i) => s + (i.custo_snapshot || 0) * (i.quantidade || 1), 0);
+  const margemBruta = totalValor > 0 ? ((totalValor - totalCusto) / totalValor) * 100 : 0;
+
+  // Resumo por categoria
+  const resumoCategorias = useMemo(() => {
+    const map = new Map<string, { qtd: number; varejo: number; custo: number }>();
+    for (const it of itens) {
+      const cat = it.categoria_snapshot || "—";
+      const cur = map.get(cat) ?? { qtd: 0, varejo: 0, custo: 0 };
+      cur.qtd += it.quantidade || 1;
+      cur.varejo += (it.preco_snapshot || 0) * (it.quantidade || 1);
+      cur.custo += (it.custo_snapshot || 0) * (it.quantidade || 1);
+      map.set(cat, cur);
+    }
+    return Array.from(map.entries())
+      .map(([categoria, v]) => ({
+        categoria,
+        ...v,
+        margem: v.varejo > 0 ? ((v.varejo - v.custo) / v.varejo) * 100 : 0,
+      }))
+      .sort((a, b) => a.categoria.localeCompare(b.categoria));
+  }, [itens]);
 
   // Auto-focus quando kit ativo muda
   useEffect(() => {
