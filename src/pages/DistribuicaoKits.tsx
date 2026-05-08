@@ -85,6 +85,7 @@ function KitCard({
     inicial: "bg-blue-500",
     especial: "bg-purple-500",
     maleta: "bg-green-500",
+    maleta_vip: "bg-amber-500",
   };
 
   return (
@@ -811,6 +812,7 @@ export default function DistribuicaoKits() {
                   <SelectItem value="inicial">Inicial</SelectItem>
                   <SelectItem value="especial">Especial</SelectItem>
                   <SelectItem value="maleta">Maleta</SelectItem>
+                  <SelectItem value="maleta_vip">Maleta VIP</SelectItem>
                 </SelectContent>
               </Select>
             </div>
