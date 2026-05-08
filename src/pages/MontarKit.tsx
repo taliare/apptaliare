@@ -358,9 +358,12 @@ export default function MontarKit() {
                       <p className="text-sm text-muted-foreground">{kitAtivo.descricao}</p>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button variant="outline" onClick={() => setKitAtivoId(null)}>
                       Fechar
+                    </Button>
+                    <Button variant="destructive" onClick={() => setConfirmCancelar(true)}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Cancelar Montagem
                     </Button>
                     {itens.length > 0 && (
                       <Button onClick={() => setConfirmFinalizar(true)}>
