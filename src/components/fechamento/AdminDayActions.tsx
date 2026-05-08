@@ -430,7 +430,7 @@ export function AdminDayActions({
       };
 
       if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
-        valorPrevistoEfetivo = dados.valor_devido_empresa + dados.valor_recebido;
+        valorPrevistoEfetivo = dados.valor_devido_empresa + valorAdiantado;
         updateData.valor_previsto = valorPrevistoEfetivo;
       }
 
