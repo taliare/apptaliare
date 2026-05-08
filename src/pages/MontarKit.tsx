@@ -136,7 +136,7 @@ export default function MontarKit() {
         .from("kits_montagem" as any)
         .insert({
           numero,
-          descricao: novaDescricao.trim() || null,
+          descricao: TIPO_LABELS[tipoKit] ?? null,
           status: "em_montagem",
           criado_por: userData.user?.id ?? null,
         })
