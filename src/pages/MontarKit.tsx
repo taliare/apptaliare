@@ -462,18 +462,22 @@ export default function MontarKit() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2">
-              <Label>Descrição (opcional)</Label>
-              <Input
-                value={novaDescricao}
-                onChange={(e) => setNovaDescricao(e.target.value)}
-                placeholder="Ex: Kit de mostruário primavera"
-                autoFocus
-              />
+              <Label>Tipo do Kit</Label>
+              <Select value={tipoKit} onValueChange={setTipoKit}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inicial">Inicial</SelectItem>
+                  <SelectItem value="especial">Especial</SelectItem>
+                  <SelectItem value="maleta_vip">Maleta VIP</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenNew(false)}>Cancelar</Button>
-            <Button onClick={() => criarKit.mutate()} disabled={criarKit.isPending}>
+            <Button onClick={() => criarKit.mutate()} disabled={criarKit.isPending || !tipoKit}>
               {criarKit.isPending ? "Criando..." : "Criar Kit"}
             </Button>
           </DialogFooter>
