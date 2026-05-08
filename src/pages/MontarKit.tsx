@@ -149,7 +149,7 @@ export default function MontarKit() {
       toast({ title: `Kit #${kit.numero} criado` });
       qc.invalidateQueries({ queryKey: ["kits_montagem_lista"] });
       setOpenNew(false);
-      setNovaDescricao("");
+      setTipoKit("");
       setKitAtivoId(kit.id);
     },
     onError: (e: any) => {
