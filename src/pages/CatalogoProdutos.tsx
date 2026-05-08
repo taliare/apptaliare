@@ -173,10 +173,34 @@ export default function CatalogoProdutos() {
       precoStr: p.preco_varejo
         ? p.preco_varejo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : "",
+      precoCustoStr: p.preco_custo
+        ? p.preco_custo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : "",
       foto_url: p.foto_url ?? "",
       ativo: p.ativo,
     });
     setOpenForm(true);
+  };
+
+  const handlePhotoUpload = async (file: File) => {
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const fileName = `${form.id || form.codigo_barras || crypto.randomUUID()}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("produtos-fotos")
+        .upload(fileName, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("produtos-fotos").getPublicUrl(fileName);
+      setForm((prev) => ({ ...prev, foto_url: pub.publicUrl }));
+      toast({ title: "Foto enviada" });
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar foto", description: e.message, variant: "destructive" });
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
   };
 
   // CSV parser (separator ;, supports quoted fields)
