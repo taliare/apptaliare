@@ -255,6 +255,28 @@ export default function MontarKit() {
         .eq("id", kitAtivo.id);
       if (error) throw error;
 
+      // Inserir kit na tabela kits_estoque
+      const valorTotal = itens.reduce(
+        (s, i) => s + (i.preco_snapshot || 0) * (i.quantidade || 1),
+        0
+      );
+      const labelToTipo: Record<string, string> = {
+        Inicial: "inicial",
+        Especial: "especial",
+        "Maleta VIP": "maleta_vip",
+      };
+      const tipoEstoque = labelToTipo[kitAtivo.descricao ?? ""] ?? "inicial";
+      const { error: estoqueErr } = await supabase
+        .from("kits_estoque" as any)
+        .insert({
+          codigo: kitAtivo.numero,
+          tipo: tipoEstoque,
+          status: "estoque",
+          representante_id: null,
+          valor: valorTotal,
+        });
+      if (estoqueErr) throw estoqueErr;
+
       const itensPdf: ItemKit[] = itens.map((i) => ({
         codigo_barras: i.codigo_barras,
         descricao_snapshot: i.descricao_snapshot,
