@@ -530,6 +530,27 @@ export default function MontarKit() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmCancelar} onOpenChange={setConfirmCancelar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar montagem</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cancelar a montagem do Kit #{kitAtivo?.numero}? Todos os itens bipados serão removidos e o kit será marcado como cancelado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processando}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); cancelarMontagem(); }}
+              disabled={processando}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {processando ? "Cancelando..." : "Confirmar Cancelamento"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
