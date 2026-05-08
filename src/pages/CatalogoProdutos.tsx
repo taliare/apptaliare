@@ -366,6 +366,7 @@ export default function CatalogoProdutos() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-16">Foto</TableHead>
                 <TableHead>Código</TableHead>
                 <TableHead>Referência</TableHead>
                 <TableHead>Descrição</TableHead>
@@ -373,17 +374,27 @@ export default function CatalogoProdutos() {
                 <TableHead>Cor</TableHead>
                 <TableHead>Tamanho</TableHead>
                 <TableHead className="text-right">Preço</TableHead>
+                <TableHead className="text-right">Custo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
               ) : pageItems.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum produto encontrado</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">Nenhum produto encontrado</TableCell></TableRow>
               ) : pageItems.map((p) => (
                 <TableRow key={p.id}>
+                  <TableCell>
+                    {p.foto_url ? (
+                      <img src={p.foto_url} alt={p.descricao} className="h-10 w-10 rounded object-cover" />
+                    ) : (
+                      <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{p.codigo_barras}</TableCell>
                   <TableCell>{p.referencia || "—"}</TableCell>
                   <TableCell className="max-w-xs truncate">{p.descricao}</TableCell>
@@ -391,6 +402,7 @@ export default function CatalogoProdutos() {
                   <TableCell>{p.cor || "—"}</TableCell>
                   <TableCell>{p.tamanho || "—"}</TableCell>
                   <TableCell className="text-right">{formatarValor(p.preco_varejo)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{formatarValor(p.preco_custo ?? 0)}</TableCell>
                   <TableCell>
                     <Badge variant={p.ativo ? "default" : "secondary"}>
                       {p.ativo ? "Ativo" : "Inativo"}
