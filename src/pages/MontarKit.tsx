@@ -493,15 +493,64 @@ export default function MontarKit() {
                   </Button>
                 </form>
 
-                <div className="mt-3 flex items-center justify-between text-sm bg-muted/40 rounded-lg p-3">
-                  <span>
-                    Total de peças: <strong className="text-foreground">{totalPecas}</strong>
-                  </span>
-                  <span>
-                    Valor total: <strong className="text-primary">{formatarValor(totalValor)}</strong>
-                  </span>
+                <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                    <div className="text-xl font-bold text-foreground">{totalPecas}</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Peças</div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                    <div className="text-xl font-bold text-primary">{formatarValor(totalValor)}</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Varejo</div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                    <div className="text-xl font-bold text-foreground">{formatarValor(totalCusto)}</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Custo</div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                    <div className="text-xl font-bold text-emerald-600">{margemBruta.toFixed(1)}%</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider">Margem</div>
+                  </div>
                 </div>
               </Card>
+
+              {resumoCategorias.length > 0 && (
+                <Card className="p-4">
+                  <h3 className="font-semibold mb-3 text-sm uppercase tracking-wider text-muted-foreground">
+                    Resumo por Categoria
+                  </h3>
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead className="text-right">Qtd</TableHead>
+                          <TableHead className="text-right">Varejo</TableHead>
+                          <TableHead className="text-right">Custo</TableHead>
+                          <TableHead className="text-right">Margem</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {resumoCategorias.map((c) => (
+                          <TableRow key={c.categoria}>
+                            <TableCell className="font-medium">{c.categoria}</TableCell>
+                            <TableCell className="text-right">{c.qtd}</TableCell>
+                            <TableCell className="text-right">{formatarValor(c.varejo)}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">{formatarValor(c.custo)}</TableCell>
+                            <TableCell className="text-right">{c.margem.toFixed(1)}%</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/50 font-bold">
+                          <TableCell>TOTAL</TableCell>
+                          <TableCell className="text-right">{totalPecas}</TableCell>
+                          <TableCell className="text-right">{formatarValor(totalValor)}</TableCell>
+                          <TableCell className="text-right">{formatarValor(totalCusto)}</TableCell>
+                          <TableCell className="text-right">{margemBruta.toFixed(1)}%</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </Card>
+              )}
 
               <Card className="p-4">
                 <h3 className="font-semibold mb-3">Itens bipados</h3>
@@ -510,6 +559,7 @@ export default function MontarKit() {
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
                         <TableHead className="w-12">#</TableHead>
+                        <TableHead className="w-16">Foto</TableHead>
                         <TableHead>Descrição</TableHead>
                         <TableHead>Categoria</TableHead>
                         <TableHead>Cód. Barras</TableHead>
@@ -520,16 +570,14 @@ export default function MontarKit() {
                     <TableBody>
                       {itens.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                             Nenhum item bipado ainda
                           </TableCell>
                         </TableRow>
                       ) : (
                         itens.map((it, idx) => {
-                          // Agrupamento visual: alternar fundo quando categoria muda
                           const prev = itens[idx - 1];
                           const newGroup = !prev || prev.categoria_snapshot !== it.categoria_snapshot;
-                          // Determinar índice do grupo para zebra
                           let groupIdx = 0;
                           for (let i = 0; i <= idx; i++) {
                             if (i === 0 || itens[i].categoria_snapshot !== itens[i - 1].categoria_snapshot) {
@@ -541,6 +589,15 @@ export default function MontarKit() {
                             <TableRow key={it.id} className={zebra ? "bg-muted/20" : ""}>
                               <TableCell className="text-xs text-muted-foreground">
                                 {itens.length - idx}
+                              </TableCell>
+                              <TableCell>
+                                {it.foto_snapshot ? (
+                                  <img src={it.foto_snapshot} alt="" className="h-10 w-10 rounded object-cover" />
+                                ) : (
+                                  <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
+                                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell className="font-medium">{it.descricao_snapshot}</TableCell>
                               <TableCell>
