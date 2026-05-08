@@ -64,6 +64,16 @@ export default function MontarKit() {
   const [confirmFinalizar, setConfirmFinalizar] = useState(false);
   const [confirmCancelar, setConfirmCancelar] = useState(false);
   const [processando, setProcessando] = useState(false);
+  const [acao, setAcao] = useState<"adicionar" | "remover">("adicionar");
+  const [quantidade, setQuantidade] = useState<string>("1");
+  const [tipoPreco, setTipoPreco] = useState<"varejo" | "custo">("varejo");
+  const [ultimoBipado, setUltimoBipado] = useState<{
+    referencia: string | null;
+    descricao: string | null;
+    quantidade: number;
+    preco: number;
+    foto: string | null;
+  } | null>(null);
 
   const TIPO_LABELS: Record<string, string> = {
     inicial: "Inicial",
