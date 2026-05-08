@@ -64,6 +64,16 @@ export default function MontarKit() {
   const [confirmFinalizar, setConfirmFinalizar] = useState(false);
   const [confirmCancelar, setConfirmCancelar] = useState(false);
   const [processando, setProcessando] = useState(false);
+  const [acao, setAcao] = useState<"adicionar" | "remover">("adicionar");
+  const [quantidade, setQuantidade] = useState<string>("1");
+  const [tipoPreco, setTipoPreco] = useState<"varejo" | "custo">("varejo");
+  const [ultimoBipado, setUltimoBipado] = useState<{
+    referencia: string | null;
+    descricao: string | null;
+    quantidade: number;
+    preco: number;
+    foto: string | null;
+  } | null>(null);
 
   const TIPO_LABELS: Record<string, string> = {
     inicial: "Inicial",
@@ -108,6 +118,29 @@ export default function MontarKit() {
       return (data ?? []) as unknown as KitItem[];
     },
   });
+
+  // Lookup de referencia/subcategoria por produto_id
+  const produtoIds = useMemo(
+    () => Array.from(new Set(itens.map((i) => i.produto_id).filter(Boolean) as string[])),
+    [itens]
+  );
+  const { data: produtosMeta = [] } = useQuery({
+    queryKey: ["produtos_meta", produtoIds.join(",")],
+    enabled: produtoIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("produtos_catalogo" as any)
+        .select("id, referencia, subcategoria")
+        .in("id", produtoIds);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+  const metaMap = useMemo(() => {
+    const m = new Map<string, { referencia: string | null; subcategoria: string | null }>();
+    for (const p of produtosMeta) m.set(p.id, { referencia: p.referencia, subcategoria: p.subcategoria });
+    return m;
+  }, [produtosMeta]);
 
   // Contadores em tempo real
   const totalPecas = itens.reduce((s, i) => s + (i.quantidade || 1), 0);
@@ -216,6 +249,25 @@ export default function MontarKit() {
     }
     setProcessando(true);
     try {
+      if (acao === "remover") {
+        // Buscar último item com esse código no kit
+        const item = itens.find((i) => i.codigo_barras === cod);
+        if (!item) {
+          playBeep(300, 150);
+          toast({ title: "Item não encontrado no kit", description: cod, variant: "destructive" });
+          setCodigo("");
+          refocus();
+          return;
+        }
+        const { error } = await supabase.from("kits_montagem_itens" as any).delete().eq("id", item.id);
+        if (error) throw error;
+        playBeep(800, 80);
+        toast({ title: "✓ Removido", description: item.descricao_snapshot ?? cod });
+        setCodigo("");
+        await refetchItens();
+        return;
+      }
+
       const { data: produto, error: pErr } = await supabase
         .from("produtos_catalogo" as any)
         .select("*")
@@ -225,29 +277,34 @@ export default function MontarKit() {
       if (pErr) throw pErr;
       if (!produto) {
         playBeep(300, 150);
-        toast({
-          title: "Produto não encontrado",
-          description: cod,
-          variant: "destructive",
-        });
+        toast({ title: "Produto não encontrado", description: cod, variant: "destructive" });
         setCodigo("");
         refocus();
         return;
       }
       const p = produto as any;
+      const qtd = Math.max(1, parseInt(quantidade || "1", 10) || 1);
+      const precoUnit = tipoPreco === "custo" ? (p.preco_custo ?? 0) : (p.preco_varejo ?? 0);
       const { error: insErr } = await supabase.from("kits_montagem_itens" as any).insert({
         kit_id: kitAtivoId,
         codigo_barras: p.codigo_barras,
         produto_id: p.id,
         descricao_snapshot: p.descricao,
         categoria_snapshot: p.categoria,
-        preco_snapshot: p.preco_varejo ?? 0,
+        preco_snapshot: precoUnit,
         custo_snapshot: p.preco_custo ?? 0,
         foto_snapshot: p.foto_url ?? null,
-        quantidade: 1,
+        quantidade: qtd,
       });
       if (insErr) throw insErr;
       playBeep(800, 80);
+      setUltimoBipado({
+        referencia: p.referencia ?? null,
+        descricao: p.descricao ?? null,
+        quantidade: qtd,
+        preco: precoUnit,
+        foto: p.foto_url ?? null,
+      });
       toast({
         title: "✓ Bipado",
         description: (
@@ -255,11 +312,12 @@ export default function MontarKit() {
             {p.foto_url && (
               <img src={p.foto_url} alt="" className="h-8 w-8 rounded object-cover" />
             )}
-            <span>{p.descricao} — {formatarValor(p.preco_varejo ?? 0)}</span>
+            <span>{p.descricao} — {formatarValor(precoUnit)}</span>
           </div>
         ) as any,
       });
       setCodigo("");
+      setQuantidade("1");
       await refetchItens();
     } catch (e: any) {
       playBeep(300, 150);
@@ -268,6 +326,19 @@ export default function MontarKit() {
       setProcessando(false);
       refocus();
     }
+  };
+
+  const atualizarQuantidade = async (id: string, novaQtd: number) => {
+    const q = Math.max(1, Math.floor(novaQtd) || 1);
+    const { error } = await supabase
+      .from("kits_montagem_itens" as any)
+      .update({ quantidade: q })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+      return;
+    }
+    refetchItens();
   };
 
   const removerItem = async (id: string) => {
@@ -455,9 +526,7 @@ export default function MontarKit() {
                     )}
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    <Button variant="outline" onClick={() => setKitAtivoId(null)}>
-                      Fechar
-                    </Button>
+                    <Button variant="outline" onClick={() => setKitAtivoId(null)}>Fechar</Button>
                     <Button variant="destructive" onClick={() => setConfirmCancelar(true)}>
                       <Trash2 className="h-4 w-4 mr-2" /> Cancelar Montagem
                     </Button>
@@ -469,30 +538,137 @@ export default function MontarKit() {
                   </div>
                 </div>
 
-                <form
-                  className="mt-4 flex gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    bipar();
-                  }}
-                >
-                  <div className="relative flex-1">
-                    <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary" />
-                    <Input
-                      ref={inputRef}
-                      autoFocus
-                      value={codigo}
-                      onChange={(e) => setCodigo(e.target.value)}
-                      placeholder="Bipe ou digite o código de barras..."
-                      className="pl-11 h-14 text-lg font-mono"
-                      disabled={processando}
-                    />
-                  </div>
-                  <Button type="submit" size="lg" disabled={processando || !codigo.trim()}>
-                    Bipar
-                  </Button>
-                </form>
+                {/* Painel de bipagem em duas colunas */}
+                <div className="mt-4 grid grid-cols-1 lg:grid-cols-5 gap-4">
+                  {/* COLUNA ESQUERDA: BIPAR PRODUTO */}
+                  <div className="lg:col-span-3 rounded-lg border bg-card p-4 space-y-3">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                      Bipar Produto
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Select value={acao} onValueChange={(v) => setAcao(v as any)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="adicionar">Adicionar</SelectItem>
+                          <SelectItem value="remover">Remover</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value="codigo_barras" onValueChange={() => {}}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="codigo_barras">Código de Barras</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
+                    <form
+                      onSubmit={(e) => { e.preventDefault(); bipar(); }}
+                      className="space-y-3"
+                    >
+                      <div className="grid grid-cols-[1fr_90px] gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Código de Barras *</Label>
+                          <div className="relative">
+                            <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                            <Input
+                              ref={inputRef}
+                              autoFocus
+                              value={codigo}
+                              onChange={(e) => setCodigo(e.target.value)}
+                              placeholder="Bipe ou digite..."
+                              className="pl-9 h-11 font-mono"
+                              disabled={processando}
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Quantidade</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={quantidade}
+                            onChange={(e) => setQuantidade(e.target.value)}
+                            className="h-11 text-center"
+                            disabled={processando || acao === "remover"}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs">Tipo de Preço</Label>
+                        <Select value={tipoPreco} onValueChange={(v) => setTipoPreco(v as any)}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="varejo">Varejo</SelectItem>
+                            <SelectItem value="custo">Custo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        disabled={processando || !codigo.trim()}
+                        className="w-full h-12 text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        {acao === "remover" ? "REMOVER" : "ADICIONAR"}
+                      </Button>
+                    </form>
+                  </div>
+
+                  {/* COLUNA DIREITA: PRODUTO + TOTAIS */}
+                  <div className="lg:col-span-2 rounded-lg border bg-card overflow-hidden">
+                    <div className="p-4">
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
+                        Produto
+                      </h3>
+                      {ultimoBipado ? (
+                        <div className="flex gap-3">
+                          <div className="flex-1 text-xs space-y-1">
+                            <div><span className="text-muted-foreground">Referência:</span>{" "}
+                              <span className="font-medium">{ultimoBipado.referencia ?? "—"}</span>
+                            </div>
+                            <div><span className="text-muted-foreground">Descrição:</span></div>
+                            <div className="font-medium line-clamp-2">{ultimoBipado.descricao ?? "—"}</div>
+                            <div className="pt-1"><span className="text-muted-foreground">Quantidade:</span>{" "}
+                              <span className="font-semibold">{ultimoBipado.quantidade}</span>
+                            </div>
+                            <div><span className="text-muted-foreground">Preço Unitário:</span></div>
+                            <div className="text-base font-bold text-primary">{formatarValor(ultimoBipado.preco)}</div>
+                          </div>
+                          <div className="h-[120px] w-[120px] rounded border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {ultimoBipado.foto ? (
+                              <img src={ultimoBipado.foto} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center text-muted-foreground py-8 text-xs">
+                          Nenhum produto bipado ainda
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t bg-muted/30 p-4 space-y-1.5 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="font-semibold">
+                          {formatarValor(ultimoBipado ? ultimoBipado.preco * ultimoBipado.quantidade : 0)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Quantidade (kit)</span>
+                        <span className="font-semibold">{totalPecas} peças</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-1.5">
+                        <span className="font-semibold">Valor Total</span>
+                        <span className="font-bold text-primary">{formatarValor(totalValor)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Totais resumidos do kit */}
                 <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
                   <div className="rounded-lg border bg-muted/30 p-3 text-center">
                     <div className="text-xl font-bold text-foreground">{totalPecas}</div>
@@ -552,44 +728,38 @@ export default function MontarKit() {
                 </Card>
               )}
 
+              {/* Lista de Produtos */}
               <Card className="p-4">
-                <h3 className="font-semibold mb-3">Itens bipados</h3>
+                <h3 className="font-semibold mb-3">Lista de Produtos</h3>
                 <div className="rounded-md border overflow-x-auto max-h-[50vh] overflow-y-auto">
                   <Table>
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
-                        <TableHead className="w-12">#</TableHead>
                         <TableHead className="w-16">Foto</TableHead>
+                        <TableHead>Cód. de Barras</TableHead>
+                        <TableHead>Referência</TableHead>
                         <TableHead>Descrição</TableHead>
                         <TableHead>Categoria</TableHead>
-                        <TableHead>Cód. Barras</TableHead>
-                        <TableHead className="text-right">Preço</TableHead>
-                        <TableHead></TableHead>
+                        <TableHead>Subcategoria</TableHead>
+                        <TableHead className="w-20 text-center">Qtd.</TableHead>
+                        <TableHead className="text-right">Unitário</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {itens.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                             Nenhum item bipado ainda
                           </TableCell>
                         </TableRow>
                       ) : (
-                        itens.map((it, idx) => {
-                          const prev = itens[idx - 1];
-                          const newGroup = !prev || prev.categoria_snapshot !== it.categoria_snapshot;
-                          let groupIdx = 0;
-                          for (let i = 0; i <= idx; i++) {
-                            if (i === 0 || itens[i].categoria_snapshot !== itens[i - 1].categoria_snapshot) {
-                              groupIdx++;
-                            }
-                          }
-                          const zebra = groupIdx % 2 === 0;
+                        itens.map((it) => {
+                          const meta = it.produto_id ? metaMap.get(it.produto_id) : null;
+                          const total = (it.preco_snapshot || 0) * (it.quantidade || 1);
                           return (
-                            <TableRow key={it.id} className={zebra ? "bg-muted/20" : ""}>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {itens.length - idx}
-                              </TableCell>
+                            <TableRow key={it.id}>
                               <TableCell>
                                 {it.foto_snapshot ? (
                                   <img src={it.foto_snapshot} alt="" className="h-10 w-10 rounded object-cover" />
@@ -599,23 +769,24 @@ export default function MontarKit() {
                                   </div>
                                 )}
                               </TableCell>
-                              <TableCell className="font-medium">{it.descricao_snapshot}</TableCell>
-                              <TableCell>
-                                {newGroup && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {it.categoria_snapshot ?? "—"}
-                                  </Badge>
-                                )}
-                                {!newGroup && <span className="text-muted-foreground text-xs">{it.categoria_snapshot}</span>}
-                              </TableCell>
                               <TableCell className="font-mono text-xs">{it.codigo_barras}</TableCell>
+                              <TableCell className="text-xs">{meta?.referencia ?? "—"}</TableCell>
+                              <TableCell className="font-medium max-w-[220px] truncate">{it.descricao_snapshot}</TableCell>
+                              <TableCell className="text-xs">{it.categoria_snapshot ?? "—"}</TableCell>
+                              <TableCell className="text-xs">{meta?.subcategoria ?? "—"}</TableCell>
+                              <TableCell>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={it.quantidade}
+                                  onChange={(e) => atualizarQuantidade(it.id, parseInt(e.target.value, 10))}
+                                  className="h-8 w-16 text-center"
+                                />
+                              </TableCell>
                               <TableCell className="text-right">{formatarValor(it.preco_snapshot)}</TableCell>
+                              <TableCell className="text-right font-semibold">{formatarValor(total)}</TableCell>
                               <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removerItem(it.id)}
-                                >
+                                <Button variant="ghost" size="sm" onClick={() => removerItem(it.id)}>
                                   <X className="h-4 w-4" />
                                 </Button>
                               </TableCell>
