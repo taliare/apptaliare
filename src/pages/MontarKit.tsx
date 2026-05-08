@@ -119,6 +119,29 @@ export default function MontarKit() {
     },
   });
 
+  // Lookup de referencia/subcategoria por produto_id
+  const produtoIds = useMemo(
+    () => Array.from(new Set(itens.map((i) => i.produto_id).filter(Boolean) as string[])),
+    [itens]
+  );
+  const { data: produtosMeta = [] } = useQuery({
+    queryKey: ["produtos_meta", produtoIds.join(",")],
+    enabled: produtoIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("produtos_catalogo" as any)
+        .select("id, referencia, subcategoria")
+        .in("id", produtoIds);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+  const metaMap = useMemo(() => {
+    const m = new Map<string, { referencia: string | null; subcategoria: string | null }>();
+    for (const p of produtosMeta) m.set(p.id, { referencia: p.referencia, subcategoria: p.subcategoria });
+    return m;
+  }, [produtosMeta]);
+
   // Contadores em tempo real
   const totalPecas = itens.reduce((s, i) => s + (i.quantidade || 1), 0);
   const totalValor = itens.reduce((s, i) => s + (i.preco_snapshot || 0) * (i.quantidade || 1), 0);
