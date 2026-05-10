@@ -151,7 +151,7 @@ export default function DreDespesas() {
   const [contato, setContato] = useState("");
   const [valor, setValor] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [categoriaSugerida, setCategoriaSugerida] = useState<Categoria | null>(null);
+  
 
   const anoMes = `${selectedAno}-${selectedMes}`;
   const anos = Array.from({ length: 5 }, (_, i) => String(currentDate.getFullYear() - 2 + i));
@@ -365,14 +365,14 @@ export default function DreDespesas() {
       setValor("");
       setObservacao("");
     }
-    setCategoriaSugerida(null);
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingDespesa(null);
-    setCategoriaSugerida(null);
+    setDescricao("");
+    setCategoriaId("");
   };
 
   const formatarValorInput = (value: string): string => {
@@ -590,36 +590,25 @@ export default function DreDespesas() {
               <Input
                 value={descricao}
                 onChange={(e) => {
-                  setDescricao(e.target.value);
-                  const sugestao = detectarCategoria(e.target.value, categorias);
-                  setCategoriaSugerida(sugestao && !categoriaId ? sugestao : null);
+                  const val = e.target.value;
+                  setDescricao(val);
+                  if (!categoriaId) {
+                    const sugestao = detectarCategoria(val, categorias);
+                    if (sugestao) {
+                      setCategoriaId(sugestao.id);
+                    }
+                  }
                 }}
                 placeholder="Ex: Pagamento fornecedor X"
                 autoFocus={!editingDespesa}
               />
-              {categoriaSugerida && !categoriaId && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>Sugestão:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCategoriaId(categoriaSugerida.id);
-                      setCategoriaSugerida(null);
-                    }}
-                    className="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors font-medium"
-                  >
-                    {categoriaSugerida.nome} ↵
-                  </button>
-                  <span className="text-xs">(clique para aplicar)</span>
-                </div>
-              )}
             </div>
 
             {/* Linha 2: Categoria | Forma de Pagamento */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Categoria *</label>
-                <Select value={categoriaId} onValueChange={(v) => { setCategoriaId(v); setCategoriaSugerida(null); }}>
+                <Select value={categoriaId} onValueChange={(v) => setCategoriaId(v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
