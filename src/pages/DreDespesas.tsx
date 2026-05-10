@@ -590,29 +590,18 @@ export default function DreDespesas() {
               <Input
                 value={descricao}
                 onChange={(e) => {
-                  setDescricao(e.target.value);
-                  const sugestao = detectarCategoria(e.target.value, categorias);
-                  setCategoriaSugerida(sugestao && !categoriaId ? sugestao : null);
+                  const val = e.target.value;
+                  setDescricao(val);
+                  if (!categoriaId) {
+                    const sugestao = detectarCategoria(val, categorias);
+                    if (sugestao) {
+                      setCategoriaId(sugestao.id);
+                    }
+                  }
                 }}
                 placeholder="Ex: Pagamento fornecedor X"
                 autoFocus={!editingDespesa}
               />
-              {categoriaSugerida && !categoriaId && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>Sugestão:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCategoriaId(categoriaSugerida.id);
-                      setCategoriaSugerida(null);
-                    }}
-                    className="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors font-medium"
-                  >
-                    {categoriaSugerida.nome} ↵
-                  </button>
-                  <span className="text-xs">(clique para aplicar)</span>
-                </div>
-              )}
             </div>
 
             {/* Linha 2: Categoria | Forma de Pagamento */}
