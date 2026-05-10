@@ -1503,7 +1503,16 @@ export default function FechamentoDiario() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Código: {notaEncontrada.codigo_nota}</span>
-                    <span className="font-bold">{formatarValor(notaEncontrada.valor_previsto)}</span>
+                    <div className="text-right">
+                      <span className="font-bold">
+                        {formatarValor(Math.max(0, notaEncontrada.valor_previsto - (notaEncontrada.valor_pago_acumulado || 0) - (notaEncontrada.valor_adiantado || 0)))}
+                      </span>
+                      {(notaEncontrada.valor_pago_acumulado || 0) > 0 && (
+                        <span className="block text-xs text-muted-foreground">
+                          Total: {formatarValor(notaEncontrada.valor_previsto)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Vencimento: {notaEncontrada.data_agendada}
