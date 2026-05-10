@@ -249,6 +249,7 @@ export default function DreDespesas() {
       setObservacao("");
       setDataDespesa(format(new Date(), 'yyyy-MM-dd'));
     }
+    setCategoriaSugerida(null);
     setDialogOpen(true);
   };
 
@@ -259,6 +260,7 @@ export default function DreDespesas() {
     setValor("");
     setObservacao("");
     setDataDespesa(format(new Date(), 'yyyy-MM-dd'));
+    setCategoriaSugerida(null);
   };
 
   const formatarValorInput = (value: string): string => {
