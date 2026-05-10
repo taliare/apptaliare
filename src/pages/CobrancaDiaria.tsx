@@ -1029,6 +1029,12 @@ export default function CobrancaDiaria() {
     } else if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
       valorPrevistoEfetivo = dados.valor_devido_empresa + valorAdiantado;
       updateDataCobranca.valor_previsto = valorPrevistoEfetivo;
+    } else if (acumuladoAtual > 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
+      const saldoAnterior = (cobranca.valor_previsto || 0) - acumuladoAtual - valorAdiantado;
+      if (dados.valor_devido_empresa < saldoAnterior) {
+        valorPrevistoEfetivo = novoAcumulado + valorAdiantado;
+        updateDataCobranca.valor_previsto = valorPrevistoEfetivo;
+      }
     }
 
     const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
