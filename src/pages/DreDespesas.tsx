@@ -591,7 +591,7 @@ export default function DreDespesas() {
                 value={descricao}
                 onChange={(e) => {
                   setDescricao(e.target.value);
-                  const sugestao = sugerirCategoria(e.target.value, categorias);
+                  const sugestao = detectarCategoria(e.target.value, categorias);
                   setCategoriaSugerida(sugestao && !categoriaId ? sugestao : null);
                 }}
                 placeholder="Ex: Pagamento fornecedor X"
