@@ -742,6 +742,72 @@ export default function DreDespesas() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={recurrenceDialogOpen} onOpenChange={(open) => {
+        setRecurrenceDialogOpen(open);
+        if (!open) setPendingRecurrence(null);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingRecurrence?.ocorrencia === 'anual'
+                ? 'Gerar para os próximos anos?'
+                : 'Gerar para os próximos períodos?'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              {pendingRecurrence?.ocorrencia === 'anual'
+                ? 'Quantos anos adicionais deseja gerar?'
+                : pendingRecurrence?.ocorrencia === 'mensal'
+                ? 'Quantos meses adicionais deseja gerar?'
+                : pendingRecurrence?.ocorrencia === 'quinzenal'
+                ? 'Quantas quinzenas adicionais deseja gerar?'
+                : 'Quantas semanas adicionais deseja gerar?'}
+            </p>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={recurrenceCount}
+              onChange={(e) => setRecurrenceCount(e.target.value)}
+              className="text-lg font-semibold"
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRecurrenceDialogOpen(false);
+                setPendingRecurrence(null);
+              }}
+            >
+              Não, apenas este
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!pendingRecurrence) return;
+                const n = parseInt(recurrenceCount) || 0;
+                if (n < 1) {
+                  toast.error('Informe um número válido');
+                  return;
+                }
+                await gerarRecorrencias(
+                  pendingRecurrence.id,
+                  pendingRecurrence.base,
+                  pendingRecurrence.ocorrencia,
+                  n,
+                );
+                setRecurrenceDialogOpen(false);
+                setPendingRecurrence(null);
+              }}
+            >
+              Sim, gerar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </TooltipProvider>
   );
