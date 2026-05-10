@@ -499,9 +499,29 @@ export default function DreDespesas() {
               <label className="text-sm font-medium">Descrição (opcional)</label>
               <Input
                 value={observacao}
-                onChange={(e) => setObservacao(e.target.value)}
+                onChange={(e) => {
+                  setObservacao(e.target.value);
+                  const sugestao = sugerirCategoria(e.target.value, categorias);
+                  setCategoriaSugerida(sugestao && !categoriaId ? sugestao : null);
+                }}
                 placeholder="Ex: Pagamento fornecedor X"
               />
+              {categoriaSugerida && !categoriaId && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Sugestão:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoriaId(categoriaSugerida.id);
+                      setCategoriaSugerida(null);
+                    }}
+                    className="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors font-medium"
+                  >
+                    {categoriaSugerida.nome} ↵
+                  </button>
+                  <span className="text-xs">(clique para aplicar)</span>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
