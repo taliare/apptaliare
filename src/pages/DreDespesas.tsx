@@ -464,7 +464,10 @@ export default function DreDespesas() {
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setCategoriaId(cat.id)}
+                    onClick={() => {
+                      setCategoriaId(cat.id);
+                      setCategoriaSugerida(null);
+                    }}
                     className={cn(
                       "text-left px-3 py-2 rounded-lg text-sm border transition-all",
                       categoriaId === cat.id
