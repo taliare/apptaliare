@@ -132,6 +132,13 @@ export default function DreDespesas() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
   const [deletingDespesa, setDeletingDespesa] = useState<Despesa | null>(null);
+  const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false);
+  const [recurrenceCount, setRecurrenceCount] = useState("3");
+  const [pendingRecurrence, setPendingRecurrence] = useState<{
+    id: string;
+    base: any;
+    ocorrencia: string;
+  } | null>(null);
 
   // Form state
   const [descricao, setDescricao] = useState("");
