@@ -135,6 +135,7 @@ export default function DreDespesas() {
   const [valor, setValor] = useState("");
   const [observacao, setObservacao] = useState("");
   const [dataDespesa, setDataDespesa] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [categoriaSugerida, setCategoriaSugerida] = useState<Categoria | null>(null);
 
   const anoMes = `${selectedAno}-${selectedMes}`;
   const anos = Array.from({ length: 5 }, (_, i) => String(currentDate.getFullYear() - 2 + i));
