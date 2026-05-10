@@ -132,6 +132,13 @@ export default function DreDespesas() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
   const [deletingDespesa, setDeletingDespesa] = useState<Despesa | null>(null);
+  const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false);
+  const [recurrenceCount, setRecurrenceCount] = useState("3");
+  const [pendingRecurrence, setPendingRecurrence] = useState<{
+    id: string;
+    base: any;
+    ocorrencia: string;
+  } | null>(null);
 
   // Form state
   const [descricao, setDescricao] = useState("");
@@ -185,6 +192,57 @@ export default function DreDespesas() {
 
   const totalPeriodo = despesas.reduce((sum, d) => sum + Number(d.valor), 0);
 
+  const shiftDate = (dateStr: string, ocorr: string, n: number): string => {
+    const d = new Date(dateStr + 'T12:00:00');
+    if (ocorr === 'mensal' || ocorr === 'parcelada') d.setMonth(d.getMonth() + n);
+    else if (ocorr === 'anual') d.setMonth(d.getMonth() + 12 * n);
+    else if (ocorr === 'quinzenal') d.setDate(d.getDate() + 15 * n);
+    else if (ocorr === 'semanal') d.setDate(d.getDate() + 7 * n);
+    return format(d, 'yyyy-MM-dd');
+  };
+
+  const gerarRecorrencias = async (
+    primeiroId: string,
+    base: any,
+    ocorr: string,
+    quantidadeAdicional: number,
+  ) => {
+    if (quantidadeAdicional <= 0) return;
+    const totalParcelas = quantidadeAdicional + 1;
+
+    // Para parcelada, numero_parcelas já é o total. Para outros, atualizar o primeiro registro.
+    if (ocorr !== 'parcelada') {
+      await supabase
+        .from('dre_despesas')
+        .update({ numero_parcelas: totalParcelas })
+        .eq('id', primeiroId);
+    }
+
+    const rows = [];
+    for (let i = 1; i <= quantidadeAdicional; i++) {
+      const novaDataVenc = shiftDate(base.data_vencimento, ocorr, i);
+      const novaDataDesp = shiftDate(base.data_despesa, ocorr, i);
+      rows.push({
+        ...base,
+        numero_parcelas: totalParcelas,
+        parcela_atual: i + 1,
+        data_vencimento: novaDataVenc,
+        data_despesa: novaDataDesp,
+        ano_mes: novaDataVenc.slice(0, 7),
+        criado_por: user?.id,
+      });
+    }
+
+    const { error } = await supabase.from('dre_despesas').insert(rows);
+    if (error) {
+      toast.error('Erro ao gerar recorrências');
+      console.error(error);
+      return;
+    }
+    toast.success(`${quantidadeAdicional} lançamento(s) adicional(is) gerado(s)`);
+    queryClient.invalidateQueries({ queryKey: ['dre-despesas'] });
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (payload: {
       id?: string;
@@ -218,20 +276,43 @@ export default function DreDespesas() {
           .update({ ...base, atualizado_em: new Date().toISOString() })
           .eq("id", payload.id);
         if (error) throw error;
+        return { id: payload.id, base, isNew: false };
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("dre_despesas")
           .insert({
             ...base,
             ano_mes: anoMes,
             criado_por: user?.id,
             parcela_atual: 1,
-          });
+          })
+          .select("id")
+          .single();
         if (error) throw error;
+        return { id: data.id as string, base, isNew: true };
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["dre-despesas", anoMes] });
+      const ocorr = result.base.ocorrencia;
+
+      if (result.isNew && ocorr === 'parcelada' && (result.base.numero_parcelas || 1) > 1) {
+        // gera automaticamente as parcelas seguintes
+        gerarRecorrencias(result.id, result.base, ocorr, (result.base.numero_parcelas || 1) - 1);
+        toast.success("Despesa lançada!");
+        handleCloseDialog();
+        return;
+      }
+
+      if (result.isNew && ['mensal', 'quinzenal', 'semanal', 'anual'].includes(ocorr)) {
+        setPendingRecurrence({ id: result.id, base: result.base, ocorrencia: ocorr });
+        setRecurrenceCount(ocorr === 'anual' ? "2" : "3");
+        setRecurrenceDialogOpen(true);
+        toast.success("Despesa lançada!");
+        handleCloseDialog();
+        return;
+      }
+
       toast.success(editingDespesa ? "Despesa atualizada!" : "Despesa lançada!");
       handleCloseDialog();
     },
@@ -456,9 +537,9 @@ export default function DreDespesas() {
                     <div className="md:col-span-1 text-sm">
                       <div className="text-xs text-muted-foreground">Parcela</div>
                       <div>
-                        {despesa.ocorrencia === 'parcelada' && despesa.numero_parcelas
+                        {despesa.numero_parcelas && despesa.numero_parcelas > 1
                           ? `${despesa.parcela_atual || 1}/${despesa.numero_parcelas}`
-                          : '-'}
+                          : '—'}
                       </div>
                     </div>
                     <div className="md:col-span-2 text-sm md:text-right">
@@ -661,6 +742,72 @@ export default function DreDespesas() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={recurrenceDialogOpen} onOpenChange={(open) => {
+        setRecurrenceDialogOpen(open);
+        if (!open) setPendingRecurrence(null);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingRecurrence?.ocorrencia === 'anual'
+                ? 'Gerar para os próximos anos?'
+                : 'Gerar para os próximos períodos?'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              {pendingRecurrence?.ocorrencia === 'anual'
+                ? 'Quantos anos adicionais deseja gerar?'
+                : pendingRecurrence?.ocorrencia === 'mensal'
+                ? 'Quantos meses adicionais deseja gerar?'
+                : pendingRecurrence?.ocorrencia === 'quinzenal'
+                ? 'Quantas quinzenas adicionais deseja gerar?'
+                : 'Quantas semanas adicionais deseja gerar?'}
+            </p>
+            <Input
+              type="number"
+              min={1}
+              max={60}
+              value={recurrenceCount}
+              onChange={(e) => setRecurrenceCount(e.target.value)}
+              className="text-lg font-semibold"
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRecurrenceDialogOpen(false);
+                setPendingRecurrence(null);
+              }}
+            >
+              Não, apenas este
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!pendingRecurrence) return;
+                const n = parseInt(recurrenceCount) || 0;
+                if (n < 1) {
+                  toast.error('Informe um número válido');
+                  return;
+                }
+                await gerarRecorrencias(
+                  pendingRecurrence.id,
+                  pendingRecurrence.base,
+                  pendingRecurrence.ocorrencia,
+                  n,
+                );
+                setRecurrenceDialogOpen(false);
+                setPendingRecurrence(null);
+              }}
+            >
+              Sim, gerar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </TooltipProvider>
   );
