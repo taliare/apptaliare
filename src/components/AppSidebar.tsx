@@ -256,7 +256,7 @@ export function AppSidebar() {
         border-r border-sidebar-border bg-sidebar transition-all duration-200 pt-14
         ${collapsed
           ? "w-16"
-          : "w-64 absolute top-0 left-0 h-full z-50 shadow-2xl"
+          : "w-48 absolute top-0 left-0 h-full z-50 shadow-2xl"
         }
       `}
     >
@@ -264,7 +264,7 @@ export function AppSidebar() {
         {categories.map((category, catIndex) => (
           <SidebarGroup key={category.label} className={catIndex > 0 ? "mt-4" : ""}>
             {!collapsed && (
-              <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10px] uppercase tracking-widest px-3 mb-2">
+              <SidebarGroupLabel className="text-sidebar-foreground/40 text-[9px] uppercase tracking-widest px-2 mb-1">
                 {category.label}
               </SidebarGroupLabel>
             )}
@@ -277,8 +277,8 @@ export function AppSidebar() {
                         to={item.url}
                         className="
                           flex items-center justify-between w-full
-                          px-3 py-2.5
-                          rounded-xl
+                          px-2 py-1.5
+                          rounded-lg
                           text-sidebar-foreground/70
                           hover:bg-sidebar-accent/50
                           hover:text-sidebar-foreground
@@ -288,9 +288,9 @@ export function AppSidebar() {
                         "
                         activeClassName="bg-primary/10 text-primary border-l-2 border-primary font-medium"
                       >
-                        <div className="flex items-center gap-3">
-                          <item.icon className="h-4 w-4 flex-shrink-0" />
-                          {!collapsed && <span className="text-sm">{item.title}</span>}
+                        <div className="flex items-center gap-2">
+                          <item.icon className="h-3.5 w-3.5 flex-shrink-0" />
+                          {!collapsed && <span className="text-xs">{item.title}</span>}
                         </div>
                         {!collapsed && item.badge !== undefined && item.badge > 0 && (
                           <Badge
