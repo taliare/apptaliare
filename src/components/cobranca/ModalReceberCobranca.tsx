@@ -171,12 +171,15 @@ export function ModalReceberCobranca({
     const descontoNum = parseInputMoeda(formatado);
     
     if (isRepasse) {
-      setValorAReceber(cobranca.valor_previsto - descontoNum);
+      setValorAReceber(Math.max(0, cobranca.valor_previsto - descontoNum));
+    } else if (isSubsequente) {
+      // Desconto aplicado sobre o saldo em aberto, não sobre o valor total da nota
+      setValorAReceber(Math.max(0, saldoAberto - descontoNum));
     } else {
       const valorVendaNum = parseInputMoeda(valorDevolvido);
       const valorVendido = Math.max(0, cobranca.valor_previsto - valorVendaNum);
       const valorAposComissao = valorVendido - comissaoValor;
-      setValorAReceber(Math.max(0, valorAposComissao - descontoNum - (cobranca.valor_adiantado || 0)));
+      setValorAReceber(Math.max(0, valorAposComissao - descontoNum));
     }
   };
 
