@@ -225,20 +225,43 @@ export default function DreDespesas() {
           .update({ ...base, atualizado_em: new Date().toISOString() })
           .eq("id", payload.id);
         if (error) throw error;
+        return { id: payload.id, base, isNew: false };
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("dre_despesas")
           .insert({
             ...base,
             ano_mes: anoMes,
             criado_por: user?.id,
             parcela_atual: 1,
-          });
+          })
+          .select("id")
+          .single();
         if (error) throw error;
+        return { id: data.id as string, base, isNew: true };
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["dre-despesas", anoMes] });
+      const ocorr = result.base.ocorrencia;
+
+      if (result.isNew && ocorr === 'parcelada' && (result.base.numero_parcelas || 1) > 1) {
+        // gera automaticamente as parcelas seguintes
+        gerarRecorrencias(result.id, result.base, ocorr, (result.base.numero_parcelas || 1) - 1);
+        toast.success("Despesa lançada!");
+        handleCloseDialog();
+        return;
+      }
+
+      if (result.isNew && ['mensal', 'quinzenal', 'semanal', 'anual'].includes(ocorr)) {
+        setPendingRecurrence({ id: result.id, base: result.base, ocorrencia: ocorr });
+        setRecurrenceCount(ocorr === 'anual' ? "2" : "3");
+        setRecurrenceDialogOpen(true);
+        toast.success("Despesa lançada!");
+        handleCloseDialog();
+        return;
+      }
+
       toast.success(editingDespesa ? "Despesa atualizada!" : "Despesa lançada!");
       handleCloseDialog();
     },
