@@ -53,6 +53,56 @@ interface Despesa {
   dre_categorias_despesas: Categoria | null;
 }
 
+const CATEGORIA_KEYWORDS: Array<{ keywords: string[]; nomeCategoria: string }> = [
+  {
+    nomeCategoria: 'Folha de Pagamento',
+    keywords: ['salario', 'salário', 'funcionario', 'funcionário', 'clt', 'pagamento funcionario', 'holerite', 'rescisao', 'rescisão'],
+  },
+  {
+    nomeCategoria: 'Pró-Labore',
+    keywords: ['pro-labore', 'prolabore', 'pró-labore', 'pro labore', 'retirada', 'socio', 'sócio'],
+  },
+  {
+    nomeCategoria: 'Vales',
+    keywords: ['vale', 'vr', 'vt', 'vale refeicao', 'vale refeição', 'vale transporte', 'alimentacao', 'alimentação', 'beneficio', 'benefício'],
+  },
+  {
+    nomeCategoria: 'Fornecedores',
+    keywords: ['fornecedor', 'compra', 'nota fiscal', 'nf-e', 'insumo', 'materia prima', 'material', 'pedido', 'produto'],
+  },
+  {
+    nomeCategoria: 'Comissões',
+    keywords: ['comissao', 'comissão', 'representante', 'vendedora', 'vendedor', 'comissionado'],
+  },
+  {
+    nomeCategoria: 'Despesas Bancárias',
+    keywords: ['banco', 'bancaria', 'bancário', 'tarifa', 'ted', 'iof', 'juros', 'emprestimo', 'empréstimo', 'financiamento', 'cartao credito', 'cartão crédito', 'taxa'],
+  },
+  {
+    nomeCategoria: 'Impostos',
+    keywords: ['imposto', 'das', 'simples nacional', 'irpj', 'csll', 'cofins', 'pis', 'inss', 'fgts', 'icms', 'iss', 'nfse', 'tributo', 'guia'],
+  },
+  {
+    nomeCategoria: 'Despesas da Empresa',
+    keywords: ['aluguel', 'energia', 'agua', 'internet', 'telefone', 'escritorio', 'escritório', 'limpeza', 'manutencao', 'manutenção', 'seguro', 'assinatura'],
+  },
+];
+
+function normalize(str: string) {
+  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function sugerirCategoria(descricao: string, categorias: Categoria[]): Categoria | null {
+  if (!descricao || descricao.length < 3) return null;
+  const lower = normalize(descricao);
+  for (const entry of CATEGORIA_KEYWORDS) {
+    if (entry.keywords.some(kw => lower.includes(normalize(kw)))) {
+      return categorias.find(c => normalize(c.nome) === normalize(entry.nomeCategoria)) ?? null;
+    }
+  }
+  return null;
+}
+
 const MESES = [
   { value: "01", label: "Janeiro" },
   { value: "02", label: "Fevereiro" },
