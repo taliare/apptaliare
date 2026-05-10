@@ -285,7 +285,7 @@ export function AdminDayActions({
           valor_devido_empresa: dados.valor_devido_empresa,
           valor_pago: dados.valor_devido_empresa,
           saldo_devedor: 0,
-          forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0].forma,
+          forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : (dados.pagamentos[0]?.forma || 'dinheiro'),
           data_execucao: dados.dataNota,
           codigo_nota_referencia: codigoNota,
         });
