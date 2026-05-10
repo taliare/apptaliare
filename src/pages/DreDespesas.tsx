@@ -66,27 +66,27 @@ interface Despesa {
   dre_categorias_despesas: Categoria | null;
 }
 
-const CATEGORIA_KEYWORDS: Array<{ keywords: string[]; nomeCategoria: string }> = [
-  { nomeCategoria: 'Folha de Pagamento', keywords: ['salario', 'salário', 'funcionario', 'funcionário', 'clt', 'holerite', 'rescisao', 'rescisão'] },
-  { nomeCategoria: 'Pró-Labore', keywords: ['pro-labore', 'prolabore', 'pró-labore', 'pro labore', 'retirada', 'socio', 'sócio'] },
-  { nomeCategoria: 'Vales', keywords: ['vale', 'vr', 'vt', 'vale refeicao', 'vale refeição', 'vale transporte', 'alimentacao', 'alimentação', 'beneficio', 'benefício'] },
-  { nomeCategoria: 'Fornecedores', keywords: ['fornecedor', 'compra', 'nota fiscal', 'nf-e', 'insumo', 'materia prima', 'material', 'pedido', 'produto'] },
-  { nomeCategoria: 'Comissões', keywords: ['comissao', 'comissão', 'representante', 'vendedora', 'vendedor', 'comissionado'] },
-  { nomeCategoria: 'Despesas Bancárias', keywords: ['banco', 'bancaria', 'bancário', 'tarifa', 'ted', 'iof', 'juros', 'emprestimo', 'empréstimo', 'financiamento', 'cartao credito', 'cartão crédito', 'taxa'] },
-  { nomeCategoria: 'Impostos', keywords: ['imposto', 'das', 'simples nacional', 'irpj', 'csll', 'cofins', 'pis', 'inss', 'fgts', 'icms', 'iss', 'nfse', 'tributo', 'guia'] },
-  { nomeCategoria: 'Despesas da Empresa', keywords: ['aluguel', 'energia', 'agua', 'internet', 'telefone', 'escritorio', 'escritório', 'limpeza', 'manutencao', 'manutenção', 'seguro', 'assinatura'] },
+const KEYWORD_MAP: Array<{ keys: string[]; fragment: string }> = [
+  { keys: ['salario','salário','funcionario','funcionário','clt','holerite','rescisao','rescisão','admissao','demissão'], fragment: 'folha' },
+  { keys: ['pro-labore','prolabore','pro labore','pró-labore','retirada','socio','sócio'], fragment: 'labore' },
+  { keys: ['vale','vr','vt','refeicao','refeição','transporte','alimentacao','alimentação','beneficio','benefício'], fragment: 'vale' },
+  { keys: ['fornecedor','compra','nota fiscal','nf-e','nfe','insumo','materia','mercadoria','pedido','fatura'], fragment: 'fornecedor' },
+  { keys: ['comissao','comissão','representante','vendedora','vendedor','comissionado'], fragment: 'comiss' },
+  { keys: ['banco','bancaria','bancário','tarifa','ted','iof','juros','emprestimo','empréstimo','financiamento','taxa bancaria','taxa bancária','credito rotativo'], fragment: 'banc' },
+  { keys: ['imposto','das','simples','irpj','csll','cofins','inss','fgts','icms','iss','guia','tributo','darf'], fragment: 'imposto' },
+  { keys: ['aluguel','energia','agua','internet','telefone','escritorio','escritório','limpeza','manutencao','manutenção','seguro','assinatura','honorario','honorário','contabil','contábil'], fragment: 'empresa' },
 ];
 
 function normalize(str: string) {
   return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-function sugerirCategoria(descricao: string, categorias: Categoria[]): Categoria | null {
-  if (!descricao || descricao.length < 3) return null;
-  const lower = normalize(descricao);
-  for (const entry of CATEGORIA_KEYWORDS) {
-    if (entry.keywords.some(kw => lower.includes(normalize(kw)))) {
-      return categorias.find(c => normalize(c.nome) === normalize(entry.nomeCategoria)) ?? null;
+function detectarCategoria(texto: string, cats: Categoria[]): Categoria | null {
+  if (!texto || texto.length < 3) return null;
+  const t = normalize(texto);
+  for (const entry of KEYWORD_MAP) {
+    if (entry.keys.some(k => t.includes(normalize(k)))) {
+      return cats.find(c => normalize(c.nome).includes(entry.fragment)) ?? null;
     }
   }
   return null;
