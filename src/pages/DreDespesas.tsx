@@ -537,9 +537,9 @@ export default function DreDespesas() {
                     <div className="md:col-span-1 text-sm">
                       <div className="text-xs text-muted-foreground">Parcela</div>
                       <div>
-                        {despesa.ocorrencia === 'parcelada' && despesa.numero_parcelas
+                        {despesa.numero_parcelas && despesa.numero_parcelas > 1
                           ? `${despesa.parcela_atual || 1}/${despesa.numero_parcelas}`
-                          : '-'}
+                          : '—'}
                       </div>
                     </div>
                     <div className="md:col-span-2 text-sm md:text-right">
