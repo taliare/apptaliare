@@ -638,6 +638,12 @@ export default function FechamentoDiario() {
       } else if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
         valorPrevistoEfetivoCompleto = dados.valor_devido_empresa + valorAdiantado;
         updateDataCompleto.valor_previsto = valorPrevistoEfetivoCompleto;
+      } else if (acumuladoAtual > 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
+        const saldoAnterior = (cobranca.valor_previsto || 0) - acumuladoAtual - valorAdiantado;
+        if (dados.valor_devido_empresa < saldoAnterior) {
+          valorPrevistoEfetivoCompleto = novoAcumulado + valorAdiantado;
+          updateDataCompleto.valor_previsto = valorPrevistoEfetivoCompleto;
+        }
       }
 
       const saldoAberto = valorPrevistoEfetivoCompleto - novoAcumulado - valorAdiantado;
