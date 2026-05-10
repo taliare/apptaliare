@@ -360,33 +360,57 @@ export type Database = {
           ano_mes: string
           atualizado_em: string | null
           categoria_id: string | null
+          contato: string | null
           criado_em: string | null
           criado_por: string | null
           data_despesa: string | null
+          data_vencimento: string | null
+          descricao: string | null
+          forma_pagamento: string | null
           id: string
+          numero_parcelas: number | null
           observacao: string | null
+          ocorrencia: string
+          parcela_atual: number | null
+          status_pagamento: string
           valor: number
         }
         Insert: {
           ano_mes: string
           atualizado_em?: string | null
           categoria_id?: string | null
+          contato?: string | null
           criado_em?: string | null
           criado_por?: string | null
           data_despesa?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          forma_pagamento?: string | null
           id?: string
+          numero_parcelas?: number | null
           observacao?: string | null
+          ocorrencia?: string
+          parcela_atual?: number | null
+          status_pagamento?: string
           valor: number
         }
         Update: {
           ano_mes?: string
           atualizado_em?: string | null
           categoria_id?: string | null
+          contato?: string | null
           criado_em?: string | null
           criado_por?: string | null
           data_despesa?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          forma_pagamento?: string | null
           id?: string
+          numero_parcelas?: number | null
           observacao?: string | null
+          ocorrencia?: string
+          parcela_atual?: number | null
+          status_pagamento?: string
           valor?: number
         }
         Relationships: [
