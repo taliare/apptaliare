@@ -192,6 +192,57 @@ export default function DreDespesas() {
 
   const totalPeriodo = despesas.reduce((sum, d) => sum + Number(d.valor), 0);
 
+  const shiftDate = (dateStr: string, ocorr: string, n: number): string => {
+    const d = new Date(dateStr + 'T12:00:00');
+    if (ocorr === 'mensal' || ocorr === 'parcelada') d.setMonth(d.getMonth() + n);
+    else if (ocorr === 'anual') d.setMonth(d.getMonth() + 12 * n);
+    else if (ocorr === 'quinzenal') d.setDate(d.getDate() + 15 * n);
+    else if (ocorr === 'semanal') d.setDate(d.getDate() + 7 * n);
+    return format(d, 'yyyy-MM-dd');
+  };
+
+  const gerarRecorrencias = async (
+    primeiroId: string,
+    base: any,
+    ocorr: string,
+    quantidadeAdicional: number,
+  ) => {
+    if (quantidadeAdicional <= 0) return;
+    const totalParcelas = quantidadeAdicional + 1;
+
+    // Para parcelada, numero_parcelas já é o total. Para outros, atualizar o primeiro registro.
+    if (ocorr !== 'parcelada') {
+      await supabase
+        .from('dre_despesas')
+        .update({ numero_parcelas: totalParcelas })
+        .eq('id', primeiroId);
+    }
+
+    const rows = [];
+    for (let i = 1; i <= quantidadeAdicional; i++) {
+      const novaDataVenc = shiftDate(base.data_vencimento, ocorr, i);
+      const novaDataDesp = shiftDate(base.data_despesa, ocorr, i);
+      rows.push({
+        ...base,
+        numero_parcelas: totalParcelas,
+        parcela_atual: i + 1,
+        data_vencimento: novaDataVenc,
+        data_despesa: novaDataDesp,
+        ano_mes: novaDataVenc.slice(0, 7),
+        criado_por: user?.id,
+      });
+    }
+
+    const { error } = await supabase.from('dre_despesas').insert(rows);
+    if (error) {
+      toast.error('Erro ao gerar recorrências');
+      console.error(error);
+      return;
+    }
+    toast.success(`${quantidadeAdicional} lançamento(s) adicional(is) gerado(s)`);
+    queryClient.invalidateQueries({ queryKey: ['dre-despesas'] });
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (payload: {
       id?: string;
