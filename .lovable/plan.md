@@ -1,23 +1,19 @@
+## Plano: Sidebar Hover-to-Expand
 
+### Objetivo
+Tornar o sidebar desktop colapsado por padrão e expandi-lo automaticamente ao passar o mouse, com layout ajustado para não empurrar o conteúdo.
 
-# Corrigir layout dos cards de ranking
+### Alterações
 
-## Resumo
-Substituir o bloco de rankings (linhas 208-254) por uma versão com melhor espaçamento, truncation nos nomes e alinhamento correto entre nome e valor.
+**1. src/App.tsx**
+- `<SidebarProvider>` → `<SidebarProvider defaultOpen={false}>`
+- Wrapper do sidebar: adicionar `w-16 relative` para reservar espaço fixo de 64px quando colapsado.
 
-## Alteração em `src/pages/T2RepresentantesPerformance.tsx`
+**2. src/components/AppSidebar.tsx**
+- Importar `useRef` do React.
+- Extrair `setOpen` de `useSidebar()`.
+- Adicionar refs e handlers `onMouseEnter` / `onMouseLeave` com debounce de 120ms para expandir/retrair.
+- Atualizar `<Sidebar>`: aplicar `onMouseEnter`/`onMouseLeave` e classes condicionais — quando expandido, usar `absolute top-0 left-0 h-full z-50 shadow-2xl` para sobrepor o conteúdo em vez de empurrá-lo.
 
-### Bloco único: linhas 208-254
-Substituir os 3 cards de ranking por versão com:
-- `CardHeader` com `pb-3` e `CardTitle` usando `flex items-center gap-2`
-- `CardContent` com `space-y-3`
-- Cada item: `flex items-center justify-between gap-2` com inner div `min-w-0` para truncation
-- Números de posição com `w-4 shrink-0`
-- Nomes com `truncate`
-- Valores com `shrink-0`
-
-Nenhuma lógica, query ou cálculo alterado.
-
-### Arquivo afetado
-- `src/pages/T2RepresentantesPerformance.tsx` — 1 bloco (linhas 208-254)
-
+### Resultado esperado
+Sidebar desktop inicia fechado (apenas ícones). Ao passar o mouse, expande suavemente sobre o conteúdo principal; ao retirar o mouse, recolhe após 120ms.

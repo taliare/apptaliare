@@ -25,6 +25,7 @@ import {
   BookOpen,
   ScanLine,
 } from "lucide-react";
+import { useRef } from "react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenuPermissions } from "@/hooks/useMenuPermissions";
@@ -62,10 +63,19 @@ interface MenuCategory {
 
 export function AppSidebar() {
   const { profile } = useAuth();
-  const { state } = useSidebar();
+  const { state, setOpen } = useSidebar();
   const { hasRouteAccess, permissions } = useMenuPermissions();
   const newLeadsCount = useNewLeadsCount();
   const collapsed = state === "collapsed";
+
+  const hoverTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const handleMouseEnter = () => {
+    clearTimeout(hoverTimeout.current);
+    setOpen(true);
+  };
+  const handleMouseLeave = () => {
+    hoverTimeout.current = setTimeout(() => setOpen(false), 120);
+  };
 
   const isAdmin = profile?.role === "admin";
 
@@ -240,7 +250,15 @@ export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      className={`${collapsed ? "w-16" : "w-64"} border-r border-sidebar-border bg-sidebar transition-all duration-300 pt-14`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className={`
+        border-r border-sidebar-border bg-sidebar transition-all duration-200 pt-14
+        ${collapsed
+          ? "w-16"
+          : "w-64 absolute top-0 left-0 h-full z-50 shadow-2xl"
+        }
+      `}
     >
       <SidebarContent className="flex flex-col h-full custom-scrollbar px-2 py-4">
         {categories.map((category, catIndex) => (

@@ -39,14 +39,14 @@ const App = () => {
                 
                 <Route path="/*" element={
                   <ProtectedRoute>
-                    <SidebarProvider>
+                    <SidebarProvider defaultOpen={false}>
                       <div className="flex flex-col min-h-screen w-full max-w-full overflow-x-hidden">
                         {/* Desktop Header - fixed on top */}
                         <AppHeader />
 
                         <div className="flex flex-1 w-full max-w-full overflow-x-hidden">
                           {/* Desktop Sidebar - hidden on mobile */}
-                          <div className="hidden md:block shrink-0">
+                          <div className="hidden md:block shrink-0 w-16 relative">
                             <AppSidebar />
                           </div>
 
