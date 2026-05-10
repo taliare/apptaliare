@@ -151,7 +151,7 @@ export default function DreDespesas() {
   const [contato, setContato] = useState("");
   const [valor, setValor] = useState("");
   const [observacao, setObservacao] = useState("");
-  const [categoriaSugerida, setCategoriaSugerida] = useState<Categoria | null>(null);
+  
 
   const anoMes = `${selectedAno}-${selectedMes}`;
   const anos = Array.from({ length: 5 }, (_, i) => String(currentDate.getFullYear() - 2 + i));
@@ -365,14 +365,14 @@ export default function DreDespesas() {
       setValor("");
       setObservacao("");
     }
-    setCategoriaSugerida(null);
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingDespesa(null);
-    setCategoriaSugerida(null);
+    setDescricao("");
+    setCategoriaId("");
   };
 
   const formatarValorInput = (value: string): string => {
@@ -608,7 +608,7 @@ export default function DreDespesas() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Categoria *</label>
-                <Select value={categoriaId} onValueChange={(v) => { setCategoriaId(v); setCategoriaSugerida(null); }}>
+                <Select value={categoriaId} onValueChange={(v) => setCategoriaId(v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
