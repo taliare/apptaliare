@@ -322,11 +322,16 @@ export default function GerenciarAgenda() {
   const estornoMutation = useMutation({
     mutationFn: async (cobranca: Cobranca) => {
       const valorOriginal = cobranca.valor_kit_original || cobranca.valor_previsto;
+      // 1. Reseta status via RPC (bypassa trigger)
       const { error } = await supabase.rpc('admin_estornar_baixa', {
         p_id: cobranca.id,
         p_valor_original: valorOriginal,
       });
       if (error) throw error;
+      // 2. Remove prestação de contas vinculada
+      await supabase.from('prestacoes_contas').delete().eq('cobranca_id', cobranca.id);
+      // 3. Remove notas promissórias vinculadas
+      await supabase.from('notas_promissorias').delete().eq('cobranca_id', cobranca.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
