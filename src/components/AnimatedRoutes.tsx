@@ -36,6 +36,7 @@ import AuditoriaGeral from '@/pages/AuditoriaGeral';
 import ApuracaoKits from '@/pages/ApuracaoKits';
 import CatalogoProdutos from '@/pages/CatalogoProdutos';
 import MontarKit from '@/pages/MontarKit';
+import ConfiguracaoPDF from '@/pages/ConfiguracaoPDF';
 
 export function AnimatedRoutes() {
   const location = useLocation();
@@ -180,6 +181,13 @@ export function AnimatedRoutes() {
           </ProtectedRoute>
         } />
         
+        {/* Configuração PDF - admin only */}
+        <Route path="/configuracao-pdf" element={
+          <ProtectedRoute requiredRole="admin">
+            <ConfiguracaoPDF />
+          </ProtectedRoute>
+        } />
+
         {/* Histórico de Ações - representantes */}
         <Route path="/historico-acoes" element={<HistoricoAcoes />} />
         
