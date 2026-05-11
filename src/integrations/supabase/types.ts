@@ -1180,6 +1180,72 @@ export type Database = {
         }
         Relationships: []
       }
+      pdf_config: {
+        Row: {
+          atualizado_em: string | null
+          cep: string | null
+          cnpj: string | null
+          criado_em: string | null
+          endereco: string | null
+          id: string
+          imprimir_detalhado: boolean | null
+          imprimir_resumido: boolean | null
+          logo_url: string | null
+          mais_informacoes: string | null
+          nome_empresa: string | null
+          tabela_comissao: string | null
+          telefone: string | null
+          termo_garantia: string | null
+          termo_ordem_servico: string | null
+          termo_pedido: string | null
+          termo_promissoria: string | null
+          termo_revendedor: string | null
+          termo_venda: string | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          criado_em?: string | null
+          endereco?: string | null
+          id?: string
+          imprimir_detalhado?: boolean | null
+          imprimir_resumido?: boolean | null
+          logo_url?: string | null
+          mais_informacoes?: string | null
+          nome_empresa?: string | null
+          tabela_comissao?: string | null
+          telefone?: string | null
+          termo_garantia?: string | null
+          termo_ordem_servico?: string | null
+          termo_pedido?: string | null
+          termo_promissoria?: string | null
+          termo_revendedor?: string | null
+          termo_venda?: string | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          cep?: string | null
+          cnpj?: string | null
+          criado_em?: string | null
+          endereco?: string | null
+          id?: string
+          imprimir_detalhado?: boolean | null
+          imprimir_resumido?: boolean | null
+          logo_url?: string | null
+          mais_informacoes?: string | null
+          nome_empresa?: string | null
+          tabela_comissao?: string | null
+          telefone?: string | null
+          termo_garantia?: string | null
+          termo_ordem_servico?: string | null
+          termo_pedido?: string | null
+          termo_promissoria?: string | null
+          termo_revendedor?: string | null
+          termo_venda?: string | null
+        }
+        Relationships: []
+      }
       prestacoes_contas: {
         Row: {
           cobranca_id: string | null
