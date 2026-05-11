@@ -1706,6 +1706,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_estornar_baixa: {
+        Args: { p_id: string; p_valor_original: number }
+        Returns: undefined
+      }
       atualizar_status_kit_entrega: {
         Args: { p_kit_id: string; p_user_id: string }
         Returns: boolean

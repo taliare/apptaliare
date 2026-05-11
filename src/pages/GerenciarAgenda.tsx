@@ -322,16 +322,10 @@ export default function GerenciarAgenda() {
   const estornoMutation = useMutation({
     mutationFn: async (cobranca: Cobranca) => {
       const valorOriginal = cobranca.valor_kit_original || cobranca.valor_previsto;
-      const { error } = await supabase
-        .from('cobrancas_agendadas')
-        .update({
-          status: 'pendente' as StatusCobranca,
-          valor_pago_acumulado: 0,
-          data_quitacao: null,
-          valor_previsto: valorOriginal,
-        })
-        .eq('id', cobranca.id);
-
+      const { error } = await supabase.rpc('admin_estornar_baixa', {
+        p_id: cobranca.id,
+        p_valor_original: valorOriginal,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
