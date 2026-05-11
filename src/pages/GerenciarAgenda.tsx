@@ -70,6 +70,9 @@ export default function GerenciarAgenda() {
   // Jurídico
   const [juridicoCobranca, setJuridicoCobranca] = useState<Cobranca | null>(null);
   
+  // Estorno
+  const [estornoCobranca, setEstornoCobranca] = useState<Cobranca | null>(null);
+
   // Filtros
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
   const [filtroStatus, setFiltroStatus] = useState<string>('pendente'); // Padrão: pendente
@@ -312,6 +315,36 @@ export default function GerenciarAgenda() {
     },
     onError: () => {
       toast({ title: 'Erro ao encaminhar ao jurídico', variant: 'destructive' });
+    },
+  });
+
+  // Mutation para estornar baixa
+  const estornoMutation = useMutation({
+    mutationFn: async (cobranca: Cobranca) => {
+      const valorOriginal = cobranca.valor_kit_original || cobranca.valor_previsto;
+      const { error } = await supabase
+        .from('cobrancas_agendadas')
+        .update({
+          status: 'pendente' as StatusCobranca,
+          valor_pago_acumulado: 0,
+          data_quitacao: null,
+          valor_previsto: valorOriginal,
+        })
+        .eq('id', cobranca.id);
+
+      if (error) throw error;
+      await supabase.from('prestacoes_contas').delete().eq('cobranca_id', cobranca.id);
+      await supabase.from('notas_promissorias').delete().eq('cobranca_id', cobranca.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
+      toast({ title: '✅ Baixa estornada! Nota voltou para a agenda da representante.' });
+      setEstornoCobranca(null);
+      setIsDetailOpen(false);
+    },
+    onError: (err) => {
+      console.error(err);
+      toast({ title: 'Erro ao estornar baixa', variant: 'destructive' });
     },
   });
 
@@ -1259,12 +1292,59 @@ export default function GerenciarAgenda() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Estornar Baixa */}
+                  {(detailCobranca.status === 'pago' || detailCobranca.status === 'parcial') && (
+                    <div className="border border-destructive/30 rounded-lg p-4 bg-destructive/5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-destructive">Estornar Baixa</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Cancela o pagamento e devolve a nota para a agenda com status <strong>Pendente</strong>.
+                          </p>
+                        </div>
+                        <Button variant="destructive" size="sm" className="shrink-0" onClick={() => setEstornoCobranca(detailCobranca)}>
+                          Estornar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Confirmação - Estornar Baixa */}
+      <AlertDialog open={!!estornoCobranca} onOpenChange={(open) => !open && setEstornoCobranca(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Estornar Baixa da Nota {estornoCobranca?.codigo_nota}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>Esta ação irá:</p>
+                <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+                  <li>Cancelar o pagamento de <strong className="text-foreground">{formatarValor(estornoCobranca?.valor_pago_acumulado || 0)}</strong></li>
+                  <li>Devolver a nota para a agenda com status <strong className="text-foreground">Pendente</strong></li>
+                  <li>Remover o fechamento diário associado</li>
+                </ul>
+                <p className="text-destructive font-medium">Esta ação não pode ser desfeita.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => estornoCobranca && estornoMutation.mutate(estornoCobranca)}
+              disabled={estornoMutation.isPending}
+            >
+              {estornoMutation.isPending ? 'Estornando...' : 'Confirmar Estorno'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialog de Confirmação - Encaminhar ao Jurídico */}
       <AlertDialog open={!!juridicoCobranca} onOpenChange={(open) => !open && setJuridicoCobranca(null)}>
