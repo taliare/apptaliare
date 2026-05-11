@@ -1282,9 +1282,7 @@ export default function GerenciarAgenda() {
                         <p className="font-semibold">
                           {detailCobranca.status === 'pago'
                             ? formatarValor(0)
-                            : detailCobranca.status === 'parcial'
-                              ? formatarValor(Math.max(0, detailCobranca.valor_previsto - (detailCobranca.valor_pago_acumulado || 0) - (detailCobranca.valor_adiantado || 0)))
-                              : <span className="text-muted-foreground italic font-normal">Apuração pendente</span>
+                            : formatarValor(Math.max(0, detailCobranca.valor_previsto - (detailCobranca.valor_pago_acumulado || 0) - (detailCobranca.valor_adiantado || 0)))
                           }
                         </p>
                       </div>
