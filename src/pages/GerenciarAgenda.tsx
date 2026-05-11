@@ -333,8 +333,6 @@ export default function GerenciarAgenda() {
         .eq('id', cobranca.id);
 
       if (error) throw error;
-      await supabase.from('prestacoes_contas').delete().eq('cobranca_id', cobranca.id);
-      await supabase.from('notas_promissorias').delete().eq('cobranca_id', cobranca.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
