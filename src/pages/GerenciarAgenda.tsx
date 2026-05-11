@@ -340,9 +340,10 @@ export default function GerenciarAgenda() {
       setEstornoCobranca(null);
       setIsDetailOpen(false);
     },
-    onError: (err) => {
-      console.error(err);
-      toast({ title: 'Erro ao estornar baixa', variant: 'destructive' });
+    onError: (err: any) => {
+      console.error('Estorno error:', err);
+      const msg = err?.message || err?.error_description || JSON.stringify(err);
+      toast({ title: 'Erro ao estornar baixa', description: msg, variant: 'destructive' });
     },
   });
 
