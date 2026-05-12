@@ -453,6 +453,80 @@ export default function DreDespesas() {
   const mesLabel = MESES.find(m => m.value === selectedMes)?.label || "";
   const categoriaSelecionada = categorias.find(c => c.id === categoriaId);
 
+  // Ordenação
+  const handleSort = (field: string) => {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("asc"); }
+  };
+
+  const aplicarFiltroEOrdem = (list: Despesa[]) => {
+    let result = list.filter(d => {
+      if (colSearch.descricao && !norm(d.descricao || d.observacao || "").includes(norm(colSearch.descricao))) return false;
+      if (colSearch.forma_pagamento && !norm(d.forma_pagamento || "").includes(norm(colSearch.forma_pagamento))) return false;
+      if (colSearch.contato && !norm(d.contato || "").includes(norm(colSearch.contato))) return false;
+      if (colSearch.categoria && !norm(d.dre_categorias_despesas?.nome || "").includes(norm(colSearch.categoria))) return false;
+      if (colSearch.ocorrencia && d.ocorrencia !== colSearch.ocorrencia) return false;
+      if (filtroCategoria && d.categoria_id !== filtroCategoria) return false;
+      if (filtroOcorrencia && d.ocorrencia !== filtroOcorrencia) return false;
+      return true;
+    });
+
+    result = [...result].sort((a, b) => {
+      let va: any, vb: any;
+      switch (sortField) {
+        case "data_vencimento":
+          va = a.data_vencimento || "9999-12-31"; vb = b.data_vencimento || "9999-12-31"; break;
+        case "descricao":
+          va = norm(a.descricao || a.observacao || ""); vb = norm(b.descricao || b.observacao || ""); break;
+        case "contato":
+          va = norm(a.contato || ""); vb = norm(b.contato || ""); break;
+        case "categoria":
+          va = norm(a.dre_categorias_despesas?.nome || ""); vb = norm(b.dre_categorias_despesas?.nome || ""); break;
+        case "valor":
+          va = Number(a.valor); vb = Number(b.valor); break;
+        case "ocorrencia":
+          va = a.ocorrencia || ""; vb = b.ocorrencia || ""; break;
+        case "forma_pagamento":
+          va = a.forma_pagamento || ""; vb = b.forma_pagamento || ""; break;
+        default:
+          va = a.criado_em; vb = b.criado_em;
+      }
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  };
+
+  const SortTh = ({ field, label, align = "left" }: { field: string; label: string; align?: string }) => (
+    <th
+      onClick={() => handleSort(field)}
+      className={`px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none whitespace-nowrap text-${align}`}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {sortField === field
+          ? sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+          : <ChevronsUpDown className="h-3 w-3 opacity-40" />}
+      </div>
+    </th>
+  );
+
+  const colSearchInput = (key: keyof typeof colSearch, placeholder = "") => (
+    <td className="px-3 py-1">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+        <Input
+          className="h-7 pl-7 text-xs bg-background"
+          value={colSearch[key]}
+          onChange={(e) => setColSearch(s => ({ ...s, [key]: e.target.value }))}
+          placeholder={placeholder}
+        />
+      </div>
+    </td>
+  );
+
   /* ─── Table Row ──────────────────────────────────────────── */
   const TableRow = ({ d, isPaga }: { d: Despesa; isPaga: boolean }) => (
     <tr className="border-b border-border hover:bg-secondary/40 transition-colors">
