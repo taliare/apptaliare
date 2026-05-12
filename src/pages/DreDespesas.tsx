@@ -126,6 +126,9 @@ export default function DreDespesas() {
   const [showContatoDropdown, setShowContatoDropdown] = useState(false);
   const [valor, setValor] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [diaVencimentoMensal, setDiaVencimentoMensal] = useState("");
+  const [diaSemana, setDiaSemana] = useState("");
+  const [dataLimiteRecorrencia, setDataLimiteRecorrencia] = useState("");
   const contatoRef = useRef(null);
 
   const anoMes = `${selectedAno}-${selectedMes}`;
@@ -293,6 +296,7 @@ export default function DreDespesas() {
     setCategoriaSugerida(false); setFormaPagamento(""); setOcorrencia("unico");
     setNumeroParcelas("2"); setDataVencimento(""); setDataDespesa(format(new Date(), "yyyy-MM-dd"));
     setContato(""); setContatoSearch(""); setValor(""); setObservacao("");
+    setDiaVencimentoMensal(""); setDiaSemana(""); setDataLimiteRecorrencia("");
   };
 
   const handleOpenDialog = (despesa?: Despesa) => {
@@ -310,6 +314,9 @@ export default function DreDespesas() {
       setContatoSearch(despesa.contato || "");
       setValor(formatarValorInput(String(despesa.valor)));
       setObservacao(despesa.observacao || "");
+      setDiaVencimentoMensal(String(despesa.dia_vencimento_mensal || ""));
+      setDiaSemana(despesa.dia_semana || "");
+      setDataLimiteRecorrencia(despesa.data_limite_recorrencia || "");
     } else {
       resetForm();
     }
