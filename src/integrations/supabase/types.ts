@@ -364,6 +364,7 @@ export type Database = {
           criado_em: string | null
           criado_por: string | null
           data_despesa: string | null
+          data_pagamento: string | null
           data_vencimento: string | null
           descricao: string | null
           forma_pagamento: string | null
@@ -372,6 +373,7 @@ export type Database = {
           observacao: string | null
           ocorrencia: string
           parcela_atual: number | null
+          status: string | null
           status_pagamento: string
           valor: number
         }
@@ -383,6 +385,7 @@ export type Database = {
           criado_em?: string | null
           criado_por?: string | null
           data_despesa?: string | null
+          data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string | null
           forma_pagamento?: string | null
@@ -391,6 +394,7 @@ export type Database = {
           observacao?: string | null
           ocorrencia?: string
           parcela_atual?: number | null
+          status?: string | null
           status_pagamento?: string
           valor: number
         }
@@ -402,6 +406,7 @@ export type Database = {
           criado_em?: string | null
           criado_por?: string | null
           data_despesa?: string | null
+          data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string | null
           forma_pagamento?: string | null
@@ -410,6 +415,7 @@ export type Database = {
           observacao?: string | null
           ocorrencia?: string
           parcela_atual?: number | null
+          status?: string | null
           status_pagamento?: string
           valor?: number
         }
@@ -1179,6 +1185,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      pagamentos_historico: {
+        Row: {
+          cobranca_id: string
+          criado_em: string | null
+          data_pagamento: string
+          id: string
+          representante_id: string
+          valor: number
+        }
+        Insert: {
+          cobranca_id: string
+          criado_em?: string | null
+          data_pagamento?: string
+          id?: string
+          representante_id: string
+          valor: number
+        }
+        Update: {
+          cobranca_id?: string
+          criado_em?: string | null
+          data_pagamento?: string
+          id?: string
+          representante_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagamentos_historico_cobranca_id_fkey"
+            columns: ["cobranca_id"]
+            isOneToOne: false
+            referencedRelation: "cobrancas_agendadas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pdf_config: {
         Row: {
