@@ -1103,21 +1103,27 @@ export default function DreDespesas() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-green-600">Desconto</label>
-                    <Input
-                      value={pgDesconto}
-                      onChange={e => handleDescontoChange(e.target.value)}
-                      inputMode="decimal"
-                      className="border-green-200 focus:border-green-500"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium pointer-events-none">R$</span>
+                      <Input
+                        value={pgDesconto}
+                        onChange={e => handleDescontoChange(e.target.value)}
+                        inputMode="decimal"
+                        className="border-green-200 focus:border-green-500 pl-9"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-red-500">Acréscimo</label>
-                    <Input
-                      value={pgAcrescimo}
-                      onChange={e => handleAcrescimoChange(e.target.value)}
-                      inputMode="decimal"
-                      className="border-red-200 focus:border-red-500"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium pointer-events-none">R$</span>
+                      <Input
+                        value={pgAcrescimo}
+                        onChange={e => handleAcrescimoChange(e.target.value)}
+                        inputMode="decimal"
+                        className="border-red-200 focus:border-red-500 pl-9"
+                      />
+                    </div>
                   </div>
                 </div>
 
