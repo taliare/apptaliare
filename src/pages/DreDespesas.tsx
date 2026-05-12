@@ -480,7 +480,7 @@ export default function DreDespesas() {
     setActionDespesa(d);
     setPgDesconto("0,00");
     setPgAcrescimo("0,00");
-    setPgValorPago(formatarValorInput(String(d.valor)));
+    setPgValorPago(formatarValorInput(String(Math.round(Number(d.valor) * 100))));
     setPgDataPagamento(format(new Date(), "yyyy-MM-dd"));
     setPgObs("");
     setPgManualValor(false);
@@ -1103,21 +1103,27 @@ export default function DreDespesas() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-green-600">Desconto</label>
-                    <Input
-                      value={pgDesconto}
-                      onChange={e => handleDescontoChange(e.target.value)}
-                      inputMode="decimal"
-                      className="border-green-200 focus:border-green-500"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium pointer-events-none">R$</span>
+                      <Input
+                        value={pgDesconto}
+                        onChange={e => handleDescontoChange(e.target.value)}
+                        inputMode="decimal"
+                        className="border-green-200 focus:border-green-500 pl-9"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-red-500">Acréscimo</label>
-                    <Input
-                      value={pgAcrescimo}
-                      onChange={e => handleAcrescimoChange(e.target.value)}
-                      inputMode="decimal"
-                      className="border-red-200 focus:border-red-500"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium pointer-events-none">R$</span>
+                      <Input
+                        value={pgAcrescimo}
+                        onChange={e => handleAcrescimoChange(e.target.value)}
+                        inputMode="decimal"
+                        className="border-red-200 focus:border-red-500 pl-9"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1127,12 +1133,15 @@ export default function DreDespesas() {
                     Valor a pagar
                     {isParcial && <span className="ml-2 text-xs text-amber-500 font-normal">pagamento parcial</span>}
                   </label>
-                  <Input
-                    value={pgValorPago}
-                    onChange={e => { setPgManualValor(true); setPgValorPago(formatarValorInput(e.target.value)); }}
-                    inputMode="decimal"
-                    className="text-lg font-bold"
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium pointer-events-none">R$</span>
+                    <Input
+                      value={pgValorPago}
+                      onChange={e => { setPgManualValor(true); setPgValorPago(formatarValorInput(e.target.value)); }}
+                      inputMode="decimal"
+                      className="text-lg font-bold pl-9"
+                    />
+                  </div>
                   {isParcial && saldo > 0 && (
                     <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-2 py-1">
                       Saldo restante de <strong>{formatarValor(saldo)}</strong> ficará como nova despesa pendente
