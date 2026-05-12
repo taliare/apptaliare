@@ -100,6 +100,52 @@ const CATEGORIA_KEYWORDS: { keyword: string; catFragment: string }[] = [
   { keyword: "frete", catFragment: "empresa" }, { keyword: "seguro", catFragment: "empresa" },
 ];
 
+const DIAS_SEMANA_NUM: Record<string, number> = {
+  domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6,
+};
+
+const gerarDatasRecorrentes = (
+  ocorrencia: string,
+  diaSemanaVal: string,
+  diaVencMensal: number | null,
+  anoMesInicial: string,
+  dataLimite: string | null
+): { data_vencimento: string; ano_mes: string }[] => {
+  const [ano, mes] = anoMesInicial.split("-").map(Number);
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = dataLimite
+    ? new Date(dataLimite + "T23:59:59")
+    : new Date(ano, mes, 0, 23, 59, 59);
+  const results: { data_vencimento: string; ano_mes: string }[] = [];
+
+  if (ocorrencia === "mensal" && diaVencMensal) {
+    let cur = new Date(ano, mes - 1, diaVencMensal);
+    while (cur <= fim) {
+      const am = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`;
+      results.push({ data_vencimento: format(cur, "yyyy-MM-dd"), ano_mes: am });
+      cur = new Date(cur.getFullYear(), cur.getMonth() + 1, diaVencMensal);
+    }
+  } else if (ocorrencia === "semanal" && diaSemanaVal) {
+    const target = DIAS_SEMANA_NUM[diaSemanaVal] ?? 1;
+    let cur = new Date(inicio);
+    while (cur.getDay() !== target) cur.setDate(cur.getDate() + 1);
+    while (cur <= fim) {
+      const am = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`;
+      results.push({ data_vencimento: format(cur, "yyyy-MM-dd"), ano_mes: am });
+      cur = new Date(cur.getTime());
+      cur.setDate(cur.getDate() + 7);
+    }
+  } else if (ocorrencia === "anual") {
+    let cur = new Date(ano, mes - 1, 1);
+    while (cur <= fim) {
+      const am = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, "0")}`;
+      results.push({ data_vencimento: format(cur, "yyyy-MM-dd"), ano_mes: am });
+      cur = new Date(cur.getFullYear() + 1, cur.getMonth(), cur.getDate());
+    }
+  }
+  return results;
+};
+
 /* ─── Component ──────────────────────────────────────────── */
 export default function DreDespesas() {
   const { user } = useAuth();
@@ -237,17 +283,46 @@ export default function DreDespesas() {
           .eq("id", data.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("dre_despesas")
-          .insert({ ...payload, ano_mes: anoMes, criado_por: user?.id, data_despesa: data.data_despesa });
-        if (error) throw error;
+        const isRecorrente = ["mensal", "semanal", "anual"].includes(data.ocorrencia);
+        if (isRecorrente) {
+          const datas = gerarDatasRecorrentes(
+            data.ocorrencia,
+            data.dia_semana || "",
+            data.dia_vencimento_mensal || null,
+            anoMes,
+            data.data_limite_recorrencia || null
+          );
+          if (datas.length === 0) {
+            throw new Error("Nenhuma ocorrência gerada para o período informado");
+          }
+          const registros = datas.map(d => ({
+            ...payload,
+            ano_mes: d.ano_mes,
+            data_vencimento: d.data_vencimento,
+            data_despesa: d.data_vencimento,
+            criado_por: user?.id,
+          }));
+          const { error } = await supabase.from("dre_despesas").insert(registros);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from("dre_despesas")
+            .insert({ ...payload, ano_mes: anoMes, criado_por: user?.id, data_despesa: data.data_despesa });
+          if (error) throw error;
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dre-despesas", anoMes] });
-      toast.success(editingDespesa ? "Despesa atualizada!" : "Despesa lançada como pendente!");
+      toast.success(
+        editingDespesa
+          ? "Despesa atualizada!"
+          : ["mensal","semanal","anual"].includes(ocorrencia)
+          ? "Despesas recorrentes geradas com sucesso!"
+          : "Despesa lançada como pendente!"
+      );
       handleCloseDialog();
     },
-    onError: () => toast.error("Erro ao salvar despesa"),
+    onError: (err: any) => toast.error(err?.message || "Erro ao salvar despesa"),
   });
 
   const pagarMutation = useMutation({
@@ -344,6 +419,9 @@ export default function DreDespesas() {
       data_vencimento: dataVencimento || null,
       contato: contato.trim(),
       data_despesa: editingDespesa ? undefined : dataDespesa,
+      dia_vencimento_mensal: ocorrencia === "mensal" ? parseInt(diaVencimentoMensal) || null : null,
+      dia_semana: ocorrencia === "semanal" ? diaSemana || null : null,
+      data_limite_recorrencia: ["mensal", "semanal", "anual"].includes(ocorrencia) ? dataLimiteRecorrencia || null : null,
     });
   };
 
