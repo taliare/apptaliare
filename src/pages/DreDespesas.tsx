@@ -180,6 +180,21 @@ export default function DreDespesas() {
   const [diaVencimentoMensal, setDiaVencimentoMensal] = useState("");
   const [diaSemana, setDiaSemana] = useState("");
   const [dataLimiteRecorrencia, setDataLimiteRecorrencia] = useState("");
+
+  // Ordenação
+  const [sortField, setSortField] = useState("data_vencimento");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  // Busca por coluna
+  const [colSearch, setColSearch] = useState({
+    descricao: "", forma_pagamento: "", contato: "", categoria: "", ocorrencia: "",
+  });
+
+  // Filtro painel
+  const [filtroOpen, setFiltroOpen] = useState(false);
+  const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroOcorrencia, setFiltroOcorrencia] = useState("");
+
   const contatoRef = useRef(null);
 
   const anoMes = `${selectedAno}-${selectedMes}`;
