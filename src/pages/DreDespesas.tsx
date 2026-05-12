@@ -1,126 +1,103 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Plus, Receipt, Pencil, Trash2, Info } from "lucide-react";
+import {
+  Plus, Receipt, Pencil, Trash2, CheckCircle2, RotateCcw,
+  MessageSquare, Sparkles,
+} from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatarValor } from "@/lib/utils";
 
-interface Categoria {
-  id: string;
-  nome: string;
-}
+/* ─── Types ─────────────────────────────────────────────── */
+interface Categoria { id: string; nome: string }
+interface Profile { id: string; nome: string }
 
 interface Despesa {
   id: string;
   categoria_id: string | null;
   ano_mes: string;
   valor: number;
-  observacao: string | null;
+  status: string;
   descricao: string | null;
+  observacao: string | null;
   forma_pagamento: string | null;
-  ocorrencia: string;
+  ocorrencia: string | null;
   numero_parcelas: number | null;
   parcela_atual: number | null;
   data_vencimento: string | null;
-  contato: string | null;
+  data_pagamento: string | null;
   data_despesa: string | null;
+  contato: string | null;
   criado_em: string;
   dre_categorias_despesas: Categoria | null;
 }
 
-const KEYWORD_MAP: Array<{ keys: string[]; fragment: string }> = [
-  { keys: ['salario','salário','funcionario','funcionário','clt','holerite','rescisao','rescisão','admissao','demissão'], fragment: 'folha' },
-  { keys: ['pro-labore','prolabore','pro labore','pró-labore','retirada','socio','sócio'], fragment: 'labore' },
-  { keys: ['vale','vr','vt','refeicao','refeição','transporte','alimentacao','alimentação','beneficio','benefício'], fragment: 'vale' },
-  { keys: ['fornecedor','compra','nota fiscal','nf-e','nfe','insumo','materia','mercadoria','pedido','fatura'], fragment: 'fornecedor' },
-  { keys: ['comissao','comissão','representante','vendedora','vendedor','comissionado'], fragment: 'comiss' },
-  { keys: ['banco','bancaria','bancário','tarifa','ted','iof','juros','emprestimo','empréstimo','financiamento','taxa bancaria','taxa bancária','credito rotativo'], fragment: 'banc' },
-  { keys: ['imposto','das','simples','irpj','csll','cofins','inss','fgts','icms','iss','guia','tributo','darf'], fragment: 'imposto' },
-  { keys: ['aluguel','energia','agua','internet','telefone','escritorio','escritório','limpeza','manutencao','manutenção','seguro','assinatura','honorario','honorário','contabil','contábil'], fragment: 'empresa' },
-];
-
-function normalize(str: string) {
-  return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
-function detectarCategoria(texto: string, cats: Categoria[]): Categoria | null {
-  if (!texto || texto.length < 3) return null;
-  const t = normalize(texto);
-  for (const entry of KEYWORD_MAP) {
-    if (entry.keys.some(k => t.includes(normalize(k)))) {
-      return cats.find(c => normalize(c.nome).includes(entry.fragment)) ?? null;
-    }
-  }
-  return null;
-}
-
-const FORMAS_PAGAMENTO = [
-  { value: 'pix', label: 'Pix' },
-  { value: 'boleto', label: 'Boleto' },
-  { value: 'cartao_credito', label: 'Cartão de Crédito' },
-  { value: 'cartao_debito', label: 'Cartão de Débito' },
-  { value: 'dinheiro', label: 'Dinheiro' },
-  { value: 'transferencia', label: 'Transferência' },
-  { value: 'debito_automatico', label: 'Débito Automático' },
-];
-
-const OCORRENCIAS = [
-  { value: 'unica', label: 'Única' },
-  { value: 'mensal', label: 'Mensal' },
-  { value: 'quinzenal', label: 'Quinzenal' },
-  { value: 'semanal', label: 'Semanal' },
-  { value: 'parcelada', label: 'Parcelada' },
-  { value: 'anual', label: 'Anual' },
-];
-
-const formaLabel = (v?: string | null) => FORMAS_PAGAMENTO.find(f => f.value === v)?.label || '-';
-const ocorrenciaLabel = (v?: string | null) => OCORRENCIAS.find(o => o.value === v)?.label || '-';
-
+/* ─── Constants ──────────────────────────────────────────── */
 const MESES = [
-  { value: "01", label: "Janeiro" }, { value: "02", label: "Fevereiro" }, { value: "03", label: "Março" },
-  { value: "04", label: "Abril" }, { value: "05", label: "Maio" }, { value: "06", label: "Junho" },
-  { value: "07", label: "Julho" }, { value: "08", label: "Agosto" }, { value: "09", label: "Setembro" },
-  { value: "10", label: "Outubro" }, { value: "11", label: "Novembro" }, { value: "12", label: "Dezembro" },
+  { value: "01", label: "Janeiro" }, { value: "02", label: "Fevereiro" },
+  { value: "03", label: "Março" },   { value: "04", label: "Abril" },
+  { value: "05", label: "Maio" },    { value: "06", label: "Junho" },
+  { value: "07", label: "Julho" },   { value: "08", label: "Agosto" },
+  { value: "09", label: "Setembro" },{ value: "10", label: "Outubro" },
+  { value: "11", label: "Novembro" },{ value: "12", label: "Dezembro" },
+];
+const FORMAS_PAGAMENTO = ["Dinheiro","PIX","Boleto","Cartão de Crédito","Cartão de Débito","Transferência","Débito Automático","Cheque"];
+const OCORRENCIAS = [
+  { value: "unico", label: "Único" },
+  { value: "mensal", label: "Mensal" },
+  { value: "parcelado", label: "Parcelado" },
+  { value: "anual", label: "Anual" },
+  { value: "semanal", label: "Semanal" },
 ];
 
+const norm = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, "");
+
+const CATEGORIA_KEYWORDS: { keyword: string; catFragment: string }[] = [
+  { keyword: "folha", catFragment: "folha" }, { keyword: "salario", catFragment: "folha" },
+  { keyword: "funcionario", catFragment: "folha" }, { keyword: "rescisao", catFragment: "folha" },
+  { keyword: "pro labore", catFragment: "labore" }, { keyword: "prolabore", catFragment: "labore" },
+  { keyword: "retirada", catFragment: "labore" }, { keyword: "socio", catFragment: "labore" },
+  { keyword: "vale", catFragment: "vale" }, { keyword: "alimentacao", catFragment: "vale" },
+  { keyword: "refeicao", catFragment: "vale" }, { keyword: "transporte", catFragment: "vale" },
+  { keyword: "fornecedor", catFragment: "fornecedor" }, { keyword: "insumo", catFragment: "fornecedor" },
+  { keyword: "compra", catFragment: "fornecedor" }, { keyword: "embalagem", catFragment: "fornecedor" },
+  { keyword: "comissao", catFragment: "comiss" }, { keyword: "representante", catFragment: "comiss" },
+  { keyword: "bancaria", catFragment: "banc" }, { keyword: "banco", catFragment: "banc" },
+  { keyword: "tarifa", catFragment: "banc" }, { keyword: "iof", catFragment: "banc" },
+  { keyword: "juros", catFragment: "banc" }, { keyword: "ted", catFragment: "banc" },
+  { keyword: "imposto", catFragment: "imposto" }, { keyword: "tributo", catFragment: "imposto" },
+  { keyword: "das ", catFragment: "imposto" }, { keyword: "inss", catFragment: "imposto" },
+  { keyword: "simples", catFragment: "imposto" }, { keyword: "irpf", catFragment: "imposto" },
+  { keyword: "aluguel", catFragment: "empresa" }, { keyword: "agua", catFragment: "empresa" },
+  { keyword: "energia", catFragment: "empresa" }, { keyword: "internet", catFragment: "empresa" },
+  { keyword: "telefone", catFragment: "empresa" }, { keyword: "contador", catFragment: "empresa" },
+  { keyword: "sistema", catFragment: "empresa" }, { keyword: "marketing", catFragment: "empresa" },
+  { keyword: "frete", catFragment: "empresa" }, { keyword: "seguro", catFragment: "empresa" },
+];
+
+/* ─── Component ──────────────────────────────────────────── */
 export default function DreDespesas() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -130,42 +107,59 @@ export default function DreDespesas() {
   const [selectedAno, setSelectedAno] = useState(String(currentDate.getFullYear()));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
-  const [deletingDespesa, setDeletingDespesa] = useState<Despesa | null>(null);
-  const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false);
-  const [recurrenceCount, setRecurrenceCount] = useState("3");
-  const [pendingRecurrence, setPendingRecurrence] = useState<{
-    id: string;
-    base: any;
-    ocorrencia: string;
-  } | null>(null);
+  const [pagarDialogOpen, setPagarDialogOpen] = useState(false);
+  const [estornarDialogOpen, setEstornarDialogOpen] = useState(false);
+  const [editingDespesa, setEditingDespesa] = useState(null);
+  const [deletingDespesa, setDeletingDespesa] = useState(null);
+  const [actionDespesa, setActionDespesa] = useState(null);
 
-  // Form state
   const [descricao, setDescricao] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
-  const [formaPagamento, setFormaPagamento] = useState<string>("");
-  const [ocorrencia, setOcorrencia] = useState<string>("unica");
-  const [numeroParcelas, setNumeroParcelas] = useState<string>("1");
-  const [dataVencimento, setDataVencimento] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [dataDespesa, setDataDespesa] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [categoriaSugerida, setCategoriaSugerida] = useState(false);
+  const [formaPagamento, setFormaPagamento] = useState("");
+  const [ocorrencia, setOcorrencia] = useState("unico");
+  const [numeroParcelas, setNumeroParcelas] = useState("2");
+  const [dataVencimento, setDataVencimento] = useState("");
+  const [dataDespesa, setDataDespesa] = useState(format(new Date(), "yyyy-MM-dd"));
   const [contato, setContato] = useState("");
+  const [contatoSearch, setContatoSearch] = useState("");
+  const [showContatoDropdown, setShowContatoDropdown] = useState(false);
   const [valor, setValor] = useState("");
   const [observacao, setObservacao] = useState("");
-  
+  const contatoRef = useRef(null);
 
   const anoMes = `${selectedAno}-${selectedMes}`;
   const anos = Array.from({ length: 5 }, (_, i) => String(currentDate.getFullYear() - 2 + i));
 
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (contatoRef.current && !contatoRef.current.contains(e.target as Node)) {
+        setShowContatoDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  /* ─── Queries ───────────────────────────────────────────── */
   const { data: categorias = [] } = useQuery({
     queryKey: ["dre-categorias-ativas"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("dre_categorias_despesas")
-        .select("id, nome")
-        .eq("ativo", true)
-        .order("ordem", { ascending: true });
+        .from("dre_categorias_despesas").select("id, nome")
+        .eq("ativo", true).order("ordem", { ascending: true });
       if (error) throw error;
       return data as Categoria[];
+    },
+  });
+
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["profiles-names"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles").select("id, nome").order("nome");
+      if (error) throw error;
+      return data as Profile[];
     },
   });
 
@@ -182,144 +176,102 @@ export default function DreDespesas() {
     },
   });
 
-  const despesasOrdenadas = useMemo(() => {
-    return [...despesas].sort((a, b) => {
-      const dataA = a.data_despesa || a.criado_em;
-      const dataB = b.data_despesa || b.criado_em;
-      return dataB.localeCompare(dataA);
-    });
-  }, [despesas]);
+  const pendentes = useMemo(() => despesas.filter(d => (d.status || "pendente") === "pendente"), [despesas]);
+  const pagas = useMemo(() => despesas.filter(d => d.status === "pago"), [despesas]);
+  const totalPendentes = pendentes.reduce((s, d) => s + Number(d.valor), 0);
+  const totalPagas = pagas.reduce((s, d) => s + Number(d.valor), 0);
 
-  const totalPeriodo = despesas.reduce((sum, d) => sum + Number(d.valor), 0);
+  const contatoSuggestions = useMemo(() => {
+    if (!contatoSearch.trim()) return [];
+    const n = norm(contatoSearch);
+    return profiles.filter(p => p.nome && norm(p.nome).includes(n)).slice(0, 6);
+  }, [contatoSearch, profiles]);
 
-  const shiftDate = (dateStr: string, ocorr: string, n: number): string => {
-    const d = new Date(dateStr + 'T12:00:00');
-    if (ocorr === 'mensal' || ocorr === 'parcelada') d.setMonth(d.getMonth() + n);
-    else if (ocorr === 'anual') d.setMonth(d.getMonth() + 12 * n);
-    else if (ocorr === 'quinzenal') d.setDate(d.getDate() + 15 * n);
-    else if (ocorr === 'semanal') d.setDate(d.getDate() + 7 * n);
-    return format(d, 'yyyy-MM-dd');
+  /* ─── Auto-sugestão ─────────────────────────────────────── */
+  const detectarCategoria = (desc: string): Categoria | undefined => {
+    if (!desc.trim() || !categorias.length) return undefined;
+    const n = norm(desc);
+    for (const entry of CATEGORIA_KEYWORDS) {
+      if (n.includes(entry.keyword)) {
+        const cat = categorias.find(c => norm(c.nome).includes(entry.catFragment));
+        if (cat) return cat;
+      }
+    }
+    return undefined;
   };
 
-  const gerarRecorrencias = async (
-    primeiroId: string,
-    base: any,
-    ocorr: string,
-    quantidadeAdicional: number,
-  ) => {
-    if (quantidadeAdicional <= 0) return;
-    const totalParcelas = quantidadeAdicional + 1;
-
-    // Para parcelada, numero_parcelas já é o total. Para outros, atualizar o primeiro registro.
-    if (ocorr !== 'parcelada') {
-      await supabase
-        .from('dre_despesas')
-        .update({ numero_parcelas: totalParcelas })
-        .eq('id', primeiroId);
+  const handleDescricaoChange = (e: React.ChangeEvent) => {
+    const v = e.target.value;
+    setDescricao(v);
+    if (!categoriaId || categoriaSugerida) {
+      const s = detectarCategoria(v);
+      if (s) { setCategoriaId(s.id); setCategoriaSugerida(true); }
+      else if (categoriaSugerida) { setCategoriaId(""); setCategoriaSugerida(false); }
     }
-
-    const rows = [];
-    for (let i = 1; i <= quantidadeAdicional; i++) {
-      const novaDataVenc = shiftDate(base.data_vencimento, ocorr, i);
-      const novaDataDesp = shiftDate(base.data_despesa, ocorr, i);
-      rows.push({
-        ...base,
-        numero_parcelas: totalParcelas,
-        parcela_atual: i + 1,
-        data_vencimento: novaDataVenc,
-        data_despesa: novaDataDesp,
-        ano_mes: novaDataVenc.slice(0, 7),
-        criado_por: user?.id,
-      });
-    }
-
-    const { error } = await supabase.from('dre_despesas').insert(rows);
-    if (error) {
-      toast.error('Erro ao gerar recorrências');
-      console.error(error);
-      return;
-    }
-    toast.success(`${quantidadeAdicional} lançamento(s) adicional(is) gerado(s)`);
-    queryClient.invalidateQueries({ queryKey: ['dre-despesas'] });
   };
 
+  /* ─── Mutations ──────────────────────────────────────────── */
   const saveMutation = useMutation({
-    mutationFn: async (payload: {
-      id?: string;
-      categoria_id: string;
-      valor: number;
-      descricao: string;
-      observacao: string;
-      forma_pagamento: string;
-      ocorrencia: string;
-      numero_parcelas: number;
-      data_vencimento: string;
-      data_despesa: string;
-      contato: string;
-    }) => {
-      const base = {
-        categoria_id: payload.categoria_id,
-        valor: payload.valor,
-        descricao: payload.descricao || null,
-        observacao: payload.observacao || null,
-        forma_pagamento: payload.forma_pagamento,
-        ocorrencia: payload.ocorrencia,
-        numero_parcelas: payload.ocorrencia === 'parcelada' ? payload.numero_parcelas : 1,
-        data_vencimento: payload.data_vencimento,
-        data_despesa: payload.data_despesa,
-        contato: payload.contato || null,
+    mutationFn: async (data: any) => {
+      const payload = {
+        categoria_id: data.categoria_id,
+        valor: data.valor,
+        descricao: data.descricao || null,
+        observacao: data.observacao || null,
+        forma_pagamento: data.forma_pagamento || null,
+        ocorrencia: data.ocorrencia || null,
+        numero_parcelas: data.numero_parcelas,
+        data_vencimento: data.data_vencimento || null,
+        contato: data.contato || null,
+        status: "pendente",
       };
-
-      if (payload.id) {
-        const { error } = await supabase
-          .from("dre_despesas")
-          .update({ ...base, atualizado_em: new Date().toISOString() })
-          .eq("id", payload.id);
+      if (data.id) {
+        const { error } = await supabase.from("dre_despesas")
+          .update({ ...payload, atualizado_em: new Date().toISOString() })
+          .eq("id", data.id);
         if (error) throw error;
-        return { id: payload.id, base, isNew: false };
       } else {
-        const { data, error } = await supabase
-          .from("dre_despesas")
-          .insert({
-            ...base,
-            ano_mes: anoMes,
-            criado_por: user?.id,
-            parcela_atual: 1,
-          })
-          .select("id")
-          .single();
+        const { error } = await supabase.from("dre_despesas")
+          .insert({ ...payload, ano_mes: anoMes, criado_por: user?.id, data_despesa: data.data_despesa });
         if (error) throw error;
-        return { id: data.id as string, base, isNew: true };
       }
     },
-    onSuccess: (result) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dre-despesas", anoMes] });
-      const ocorr = result.base.ocorrencia;
-
-      if (result.isNew && ocorr === 'parcelada' && (result.base.numero_parcelas || 1) > 1) {
-        // gera automaticamente as parcelas seguintes
-        gerarRecorrencias(result.id, result.base, ocorr, (result.base.numero_parcelas || 1) - 1);
-        toast.success("Despesa lançada!");
-        handleCloseDialog();
-        return;
-      }
-
-      if (result.isNew && ['mensal', 'quinzenal', 'semanal', 'anual'].includes(ocorr)) {
-        setPendingRecurrence({ id: result.id, base: result.base, ocorrencia: ocorr });
-        setRecurrenceCount(ocorr === 'anual' ? "2" : "3");
-        setRecurrenceDialogOpen(true);
-        toast.success("Despesa lançada!");
-        handleCloseDialog();
-        return;
-      }
-
-      toast.success(editingDespesa ? "Despesa atualizada!" : "Despesa lançada!");
+      toast.success(editingDespesa ? "Despesa atualizada!" : "Despesa lançada como pendente!");
       handleCloseDialog();
     },
-    onError: (error) => {
-      toast.error("Erro ao salvar despesa");
-      console.error(error);
+    onError: () => toast.error("Erro ao salvar despesa"),
+  });
+
+  const pagarMutation = useMutation({
+    mutationFn: async (despesa: Despesa) => {
+      const { error } = await supabase.from("dre_despesas")
+        .update({ status: "pago", data_pagamento: format(new Date(), "yyyy-MM-dd"), atualizado_em: new Date().toISOString() })
+        .eq("id", despesa.id);
+      if (error) throw error;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dre-despesas", anoMes] });
+      toast.success("Despesa marcada como paga e lançada no DRE! ✅");
+      setPagarDialogOpen(false); setActionDespesa(null);
+    },
+    onError: () => toast.error("Erro ao pagar despesa"),
+  });
+
+  const estornarMutation = useMutation({
+    mutationFn: async (despesa: Despesa) => {
+      const { error } = await supabase.from("dre_despesas")
+        .update({ status: "pendente", data_pagamento: null, atualizado_em: new Date().toISOString() })
+        .eq("id", despesa.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dre-despesas", anoMes] });
+      toast.success("Despesa estornada e removida do DRE!");
+      setEstornarDialogOpen(false); setActionDespesa(null);
+    },
+    onError: () => toast.error("Erro ao estornar despesa"),
   });
 
   const deleteMutation = useMutation({
@@ -330,128 +282,155 @@ export default function DreDespesas() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dre-despesas", anoMes] });
       toast.success("Despesa excluída!");
-      setDeleteDialogOpen(false);
-      setDeletingDespesa(null);
+      setDeleteDialogOpen(false); setDeletingDespesa(null);
     },
-    onError: (error) => {
-      toast.error("Erro ao excluir despesa");
-      console.error(error);
-    },
+    onError: () => toast.error("Erro ao excluir despesa"),
   });
+
+  /* ─── Handlers ───────────────────────────────────────────── */
+  const resetForm = () => {
+    setEditingDespesa(null); setDescricao(""); setCategoriaId("");
+    setCategoriaSugerida(false); setFormaPagamento(""); setOcorrencia("unico");
+    setNumeroParcelas("2"); setDataVencimento(""); setDataDespesa(format(new Date(), "yyyy-MM-dd"));
+    setContato(""); setContatoSearch(""); setValor(""); setObservacao("");
+  };
 
   const handleOpenDialog = (despesa?: Despesa) => {
     if (despesa) {
       setEditingDespesa(despesa);
       setDescricao(despesa.descricao || "");
       setCategoriaId(despesa.categoria_id || "");
+      setCategoriaSugerida(false);
       setFormaPagamento(despesa.forma_pagamento || "");
-      setOcorrencia(despesa.ocorrencia || "unica");
-      setNumeroParcelas(String(despesa.numero_parcelas || 1));
-      setDataVencimento(despesa.data_vencimento || format(new Date(), 'yyyy-MM-dd'));
-      setDataDespesa(despesa.data_despesa || format(new Date(), 'yyyy-MM-dd'));
+      setOcorrencia(despesa.ocorrencia || "unico");
+      setNumeroParcelas(String(despesa.numero_parcelas || 2));
+      setDataVencimento(despesa.data_vencimento || "");
+      setDataDespesa(despesa.data_despesa || format(new Date(), "yyyy-MM-dd"));
       setContato(despesa.contato || "");
+      setContatoSearch(despesa.contato || "");
       setValor(formatarValorInput(String(despesa.valor)));
       setObservacao(despesa.observacao || "");
     } else {
-      setEditingDespesa(null);
-      setDescricao("");
-      setCategoriaId("");
-      setFormaPagamento("");
-      setOcorrencia("unica");
-      setNumeroParcelas("1");
-      setDataVencimento(format(new Date(), 'yyyy-MM-dd'));
-      setDataDespesa(format(new Date(), 'yyyy-MM-dd'));
-      setContato("");
-      setValor("");
-      setObservacao("");
+      resetForm();
     }
     setDialogOpen(true);
   };
 
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setEditingDespesa(null);
-    setDescricao("");
-    setCategoriaId("");
-  };
-
-  const formatarValorInput = (value: string): string => {
-    const numericValue = value.replace(/\D/g, "");
-    const number = parseInt(numericValue || "0", 10) / 100;
-    return number.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const parseValor = (value: string): number => {
-    return parseFloat(value.replace(/\./g, "").replace(",", ".")) || 0;
-  };
+  const handleCloseDialog = () => { setDialogOpen(false); resetForm(); };
 
   const handleSave = () => {
-    if (!descricao.trim()) {
-      toast.error("Informe a descrição");
-      return;
-    }
-    if (!categoriaId) {
-      toast.error("Selecione uma categoria");
-      return;
-    }
-    if (!formaPagamento) {
-      toast.error("Selecione a forma de pagamento");
-      return;
-    }
-    if (!ocorrencia) {
-      toast.error("Selecione a ocorrência");
-      return;
-    }
-    if (ocorrencia === 'parcelada' && (!numeroParcelas || parseInt(numeroParcelas) < 2)) {
-      toast.error("Informe o número de parcelas (mínimo 2)");
-      return;
-    }
-    if (!dataVencimento) {
-      toast.error("Informe a data de vencimento");
-      return;
-    }
-    if (!dataDespesa) {
-      toast.error("Informe a data de lançamento");
-      return;
-    }
-    const valorNumerico = parseValor(valor);
-    if (valorNumerico <= 0) {
-      toast.error("Informe um valor válido");
-      return;
-    }
+    if (!categoriaId) { toast.error("Selecione uma categoria"); return; }
+    const valorNum = parseValor(valor);
+    if (valorNum <= 0) { toast.error("Informe um valor válido"); return; }
     saveMutation.mutate({
       id: editingDespesa?.id,
       categoria_id: categoriaId,
-      valor: valorNumerico,
+      valor: valorNum,
       descricao: descricao.trim(),
       observacao: observacao.trim(),
       forma_pagamento: formaPagamento,
       ocorrencia,
-      numero_parcelas: parseInt(numeroParcelas) || 1,
-      data_vencimento: dataVencimento,
-      data_despesa: dataDespesa,
+      numero_parcelas: ocorrencia === "parcelado" ? parseInt(numeroParcelas) || null : null,
+      data_vencimento: dataVencimento || null,
       contato: contato.trim(),
+      data_despesa: editingDespesa ? undefined : dataDespesa,
     });
   };
 
-  const handleDeleteClick = (despesa: Despesa) => {
-    setDeletingDespesa(despesa);
-    setDeleteDialogOpen(true);
+  const formatarValorInput = (value: string): string => {
+    const n = value.replace(/\D/g, "");
+    return (parseInt(n || "0", 10) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const mesLabel = MESES.find(m => m.value === selectedMes)?.label || "";
+  const parseValor = (value: string) =>
+    parseFloat(value.replace(/\./g, "").replace(",", ".")) || 0;
 
+  const mesLabel = MESES.find(m => m.value === selectedMes)?.label || "";
+  const categoriaSelecionada = categorias.find(c => c.id === categoriaId);
+
+  /* ─── Table Row ──────────────────────────────────────────── */
+  const TableRow = ({ d, isPaga }: { d: Despesa; isPaga: boolean }) => (
+    <tr className="border-b border-border hover:bg-secondary/40 transition-colors">
+      <td className="px-3 py-2 text-sm whitespace-nowrap max-w-[160px] truncate">
+        {d.descricao || d.observacao || "—"}
+      </td>
+      <td className="px-3 py-2 text-sm whitespace-nowrap">
+        {d.forma_pagamento || "—"}
+      </td>
+      <td className="px-3 py-2 text-sm whitespace-nowrap">
+        {d.contato || "—"}
+      </td>
+      <td className="px-3 py-2 text-sm whitespace-nowrap">
+        {d.dre_categorias_despesas?.nome
+          ? <Badge variant="outline">{d.dre_categorias_despesas.nome}</Badge>
+          : "—"}
+      </td>
+      <td className="px-3 py-2 text-sm whitespace-nowrap">
+        {d.data_vencimento
+          ? <span className="text-muted-foreground">
+              {format(new Date(d.data_vencimento + "T12:00:00"), "dd/MM/yyyy")}
+            </span>
+          : "—"}
+      </td>
+      <td className="px-3 py-2 text-sm whitespace-nowrap font-medium">
+        {formatarValor(Number(d.valor))}
+      </td>
+      <td className="px-3 py-2 text-sm whitespace-nowrap">
+        {OCORRENCIAS.find(o => o.value === d.ocorrencia)?.label || d.ocorrencia || "—"}
+      </td>
+      <td className="px-3 py-2 text-sm whitespace-nowrap">
+        {d.ocorrencia === "parcelado" && d.numero_parcelas
+          ? <span className="text-muted-foreground">{d.parcela_atual || 1}/{d.numero_parcelas}</span>
+          : "—"}
+      </td>
+      <td className="px-3 py-2 text-sm whitespace-nowrap">
+        {d.observacao
+          ? <TooltipProvider><Tooltip>
+              <TooltipTrigger asChild>
+                <MessageSquare className="h-4 w-4 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                {d.observacao}
+              </TooltipContent>
+            </Tooltip></TooltipProvider>
+          : "—"}
+      </td>
+      <td className="px-3 py-2 text-sm whitespace-nowrap">
+        <div className="flex items-center gap-1">
+          {!isPaga ? (
+            <>
+              <Button size="icon-sm" variant="ghost" onClick={() => { setActionDespesa(d); setPagarDialogOpen(true); }}>
+                <CheckCircle2 className="h-4 w-4 text-success" />
+              </Button>
+              <Button size="icon-sm" variant="ghost" onClick={() => handleOpenDialog(d)}>
+                <Pencil className="h-4 w-4 text-primary" />
+              </Button>
+              <Button size="icon-sm" variant="ghost" onClick={() => { setDeletingDespesa(d); setDeleteDialogOpen(true); }}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </>
+          ) : (
+            <Button size="icon-sm" variant="ghost" onClick={() => { setActionDespesa(d); setEstornarDialogOpen(true); }}>
+              <RotateCcw className="h-4 w-4 text-warning" />
+            </Button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+
+  /* ─── Render ─────────────────────────────────────────────── */
   return (
-    <TooltipProvider>
     <div className="space-y-6 p-4 md:p-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Receipt className="h-6 w-6 text-primary" />
-            Despesas DRE
+            Contas a Pagar
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Lançamento manual de despesas por competência
+            Gestão de despesas pendentes e pagas
           </p>
         </div>
         <Button onClick={() => handleOpenDialog()} className="gap-2 hidden md:flex">
@@ -460,6 +439,7 @@ export default function DreDespesas() {
         </Button>
       </div>
 
+      {/* Período */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-3 items-center">
@@ -467,337 +447,284 @@ export default function DreDespesas() {
             <Select value={selectedMes} onValueChange={setSelectedMes}>
               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {MESES.map((mes) => <SelectItem key={mes.value} value={mes.value}>{mes.label}</SelectItem>)}
+                {MESES.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={selectedAno} onValueChange={setSelectedAno}>
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {anos.map((ano) => <SelectItem key={ano} value={ano}>{ano}</SelectItem>)}
+                {anos.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Despesas de {mesLabel} {selectedAno}</CardTitle>
-          <CardDescription>{despesas.length} lançamento(s) no período</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : despesas.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">Nenhuma despesa lançada neste período</div>
-          ) : (
-            <div className="space-y-2">
-              {despesasOrdenadas.map((despesa) => (
-                <div
-                  key={despesa.id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="min-w-0 flex-1 grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
-                    <div className="md:col-span-3 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-sm truncate">
-                          {despesa.descricao || despesa.observacao || 'Sem descrição'}
-                        </span>
-                        {despesa.observacao && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              {despesa.observacao}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                      <Badge variant="outline" className="text-xs mt-1">
-                        {despesa.dre_categorias_despesas?.nome || 'Sem categoria'}
-                      </Badge>
-                    </div>
-                    <div className="md:col-span-2 text-sm">
-                      <div className="text-xs text-muted-foreground">Forma Pgto</div>
-                      <div>{formaLabel(despesa.forma_pagamento)}</div>
-                    </div>
-                    <div className="md:col-span-2 text-sm">
-                      <div className="text-xs text-muted-foreground">Vencimento</div>
-                      <div>
-                        {despesa.data_vencimento
-                          ? format(new Date(despesa.data_vencimento + 'T12:00:00'), "dd/MM/yyyy", { locale: ptBR })
-                          : '-'}
-                      </div>
-                    </div>
-                    <div className="md:col-span-2 text-sm">
-                      <div className="text-xs text-muted-foreground">Ocorrência</div>
-                      <div>{ocorrenciaLabel(despesa.ocorrencia)}</div>
-                    </div>
-                    <div className="md:col-span-1 text-sm">
-                      <div className="text-xs text-muted-foreground">Parcela</div>
-                      <div>
-                        {despesa.numero_parcelas && despesa.numero_parcelas > 1
-                          ? `${despesa.parcela_atual || 1}/${despesa.numero_parcelas}`
-                          : '—'}
-                      </div>
-                    </div>
-                    <div className="md:col-span-2 text-sm md:text-right">
-                      <div className="text-xs text-muted-foreground">Valor</div>
-                      <div className="font-semibold">{formatarValor(Number(despesa.valor))}</div>
-                    </div>
-                  </div>
+      <Tabs defaultValue="pendentes" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="pendentes">
+            Pendentes
+            {pendentes.length > 0 && (
+              <Badge variant="secondary" className="ml-2">{pendentes.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="pagas">
+            Pagas
+            {pagas.length > 0 && (
+              <Badge variant="secondary" className="ml-2">{pagas.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(despesa)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(despesa)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
+        <TabsContent value="pendentes" className="mt-4">
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Carregando...
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-        {despesas.length > 0 && (
-          <div className="border-t p-4">
-            <div className="flex justify-between items-center">
-              <span className="font-semibold">TOTAL DO PERÍODO</span>
-              <span className="text-xl font-bold text-destructive">{formatarValor(totalPeriodo)}</span>
-            </div>
-          </div>
-        )}
-      </Card>
+              ) : pendentes.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Nenhuma despesa pendente em {mesLabel} {selectedAno}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      {pendentes.map(d => <TableRow key={d.id} d={d} isPaga={false} />)}
+                    </thead>
+                    <tbody>
+                      <tr className="bg-secondary/60 font-semibold text-sm">
+                        <td className="px-3 py-2" colSpan={5}>TOTAL PENDENTE</td>
+                        <td className="px-3 py-2 text-primary">{formatarValor(totalPendentes)}</td>
+                        <td colSpan={4}></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+            {pendentes.length > 0 && (
+              <div className="px-4 py-3 border-t border-border bg-secondary/30 flex justify-between items-center">
+                <span className="text-sm font-medium">TOTAL PENDENTE</span>
+                <span className="text-sm font-bold text-primary">{formatarValor(totalPendentes)}</span>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
 
-      <button
-        onClick={() => handleOpenDialog()}
-        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-all active:scale-95 md:hidden"
-      >
+        <TabsContent value="pagas" className="mt-4">
+          <Card>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Carregando...
+                </div>
+              ) : pagas.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Nenhuma despesa paga em {mesLabel} {selectedAno}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      {pagas.map(d => <TableRow key={d.id} d={d} isPaga={true} />)}
+                    </thead>
+                    <tbody>
+                      <tr className="bg-secondary/60 font-semibold text-sm">
+                        <td className="px-3 py-2" colSpan={5}>TOTAL PAGO NO DRE</td>
+                        <td className="px-3 py-2 text-success">{formatarValor(totalPagas)}</td>
+                        <td colSpan={4}></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+            {pagas.length > 0 && (
+              <div className="px-4 py-3 border-t border-border bg-secondary/30 flex justify-between items-center">
+                <span className="text-sm font-medium">TOTAL PAGO NO DRE</span>
+                <span className="text-sm font-bold text-success">{formatarValor(totalPagas)}</span>
+              </div>
+            )}
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* FAB mobile */}
+      <Button onClick={() => handleOpenDialog()}
+        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 md:hidden">
         <Plus className="h-6 w-6" />
-      </button>
+      </Button>
 
+      {/* Dialog Nova/Editar */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{editingDespesa ? "Editar Despesa" : "Nova Despesa"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            {/* Linha 1: Descrição */}
-            <div className="space-y-2">
+          <div className="space-y-4 overflow-y-auto pr-1">
+            <div>
               <label className="text-sm font-medium">Descrição *</label>
-              <Input
-                value={descricao}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setDescricao(val);
-                  if (!categoriaId) {
-                    const sugestao = detectarCategoria(val, categorias);
-                    if (sugestao) {
-                      setCategoriaId(sugestao.id);
-                    }
-                  }
-                }}
-                placeholder="Ex: Pagamento fornecedor X"
-                autoFocus={!editingDespesa}
-              />
+              <Input value={descricao} onChange={handleDescricaoChange} placeholder="Ex: Aluguel do escritório" />
             </div>
 
-            {/* Linha 2: Categoria | Forma de Pagamento */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Categoria *</label>
-                <Select value={categoriaId} onValueChange={(v) => setCategoriaId(v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Forma de Pagamento *</label>
-                <Select value={formaPagamento} onValueChange={setFormaPagamento}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {FORMAS_PAGAMENTO.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <label className="text-sm font-medium flex items-center gap-2">
+                Categoria *
+                {categoriaSugerida && categoriaSelecionada && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Sparkles className="h-3 w-3" /> sugerida
+                  </Badge>
+                )}
+              </label>
+              <Select value={categoriaId} onValueChange={(v) => { setCategoriaId(v); setCategoriaSugerida(false); }}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {categorias.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Linha 3: Ocorrência | Parcelas | Vencimento */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Ocorrência *</label>
-                <Select value={ocorrencia} onValueChange={setOcorrencia}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {OCORRENCIAS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              {ocorrencia === 'parcelada' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Nº de Parcelas *</label>
-                  <Input
-                    type="number"
-                    min={2}
-                    value={numeroParcelas}
-                    onChange={(e) => setNumeroParcelas(e.target.value)}
-                  />
-                </div>
-              )}
-              <div className={`space-y-2 ${ocorrencia !== 'parcelada' ? 'md:col-span-2' : ''}`}>
-                <label className="text-sm font-medium">Data de Vencimento *</label>
-                <Input
-                  type="date"
-                  value={dataVencimento}
-                  onChange={(e) => setDataVencimento(e.target.value)}
-                />
-              </div>
+            <div>
+              <label className="text-sm font-medium">Forma de Pagamento</label>
+              <Select value={formaPagamento} onValueChange={setFormaPagamento}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
 
-            {/* Linha 4: Lançamento | Contato */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Data de Lançamento *</label>
-                <Input
-                  type="date"
-                  value={dataDespesa}
-                  onChange={(e) => setDataDespesa(e.target.value)}
-                  max={format(new Date(), 'yyyy-MM-dd')}
-                />
+            <div>
+              <label className="text-sm font-medium">Ocorrência</label>
+              <Select value={ocorrencia} onValueChange={setOcorrencia}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {OCORRENCIAS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {ocorrencia === "parcelado" && (
+              <div>
+                <label className="text-sm font-medium">Número de Parcelas</label>
+                <Input value={numeroParcelas} onChange={(e) => setNumeroParcelas(e.target.value)} placeholder="Ex: 12" />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Contato</label>
-                <Input
-                  value={contato}
-                  onChange={(e) => setContato(e.target.value)}
-                  placeholder="Ex: nome do fornecedor"
-                />
+            )}
+            <div>
+              <label className="text-sm font-medium">Data de Vencimento</label>
+              <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Data de Lançamento</label>
+              <Input type="date" value={dataDespesa} onChange={(e) => setDataDespesa(e.target.value)} />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Contato / Fornecedor</label>
+              <div className="relative" ref={contatoRef}>
+                <Input value={contatoSearch} onChange={(e) => { setContatoSearch(e.target.value); setContato(e.target.value); setShowContatoDropdown(true); }}
+                  onFocus={() => setShowContatoDropdown(true)}
+                  placeholder="Digite para buscar usuário..." />
+                {showContatoDropdown && contatoSuggestions.length > 0 && (
+                  <div className="absolute z-50 mt-1 w-full bg-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {contatoSuggestions.map(p => (
+                      <div key={p.id} className="px-3 py-2 hover:bg-secondary cursor-pointer text-sm"
+                        onClick={() => { setContato(p.nome); setContatoSearch(p.nome); setShowContatoDropdown(false); }}>
+                        {p.nome}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Linha 5: Valor */}
-            <div className="space-y-2">
+            <div>
               <label className="text-sm font-medium">Valor *</label>
-              <Input
-                value={valor}
-                onChange={(e) => setValor(formatarValorInput(e.target.value))}
-                placeholder="0,00"
-                inputMode="decimal"
-                className="text-lg font-semibold"
-              />
+              <Input value={valor} onChange={(e) => setValor(formatarValorInput(e.target.value))}
+                placeholder="0,00" inputMode="decimal" className="text-lg font-semibold" />
             </div>
 
-            {/* Linha 6: Observação */}
-            <div className="space-y-2">
+            <div>
               <label className="text-sm font-medium">Observação</label>
-              <Textarea
-                value={observacao}
-                onChange={(e) => setObservacao(e.target.value)}
-                placeholder="Informações complementares (opcional)"
-                rows={3}
-              />
+              <Input value={observacao} onChange={(e) => setObservacao(e.target.value)}
+                placeholder="Informações adicionais (opcional)" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleCloseDialog}>Cancelar</Button>
             <Button onClick={handleSave} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Salvando..." : "Salvar"}
+              {saveMutation.isPending ? "Salvando..." : editingDespesa ? "Salvar" : "Lançar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {/* Pagar Dialog */}
+      <AlertDialog open={pagarDialogOpen} onOpenChange={setPagarDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Despesa</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Pagamento</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta despesa de{" "}
-              <strong>{formatarValor(Number(deletingDespesa?.valor || 0))}</strong>? Esta ação não pode ser desfeita.
+              Confirma o pagamento de {formatarValor(Number(actionDespesa?.valor || 0))} referente a{" "}
+              {actionDespesa?.descricao || actionDespesa?.observacao}?
+              <div className="mt-2 text-sm text-muted-foreground">
+                A despesa será lançada no DRE automaticamente.
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deletingDespesa && deleteMutation.mutate(deletingDespesa.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir
+            <AlertDialogCancel onClick={() => setPagarDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => actionDespesa && pagarMutation.mutate(actionDespesa)}>
+              ✅ Confirmar Pagamento
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={recurrenceDialogOpen} onOpenChange={(open) => {
-        setRecurrenceDialogOpen(open);
-        if (!open) setPendingRecurrence(null);
-      }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {pendingRecurrence?.ocorrencia === 'anual'
-                ? 'Gerar para os próximos anos?'
-                : 'Gerar para os próximos períodos?'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">
-              {pendingRecurrence?.ocorrencia === 'anual'
-                ? 'Quantos anos adicionais deseja gerar?'
-                : pendingRecurrence?.ocorrencia === 'mensal'
-                ? 'Quantos meses adicionais deseja gerar?'
-                : pendingRecurrence?.ocorrencia === 'quinzenal'
-                ? 'Quantas quinzenas adicionais deseja gerar?'
-                : 'Quantas semanas adicionais deseja gerar?'}
-            </p>
-            <Input
-              type="number"
-              min={1}
-              max={60}
-              value={recurrenceCount}
-              onChange={(e) => setRecurrenceCount(e.target.value)}
-              className="text-lg font-semibold"
-              autoFocus
-            />
-          </div>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setRecurrenceDialogOpen(false);
-                setPendingRecurrence(null);
-              }}
-            >
-              Não, apenas este
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!pendingRecurrence) return;
-                const n = parseInt(recurrenceCount) || 0;
-                if (n < 1) {
-                  toast.error('Informe um número válido');
-                  return;
-                }
-                await gerarRecorrencias(
-                  pendingRecurrence.id,
-                  pendingRecurrence.base,
-                  pendingRecurrence.ocorrencia,
-                  n,
-                );
-                setRecurrenceDialogOpen(false);
-                setPendingRecurrence(null);
-              }}
-            >
-              Sim, gerar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Estornar Dialog */}
+      <AlertDialog open={estornarDialogOpen} onOpenChange={setEstornarDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Estornar Pagamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirma o estorno de {formatarValor(Number(actionDespesa?.valor || 0))}?
+              <div className="mt-2 text-sm text-muted-foreground">
+                A despesa será removida do DRE e voltará para Contas Pendentes.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEstornarDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => actionDespesa && estornarMutation.mutate(actionDespesa)}>
+              ↩ Estornar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Despesa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir{" "}
+              {deletingDespesa?.descricao || deletingDespesa?.observacao} de{" "}
+              {formatarValor(Number(deletingDespesa?.valor || 0))}?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deletingDespesa && deleteMutation.mutate(deletingDespesa.id)}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
-    </TooltipProvider>
   );
 }
