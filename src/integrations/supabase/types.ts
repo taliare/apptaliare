@@ -357,6 +357,7 @@ export type Database = {
       }
       dre_despesas: {
         Row: {
+          acrescimo: number | null
           ano_mes: string
           atualizado_em: string | null
           categoria_id: string | null
@@ -367,6 +368,7 @@ export type Database = {
           data_limite_recorrencia: string | null
           data_pagamento: string | null
           data_vencimento: string | null
+          desconto: number | null
           descricao: string | null
           dia_semana: string | null
           dia_vencimento_mensal: number | null
@@ -381,6 +383,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          acrescimo?: number | null
           ano_mes: string
           atualizado_em?: string | null
           categoria_id?: string | null
@@ -391,6 +394,7 @@ export type Database = {
           data_limite_recorrencia?: string | null
           data_pagamento?: string | null
           data_vencimento?: string | null
+          desconto?: number | null
           descricao?: string | null
           dia_semana?: string | null
           dia_vencimento_mensal?: number | null
@@ -405,6 +409,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          acrescimo?: number | null
           ano_mes?: string
           atualizado_em?: string | null
           categoria_id?: string | null
@@ -415,6 +420,7 @@ export type Database = {
           data_limite_recorrencia?: string | null
           data_pagamento?: string | null
           data_vencimento?: string | null
+          desconto?: number | null
           descricao?: string | null
           dia_semana?: string | null
           dia_vencimento_mensal?: number | null
