@@ -183,6 +183,14 @@ export default function DreDespesas() {
   const [diaSemana, setDiaSemana] = useState("");
   const [dataLimiteRecorrencia, setDataLimiteRecorrencia] = useState("");
 
+  // Estados de pagamento
+  const [pgDesconto, setPgDesconto] = useState("0,00");
+  const [pgAcrescimo, setPgAcrescimo] = useState("0,00");
+  const [pgValorPago, setPgValorPago] = useState("");
+  const [pgDataPagamento, setPgDataPagamento] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [pgObs, setPgObs] = useState("");
+  const [pgManualValor, setPgManualValor] = useState(false);
+
   // Ordenação
   const [sortField, setSortField] = useState("data_vencimento");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
