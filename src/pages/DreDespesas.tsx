@@ -635,6 +635,46 @@ export default function DreDespesas() {
                 {anos.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Popover open={filtroOpen} onOpenChange={setFiltroOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 ml-auto sm:ml-0">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filtro
+                  {(filtroCategoria || filtroOcorrencia) && (
+                    <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 space-y-4" align="start">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Categoria</label>
+                  <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Todas</SelectItem>
+                      {categorias.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Ocorrência</label>
+                  <Select value={filtroOcorrencia} onValueChange={setFiltroOcorrencia}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Todas</SelectItem>
+                      {OCORRENCIAS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => { setFiltroCategoria(""); setFiltroOcorrencia(""); }}>
+                  Limpar filtros
+                </Button>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardContent>
       </Card>
