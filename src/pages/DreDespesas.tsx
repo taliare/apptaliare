@@ -480,7 +480,7 @@ export default function DreDespesas() {
     setActionDespesa(d);
     setPgDesconto("0,00");
     setPgAcrescimo("0,00");
-    setPgValorPago(formatarValorInput(String(d.valor)));
+    setPgValorPago(formatarValorInput(String(Math.round(Number(d.valor) * 100))));
     setPgDataPagamento(format(new Date(), "yyyy-MM-dd"));
     setPgObs("");
     setPgManualValor(false);
