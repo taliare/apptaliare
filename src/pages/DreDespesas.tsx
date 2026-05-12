@@ -645,7 +645,7 @@ export default function DreDespesas() {
         <div className="flex items-center gap-1">
           {!isPaga ? (
             <>
-              <Button size="icon-sm" variant="ghost" onClick={() => { setActionDespesa(d); setPagarDialogOpen(true); }}>
+              <Button size="icon-sm" variant="ghost" onClick={() => handleAbrirPagar(d)}>
                 <CheckCircle2 className="h-4 w-4 text-success" />
               </Button>
               <Button size="icon-sm" variant="ghost" onClick={() => handleOpenDialog(d)}>
