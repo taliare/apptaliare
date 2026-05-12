@@ -200,7 +200,7 @@ export default function DreDespesas() {
     return undefined;
   };
 
-  const handleDescricaoChange = (e: React.ChangeEvent) => {
+  const handleDescricaoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
     setDescricao(v);
     if (!categoriaId || categoriaSugerida) {
