@@ -54,6 +54,8 @@ interface Despesa {
   dia_vencimento_mensal: number | null;
   dia_semana: string | null;
   data_limite_recorrencia: string | null;
+  desconto: number | null;
+  acrescimo: number | null;
   criado_em: string;
   dre_categorias_despesas: Categoria | null;
 }
@@ -180,6 +182,14 @@ export default function DreDespesas() {
   const [diaVencimentoMensal, setDiaVencimentoMensal] = useState("");
   const [diaSemana, setDiaSemana] = useState("");
   const [dataLimiteRecorrencia, setDataLimiteRecorrencia] = useState("");
+
+  // Estados de pagamento
+  const [pgDesconto, setPgDesconto] = useState("0,00");
+  const [pgAcrescimo, setPgAcrescimo] = useState("0,00");
+  const [pgValorPago, setPgValorPago] = useState("");
+  const [pgDataPagamento, setPgDataPagamento] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [pgObs, setPgObs] = useState("");
+  const [pgManualValor, setPgManualValor] = useState(false);
 
   // Ordenação
   const [sortField, setSortField] = useState("data_vencimento");
@@ -343,18 +353,64 @@ export default function DreDespesas() {
   });
 
   const pagarMutation = useMutation({
-    mutationFn: async (despesa: Despesa) => {
-      const { error } = await supabase.from("dre_despesas")
-        .update({ status: "pago", data_pagamento: format(new Date(), "yyyy-MM-dd"), atualizado_em: new Date().toISOString() })
+    mutationFn: async ({
+      despesa, valorPago, desconto, acrescimo, dataPagamento, obs,
+    }: {
+      despesa: Despesa;
+      valorPago: number;
+      desconto: number;
+      acrescimo: number;
+      dataPagamento: string;
+      obs: string;
+    }) => {
+      const valorOriginal = Number(despesa.valor);
+      const valorCalculado = valorOriginal - desconto + acrescimo;
+      const isParcial = valorPago < valorCalculado - 0.01;
+      const saldo = valorCalculado - valorPago;
+
+      const { error: e1 } = await supabase.from("dre_despesas")
+        .update({
+          status: "pago",
+          valor: valorPago,
+          desconto,
+          acrescimo,
+          data_pagamento: dataPagamento,
+          observacao: obs || despesa.observacao || null,
+          atualizado_em: new Date().toISOString(),
+        })
         .eq("id", despesa.id);
-      if (error) throw error;
+      if (e1) throw e1;
+
+      if (isParcial) {
+        const { error: e2 } = await supabase.from("dre_despesas").insert({
+          categoria_id: despesa.categoria_id,
+          ano_mes: despesa.ano_mes,
+          valor: saldo,
+          descricao: despesa.descricao,
+          observacao: `Parcial — saldo restante de ${formatarValor(saldo)}`,
+          forma_pagamento: despesa.forma_pagamento,
+          ocorrencia: despesa.ocorrencia,
+          contato: despesa.contato,
+          data_vencimento: despesa.data_vencimento,
+          dia_vencimento_mensal: despesa.dia_vencimento_mensal,
+          dia_semana: despesa.dia_semana,
+          status: "pendente",
+        });
+        if (e2) throw e2;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["dre-despesas", anoMes] });
-      toast.success("Despesa marcada como paga e lançada no DRE! ✅");
-      setPagarDialogOpen(false); setActionDespesa(null);
+      const valorCalculado = Number(vars.despesa.valor) - vars.desconto + vars.acrescimo;
+      if (vars.valorPago < valorCalculado - 0.01) {
+        toast.success(`Pagamento parcial de ${formatarValor(vars.valorPago)} registrado. Saldo de ${formatarValor(valorCalculado - vars.valorPago)} permanece pendente.`);
+      } else {
+        toast.success("Despesa paga e lançada no DRE! ✅");
+      }
+      setPagarDialogOpen(false);
+      setActionDespesa(null);
     },
-    onError: () => toast.error("Erro ao pagar despesa"),
+    onError: (e: any) => toast.error("Erro ao registrar pagamento: " + (e?.message || "")),
   });
 
   const estornarMutation = useMutation({
@@ -419,6 +475,17 @@ export default function DreDespesas() {
   };
 
   const handleCloseDialog = () => { setDialogOpen(false); resetForm(); };
+
+  const handleAbrirPagar = (d: Despesa) => {
+    setActionDespesa(d);
+    setPgDesconto("0,00");
+    setPgAcrescimo("0,00");
+    setPgValorPago(formatarValorInput(String(d.valor)));
+    setPgDataPagamento(format(new Date(), "yyyy-MM-dd"));
+    setPgObs("");
+    setPgManualValor(false);
+    setPagarDialogOpen(true);
+  };
 
   const handleSave = () => {
     if (!categoriaId) { toast.error("Selecione uma categoria"); return; }
@@ -578,7 +645,7 @@ export default function DreDespesas() {
         <div className="flex items-center gap-1">
           {!isPaga ? (
             <>
-              <Button size="icon-sm" variant="ghost" onClick={() => { setActionDespesa(d); setPagarDialogOpen(true); }}>
+              <Button size="icon-sm" variant="ghost" onClick={() => handleAbrirPagar(d)}>
                 <CheckCircle2 className="h-4 w-4 text-success" />
               </Button>
               <Button size="icon-sm" variant="ghost" onClick={() => handleOpenDialog(d)}>
@@ -971,26 +1038,144 @@ export default function DreDespesas() {
       </Dialog>
 
       {/* Pagar Dialog */}
-      <AlertDialog open={pagarDialogOpen} onOpenChange={setPagarDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Pagamento</AlertDialogTitle>
-            <AlertDialogDescription>
-              Confirma o pagamento de {formatarValor(Number(actionDespesa?.valor || 0))} referente a{" "}
-              {actionDespesa?.descricao || actionDespesa?.observacao}?
-              <div className="mt-2 text-sm text-muted-foreground">
-                A despesa será lançada no DRE automaticamente.
+      <Dialog open={pagarDialogOpen} onOpenChange={setPagarDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              Registrar Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          {actionDespesa && (() => {
+            const descVal = parseValor(pgDesconto);
+            const acrVal = parseValor(pgAcrescimo);
+            const valorOriginal = Number(actionDespesa.valor);
+            const valorCalculado = valorOriginal - descVal + acrVal;
+            const valorPagoNum = parseValor(pgValorPago);
+            const saldo = valorCalculado - valorPagoNum;
+            const isParcial = valorPagoNum < valorCalculado - 0.01;
+
+            const handleDescontoChange = (v: string) => {
+              setPgDesconto(formatarValorInput(v));
+              if (!pgManualValor) {
+                const d = parseFloat(formatarValorInput(v).replace(/\./g, "").replace(",", ".")) || 0;
+                const a = parseValor(pgAcrescimo);
+                setPgValorPago(formatarValorInput(String(Math.round((valorOriginal - d + a) * 100))));
+              }
+            };
+
+            const handleAcrescimoChange = (v: string) => {
+              setPgAcrescimo(formatarValorInput(v));
+              if (!pgManualValor) {
+                const d = parseValor(pgDesconto);
+                const a = parseFloat(formatarValorInput(v).replace(/\./g, "").replace(",", ".")) || 0;
+                setPgValorPago(formatarValorInput(String(Math.round((valorOriginal - d + a) * 100))));
+              }
+            };
+
+            return (
+              <div className="space-y-4 py-2">
+                {/* Resumo */}
+                <div className="rounded-lg bg-muted/40 p-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Descrição</span>
+                    <span className="font-medium">{actionDespesa.descricao || "—"}</span>
+                  </div>
+                  {actionDespesa.contato && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Contato</span>
+                      <span>{actionDespesa.contato}</span>
+                    </div>
+                  )}
+                  {actionDespesa.data_vencimento && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Vencimento</span>
+                      <span>{format(new Date(actionDespesa.data_vencimento + "T12:00:00"), "dd/MM/yyyy")}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-1.5 mt-1.5">
+                    <span className="text-muted-foreground">Valor original</span>
+                    <span className="font-bold">{formatarValor(valorOriginal)}</span>
+                  </div>
+                </div>
+
+                {/* Desconto / Acréscimo */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-green-600">Desconto</label>
+                    <Input
+                      value={pgDesconto}
+                      onChange={e => handleDescontoChange(e.target.value)}
+                      inputMode="decimal"
+                      className="border-green-200 focus:border-green-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-red-500">Acréscimo</label>
+                    <Input
+                      value={pgAcrescimo}
+                      onChange={e => handleAcrescimoChange(e.target.value)}
+                      inputMode="decimal"
+                      className="border-red-200 focus:border-red-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Valor a pagar */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">
+                    Valor a pagar
+                    {isParcial && <span className="ml-2 text-xs text-amber-500 font-normal">pagamento parcial</span>}
+                  </label>
+                  <Input
+                    value={pgValorPago}
+                    onChange={e => { setPgManualValor(true); setPgValorPago(formatarValorInput(e.target.value)); }}
+                    inputMode="decimal"
+                    className="text-lg font-bold"
+                  />
+                  {isParcial && saldo > 0 && (
+                    <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-2 py-1">
+                      Saldo restante de <strong>{formatarValor(saldo)}</strong> ficará como nova despesa pendente
+                    </p>
+                  )}
+                </div>
+
+                {/* Data pagamento */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Data do pagamento</label>
+                  <Input type="date" value={pgDataPagamento} onChange={e => setPgDataPagamento(e.target.value)} />
+                </div>
+
+                {/* Observação */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Observação</label>
+                  <Input value={pgObs} onChange={e => setPgObs(e.target.value)} placeholder="Opcional" />
+                </div>
               </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPagarDialogOpen(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => actionDespesa && pagarMutation.mutate(actionDespesa)}>
-              ✅ Confirmar Pagamento
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPagarDialogOpen(false)}>Cancelar</Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              disabled={pagarMutation.isPending || parseValor(pgValorPago) <= 0}
+              onClick={() => {
+                if (!actionDespesa) return;
+                pagarMutation.mutate({
+                  despesa: actionDespesa,
+                  valorPago: parseValor(pgValorPago),
+                  desconto: parseValor(pgDesconto),
+                  acrescimo: parseValor(pgAcrescimo),
+                  dataPagamento: pgDataPagamento,
+                  obs: pgObs,
+                });
+              }}
+            >
+              {pagarMutation.isPending ? "Salvando..." : "Confirmar Pagamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Estornar Dialog */}
       <AlertDialog open={estornarDialogOpen} onOpenChange={setEstornarDialogOpen}>
