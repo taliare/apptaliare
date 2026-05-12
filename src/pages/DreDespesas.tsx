@@ -622,6 +622,45 @@ export default function DreDespesas() {
                 <Input value={numeroParcelas} onChange={(e) => setNumeroParcelas(e.target.value)} placeholder="Ex: 12" />
               </div>
             )}
+
+            {ocorrencia === "mensal" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Dia do vencimento (todo mês)</label>
+                <Input
+                  type="number" min="1" max="31"
+                  value={diaVencimentoMensal}
+                  onChange={e => setDiaVencimentoMensal(e.target.value)}
+                  placeholder="Ex: 30 (vence todo dia 30)"
+                />
+              </div>
+            )}
+
+            {ocorrencia === "semanal" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Dia da semana</label>
+                <Select value={diaSemana} onValueChange={setDiaSemana}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o dia" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="segunda">Segunda-feira</SelectItem>
+                    <SelectItem value="terca">Terça-feira</SelectItem>
+                    <SelectItem value="quarta">Quarta-feira</SelectItem>
+                    <SelectItem value="quinta">Quinta-feira</SelectItem>
+                    <SelectItem value="sexta">Sexta-feira</SelectItem>
+                    <SelectItem value="sabado">Sábado</SelectItem>
+                    <SelectItem value="domingo">Domingo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {["mensal", "semanal", "anual"].includes(ocorrencia) && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Data limite da recorrência</label>
+                <Input type="date" value={dataLimiteRecorrencia}
+                  onChange={e => setDataLimiteRecorrencia(e.target.value)} />
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium">Data de Vencimento</label>
               <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} />
