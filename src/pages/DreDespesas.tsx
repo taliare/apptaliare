@@ -715,24 +715,24 @@ export default function DreDespesas() {
               <PopoverContent className="w-72 space-y-4" align="start">
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">Categoria</label>
-                  <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                  <Select value={filtroCategoria || "__all__"} onValueChange={v => setFiltroCategoria(v === "__all__" ? "" : v)}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas</SelectItem>
+                      <SelectItem value="__all__">Todas</SelectItem>
                       {categorias.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">Ocorrência</label>
-                  <Select value={filtroOcorrencia} onValueChange={setFiltroOcorrencia}>
+                  <Select value={filtroOcorrencia || "__all__"} onValueChange={v => setFiltroOcorrencia(v === "__all__" ? "" : v)}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Todas" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas</SelectItem>
+                      <SelectItem value="__all__">Todas</SelectItem>
                       {OCORRENCIAS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
