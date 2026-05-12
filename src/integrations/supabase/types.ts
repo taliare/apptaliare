@@ -364,9 +364,12 @@ export type Database = {
           criado_em: string | null
           criado_por: string | null
           data_despesa: string | null
+          data_limite_recorrencia: string | null
           data_pagamento: string | null
           data_vencimento: string | null
           descricao: string | null
+          dia_semana: string | null
+          dia_vencimento_mensal: number | null
           forma_pagamento: string | null
           id: string
           numero_parcelas: number | null
@@ -385,9 +388,12 @@ export type Database = {
           criado_em?: string | null
           criado_por?: string | null
           data_despesa?: string | null
+          data_limite_recorrencia?: string | null
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string | null
+          dia_semana?: string | null
+          dia_vencimento_mensal?: number | null
           forma_pagamento?: string | null
           id?: string
           numero_parcelas?: number | null
@@ -406,9 +412,12 @@ export type Database = {
           criado_em?: string | null
           criado_por?: string | null
           data_despesa?: string | null
+          data_limite_recorrencia?: string | null
           data_pagamento?: string | null
           data_vencimento?: string | null
           descricao?: string | null
+          dia_semana?: string | null
+          dia_vencimento_mensal?: number | null
           forma_pagamento?: string | null
           id?: string
           numero_parcelas?: number | null
