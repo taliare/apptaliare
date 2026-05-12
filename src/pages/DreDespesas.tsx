@@ -23,8 +23,10 @@ import {
 import { toast } from "sonner";
 import {
   Plus, Receipt, Pencil, Trash2, CheckCircle2, RotateCcw,
-  MessageSquare, Sparkles,
+  MessageSquare, Sparkles, ChevronUp, ChevronDown, ChevronsUpDown,
+  Search, Filter, SlidersHorizontal,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatarValor } from "@/lib/utils";
@@ -178,6 +180,21 @@ export default function DreDespesas() {
   const [diaVencimentoMensal, setDiaVencimentoMensal] = useState("");
   const [diaSemana, setDiaSemana] = useState("");
   const [dataLimiteRecorrencia, setDataLimiteRecorrencia] = useState("");
+
+  // Ordenação
+  const [sortField, setSortField] = useState("data_vencimento");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  // Busca por coluna
+  const [colSearch, setColSearch] = useState({
+    descricao: "", forma_pagamento: "", contato: "", categoria: "", ocorrencia: "",
+  });
+
+  // Filtro painel
+  const [filtroOpen, setFiltroOpen] = useState(false);
+  const [filtroCategoria, setFiltroCategoria] = useState("");
+  const [filtroOcorrencia, setFiltroOcorrencia] = useState("");
+
   const contatoRef = useRef(null);
 
   const anoMes = `${selectedAno}-${selectedMes}`;
@@ -436,6 +453,80 @@ export default function DreDespesas() {
   const mesLabel = MESES.find(m => m.value === selectedMes)?.label || "";
   const categoriaSelecionada = categorias.find(c => c.id === categoriaId);
 
+  // Ordenação
+  const handleSort = (field: string) => {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("asc"); }
+  };
+
+  const aplicarFiltroEOrdem = (list: Despesa[]) => {
+    let result = list.filter(d => {
+      if (colSearch.descricao && !norm(d.descricao || d.observacao || "").includes(norm(colSearch.descricao))) return false;
+      if (colSearch.forma_pagamento && !norm(d.forma_pagamento || "").includes(norm(colSearch.forma_pagamento))) return false;
+      if (colSearch.contato && !norm(d.contato || "").includes(norm(colSearch.contato))) return false;
+      if (colSearch.categoria && !norm(d.dre_categorias_despesas?.nome || "").includes(norm(colSearch.categoria))) return false;
+      if (colSearch.ocorrencia && d.ocorrencia !== colSearch.ocorrencia) return false;
+      if (filtroCategoria && d.categoria_id !== filtroCategoria) return false;
+      if (filtroOcorrencia && d.ocorrencia !== filtroOcorrencia) return false;
+      return true;
+    });
+
+    result = [...result].sort((a, b) => {
+      let va: any, vb: any;
+      switch (sortField) {
+        case "data_vencimento":
+          va = a.data_vencimento || "9999-12-31"; vb = b.data_vencimento || "9999-12-31"; break;
+        case "descricao":
+          va = norm(a.descricao || a.observacao || ""); vb = norm(b.descricao || b.observacao || ""); break;
+        case "contato":
+          va = norm(a.contato || ""); vb = norm(b.contato || ""); break;
+        case "categoria":
+          va = norm(a.dre_categorias_despesas?.nome || ""); vb = norm(b.dre_categorias_despesas?.nome || ""); break;
+        case "valor":
+          va = Number(a.valor); vb = Number(b.valor); break;
+        case "ocorrencia":
+          va = a.ocorrencia || ""; vb = b.ocorrencia || ""; break;
+        case "forma_pagamento":
+          va = a.forma_pagamento || ""; vb = b.forma_pagamento || ""; break;
+        default:
+          va = a.criado_em; vb = b.criado_em;
+      }
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  };
+
+  const SortTh = ({ field, label, align = "left" }: { field: string; label: string; align?: string }) => (
+    <th
+      onClick={() => handleSort(field)}
+      className={`px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none whitespace-nowrap text-${align}`}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {sortField === field
+          ? sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+          : <ChevronsUpDown className="h-3 w-3 opacity-40" />}
+      </div>
+    </th>
+  );
+
+  const colSearchInput = (key: keyof typeof colSearch, placeholder = "") => (
+    <td className="px-3 py-1">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+        <Input
+          className="h-7 pl-7 text-xs bg-background"
+          value={colSearch[key]}
+          onChange={(e) => setColSearch(s => ({ ...s, [key]: e.target.value }))}
+          placeholder={placeholder}
+        />
+      </div>
+    </td>
+  );
+
   /* ─── Table Row ──────────────────────────────────────────── */
   const TableRow = ({ d, isPaga }: { d: Despesa; isPaga: boolean }) => (
     <tr className="border-b border-border hover:bg-secondary/40 transition-colors">
@@ -544,6 +635,46 @@ export default function DreDespesas() {
                 {anos.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Popover open={filtroOpen} onOpenChange={setFiltroOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 ml-auto sm:ml-0">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filtro
+                  {(filtroCategoria || filtroOcorrencia) && (
+                    <span className="inline-flex h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 space-y-4" align="start">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Categoria</label>
+                  <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Todas</SelectItem>
+                      {categorias.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">Ocorrência</label>
+                  <Select value={filtroOcorrencia} onValueChange={setFiltroOcorrencia}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Todas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Todas</SelectItem>
+                      {OCORRENCIAS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => { setFiltroCategoria(""); setFiltroOcorrencia(""); }}>
+                  Limpar filtros
+                </Button>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardContent>
       </Card>
@@ -579,9 +710,33 @@ export default function DreDespesas() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      {pendentes.map(d => <TableRow key={d.id} d={d} isPaga={false} />)}
+                      <tr className="bg-secondary/50">
+                        <SortTh field="descricao" label="Descrição" />
+                        <SortTh field="forma_pagamento" label="Forma Pagto" />
+                        <SortTh field="contato" label="Contato" />
+                        <SortTh field="categoria" label="Categoria" />
+                        <SortTh field="data_vencimento" label="Vencimento" />
+                        <SortTh field="valor" label="Valor" align="right" />
+                        <SortTh field="ocorrencia" label="Ocorrência" />
+                        <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Parcela</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Obs</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Ações</th>
+                      </tr>
+                      <tr className="bg-secondary/30">
+                        {colSearchInput("descricao", "Buscar...")}
+                        {colSearchInput("forma_pagamento", "Buscar...")}
+                        {colSearchInput("contato", "Buscar...")}
+                        {colSearchInput("categoria", "Buscar...")}
+                        <td className="px-3 py-1"></td>
+                        <td className="px-3 py-1"></td>
+                        {colSearchInput("ocorrencia", "Buscar...")}
+                        <td className="px-3 py-1"></td>
+                        <td className="px-3 py-1"></td>
+                        <td className="px-3 py-1"></td>
+                      </tr>
                     </thead>
                     <tbody>
+                      {aplicarFiltroEOrdem(pendentes).map(d => <TableRow key={d.id} d={d} isPaga={false} />)}
                       <tr className="bg-secondary/60 font-semibold text-sm">
                         <td className="px-3 py-2" colSpan={5}>TOTAL PENDENTE</td>
                         <td className="px-3 py-2 text-primary">{formatarValor(totalPendentes)}</td>
@@ -616,9 +771,33 @@ export default function DreDespesas() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      {pagas.map(d => <TableRow key={d.id} d={d} isPaga={true} />)}
+                      <tr className="bg-secondary/50">
+                        <SortTh field="descricao" label="Descrição" />
+                        <SortTh field="forma_pagamento" label="Forma Pagto" />
+                        <SortTh field="contato" label="Contato" />
+                        <SortTh field="categoria" label="Categoria" />
+                        <SortTh field="data_vencimento" label="Vencimento" />
+                        <SortTh field="valor" label="Valor" align="right" />
+                        <SortTh field="ocorrencia" label="Ocorrência" />
+                        <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Parcela</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Obs</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Ações</th>
+                      </tr>
+                      <tr className="bg-secondary/30">
+                        {colSearchInput("descricao", "Buscar...")}
+                        {colSearchInput("forma_pagamento", "Buscar...")}
+                        {colSearchInput("contato", "Buscar...")}
+                        {colSearchInput("categoria", "Buscar...")}
+                        <td className="px-3 py-1"></td>
+                        <td className="px-3 py-1"></td>
+                        {colSearchInput("ocorrencia", "Buscar...")}
+                        <td className="px-3 py-1"></td>
+                        <td className="px-3 py-1"></td>
+                        <td className="px-3 py-1"></td>
+                      </tr>
                     </thead>
                     <tbody>
+                      {aplicarFiltroEOrdem(pagas).map(d => <TableRow key={d.id} d={d} isPaga={true} />)}
                       <tr className="bg-secondary/60 font-semibold text-sm">
                         <td className="px-3 py-2" colSpan={5}>TOTAL PAGO NO DRE</td>
                         <td className="px-3 py-2 text-success">{formatarValor(totalPagas)}</td>
