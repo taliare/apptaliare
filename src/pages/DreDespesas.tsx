@@ -430,6 +430,17 @@ export default function DreDespesas() {
 
   const handleCloseDialog = () => { setDialogOpen(false); resetForm(); };
 
+  const handleAbrirPagar = (d: Despesa) => {
+    setActionDespesa(d);
+    setPgDesconto("0,00");
+    setPgAcrescimo("0,00");
+    setPgValorPago(formatarValorInput(String(d.valor)));
+    setPgDataPagamento(format(new Date(), "yyyy-MM-dd"));
+    setPgObs("");
+    setPgManualValor(false);
+    setPagarDialogOpen(true);
+  };
+
   const handleSave = () => {
     if (!categoriaId) { toast.error("Selecione uma categoria"); return; }
     const valorNum = parseValor(valor);
