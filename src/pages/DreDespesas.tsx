@@ -49,6 +49,9 @@ interface Despesa {
   data_pagamento: string | null;
   data_despesa: string | null;
   contato: string | null;
+  dia_vencimento_mensal: number | null;
+  dia_semana: string | null;
+  data_limite_recorrencia: string | null;
   criado_em: string;
   dre_categorias_despesas: Categoria | null;
 }
@@ -126,6 +129,9 @@ export default function DreDespesas() {
   const [showContatoDropdown, setShowContatoDropdown] = useState(false);
   const [valor, setValor] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [diaVencimentoMensal, setDiaVencimentoMensal] = useState("");
+  const [diaSemana, setDiaSemana] = useState("");
+  const [dataLimiteRecorrencia, setDataLimiteRecorrencia] = useState("");
   const contatoRef = useRef(null);
 
   const anoMes = `${selectedAno}-${selectedMes}`;
@@ -293,6 +299,7 @@ export default function DreDespesas() {
     setCategoriaSugerida(false); setFormaPagamento(""); setOcorrencia("unico");
     setNumeroParcelas("2"); setDataVencimento(""); setDataDespesa(format(new Date(), "yyyy-MM-dd"));
     setContato(""); setContatoSearch(""); setValor(""); setObservacao("");
+    setDiaVencimentoMensal(""); setDiaSemana(""); setDataLimiteRecorrencia("");
   };
 
   const handleOpenDialog = (despesa?: Despesa) => {
@@ -310,6 +317,9 @@ export default function DreDespesas() {
       setContatoSearch(despesa.contato || "");
       setValor(formatarValorInput(String(despesa.valor)));
       setObservacao(despesa.observacao || "");
+      setDiaVencimentoMensal(String(despesa.dia_vencimento_mensal || ""));
+      setDiaSemana(despesa.dia_semana || "");
+      setDataLimiteRecorrencia(despesa.data_limite_recorrencia || "");
     } else {
       resetForm();
     }
@@ -612,6 +622,45 @@ export default function DreDespesas() {
                 <Input value={numeroParcelas} onChange={(e) => setNumeroParcelas(e.target.value)} placeholder="Ex: 12" />
               </div>
             )}
+
+            {ocorrencia === "mensal" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Dia do vencimento (todo mês)</label>
+                <Input
+                  type="number" min="1" max="31"
+                  value={diaVencimentoMensal}
+                  onChange={e => setDiaVencimentoMensal(e.target.value)}
+                  placeholder="Ex: 30 (vence todo dia 30)"
+                />
+              </div>
+            )}
+
+            {ocorrencia === "semanal" && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Dia da semana</label>
+                <Select value={diaSemana} onValueChange={setDiaSemana}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o dia" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="segunda">Segunda-feira</SelectItem>
+                    <SelectItem value="terca">Terça-feira</SelectItem>
+                    <SelectItem value="quarta">Quarta-feira</SelectItem>
+                    <SelectItem value="quinta">Quinta-feira</SelectItem>
+                    <SelectItem value="sexta">Sexta-feira</SelectItem>
+                    <SelectItem value="sabado">Sábado</SelectItem>
+                    <SelectItem value="domingo">Domingo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {["mensal", "semanal", "anual"].includes(ocorrencia) && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Data limite da recorrência</label>
+                <Input type="date" value={dataLimiteRecorrencia}
+                  onChange={e => setDataLimiteRecorrencia(e.target.value)} />
+              </div>
+            )}
+
             <div>
               <label className="text-sm font-medium">Data de Vencimento</label>
               <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} />
