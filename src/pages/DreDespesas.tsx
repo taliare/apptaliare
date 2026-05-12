@@ -23,8 +23,10 @@ import {
 import { toast } from "sonner";
 import {
   Plus, Receipt, Pencil, Trash2, CheckCircle2, RotateCcw,
-  MessageSquare, Sparkles,
+  MessageSquare, Sparkles, ChevronUp, ChevronDown, ChevronsUpDown,
+  Search, Filter, SlidersHorizontal,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatarValor } from "@/lib/utils";
