@@ -771,9 +771,33 @@ export default function DreDespesas() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      {pagas.map(d => <TableRow key={d.id} d={d} isPaga={true} />)}
+                      <tr className="bg-secondary/50">
+                        <SortTh field="descricao" label="Descrição" />
+                        <SortTh field="forma_pagamento" label="Forma Pagto" />
+                        <SortTh field="contato" label="Contato" />
+                        <SortTh field="categoria" label="Categoria" />
+                        <SortTh field="data_vencimento" label="Vencimento" />
+                        <SortTh field="valor" label="Valor" align="right" />
+                        <SortTh field="ocorrencia" label="Ocorrência" />
+                        <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Parcela</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Obs</th>
+                        <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Ações</th>
+                      </tr>
+                      <tr className="bg-secondary/30">
+                        {colSearchInput("descricao", "Buscar...")}
+                        {colSearchInput("forma_pagamento", "Buscar...")}
+                        {colSearchInput("contato", "Buscar...")}
+                        {colSearchInput("categoria", "Buscar...")}
+                        <td className="px-3 py-1"></td>
+                        <td className="px-3 py-1"></td>
+                        {colSearchInput("ocorrencia", "Buscar...")}
+                        <td className="px-3 py-1"></td>
+                        <td className="px-3 py-1"></td>
+                        <td className="px-3 py-1"></td>
+                      </tr>
                     </thead>
                     <tbody>
+                      {aplicarFiltroEOrdem(pagas).map(d => <TableRow key={d.id} d={d} isPaga={true} />)}
                       <tr className="bg-secondary/60 font-semibold text-sm">
                         <td className="px-3 py-2" colSpan={5}>TOTAL PAGO NO DRE</td>
                         <td className="px-3 py-2 text-success">{formatarValor(totalPagas)}</td>
