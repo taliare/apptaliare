@@ -54,6 +54,8 @@ interface Despesa {
   dia_vencimento_mensal: number | null;
   dia_semana: string | null;
   data_limite_recorrencia: string | null;
+  desconto: number | null;
+  acrescimo: number | null;
   criado_em: string;
   dre_categorias_despesas: Categoria | null;
 }
