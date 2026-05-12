@@ -1038,26 +1038,144 @@ export default function DreDespesas() {
       </Dialog>
 
       {/* Pagar Dialog */}
-      <AlertDialog open={pagarDialogOpen} onOpenChange={setPagarDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Pagamento</AlertDialogTitle>
-            <AlertDialogDescription>
-              Confirma o pagamento de {formatarValor(Number(actionDespesa?.valor || 0))} referente a{" "}
-              {actionDespesa?.descricao || actionDespesa?.observacao}?
-              <div className="mt-2 text-sm text-muted-foreground">
-                A despesa será lançada no DRE automaticamente.
+      <Dialog open={pagarDialogOpen} onOpenChange={setPagarDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              Registrar Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          {actionDespesa && (() => {
+            const descVal = parseValor(pgDesconto);
+            const acrVal = parseValor(pgAcrescimo);
+            const valorOriginal = Number(actionDespesa.valor);
+            const valorCalculado = valorOriginal - descVal + acrVal;
+            const valorPagoNum = parseValor(pgValorPago);
+            const saldo = valorCalculado - valorPagoNum;
+            const isParcial = valorPagoNum < valorCalculado - 0.01;
+
+            const handleDescontoChange = (v: string) => {
+              setPgDesconto(formatarValorInput(v));
+              if (!pgManualValor) {
+                const d = parseFloat(formatarValorInput(v).replace(/\./g, "").replace(",", ".")) || 0;
+                const a = parseValor(pgAcrescimo);
+                setPgValorPago(formatarValorInput(String(Math.round((valorOriginal - d + a) * 100))));
+              }
+            };
+
+            const handleAcrescimoChange = (v: string) => {
+              setPgAcrescimo(formatarValorInput(v));
+              if (!pgManualValor) {
+                const d = parseValor(pgDesconto);
+                const a = parseFloat(formatarValorInput(v).replace(/\./g, "").replace(",", ".")) || 0;
+                setPgValorPago(formatarValorInput(String(Math.round((valorOriginal - d + a) * 100))));
+              }
+            };
+
+            return (
+              <div className="space-y-4 py-2">
+                {/* Resumo */}
+                <div className="rounded-lg bg-muted/40 p-3 space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Descrição</span>
+                    <span className="font-medium">{actionDespesa.descricao || "—"}</span>
+                  </div>
+                  {actionDespesa.contato && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Contato</span>
+                      <span>{actionDespesa.contato}</span>
+                    </div>
+                  )}
+                  {actionDespesa.data_vencimento && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Vencimento</span>
+                      <span>{format(new Date(actionDespesa.data_vencimento + "T12:00:00"), "dd/MM/yyyy")}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t pt-1.5 mt-1.5">
+                    <span className="text-muted-foreground">Valor original</span>
+                    <span className="font-bold">{formatarValor(valorOriginal)}</span>
+                  </div>
+                </div>
+
+                {/* Desconto / Acréscimo */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-green-600">Desconto</label>
+                    <Input
+                      value={pgDesconto}
+                      onChange={e => handleDescontoChange(e.target.value)}
+                      inputMode="decimal"
+                      className="border-green-200 focus:border-green-500"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-red-500">Acréscimo</label>
+                    <Input
+                      value={pgAcrescimo}
+                      onChange={e => handleAcrescimoChange(e.target.value)}
+                      inputMode="decimal"
+                      className="border-red-200 focus:border-red-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Valor a pagar */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">
+                    Valor a pagar
+                    {isParcial && <span className="ml-2 text-xs text-amber-500 font-normal">pagamento parcial</span>}
+                  </label>
+                  <Input
+                    value={pgValorPago}
+                    onChange={e => { setPgManualValor(true); setPgValorPago(formatarValorInput(e.target.value)); }}
+                    inputMode="decimal"
+                    className="text-lg font-bold"
+                  />
+                  {isParcial && saldo > 0 && (
+                    <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded px-2 py-1">
+                      Saldo restante de <strong>{formatarValor(saldo)}</strong> ficará como nova despesa pendente
+                    </p>
+                  )}
+                </div>
+
+                {/* Data pagamento */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Data do pagamento</label>
+                  <Input type="date" value={pgDataPagamento} onChange={e => setPgDataPagamento(e.target.value)} />
+                </div>
+
+                {/* Observação */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Observação</label>
+                  <Input value={pgObs} onChange={e => setPgObs(e.target.value)} placeholder="Opcional" />
+                </div>
               </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPagarDialogOpen(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => actionDespesa && pagarMutation.mutate(actionDespesa)}>
-              ✅ Confirmar Pagamento
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPagarDialogOpen(false)}>Cancelar</Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              disabled={pagarMutation.isPending || parseValor(pgValorPago) <= 0}
+              onClick={() => {
+                if (!actionDespesa) return;
+                pagarMutation.mutate({
+                  despesa: actionDespesa,
+                  valorPago: parseValor(pgValorPago),
+                  desconto: parseValor(pgDesconto),
+                  acrescimo: parseValor(pgAcrescimo),
+                  dataPagamento: pgDataPagamento,
+                  obs: pgObs,
+                });
+              }}
+            >
+              {pagarMutation.isPending ? "Salvando..." : "Confirmar Pagamento"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Estornar Dialog */}
       <AlertDialog open={estornarDialogOpen} onOpenChange={setEstornarDialogOpen}>
