@@ -353,18 +353,64 @@ export default function DreDespesas() {
   });
 
   const pagarMutation = useMutation({
-    mutationFn: async (despesa: Despesa) => {
-      const { error } = await supabase.from("dre_despesas")
-        .update({ status: "pago", data_pagamento: format(new Date(), "yyyy-MM-dd"), atualizado_em: new Date().toISOString() })
+    mutationFn: async ({
+      despesa, valorPago, desconto, acrescimo, dataPagamento, obs,
+    }: {
+      despesa: Despesa;
+      valorPago: number;
+      desconto: number;
+      acrescimo: number;
+      dataPagamento: string;
+      obs: string;
+    }) => {
+      const valorOriginal = Number(despesa.valor);
+      const valorCalculado = valorOriginal - desconto + acrescimo;
+      const isParcial = valorPago < valorCalculado - 0.01;
+      const saldo = valorCalculado - valorPago;
+
+      const { error: e1 } = await supabase.from("dre_despesas")
+        .update({
+          status: "pago",
+          valor: valorPago,
+          desconto,
+          acrescimo,
+          data_pagamento: dataPagamento,
+          observacao: obs || despesa.observacao || null,
+          atualizado_em: new Date().toISOString(),
+        })
         .eq("id", despesa.id);
-      if (error) throw error;
+      if (e1) throw e1;
+
+      if (isParcial) {
+        const { error: e2 } = await supabase.from("dre_despesas").insert({
+          categoria_id: despesa.categoria_id,
+          ano_mes: despesa.ano_mes,
+          valor: saldo,
+          descricao: despesa.descricao,
+          observacao: `Parcial — saldo restante de ${formatarValor(saldo)}`,
+          forma_pagamento: despesa.forma_pagamento,
+          ocorrencia: despesa.ocorrencia,
+          contato: despesa.contato,
+          data_vencimento: despesa.data_vencimento,
+          dia_vencimento_mensal: despesa.dia_vencimento_mensal,
+          dia_semana: despesa.dia_semana,
+          status: "pendente",
+        });
+        if (e2) throw e2;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["dre-despesas", anoMes] });
-      toast.success("Despesa marcada como paga e lançada no DRE! ✅");
-      setPagarDialogOpen(false); setActionDespesa(null);
+      const valorCalculado = Number(vars.despesa.valor) - vars.desconto + vars.acrescimo;
+      if (vars.valorPago < valorCalculado - 0.01) {
+        toast.success(`Pagamento parcial de ${formatarValor(vars.valorPago)} registrado. Saldo de ${formatarValor(valorCalculado - vars.valorPago)} permanece pendente.`);
+      } else {
+        toast.success("Despesa paga e lançada no DRE! ✅");
+      }
+      setPagarDialogOpen(false);
+      setActionDespesa(null);
     },
-    onError: () => toast.error("Erro ao pagar despesa"),
+    onError: (e: any) => toast.error("Erro ao registrar pagamento: " + (e?.message || "")),
   });
 
   const estornarMutation = useMutation({
