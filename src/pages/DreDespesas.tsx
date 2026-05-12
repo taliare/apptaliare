@@ -661,10 +661,12 @@ export default function DreDespesas() {
               </div>
             )}
 
-            <div>
-              <label className="text-sm font-medium">Data de Vencimento</label>
-              <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} />
-            </div>
+{["unico", "parcelado"].includes(ocorrencia) && (
+              <div>
+                <label className="text-sm font-medium">Data de Vencimento</label>
+                <Input type="date" value={dataVencimento} onChange={(e) => setDataVencimento(e.target.value)} />
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium">Data de Lançamento</label>
