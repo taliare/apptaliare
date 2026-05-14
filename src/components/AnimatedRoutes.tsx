@@ -174,11 +174,11 @@ export function AnimatedRoutes() {
         } />
         
         
-        {/* Apuração de Kits - admin only */}
+        {/* Apuração de Kits */}
         <Route path="/apuracao" element={
-          <ProtectedRoute requiredRole="admin">
+          <PermissionRoute menuKey="apuracao">
             <ApuracaoKits />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
         
         {/* Configuração PDF - admin only */}
