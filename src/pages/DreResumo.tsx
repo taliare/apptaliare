@@ -393,6 +393,67 @@ export default function DreResumo() {
           </Card>
         </>
       )}
+
+      {/* Dialog de detalhe das despesas da categoria */}
+      <Dialog open={!!categoriaDetalhe} onOpenChange={(o) => !o && setCategoriaDetalhe(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              {categoriaDetalhe}
+              <Badge variant="outline" className="ml-2">{mesLabel} / {selectedAno}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            {(() => {
+              const itens = despesasManuais.filter(
+                (d) => (d.dre_categorias_despesas?.nome || "Sem categoria") === categoriaDetalhe
+              );
+              if (itens.length === 0) {
+                return <p className="text-center py-8 text-muted-foreground">Nenhuma despesa.</p>;
+              }
+              const total = itens.reduce((s, d) => s + Number(d.valor), 0);
+              return (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground">
+                      <th className="py-2 px-2">Descrição</th>
+                      <th className="py-2 px-2">Pgto</th>
+                      <th className="py-2 px-2">Status</th>
+                      <th className="py-2 px-2 text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {itens.map((d) => (
+                      <tr key={d.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="py-2 px-2">
+                          <div className="font-medium">{d.descricao || "—"}</div>
+                          {d.contato && <div className="text-xs text-muted-foreground">{d.contato}</div>}
+                        </td>
+                        <td className="py-2 px-2">{d.forma_pagamento || "—"}</td>
+                        <td className="py-2 px-2">
+                          <Badge variant={d.status === "pago" ? "default" : "outline"} className="text-xs">
+                            {d.status || "—"}
+                          </Badge>
+                        </td>
+                        <td className="py-2 px-2 text-right font-semibold text-destructive">
+                          {formatCurrency(Number(d.valor))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-semibold bg-muted/30">
+                      <td colSpan={3} className="py-2 px-2">Total</td>
+                      <td className="py-2 px-2 text-right text-destructive">{formatCurrency(total)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              );
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
