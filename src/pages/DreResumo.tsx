@@ -1,17 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -19,439 +10,616 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   TrendingUp,
   TrendingDown,
-  ChevronLeft,
+  AlertTriangle,
+  RefreshCw,
   ChevronRight,
   DollarSign,
-  MinusCircle,
-  PlusCircle,
+  Receipt,
+  Minus,
+  Equal,
 } from "lucide-react";
 
-// FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado
-interface CobrancaDiaria {
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+interface Categoria {
   id: string;
-  data: string;
-  total_cobrado: number | null;
-  despesa_cobranca: number | null;
+  nome: string;
+}
+
+interface Prestacao {
+  id: string;
+  cobranca_id: string;
+  revendedora: string;
+  total_venda: number;
+  comissao_valor: number;
+  valor_devido_empresa: number;
+  data_execucao: string;
+  status: string;
+}
+
+interface Pagamento {
+  cobranca_id: string;
+  valor: number;
+  data_pagamento: string;
 }
 
 interface Despesa {
   id: string;
-  categoria_id: string | null;
+  descricao: string;
   valor: number;
-  descricao?: string | null;
-  contato?: string | null;
-  forma_pagamento?: string | null;
-  data_pagamento?: string | null;
-  data_vencimento?: string | null;
-  status?: string | null;
-  dre_categorias_despesas: { nome: string } | null;
+  forma_pagamento: string | null;
+  contato: string | null;
+  data_pagamento: string | null;
+  observacao: string | null;
+  categoria_id: string;
+  parcela_atual: number | null;
+  numero_parcelas: number | null;
 }
 
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+const fmt = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+const fmtData = (d: string | null) => {
+  if (!d) return "—";
+  const [y, m, day] = d.split("-");
+  return `${day}/${m}/${y}`;
+};
+
+const ultimoDia = (ano: string, mes: string) =>
+  new Date(Number(ano), Number(mes), 0).getDate();
+
 const MESES = [
-  { value: "01", label: "Janeiro" },
-  { value: "02", label: "Fevereiro" },
-  { value: "03", label: "Março" },
-  { value: "04", label: "Abril" },
-  { value: "05", label: "Maio" },
-  { value: "06", label: "Junho" },
-  { value: "07", label: "Julho" },
-  { value: "08", label: "Agosto" },
-  { value: "09", label: "Setembro" },
-  { value: "10", label: "Outubro" },
-  { value: "11", label: "Novembro" },
-  { value: "12", label: "Dezembro" },
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
+const anoAtual = new Date().getFullYear();
+const ANOS = [anoAtual - 1, anoAtual, anoAtual + 1];
+const mesAtualStr = String(new Date().getMonth() + 1).padStart(2, "0");
+
+// ─────────────────────────────────────────────
+// Sub-component: linha do DRE
+// ─────────────────────────────────────────────
+type LinhaVariant = "receita" | "deducao" | "recuperacao" | "subtotal" | "resultado" | "despesa";
+
+function LinhaDRE({
+  icone,
+  label,
+  valor,
+  variant,
+  onClick,
+  sublabel,
+}: {
+  icone?: React.ReactNode;
+  label: string;
+  valor: number;
+  variant: LinhaVariant;
+  onClick?: () => void;
+  sublabel?: string;
+}) {
+  const isClickable = !!onClick;
+
+  const valorFormatado = (() => {
+    if (variant === "deducao") return `(${fmt(valor)})`;
+    if (variant === "recuperacao") return `+ ${fmt(valor)}`;
+    return fmt(valor);
+  })();
+
+  const corValor = (() => {
+    if (variant === "resultado") return valor >= 0 ? "text-green-600" : "text-red-600";
+    if (variant === "subtotal") return "text-foreground font-bold";
+    if (variant === "receita") return "text-green-700";
+    if (variant === "recuperacao") return "text-blue-600";
+    if (variant === "deducao") return "text-red-600";
+    if (variant === "despesa") return "text-red-600";
+    return "text-foreground";
+  })();
+
+  const bg = (() => {
+    if (variant === "subtotal") return "bg-muted/60";
+    if (variant === "resultado")
+      return valor >= 0 ? "bg-green-50 dark:bg-green-950/30" : "bg-red-50 dark:bg-red-950/30";
+    return "";
+  })();
+
+  const Wrapper: any = isClickable ? "button" : "div";
+
+  return (
+    <Wrapper
+      type={isClickable ? "button" : undefined}
+      onClick={onClick}
+      className={`w-full flex items-center justify-between gap-3 px-3 py-3 rounded-lg border border-border/40 ${bg} ${
+        isClickable ? "hover:bg-muted/40 transition-colors cursor-pointer text-left" : ""
+      }`}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        {icone ? <div className="shrink-0">{icone}</div> : <div className="w-4 shrink-0" />}
+        <div className="min-w-0">
+          <div className={`text-sm ${variant === "subtotal" || variant === "resultado" ? "font-semibold" : "font-medium"}`}>
+            {label}
+          </div>
+          {sublabel && <div className="text-xs text-muted-foreground">{sublabel}</div>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className={`text-sm tabular-nums ${corValor}`}>
+          {valorFormatado}
+        </span>
+        {isClickable && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+      </div>
+    </Wrapper>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────
+type DrilldownTipo =
+  | "faturamento"
+  | "comissoes"
+  | "inadimplencia"
+  | "recuperacao"
+  | { categoriaId: string; categoriaNome: string }
+  | null;
 
 export default function DreResumo() {
-  const currentDate = new Date();
-  const [selectedMes, setSelectedMes] = useState(String(currentDate.getMonth() + 1).padStart(2, "0"));
-  const [selectedAno, setSelectedAno] = useState(String(currentDate.getFullYear()));
-  const [categoriaDetalhe, setCategoriaDetalhe] = useState<string | null>(null);
+  const [ano, setAno] = useState(String(anoAtual));
+  const [mes, setMes] = useState(mesAtualStr);
+  const [drilldown, setDrilldown] = useState<DrilldownTipo>(null);
 
-  const anoMes = `${selectedAno}-${selectedMes}`;
-  const mesLabel = MESES.find(m => m.value === selectedMes)?.label || "";
-  const anos = Array.from({ length: 5 }, (_, i) => String(currentDate.getFullYear() - 2 + i));
+  const dataInicio = `${ano}-${mes}-01`;
+  const dataFim = `${ano}-${mes}-${ultimoDia(ano, mes)}`;
+  const anoMes = `${ano}-${mes}`;
 
-  // Navegação entre meses
-  const navegarMes = (direcao: 1 | -1) => {
-    let novoMes = parseInt(selectedMes) + direcao;
-    let novoAno = parseInt(selectedAno);
-
-    if (novoMes > 12) {
-      novoMes = 1;
-      novoAno += 1;
-    } else if (novoMes < 1) {
-      novoMes = 12;
-      novoAno -= 1;
-    }
-
-    setSelectedMes(String(novoMes).padStart(2, "0"));
-    setSelectedAno(String(novoAno));
-  };
-
-  // FONTE FINANCEIRA OFICIAL: cobrancas_diarias (fechamentos dos representantes)
-  const { data: cobrancasDiarias = [], isLoading: loadingCobrancas } = useQuery({
-    queryKey: ["dre-cobrancas-diarias", anoMes],
+  // 1. Prestações do mês
+  const { data: prestacoes = [], isLoading: loadingPrestacoes } = useQuery({
+    queryKey: ["dre_prestacoes", anoMes],
     queryFn: async () => {
-      const inicioMes = `${anoMes}-01`;
-      const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-      const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-      
       const { data, error } = await supabase
-        .from("cobrancas_diarias")
-        .select("id, data, total_cobrado, despesa_cobranca")
-        .gte("data", inicioMes)
-        .lte("data", fimMes);
-
+        .from("prestacoes_contas")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, data_execucao, status")
+        .gte("data_execucao", dataInicio)
+        .lte("data_execucao", dataFim)
+        .gt("valor_devido_empresa", 0);
       if (error) throw error;
-      return data || [];
+      return (data ?? []) as Prestacao[];
     },
   });
 
-  // Fetch despesas manuais do DRE
-  const { data: despesasManuais = [] } = useQuery({
-    queryKey: ["dre-despesas-manuais", anoMes],
+  const cobrancaIdsDoMes = prestacoes.map((p) => p.cobranca_id).filter(Boolean);
+
+  // 2. Pagamentos do mês para cobranças do mês
+  const { data: pagamentosDoMes = [] } = useQuery({
+    queryKey: ["dre_pagamentos_mes", anoMes, cobrancaIdsDoMes.join(",")],
+    enabled: cobrancaIdsDoMes.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pagamentos_historico")
+        .select("cobranca_id, valor, data_pagamento")
+        .gte("data_pagamento", dataInicio)
+        .lte("data_pagamento", dataFim)
+        .in("cobranca_id", cobrancaIdsDoMes);
+      if (error) throw error;
+      return (data ?? []) as Pagamento[];
+    },
+  });
+
+  // 3. Todos pagamentos do mês (para apurar recuperação)
+  const { data: todosPagamentosDoMes = [] } = useQuery({
+    queryKey: ["dre_pagamentos_todos", anoMes],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pagamentos_historico")
+        .select("cobranca_id, valor, data_pagamento")
+        .gte("data_pagamento", dataInicio)
+        .lte("data_pagamento", dataFim);
+      if (error) throw error;
+      return (data ?? []) as Pagamento[];
+    },
+  });
+
+  const pagamentosRecuperacao = todosPagamentosDoMes.filter(
+    (p) => !cobrancaIdsDoMes.includes(p.cobranca_id),
+  );
+  const cobrancaIdsRecuperacao = [...new Set(pagamentosRecuperacao.map((p) => p.cobranca_id))];
+
+  // 4. Prestações de recuperação
+  const { data: prestacoesRecuperacao = [] } = useQuery({
+    queryKey: ["dre_prestacoes_recuperacao", cobrancaIdsRecuperacao.join(",")],
+    enabled: cobrancaIdsRecuperacao.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prestacoes_contas")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, data_execucao, status")
+        .in("cobranca_id", cobrancaIdsRecuperacao);
+      if (error) throw error;
+      return (data ?? []) as Prestacao[];
+    },
+  });
+
+  // 5. Categorias
+  const { data: categorias = [] } = useQuery({
+    queryKey: ["dre_categorias"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dre_categorias_despesas")
+        .select("id, nome")
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []) as Categoria[];
+    },
+  });
+
+  // 6. Despesas do mês
+  const { data: despesas = [], isLoading: loadingDespesas } = useQuery({
+    queryKey: ["dre_despesas_mes", anoMes],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("dre_despesas")
-        .select("id, categoria_id, valor, descricao, contato, forma_pagamento, data_pagamento, data_vencimento, status, dre_categorias_despesas(nome)")
-        .eq("ano_mes", anoMes);
-
+        .select("id, descricao, valor, forma_pagamento, contato, data_pagamento, observacao, categoria_id, parcela_atual, numero_parcelas")
+        .eq("ano_mes", anoMes)
+        .eq("status", "pago")
+        .order("data_pagamento");
       if (error) throw error;
-      return data as Despesa[];
+      return (data ?? []) as Despesa[];
     },
   });
 
-  // Cálculos do DRE - FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado
-  const dre = useMemo(() => {
-    // ======== RECEITA (TOTAL COBRADO) ========
-    // Soma dos fechamentos diários - já líquido, com comissão descontada
-    const totalCobrado = cobrancasDiarias.reduce(
-      (sum, cd) => sum + Number(cd.total_cobrado || 0), 0
-    );
-    
-    // Quantidade de fechamentos realizados
-    const qtdFechamentos = cobrancasDiarias.length;
+  // ── Cálculos ──
+  const faturamentoBruto = prestacoes.reduce((s, p) => s + Number(p.total_venda), 0);
+  const totalComissoes = prestacoes.reduce((s, p) => s + Number(p.comissao_valor), 0);
+  const recebidoDoMes = pagamentosDoMes.reduce((s, p) => s + Number(p.valor), 0);
+  const totalDevidoDoMes = prestacoes.reduce((s, p) => s + Number(p.valor_devido_empresa), 0);
+  const inadimplencia = Math.max(0, totalDevidoDoMes - recebidoDoMes);
+  const recuperacao = pagamentosRecuperacao.reduce((s, p) => s + Number(p.valor), 0);
+  const receitaLiquida = faturamentoBruto - totalComissoes - inadimplencia + recuperacao;
 
-    // ======== DESPESAS OPERACIONAIS ========
-    // Despesas de cobrança (automático do fechamento diário)
-    const despesasCobranca = cobrancasDiarias.reduce(
-      (sum, cd) => sum + Number(cd.despesa_cobranca || 0), 0
-    );
+  const totaisPorCategoria: Record<string, number> = {};
+  for (const d of despesas) {
+    totaisPorCategoria[d.categoria_id] = (totaisPorCategoria[d.categoria_id] ?? 0) + Number(d.valor);
+  }
+  const totalDespesas = Object.values(totaisPorCategoria).reduce((a, b) => a + b, 0);
+  const resultado = receitaLiquida - totalDespesas;
 
-    // Despesas manuais agrupadas por categoria
-    const despesasPorCategoria: Record<string, { nome: string; valor: number }> = {};
-    despesasManuais.forEach((d) => {
-      const catNome = d.dre_categorias_despesas?.nome || "Sem categoria";
-      if (!despesasPorCategoria[catNome]) {
-        despesasPorCategoria[catNome] = { nome: catNome, valor: 0 };
-      }
-      despesasPorCategoria[catNome].valor += Number(d.valor);
-    });
+  const categoriasComDespesas = categorias
+    .filter((c) => (totaisPorCategoria[c.id] ?? 0) > 0)
+    .sort((a, b) => (totaisPorCategoria[b.id] ?? 0) - (totaisPorCategoria[a.id] ?? 0));
 
-    const despesasListadas = Object.values(despesasPorCategoria).sort((a, b) =>
-      a.nome.localeCompare(b.nome)
-    );
+  const isLoading = loadingPrestacoes || loadingDespesas;
 
-    const totalDespesasManuais = despesasManuais.reduce(
-      (sum, d) => sum + Number(d.valor), 0
-    );
-    const totalDespesas = despesasCobranca + totalDespesasManuais;
+  // ── Drilldown ──
+  const drilldownTitle = (() => {
+    if (!drilldown) return "";
+    if (drilldown === "faturamento") return "Faturamento Bruto";
+    if (drilldown === "comissoes") return "Comissões das Revendedoras";
+    if (drilldown === "inadimplencia") return "Inadimplência";
+    if (drilldown === "recuperacao") return "Recuperação de Inadimplência";
+    if (typeof drilldown === "object") return drilldown.categoriaNome;
+    return "";
+  })();
 
-    // ======== RESULTADO OPERACIONAL ========
-    // Resultado = Total Cobrado - Despesas
-    const resultadoOperacional = totalCobrado - totalDespesas;
-    const margemOperacional = totalCobrado > 0 
-      ? (resultadoOperacional / totalCobrado) * 100 
-      : 0;
+  const drilldownContent = (() => {
+    if (!drilldown) return null;
 
-    return {
-      totalCobrado,
-      qtdFechamentos,
-      despesasCobranca,
-      despesasListadas,
-      totalDespesasManuais,
-      totalDespesas,
-      resultadoOperacional,
-      margemOperacional,
-    };
-  }, [cobrancasDiarias, despesasManuais]);
+    if (drilldown === "faturamento" || drilldown === "comissoes" || drilldown === "inadimplencia") {
+      return (
+        <table className="w-full text-xs">
+          <thead className="text-muted-foreground border-b">
+            <tr>
+              <th className="text-left py-2 px-2">Revendedora</th>
+              <th className="text-left py-2 px-2">Data</th>
+              <th className="text-right py-2 px-2">Venda</th>
+              <th className="text-right py-2 px-2">Comissão</th>
+              <th className="text-right py-2 px-2">
+                {drilldown === "inadimplencia" ? "Saldo Devedor" : "A Receber"}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {prestacoes.map((p) => {
+              const pagoDessa = pagamentosDoMes
+                .filter((pg) => pg.cobranca_id === p.cobranca_id)
+                .reduce((s, pg) => s + Number(pg.valor), 0);
+              const saldoDevedor = Math.max(0, Number(p.valor_devido_empresa) - pagoDessa);
+              if (drilldown === "inadimplencia" && saldoDevedor === 0) return null;
+              return (
+                <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className="py-2 px-2 font-medium">{p.revendedora}</td>
+                  <td className="py-2 px-2">{fmtData(p.data_execucao)}</td>
+                  <td className="py-2 px-2 text-right tabular-nums">{fmt(Number(p.total_venda))}</td>
+                  <td className="py-2 px-2 text-right tabular-nums text-red-600">
+                    ({fmt(Number(p.comissao_valor))})
+                  </td>
+                  <td className="py-2 px-2 text-right tabular-nums font-semibold">
+                    {drilldown === "inadimplencia" ? fmt(saldoDevedor) : fmt(Number(p.valor_devido_empresa))}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot className="font-semibold bg-muted/40">
+            <tr>
+              <td className="py-2 px-2" colSpan={2}>Total</td>
+              <td className="py-2 px-2 text-right tabular-nums">{fmt(faturamentoBruto)}</td>
+              <td className="py-2 px-2 text-right tabular-nums text-red-600">({fmt(totalComissoes)})</td>
+              <td className="py-2 px-2 text-right tabular-nums">
+                {drilldown === "inadimplencia" ? fmt(inadimplencia) : fmt(totalDevidoDoMes)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      );
+    }
 
-  const formatCurrency = (value: number) =>
-    value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    if (drilldown === "recuperacao") {
+      const prestacoesMap: Record<string, Prestacao> = {};
+      for (const p of prestacoesRecuperacao) prestacoesMap[p.cobranca_id] = p;
+      return (
+        <table className="w-full text-xs">
+          <thead className="text-muted-foreground border-b">
+            <tr>
+              <th className="text-left py-2 px-2">Revendedora</th>
+              <th className="text-left py-2 px-2">Prestação Original</th>
+              <th className="text-left py-2 px-2">Data Pgto</th>
+              <th className="text-right py-2 px-2">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pagamentosRecuperacao.map((p, i) => {
+              const prestacao = prestacoesMap[p.cobranca_id];
+              return (
+                <tr key={`${p.cobranca_id}-${i}`} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className="py-2 px-2 font-medium">{prestacao?.revendedora ?? "—"}</td>
+                  <td className="py-2 px-2">{fmtData(prestacao?.data_execucao ?? null)}</td>
+                  <td className="py-2 px-2">{fmtData(p.data_pagamento)}</td>
+                  <td className="py-2 px-2 text-right tabular-nums text-blue-600 font-semibold">
+                    {fmt(Number(p.valor))}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot className="font-semibold bg-muted/40">
+            <tr>
+              <td className="py-2 px-2" colSpan={3}>Total Recuperado</td>
+              <td className="py-2 px-2 text-right tabular-nums text-blue-600">{fmt(recuperacao)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      );
+    }
 
-  const isLoading = loadingCobrancas;
+    if (typeof drilldown === "object") {
+      const despesasCat = despesas.filter((d) => d.categoria_id === drilldown.categoriaId);
+      const totalCat = despesasCat.reduce((s, d) => s + Number(d.valor), 0);
+      return (
+        <table className="w-full text-xs">
+          <thead className="text-muted-foreground border-b">
+            <tr>
+              <th className="text-left py-2 px-2">Descrição</th>
+              <th className="text-left py-2 px-2">Contato</th>
+              <th className="text-left py-2 px-2">Forma Pgto</th>
+              <th className="text-left py-2 px-2">Data Pgto</th>
+              <th className="text-right py-2 px-2">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {despesasCat.map((d) => (
+              <tr key={d.id} className="border-b last:border-0 hover:bg-muted/30">
+                <td className="py-2 px-2">
+                  <div className="font-medium">{d.descricao}</div>
+                  {d.numero_parcelas && d.numero_parcelas > 1 && (
+                    <div className="text-[10px] text-muted-foreground">
+                      Parcela {d.parcela_atual}/{d.numero_parcelas}
+                    </div>
+                  )}
+                  {d.observacao && (
+                    <div className="text-[10px] text-muted-foreground">{d.observacao}</div>
+                  )}
+                </td>
+                <td className="py-2 px-2">{d.contato || "—"}</td>
+                <td className="py-2 px-2">
+                  {d.forma_pagamento ? (
+                    <Badge variant="outline" className="text-[10px]">
+                      {d.forma_pagamento}
+                    </Badge>
+                  ) : "—"}
+                </td>
+                <td className="py-2 px-2">{fmtData(d.data_pagamento)}</td>
+                <td className="py-2 px-2 text-right tabular-nums text-red-600 font-semibold">
+                  {fmt(Number(d.valor))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="font-semibold bg-muted/40">
+            <tr>
+              <td className="py-2 px-2" colSpan={4}>Total</td>
+              <td className="py-2 px-2 text-right tabular-nums text-red-600">{fmt(totalCat)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      );
+    }
 
+    return null;
+  })();
+
+  // ── Render ──
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingUp className="h-6 w-6 text-primary" />
-            DRE - Demonstrativo de Resultado
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Resultado Mensal Consolidado
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Receipt className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">DRE</h1>
+            <p className="text-sm text-muted-foreground">
+              Demonstração do Resultado do Exercício
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Select value={mes} onValueChange={setMes}>
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MESES.map((nome, i) => (
+                <SelectItem key={i} value={String(i + 1).padStart(2, "0")}>
+                  {nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={ano} onValueChange={setAno}>
+            <SelectTrigger className="w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ANOS.map((a) => (
+                <SelectItem key={a} value={String(a)}>
+                  {a}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Navegação de Período */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => navegarMes(-1)}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Select value={selectedMes} onValueChange={setSelectedMes}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MESES.map((mes) => (
-                    <SelectItem key={mes.value} value={mes.value}>
-                      {mes.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedAno} onValueChange={setSelectedAno}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {anos.map((ano) => (
-                    <SelectItem key={ano} value={ano}>
-                      {ano}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => navegarMes(1)}>
-              <ChevronRight className="h-5 w-5" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">
-          Carregando DRE...
-        </div>
+        <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       ) : (
-        <>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl text-center">
-                {mesLabel} {selectedAno}
-              </CardTitle>
-              <p className="text-xs text-center text-muted-foreground">
-                Baseado nos fechamentos diários dos representantes
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* RECEITA (TOTAL COBRADO) */}
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
-                  <PlusCircle className="h-4 w-4 text-success" />
-                  Receita
-                </h3>
-                
-                <div className="flex items-center justify-between p-4 rounded-lg bg-success/20 border border-success/30 font-semibold">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-success" />
-                    <div className="flex flex-col">
-                      <span>TOTAL COBRADO</span>
-                      <span className="text-xs font-normal text-muted-foreground">
-                        Soma dos fechamentos diários ({dre.qtdFechamentos} fechamentos)
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-xl text-success">{formatCurrency(dre.totalCobrado)}</span>
-                </div>
+        <Card>
+          <CardContent className="p-4 space-y-2">
+            {/* RECEITAS */}
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2 pb-1">
+              Receitas
+            </div>
+
+            <LinhaDRE
+              icone={<DollarSign className="h-4 w-4 text-green-600" />}
+              label="Faturamento Bruto"
+              sublabel="Total vendido pelas revendedoras"
+              valor={faturamentoBruto}
+              variant="receita"
+              onClick={faturamentoBruto > 0 ? () => setDrilldown("faturamento") : undefined}
+            />
+
+            <LinhaDRE
+              icone={<Minus className="h-4 w-4 text-red-600" />}
+              label="(-) Comissões das Revendedoras"
+              sublabel="Já retidas na prestação de contas"
+              valor={totalComissoes}
+              variant="deducao"
+              onClick={totalComissoes > 0 ? () => setDrilldown("comissoes") : undefined}
+            />
+
+            <LinhaDRE
+              icone={<AlertTriangle className="h-4 w-4 text-red-600" />}
+              label="(-) Inadimplência"
+              sublabel="Saldo não recebido nas prestações deste mês"
+              valor={inadimplencia}
+              variant="deducao"
+              onClick={inadimplencia > 0 ? () => setDrilldown("inadimplencia") : undefined}
+            />
+
+            {recuperacao > 0 && (
+              <LinhaDRE
+                icone={<RefreshCw className="h-4 w-4 text-blue-600" />}
+                label="(+) Recuperação de Inadimplência"
+                sublabel="Pagamentos recebidos de meses anteriores"
+                valor={recuperacao}
+                variant="recuperacao"
+                onClick={() => setDrilldown("recuperacao")}
+              />
+            )}
+
+            <LinhaDRE
+              icone={<Equal className="h-4 w-4" />}
+              label="(=) Receita Líquida"
+              valor={receitaLiquida}
+              variant="subtotal"
+            />
+
+            {/* DESPESAS */}
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-4 pb-1">
+              Despesas
+            </div>
+
+            {categoriasComDespesas.length === 0 ? (
+              <div className="text-center py-6 text-sm text-muted-foreground">
+                Nenhuma despesa paga registrada neste período.
               </div>
+            ) : (
+              categoriasComDespesas.map((cat) => (
+                <LinhaDRE
+                  key={cat.id}
+                  icone={<Minus className="h-4 w-4 text-red-600" />}
+                  label={`(-) ${cat.nome}`}
+                  valor={totaisPorCategoria[cat.id] ?? 0}
+                  variant="despesa"
+                  onClick={() => setDrilldown({ categoriaId: cat.id, categoriaNome: cat.nome })}
+                />
+              ))
+            )}
 
-              {/* SAÍDAS DE CAIXA (DESPESAS) */}
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
-                  <MinusCircle className="h-4 w-4 text-destructive" />
-                  Saídas de Caixa (Despesas)
-                </h3>
+            <LinhaDRE
+              icone={<Equal className="h-4 w-4" />}
+              label="(=) Total Despesas"
+              valor={totalDespesas}
+              variant="subtotal"
+            />
 
-                <div className="space-y-2">
-                  {/* Despesas de cobrança (automático) */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-destructive/10">
-                    <div className="flex items-center gap-2">
-                      <span>Despesas de cobrança</span>
-                      <Badge variant="outline" className="text-xs">automático</Badge>
-                    </div>
-                    <span className="font-medium text-destructive">
-                      - {formatCurrency(dre.despesasCobranca)}
-                    </span>
-                  </div>
+            {/* RESULTADO */}
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-4 pb-1">
+              Resultado
+            </div>
 
-                  {/* Despesas manuais por categoria */}
-                  {dre.despesasListadas.map((cat) => (
-                    <button
-                      type="button"
-                      key={cat.nome}
-                      onClick={() => setCategoriaDetalhe(cat.nome)}
-                      className="w-full flex items-center justify-between p-3 rounded-lg bg-destructive/10 hover:bg-destructive/20 transition-colors text-left cursor-pointer"
-                    >
-                      <span className="flex items-center gap-2">
-                        {cat.nome}
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </span>
-                      <span className="font-medium text-destructive">
-                        - {formatCurrency(cat.valor)}
-                      </span>
-                    </button>
-                  ))}
-
-                  {dre.despesasListadas.length === 0 && dre.despesasCobranca === 0 && (
-                    <div className="text-center py-4 text-muted-foreground text-sm">
-                      Nenhuma despesa lançada neste período
-                    </div>
-                  )}
-                </div>
-
-                <Separator className="my-3" />
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 font-semibold">
-                  <span>TOTAL DESPESAS</span>
-                  <span className="text-lg text-destructive">
-                    - {formatCurrency(dre.totalDespesas)}
-                  </span>
-                </div>
-              </div>
-
-              {/* RESULTADO */}
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  Resultado
-                </h3>
-
-                <div
-                  className={`p-4 rounded-lg ${
-                    dre.resultadoOperacional >= 0 ? "bg-success/20" : "bg-destructive/20"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex flex-col">
-                      <span className="font-semibold">RESULTADO</span>
-                      <span className="text-xs text-muted-foreground">
-                        = Total Cobrado - Total Despesas
-                      </span>
-                    </div>
-                    <span
-                      className={`text-2xl font-bold flex items-center gap-2 ${
-                        dre.resultadoOperacional >= 0 ? "text-success" : "text-destructive"
-                      }`}
-                    >
-                      {dre.resultadoOperacional >= 0 ? (
-                        <TrendingUp className="h-5 w-5" />
-                      ) : (
-                        <TrendingDown className="h-5 w-5" />
-                      )}
-                      {formatCurrency(dre.resultadoOperacional)}
-                    </span>
-                  </div>
-                <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Margem sobre Total Cobrado
-                    </span>
-                    <Badge
-                      variant={dre.margemOperacional >= 0 ? "default" : "destructive"}
-                      className="text-sm"
-                    >
-                      {dre.margemOperacional.toFixed(1)}%
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* NOTA EXPLICATIVA */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="p-3 rounded-lg bg-muted/30 border border-muted">
-                <p className="text-xs text-muted-foreground">
-                  <strong>Fonte Oficial:</strong> Este DRE é baseado exclusivamente nos fechamentos diários 
-                  dos representantes (<code>cobrancas_diarias.total_cobrado</code>). O Total Cobrado representa 
-                  o valor líquido já com comissão descontada, informado conscientemente pelo representante 
-                  no momento do fechamento do dia.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </>
+            <LinhaDRE
+              icone={
+                resultado >= 0 ? (
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                ) : (
+                  <TrendingDown className="h-5 w-5 text-red-600" />
+                )
+              }
+              label={resultado >= 0 ? "✓ Lucro do Período" : "✗ Prejuízo do Período"}
+              valor={Math.abs(resultado)}
+              variant="resultado"
+            />
+          </CardContent>
+        </Card>
       )}
 
-      {/* Dialog de detalhe das despesas da categoria */}
-      <Dialog open={!!categoriaDetalhe} onOpenChange={(o) => !o && setCategoriaDetalhe(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      {/* Dialog Drilldown */}
+      <Dialog open={!!drilldown} onOpenChange={(open) => !open && setDrilldown(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
-              {categoriaDetalhe}
-              <Badge variant="outline" className="ml-2">{mesLabel} / {selectedAno}</Badge>
+              <Receipt className="h-5 w-5 text-primary" />
+              {drilldownTitle}
+              <Badge variant="outline" className="ml-2">
+                {MESES[Number(mes) - 1]} / {ano}
+              </Badge>
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto">
-            {(() => {
-              const itens = despesasManuais.filter(
-                (d) => (d.dre_categorias_despesas?.nome || "Sem categoria") === categoriaDetalhe
-              );
-              if (itens.length === 0) {
-                return <p className="text-center py-8 text-muted-foreground">Nenhuma despesa.</p>;
-              }
-              const total = itens.reduce((s, d) => s + Number(d.valor), 0);
-              return (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-muted-foreground">
-                      <th className="py-2 px-2">Descrição</th>
-                      <th className="py-2 px-2">Pgto</th>
-                      <th className="py-2 px-2">Status</th>
-                      <th className="py-2 px-2 text-right">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {itens.map((d) => (
-                      <tr key={d.id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="py-2 px-2">
-                          <div className="font-medium">{d.descricao || "—"}</div>
-                          {d.contato && <div className="text-xs text-muted-foreground">{d.contato}</div>}
-                        </td>
-                        <td className="py-2 px-2">{d.forma_pagamento || "—"}</td>
-                        <td className="py-2 px-2">
-                          <Badge variant={d.status === "pago" ? "default" : "outline"} className="text-xs">
-                            {d.status || "—"}
-                          </Badge>
-                        </td>
-                        <td className="py-2 px-2 text-right font-semibold text-destructive">
-                          {formatCurrency(Number(d.valor))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="font-semibold bg-muted/30">
-                      <td colSpan={3} className="py-2 px-2">Total</td>
-                      <td className="py-2 px-2 text-right text-destructive">{formatCurrency(total)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              );
-            })()}
-          </div>
+          <div className="flex-1 overflow-y-auto">{drilldownContent}</div>
         </DialogContent>
       </Dialog>
     </div>
