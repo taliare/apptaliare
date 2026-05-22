@@ -297,15 +297,20 @@ export default function DreResumo() {
 
                   {/* Despesas manuais por categoria */}
                   {dre.despesasListadas.map((cat) => (
-                    <div
+                    <button
+                      type="button"
                       key={cat.nome}
-                      className="flex items-center justify-between p-3 rounded-lg bg-destructive/10"
+                      onClick={() => setCategoriaDetalhe(cat.nome)}
+                      className="w-full flex items-center justify-between p-3 rounded-lg bg-destructive/10 hover:bg-destructive/20 transition-colors text-left cursor-pointer"
                     >
-                      <span>{cat.nome}</span>
+                      <span className="flex items-center gap-2">
+                        {cat.nome}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </span>
                       <span className="font-medium text-destructive">
                         - {formatCurrency(cat.valor)}
                       </span>
-                    </div>
+                    </button>
                   ))}
 
                   {dre.despesasListadas.length === 0 && dre.despesasCobranca === 0 && (
