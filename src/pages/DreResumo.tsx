@@ -188,7 +188,7 @@ export default function DreResumo() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
-        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, data_execucao, status")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, data_execucao")
         .gte("data_execucao", dataInicio)
         .lte("data_execucao", dataFim)
         .gt("valor_devido_empresa", 0);
@@ -241,7 +241,7 @@ export default function DreResumo() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
-        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, data_execucao, status")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, data_execucao")
         .in("cobranca_id", cobrancaIdsRecuperacao);
       if (error) throw error;
       return (data ?? []) as Prestacao[];
