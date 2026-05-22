@@ -18,12 +18,12 @@ import {
 } from "@/components/ui/select";
 import {
   Table,
+  TableHeader,
   TableBody,
-  TableCell,
   TableFooter,
   TableHead,
-  TableHeader,
   TableRow,
+  TableCell,
 } from "@/components/ui/table";
 import {
   TrendingUp,
@@ -35,19 +35,15 @@ import {
   Minus,
   Equal,
   Clock,
-  BarChart3,
+  FileText,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
-interface Categoria { id: string; nome: string; }
-
-interface CobDiaria {
-  total_cobrado: number;
-  total_pix: number;
-  total_dinheiro: number;
-  total_cartao: number;
+interface Categoria {
+  id: string;
+  nome: string;
 }
 
 interface Prestacao {
@@ -61,7 +57,6 @@ interface Prestacao {
   saldo_devedor: number;
   data_execucao: string;
   criado_em: string;
-
 }
 
 interface Despesa {
@@ -94,8 +89,8 @@ const ultimoDia = (ano: string, mes: string) =>
   new Date(Number(ano), Number(mes), 0).getDate();
 
 const MESES = [
-  "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
-  "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro",
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 const anoAtual = new Date().getFullYear();
 const ANOS = [anoAtual - 1, anoAtual, anoAtual + 1];
@@ -124,9 +119,9 @@ function LinhaDRE({
   const corValor =
     variant === "resultado" ? (valor >= 0 ? "text-green-600" : "text-red-600")
     : variant === "subtotal" ? "text-foreground font-bold"
-    : variant === "receita" ? "text-green-700"
+    : variant === "receita" ? "text-green-700 dark:text-green-400"
     : variant === "aviso" ? "text-orange-500"
-    : "text-red-600";
+    : "text-red-600 dark:text-red-400";
 
   const bg =
     variant === "subtotal" ? "bg-muted/60"
@@ -135,26 +130,30 @@ function LinhaDRE({
     : "";
 
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      className={`flex items-center justify-between gap-3 px-4 py-3 border-b border-border/40 ${bg} ${isClickable ? "cursor-pointer hover:bg-muted/40 transition-colors" : ""}`}
+      disabled={!isClickable}
+      className={`w-full flex items-center justify-between gap-3 px-4 py-3 border-b border-border/50 transition-colors ${bg} ${
+        isClickable ? "hover:bg-muted/40 cursor-pointer" : "cursor-default"
+      }`}
     >
-      <div className="flex items-start gap-3 min-w-0">
-        {icone ?? <div className="w-4" />}
-        <div className="min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
+        {icone ?? <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />}
+        <div className="text-left min-w-0">
           <div className={`text-sm ${variant === "subtotal" || variant === "resultado" ? "font-semibold" : "font-medium"}`}>
             {label}
           </div>
-          {sublabel && <div className="text-xs text-muted-foreground mt-0.5">{sublabel}</div>}
+          {sublabel && <div className="text-xs text-muted-foreground truncate">{sublabel}</div>}
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className={`text-sm tabular-nums ${corValor}`}>
+        <span className={`text-sm md:text-base font-mono tabular-nums ${corValor}`}>
           {valorFormatado}
         </span>
         {isClickable && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -172,10 +171,10 @@ export default function DreResumo() {
   const [drilldown, setDrilldown] = useState<DrilldownTipo>(null);
 
   const dataInicio = `${ano}-${mes}-01`;
-  const dataFim    = `${ano}-${mes}-${String(ultimoDia(ano, mes)).padStart(2, "0")}`;
-  const anoMes     = `${ano}-${mes}`;
+  const dataFim = `${ano}-${mes}-${String(ultimoDia(ano, mes)).padStart(2, "0")}`;
+  const anoMes = `${ano}-${mes}`;
 
-  // ── 1. Vendas do mês
+  // ── 1. Vendas do mês ──
   const { data: vendasDoMes = [], isLoading: loadingVendas } = useQuery({
     queryKey: ["dre_vendas_mes", anoMes],
     queryFn: async () => {
@@ -192,11 +191,11 @@ export default function DreResumo() {
   });
 
   const cobrancaIdsDoMes = useMemo(
-    () => [...new Set(vendasDoMes.map(v => v.cobranca_id))],
+    () => [...new Set(vendasDoMes.map(v => v.cobranca_id).filter(Boolean))],
     [vendasDoMes]
   );
 
-  // ── 2. Todos os registros dessas cobranças
+  // ── 2. Todos registros dessas cobranças (saldo atualizado) ──
   const { data: todosRegistros = [], isLoading: loadingRegistros } = useQuery({
     queryKey: ["dre_todos_registros", cobrancaIdsDoMes.join(",")],
     enabled: cobrancaIdsDoMes.length > 0,
@@ -205,14 +204,13 @@ export default function DreResumo() {
         .from("prestacoes_contas")
         .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em")
         .in("cobranca_id", cobrancaIdsDoMes)
-        .order("data_execucao", { ascending: false })
-        .order("criado_em",     { ascending: false });
+        .order("criado_em", { ascending: false });
       if (error) throw error;
       return (data ?? []) as Prestacao[];
     },
   });
 
-  // ── 3. Recuperação
+  // ── 3. Recuperação ──
   const { data: registrosRecuperacao = [], isLoading: loadingRecup } = useQuery({
     queryKey: ["dre_recuperacao", anoMes],
     queryFn: async () => {
@@ -228,7 +226,7 @@ export default function DreResumo() {
     },
   });
 
-  // ── 4. Prestações em aberto de meses anteriores
+  // ── 4. Saldos em aberto de meses anteriores ──
   const { data: prestacoesAbertas = [], isLoading: loadingAbertas } = useQuery({
     queryKey: ["dre_prest_abertas", anoMes],
     queryFn: async () => {
@@ -244,21 +242,7 @@ export default function DreResumo() {
     },
   });
 
-  // ── 5. Cobranças Diárias
-  const { data: cobDiarias = [], isLoading: loadingCobDiarias } = useQuery({
-    queryKey: ["dre_cob_diarias", anoMes],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cobrancas_diarias")
-        .select("total_cobrado, total_pix, total_dinheiro, total_cartao")
-        .gte("data", dataInicio)
-        .lte("data", dataFim);
-      if (error) throw error;
-      return (data ?? []) as CobDiaria[];
-    },
-  });
-
-  // ── 7. Categorias
+  // ── 5. Categorias ──
   const { data: categorias = [] } = useQuery({
     queryKey: ["dre_categorias"],
     queryFn: async () => {
@@ -272,7 +256,7 @@ export default function DreResumo() {
     },
   });
 
-  // ── 8. Despesas
+  // ── 6. Despesas do mês ──
   const { data: despesas = [], isLoading: loadingDesp } = useQuery({
     queryKey: ["dre_desp_mes", anoMes],
     queryFn: async () => {
@@ -294,30 +278,25 @@ export default function DreResumo() {
     () => registrosRecuperacao.filter(r => !cobrancaIdsDoMes.includes(r.cobranca_id)),
     [registrosRecuperacao, cobrancaIdsDoMes]
   );
-
   const recuperacao = registrosRecuperacaoFiltrados.reduce((s, r) => s + Number(r.valor_pago), 0);
 
   const { latestPorCobranca, inadimplenciaNota, receitaLiquida } = useMemo(() => {
     const latest: Record<string, Prestacao> = {};
     for (const r of todosRegistros) {
-      if (!latest[r.cobranca_id]) {
-        latest[r.cobranca_id] = r;
-      }
+      if (!latest[r.cobranca_id]) latest[r.cobranca_id] = r;
     }
     const inadimpNota = Object.values(latest).reduce((s, p) => s + Number(p.saldo_devedor), 0);
-    const totalDevido = vendasDoMes.reduce((s, v) => s + Number(v.valor_devido_empresa), 0);
-    const recLiq = Math.max(0, totalDevido - inadimpNota);
+    const totDevido = vendasDoMes.reduce((s, v) => s + Number(v.valor_devido_empresa), 0);
+    const recLiq = Math.max(0, totDevido - inadimpNota);
     return { latestPorCobranca: latest, inadimplenciaNota: inadimpNota, receitaLiquida: recLiq };
   }, [todosRegistros, vendasDoMes]);
 
   const faturamentoBruto = vendasDoMes.reduce((s, v) => s + Number(v.total_venda), 0);
-  const totalComissoes   = vendasDoMes.reduce((s, v) => s + Number(v.comissao_valor), 0);
-  const totalDevido      = vendasDoMes.reduce((s, v) => s + Number(v.valor_devido_empresa), 0);
+  const totalComissoes = vendasDoMes.reduce((s, v) => s + Number(v.comissao_valor), 0);
+  const totalDevido = vendasDoMes.reduce((s, v) => s + Number(v.valor_devido_empresa), 0);
   const ajustes = Math.max(0, (faturamentoBruto - totalComissoes) - totalDevido);
-
-  const totalCobradoMes = cobDiarias.reduce((s, d) => s + Number(d.total_cobrado), 0);
-  const receitaLiquidaTotal = totalCobradoMes;
-  const inadimplencia = Math.max(0, totalDevido + recuperacao - totalCobradoMes);
+  const inadimplencia = inadimplenciaNota;
+  const receitaLiquidaTotal = receitaLiquida + recuperacao;
 
   const totaisPorCategoria: Record<string, number> = {};
   for (const d of despesas) {
@@ -327,12 +306,12 @@ export default function DreResumo() {
   const resultado = receitaLiquidaTotal - totalDespesas;
 
   const categoriasComDespesas = categorias
-    .filter((c) => totaisPorCategoria[c.id] > 0)
+    .filter(c => totaisPorCategoria[c.id] > 0)
     .sort((a, b) => (totaisPorCategoria[b.id] ?? 0) - (totaisPorCategoria[a.id] ?? 0));
 
   const totalEmAbertoAnterior = prestacoesAbertas.reduce((s, p) => s + Number(p.saldo_devedor), 0);
 
-  const isLoading = loadingVendas || loadingRegistros || loadingAbertas || loadingDesp || loadingRecup || loadingCobDiarias;
+  const isLoading = loadingVendas || loadingRegistros || loadingAbertas || loadingDesp || loadingRecup;
 
   // ─────────────────────────────────────────────
   // Drilldowns
@@ -341,7 +320,7 @@ export default function DreResumo() {
     if (!drilldown) return "";
     if (drilldown === "faturamento") return "Faturamento Bruto";
     if (drilldown === "comissoes") return "Comissões das Revendedoras";
-    if (drilldown === "descontos") return "Descontos / Abatimentos por Representante";
+    if (drilldown === "descontos") return "Descontos / Abatimentos";
     if (drilldown === "recuperacao") return "Recuperação de Inadimplência";
     if (drilldown === "inadimplencia") return "Inadimplência do Mês";
     if (drilldown === "em_aberto_anterior") return "Saldo em Aberto — Meses Anteriores";
@@ -362,7 +341,7 @@ export default function DreResumo() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {lista.map((p) => {
+        {lista.map(p => {
           const latest = latestPorCobranca[p.cobranca_id] ?? p;
           const saldoAtual = Number(latest.saldo_devedor);
           const recebido = Number(p.valor_devido_empresa) - saldoAtual;
@@ -370,11 +349,11 @@ export default function DreResumo() {
             <TableRow key={p.id}>
               <TableCell className="font-medium">{p.revendedora}</TableCell>
               <TableCell>{fmtData(p.data_execucao)}</TableCell>
-              <TableCell className="text-right tabular-nums">{fmt(Number(p.total_venda))}</TableCell>
-              <TableCell className="text-right tabular-nums text-red-600">({fmt(Number(p.comissao_valor))})</TableCell>
-              <TableCell className="text-right tabular-nums text-green-700">{fmt(Math.max(0, recebido))}</TableCell>
+              <TableCell className="text-right font-mono">{fmt(Number(p.total_venda))}</TableCell>
+              <TableCell className="text-right font-mono text-red-600">({fmt(Number(p.comissao_valor))})</TableCell>
+              <TableCell className="text-right font-mono text-green-700">{fmt(Math.max(0, recebido))}</TableCell>
               {mostrarSaldo && (
-                <TableCell className="text-right tabular-nums text-orange-600">{fmt(saldoAtual)}</TableCell>
+                <TableCell className="text-right font-mono text-orange-500">{fmt(saldoAtual)}</TableCell>
               )}
             </TableRow>
           );
@@ -383,10 +362,10 @@ export default function DreResumo() {
       <TableFooter>
         <TableRow>
           <TableCell colSpan={2}>Total</TableCell>
-          <TableCell className="text-right tabular-nums">{fmt(lista.reduce((s, p) => s + Number(p.total_venda), 0))}</TableCell>
-          <TableCell className="text-right tabular-nums text-red-600">({fmt(lista.reduce((s, p) => s + Number(p.comissao_valor), 0))})</TableCell>
-          <TableCell className="text-right tabular-nums">{fmt(receitaLiquida)}</TableCell>
-          {mostrarSaldo && <TableCell className="text-right tabular-nums">{fmt(inadimplenciaNota)}</TableCell>}
+          <TableCell className="text-right font-mono">{fmt(lista.reduce((s, p) => s + Number(p.total_venda), 0))}</TableCell>
+          <TableCell className="text-right font-mono text-red-600">({fmt(lista.reduce((s, p) => s + Number(p.comissao_valor), 0))})</TableCell>
+          <TableCell className="text-right font-mono">—</TableCell>
+          {mostrarSaldo && <TableCell className="text-right font-mono">—</TableCell>}
         </TableRow>
       </TableFooter>
     </Table>
@@ -397,7 +376,7 @@ export default function DreResumo() {
     if (drilldown === "faturamento" || drilldown === "comissoes") return tabelaPrestacoes(vendasDoMes, true);
 
     if (drilldown === "descontos") {
-      const descontosPorRep: Record<string, { revendedora: string; totalVenda: number; comissao: number; valorDevido: number; desconto: number; }> = {};
+      const descontosPorRep: Record<string, { revendedora: string; totalVenda: number; comissao: number; valorDevido: number; desconto: number }> = {};
       for (const p of vendasDoMes) {
         const desconto = Number(p.total_venda) - Number(p.comissao_valor) - Number(p.valor_devido_empresa);
         if (desconto <= 0) continue;
@@ -413,14 +392,15 @@ export default function DreResumo() {
       }
       const linhas = Object.values(descontosPorRep).sort((a, b) => b.desconto - a.desconto);
       const totalDesc = linhas.reduce((s, l) => s + l.desconto, 0);
+      if (linhas.length === 0) return <p className="text-sm text-muted-foreground py-4">Nenhum desconto registrado.</p>;
       return (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Revendedora</TableHead>
-              <TableHead className="text-right">Venda Bruta</TableHead>
+              <TableHead className="text-right">Venda</TableHead>
               <TableHead className="text-right">Comissão</TableHead>
-              <TableHead className="text-right">Deveria Dever</TableHead>
+              <TableHead className="text-right">Deveria</TableHead>
               <TableHead className="text-right">Cobrado</TableHead>
               <TableHead className="text-right">Desconto</TableHead>
             </TableRow>
@@ -429,18 +409,18 @@ export default function DreResumo() {
             {linhas.map((l, i) => (
               <TableRow key={i}>
                 <TableCell className="font-medium">{l.revendedora}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmt(l.totalVenda)}</TableCell>
-                <TableCell className="text-right tabular-nums text-red-600">({fmt(l.comissao)})</TableCell>
-                <TableCell className="text-right tabular-nums">{fmt(l.totalVenda - l.comissao)}</TableCell>
-                <TableCell className="text-right tabular-nums">{fmt(l.valorDevido)}</TableCell>
-                <TableCell className="text-right tabular-nums text-red-600">({fmt(l.desconto)})</TableCell>
+                <TableCell className="text-right font-mono">{fmt(l.totalVenda)}</TableCell>
+                <TableCell className="text-right font-mono text-red-600">({fmt(l.comissao)})</TableCell>
+                <TableCell className="text-right font-mono">{fmt(l.totalVenda - l.comissao)}</TableCell>
+                <TableCell className="text-right font-mono">{fmt(l.valorDevido)}</TableCell>
+                <TableCell className="text-right font-mono text-orange-500">({fmt(l.desconto)})</TableCell>
               </TableRow>
             ))}
           </TableBody>
           <TableFooter>
             <TableRow>
               <TableCell colSpan={5}>Total de Descontos</TableCell>
-              <TableCell className="text-right tabular-nums text-red-600">({fmt(totalDesc)})</TableCell>
+              <TableCell className="text-right font-mono text-orange-500">({fmt(totalDesc)})</TableCell>
             </TableRow>
           </TableFooter>
         </Table>
@@ -449,12 +429,12 @@ export default function DreResumo() {
 
     if (drilldown === "recuperacao") {
       const totalRecup = registrosRecuperacaoFiltrados.reduce((s, r) => s + Number(r.valor_pago), 0);
+      if (registrosRecuperacaoFiltrados.length === 0) return <p className="text-sm text-muted-foreground py-4">Nenhuma recuperação neste mês.</p>;
       return (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Revendedora</TableHead>
-              <TableHead>Prestação Original</TableHead>
               <TableHead>Data Pgto</TableHead>
               <TableHead className="text-right">Valor Recebido</TableHead>
             </TableRow>
@@ -464,15 +444,14 @@ export default function DreResumo() {
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.revendedora}</TableCell>
                 <TableCell>{fmtData(r.data_execucao)}</TableCell>
-                <TableCell>{fmtData(r.data_execucao)}</TableCell>
-                <TableCell className="text-right tabular-nums text-green-700">{fmt(Number(r.valor_pago))}</TableCell>
+                <TableCell className="text-right font-mono text-green-700">{fmt(Number(r.valor_pago))}</TableCell>
               </TableRow>
             ))}
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell colSpan={3}>Total Recuperado</TableCell>
-              <TableCell className="text-right tabular-nums">{fmt(totalRecup)}</TableCell>
+              <TableCell colSpan={2}>Total Recuperado</TableCell>
+              <TableCell className="text-right font-mono text-green-700">{fmt(totalRecup)}</TableCell>
             </TableRow>
           </TableFooter>
         </Table>
@@ -484,8 +463,10 @@ export default function DreResumo() {
         const latest = latestPorCobranca[p.cobranca_id] ?? p;
         return Number(latest.saldo_devedor) > 0;
       });
+      if (comSaldo.length === 0) return <p className="text-sm text-muted-foreground py-4">Sem inadimplência neste mês.</p>;
       return tabelaPrestacoes(comSaldo, true);
     }
+
     if (drilldown === "em_aberto_anterior") return tabelaPrestacoes(prestacoesAbertas, true);
 
     if (typeof drilldown === "object") {
@@ -506,27 +487,25 @@ export default function DreResumo() {
             {despesasCat.map(d => (
               <TableRow key={d.id}>
                 <TableCell>
-                  <div className="font-medium">{d.descricao}</div>
+                  <p className="font-medium">{d.descricao}</p>
                   {d.numero_parcelas && d.numero_parcelas > 1 && (
-                    <div className="text-xs text-muted-foreground">Parcela {d.parcela_atual}/{d.numero_parcelas}</div>
+                    <p className="text-xs text-muted-foreground">Parcela {d.parcela_atual}/{d.numero_parcelas}</p>
                   )}
-                  {d.observacao && <div className="text-xs text-muted-foreground mt-0.5">{d.observacao}</div>}
+                  {d.observacao && <p className="text-xs text-muted-foreground">{d.observacao}</p>}
                 </TableCell>
                 <TableCell>{d.contato || "—"}</TableCell>
                 <TableCell>
-                  {d.forma_pagamento
-                    ? <Badge variant="outline" className="text-xs">{d.forma_pagamento}</Badge>
-                    : "—"}
+                  {d.forma_pagamento ? <Badge variant="outline">{d.forma_pagamento}</Badge> : "—"}
                 </TableCell>
                 <TableCell>{fmtData(d.data_pagamento)}</TableCell>
-                <TableCell className="text-right tabular-nums text-red-600">{fmt(Number(d.valor))}</TableCell>
+                <TableCell className="text-right font-mono text-red-600">{fmt(Number(d.valor))}</TableCell>
               </TableRow>
             ))}
           </TableBody>
           <TableFooter>
             <TableRow>
               <TableCell colSpan={4}>Total</TableCell>
-              <TableCell className="text-right tabular-nums text-red-600">{fmt(totalCat)}</TableCell>
+              <TableCell className="text-right font-mono text-red-600">{fmt(totalCat)}</TableCell>
             </TableRow>
           </TableFooter>
         </Table>
@@ -539,15 +518,13 @@ export default function DreResumo() {
   // Render
   // ─────────────────────────────────────────────
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-5xl mx-auto">
+    <div className="space-y-4 p-4 md:p-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <BarChart3 className="h-5 w-5 text-primary" />
-          </div>
+          <FileText className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-xl font-bold">DRE</h1>
+            <h1 className="text-2xl font-bold">DRE</h1>
             <p className="text-xs text-muted-foreground">Demonstração do Resultado do Exercício</p>
           </div>
         </div>
@@ -572,17 +549,17 @@ export default function DreResumo() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">Carregando...</div>
+        <p className="text-center py-12 text-muted-foreground">Carregando...</p>
       ) : (
         <>
           <Card>
             <CardContent className="p-0">
-              {/* RECEITAS */}
-              <div className="px-4 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b">
+              <div className="px-4 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b">
                 Receitas
               </div>
+
               <LinhaDRE
-                icone={<TrendingUp className="h-4 w-4 text-green-700" />}
+                icone={<TrendingUp className="h-4 w-4 text-green-600" />}
                 label="Faturamento Bruto"
                 sublabel="Total vendido pelas revendedoras neste mês"
                 valor={faturamentoBruto}
@@ -598,18 +575,18 @@ export default function DreResumo() {
                 onClick={() => setDrilldown("comissoes")}
               />
               <LinhaDRE
-                icone={<Minus className="h-4 w-4 text-red-600" />}
+                icone={<Minus className="h-4 w-4 text-orange-500" />}
                 label="(-) Descontos / Abatimentos"
-                sublabel={ajustes > 0 ? "Clique para ver por representante" : "Nenhum desconto registrado neste mês"}
+                sublabel={ajustes > 0 ? "Clique para ver por representante" : "Nenhum desconto registrado"}
                 valor={ajustes}
                 variant="deducao"
                 onClick={ajustes > 0 ? () => setDrilldown("descontos") : undefined}
               />
               {recuperacao > 0 && (
                 <LinhaDRE
-                  icone={<TrendingUp className="h-4 w-4 text-green-700" />}
+                  icone={<TrendingUp className="h-4 w-4 text-green-600" />}
                   label="(+) Recuperação de Inadimplência"
-                  sublabel="Pagamentos recebidos de dívidas de meses anteriores"
+                  sublabel="Recebimentos de dívidas de meses anteriores"
                   valor={recuperacao}
                   variant="receita"
                   onClick={() => setDrilldown("recuperacao")}
@@ -618,27 +595,27 @@ export default function DreResumo() {
               <LinhaDRE
                 icone={<AlertTriangle className="h-4 w-4 text-orange-500" />}
                 label="(-) Inadimplência"
-                sublabel="Diferença entre o faturado e o cobrado no mês"
+                sublabel="Saldo em aberto das notas deste mês"
                 valor={inadimplencia}
                 variant="aviso"
-                onClick={() => setDrilldown("inadimplencia")}
+                onClick={inadimplencia > 0 ? () => setDrilldown("inadimplencia") : undefined}
               />
               <LinhaDRE
-                icone={<Equal className="h-4 w-4 text-foreground" />}
+                icone={<Equal className="h-4 w-4" />}
                 label="(=) Receita Líquida"
                 sublabel="Total efetivamente recebido no mês"
                 valor={receitaLiquidaTotal}
                 variant="subtotal"
               />
 
-              {/* DESPESAS */}
-              <div className="px-4 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-t">
+              <div className="px-4 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-t">
                 Despesas
               </div>
+
               {categoriasComDespesas.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-center text-muted-foreground">
+                <p className="px-4 py-6 text-sm text-muted-foreground text-center">
                   Nenhuma despesa paga registrada neste período.
-                </div>
+                </p>
               ) : (
                 categoriasComDespesas.map(cat => (
                   <LinhaDRE
@@ -651,22 +628,22 @@ export default function DreResumo() {
                   />
                 ))
               )}
+
               <LinhaDRE
-                icone={<Equal className="h-4 w-4 text-foreground" />}
+                icone={<Equal className="h-4 w-4" />}
                 label="(=) Total Despesas"
                 valor={totalDespesas}
                 variant="subtotal"
               />
 
-              {/* RESULTADO */}
-              <div className="px-4 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-t">
+              <div className="px-4 py-2 bg-muted/40 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b border-t">
                 Resultado
               </div>
+
               <LinhaDRE
                 icone={resultado >= 0
-                  ? <TrendingUp className="h-4 w-4 text-green-600" />
-                  : <TrendingDown className="h-4 w-4 text-red-600" />
-                }
+                  ? <TrendingUp className="h-5 w-5 text-green-600" />
+                  : <TrendingDown className="h-5 w-5 text-red-600" />}
                 label={resultado >= 0 ? "✓ Lucro do Período" : "✗ Prejuízo do Período"}
                 valor={Math.abs(resultado)}
                 variant="resultado"
@@ -674,24 +651,23 @@ export default function DreResumo() {
             </CardContent>
           </Card>
 
-          {/* Saldo em aberto de meses anteriores */}
           {totalEmAbertoAnterior > 0 && (
             <Card
-              className="cursor-pointer hover:bg-muted/40 transition-colors border-orange-300/50"
+              className="cursor-pointer hover:bg-muted/40 transition-colors"
               onClick={() => setDrilldown("em_aberto_anterior")}
             >
               <CardContent className="p-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-orange-500" />
-                  <div>
-                    <div className="text-sm font-semibold">Saldo em Aberto — Meses Anteriores</div>
-                    <div className="text-xs text-muted-foreground">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Clock className="h-5 w-5 text-orange-500 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm">Saldo em Aberto — Meses Anteriores</p>
+                    <p className="text-xs text-muted-foreground">
                       Revendedoras com dívidas de meses anteriores ainda não pagas
-                    </div>
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm tabular-nums font-semibold text-orange-600">{fmt(totalEmAbertoAnterior)}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono font-semibold text-orange-500">{fmt(totalEmAbertoAnterior)}</span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
               </CardContent>
@@ -705,14 +681,12 @@ export default function DreResumo() {
         <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
+              <FileText className="h-5 w-5" />
               {drilldownTitle}
-              <span className="text-xs font-normal text-muted-foreground ml-2">
-                {MESES[Number(mes) - 1]} / {ano}
-              </span>
+              <Badge variant="outline" className="ml-2">{MESES[Number(mes) - 1]} / {ano}</Badge>
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto">
+          <div className="overflow-y-auto flex-1">
             {drilldownContent}
           </div>
         </DialogContent>
