@@ -68,6 +68,7 @@ export default function DreResumo() {
   const currentDate = new Date();
   const [selectedMes, setSelectedMes] = useState(String(currentDate.getMonth() + 1).padStart(2, "0"));
   const [selectedAno, setSelectedAno] = useState(String(currentDate.getFullYear()));
+  const [categoriaDetalhe, setCategoriaDetalhe] = useState<string | null>(null);
 
   const anoMes = `${selectedAno}-${selectedMes}`;
   const mesLabel = MESES.find(m => m.value === selectedMes)?.label || "";
