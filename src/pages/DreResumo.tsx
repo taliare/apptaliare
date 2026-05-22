@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -73,8 +73,9 @@ const fmt = (v: number) =>
 
 const fmtData = (d: string | null) => {
   if (!d) return "—";
-  const [y, m, day] = d.split("-");
-  return `${day}/${m}/${y}`;
+  const parts = d.split("-");
+  if (parts.length < 3) return d;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
 };
 
 const ultimoDia = (ano: string, mes: string) =>
@@ -110,28 +111,23 @@ function LinhaDRE({
 }) {
   const isClickable = !!onClick;
 
-  const valorFormatado = (() => {
-    if (variant === "deducao") return `(${fmt(valor)})`;
-    if (variant === "recuperacao") return `+ ${fmt(valor)}`;
-    return fmt(valor);
-  })();
+  const valorFormatado =
+    variant === "deducao" ? `(${fmt(valor)})`
+    : variant === "recuperacao" ? `+ ${fmt(valor)}`
+    : fmt(valor);
 
-  const corValor = (() => {
-    if (variant === "resultado") return valor >= 0 ? "text-green-600" : "text-red-600";
-    if (variant === "subtotal") return "text-foreground font-bold";
-    if (variant === "receita") return "text-green-700";
-    if (variant === "recuperacao") return "text-blue-600";
-    if (variant === "deducao") return "text-red-600";
-    if (variant === "despesa") return "text-red-600";
-    return "text-foreground";
-  })();
+  const corValor =
+    variant === "resultado" ? (valor >= 0 ? "text-green-600" : "text-red-600")
+    : variant === "subtotal" ? "text-foreground font-bold"
+    : variant === "receita" ? "text-green-700"
+    : variant === "recuperacao" ? "text-blue-600"
+    : "text-red-600";
 
-  const bg = (() => {
-    if (variant === "subtotal") return "bg-muted/60";
-    if (variant === "resultado")
-      return valor >= 0 ? "bg-green-50 dark:bg-green-950/30" : "bg-red-50 dark:bg-red-950/30";
-    return "";
-  })();
+  const bg =
+    variant === "subtotal" ? "bg-muted/60"
+    : variant === "resultado"
+      ? (valor >= 0 ? "bg-green-50 dark:bg-green-950/30" : "bg-red-50 dark:bg-red-950/30")
+    : "";
 
   const Wrapper: any = isClickable ? "button" : "div";
 
@@ -153,9 +149,7 @@ function LinhaDRE({
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className={`text-sm tabular-nums ${corValor}`}>
-          {valorFormatado}
-        </span>
+        <span className={`text-sm tabular-nums ${corValor}`}>{valorFormatado}</span>
         {isClickable && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
       </div>
     </Wrapper>
@@ -179,12 +173,47 @@ export default function DreResumo() {
   const [drilldown, setDrilldown] = useState<DrilldownTipo>(null);
 
   const dataInicio = `${ano}-${mes}-01`;
-  const dataFim = `${ano}-${mes}-${ultimoDia(ano, mes)}`;
+  const dataFim = `${ano}-${mes}-${String(ultimoDia(ano, mes)).padStart(2, "0")}`;
   const anoMes = `${ano}-${mes}`;
 
-  // 1. Prestações do mês
-  const { data: prestacoes = [], isLoading: loadingPrestacoes } = useQuery({
-    queryKey: ["dre_prestacoes", anoMes],
+  // 1. Todos os pagamentos recebidos neste mês
+  const { data: todosPagamentos = [], isLoading: loadingPag } = useQuery({
+    queryKey: ["dre_pag_todos", anoMes],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pagamentos_historico")
+        .select("cobranca_id, valor, data_pagamento")
+        .gte("data_pagamento", dataInicio)
+        .lte("data_pagamento", dataFim);
+      if (error) throw error;
+      return (data ?? []) as Pagamento[];
+    },
+  });
+
+  const allCobrancaIds = useMemo(
+    () => [...new Set(todosPagamentos.map((p) => p.cobranca_id).filter(Boolean))],
+    [todosPagamentos]
+  );
+
+  // 2. Prestações relacionadas aos pagamentos (para classificar atual x recuperação)
+  const { data: prestacoesTodas = [], isLoading: loadingPrest } = useQuery({
+    queryKey: ["dre_prest_todas", allCobrancaIds.join(",")],
+    enabled: allCobrancaIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prestacoes_contas")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, data_execucao")
+        .in("cobranca_id", allCobrancaIds)
+        .gt("valor_devido_empresa", 0)
+        .order("data_execucao", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Prestacao[];
+    },
+  });
+
+  // 3. Prestações realizadas NESTE mês (faturamento bruto)
+  const { data: prestacoesDoMes = [], isLoading: loadingPrestMes } = useQuery({
+    queryKey: ["dre_prest_mes", anoMes],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
@@ -197,58 +226,7 @@ export default function DreResumo() {
     },
   });
 
-  const cobrancaIdsDoMes = prestacoes.map((p) => p.cobranca_id).filter(Boolean);
-
-  // 2. Pagamentos do mês para cobranças do mês
-  const { data: pagamentosDoMes = [] } = useQuery({
-    queryKey: ["dre_pagamentos_mes", anoMes, cobrancaIdsDoMes.join(",")],
-    enabled: cobrancaIdsDoMes.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pagamentos_historico")
-        .select("cobranca_id, valor, data_pagamento")
-        .gte("data_pagamento", dataInicio)
-        .lte("data_pagamento", dataFim)
-        .in("cobranca_id", cobrancaIdsDoMes);
-      if (error) throw error;
-      return (data ?? []) as Pagamento[];
-    },
-  });
-
-  // 3. Todos pagamentos do mês (para apurar recuperação)
-  const { data: todosPagamentosDoMes = [] } = useQuery({
-    queryKey: ["dre_pagamentos_todos", anoMes],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pagamentos_historico")
-        .select("cobranca_id, valor, data_pagamento")
-        .gte("data_pagamento", dataInicio)
-        .lte("data_pagamento", dataFim);
-      if (error) throw error;
-      return (data ?? []) as Pagamento[];
-    },
-  });
-
-  const pagamentosRecuperacao = todosPagamentosDoMes.filter(
-    (p) => !cobrancaIdsDoMes.includes(p.cobranca_id),
-  );
-  const cobrancaIdsRecuperacao = [...new Set(pagamentosRecuperacao.map((p) => p.cobranca_id))];
-
-  // 4. Prestações de recuperação
-  const { data: prestacoesRecuperacao = [] } = useQuery({
-    queryKey: ["dre_prestacoes_recuperacao", cobrancaIdsRecuperacao.join(",")],
-    enabled: cobrancaIdsRecuperacao.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("prestacoes_contas")
-        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, data_execucao")
-        .in("cobranca_id", cobrancaIdsRecuperacao);
-      if (error) throw error;
-      return (data ?? []) as Prestacao[];
-    },
-  });
-
-  // 5. Categorias
+  // 4. Categorias
   const { data: categorias = [] } = useQuery({
     queryKey: ["dre_categorias"],
     queryFn: async () => {
@@ -261,9 +239,9 @@ export default function DreResumo() {
     },
   });
 
-  // 6. Despesas do mês
-  const { data: despesas = [], isLoading: loadingDespesas } = useQuery({
-    queryKey: ["dre_despesas_mes", anoMes],
+  // 5. Despesas pagas no mês
+  const { data: despesas = [], isLoading: loadingDesp } = useQuery({
+    queryKey: ["dre_desp_mes", anoMes],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("dre_despesas")
@@ -276,14 +254,66 @@ export default function DreResumo() {
     },
   });
 
-  // ── Cálculos ──
-  const faturamentoBruto = prestacoes.reduce((s, p) => s + Number(p.total_venda), 0);
-  const totalComissoes = prestacoes.reduce((s, p) => s + Number(p.comissao_valor), 0);
-  const recebidoDoMes = pagamentosDoMes.reduce((s, p) => s + Number(p.valor), 0);
-  const totalDevidoDoMes = prestacoes.reduce((s, p) => s + Number(p.valor_devido_empresa), 0);
-  const inadimplencia = Math.max(0, totalDevidoDoMes - recebidoDoMes);
-  const recuperacao = pagamentosRecuperacao.reduce((s, p) => s + Number(p.valor), 0);
-  const receitaLiquida = faturamentoBruto - totalComissoes - inadimplencia + recuperacao;
+  // ── Cálculos principais ──
+  const {
+    faturamentoBruto,
+    totalComissoes,
+    totalDevidoDoMes,
+    inadimplencia,
+    recuperacao,
+    receitaLiquida,
+    prestacoesDoMesUnicas,
+    pagamentosRecuperacao,
+    pagamentosDoMesParaAtuais,
+  } = useMemo(() => {
+    const primeiraPrestMap: Record<string, Prestacao> = {};
+    for (const p of prestacoesTodas) {
+      if (!primeiraPrestMap[p.cobranca_id]) {
+        primeiraPrestMap[p.cobranca_id] = p;
+      }
+    }
+
+    const pagamentosAtuais: Pagamento[] = [];
+    const pagamentosRecup: Pagamento[] = [];
+    for (const pag of todosPagamentos) {
+      const prest = primeiraPrestMap[pag.cobranca_id];
+      if (!prest) continue;
+      if (prest.data_execucao >= dataInicio && prest.data_execucao <= dataFim) {
+        pagamentosAtuais.push(pag);
+      } else if (prest.data_execucao < dataInicio) {
+        pagamentosRecup.push(pag);
+      }
+    }
+
+    const vistas = new Set<string>();
+    const prestMesUnicas: Prestacao[] = [];
+    for (const p of prestacoesDoMes) {
+      if (!vistas.has(p.cobranca_id)) {
+        vistas.add(p.cobranca_id);
+        prestMesUnicas.push(p);
+      }
+    }
+
+    const fatBruto = prestMesUnicas.reduce((s, p) => s + Number(p.total_venda), 0);
+    const comissoes = prestMesUnicas.reduce((s, p) => s + Number(p.comissao_valor), 0);
+    const totalDevido = prestMesUnicas.reduce((s, p) => s + Number(p.valor_devido_empresa), 0);
+    const recebidoAtual = pagamentosAtuais.reduce((s, p) => s + Number(p.valor), 0);
+    const inadimp = Math.max(0, totalDevido - recebidoAtual);
+    const recup = pagamentosRecup.reduce((s, p) => s + Number(p.valor), 0);
+    const recLiquida = fatBruto - comissoes - inadimp + recup;
+
+    return {
+      faturamentoBruto: fatBruto,
+      totalComissoes: comissoes,
+      totalDevidoDoMes: totalDevido,
+      inadimplencia: inadimp,
+      recuperacao: recup,
+      receitaLiquida: recLiquida,
+      prestacoesDoMesUnicas: prestMesUnicas,
+      pagamentosRecuperacao: pagamentosRecup,
+      pagamentosDoMesParaAtuais: pagamentosAtuais,
+    };
+  }, [prestacoesTodas, prestacoesDoMes, todosPagamentos, dataInicio, dataFim]);
 
   const totaisPorCategoria: Record<string, number> = {};
   for (const d of despesas) {
@@ -296,7 +326,7 @@ export default function DreResumo() {
     .filter((c) => (totaisPorCategoria[c.id] ?? 0) > 0)
     .sort((a, b) => (totaisPorCategoria[b.id] ?? 0) - (totaisPorCategoria[a.id] ?? 0));
 
-  const isLoading = loadingPrestacoes || loadingDespesas;
+  const isLoading = loadingPag || loadingPrest || loadingPrestMes || loadingDesp;
 
   // ── Drilldown ──
   const drilldownTitle = (() => {
@@ -308,6 +338,20 @@ export default function DreResumo() {
     if (typeof drilldown === "object") return drilldown.categoriaNome;
     return "";
   })();
+
+  const prestacaoMap = useMemo(() => {
+    const m: Record<string, Prestacao> = {};
+    for (const p of prestacoesTodas) m[p.cobranca_id] = p;
+    return m;
+  }, [prestacoesTodas]);
+
+  const pagamentosAtuaisPorCobranca = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const p of pagamentosDoMesParaAtuais) {
+      m[p.cobranca_id] = (m[p.cobranca_id] ?? 0) + Number(p.valor);
+    }
+    return m;
+  }, [pagamentosDoMesParaAtuais]);
 
   const drilldownContent = (() => {
     if (!drilldown) return null;
@@ -327,12 +371,10 @@ export default function DreResumo() {
             </tr>
           </thead>
           <tbody>
-            {prestacoes.map((p) => {
-              const pagoDessa = pagamentosDoMes
-                .filter((pg) => pg.cobranca_id === p.cobranca_id)
-                .reduce((s, pg) => s + Number(pg.valor), 0);
-              const saldoDevedor = Math.max(0, Number(p.valor_devido_empresa) - pagoDessa);
-              if (drilldown === "inadimplencia" && saldoDevedor === 0) return null;
+            {prestacoesDoMesUnicas.map((p) => {
+              const recebido = pagamentosAtuaisPorCobranca[p.cobranca_id] ?? 0;
+              const saldo = Math.max(0, Number(p.valor_devido_empresa) - recebido);
+              if (drilldown === "inadimplencia" && saldo === 0) return null;
               return (
                 <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="py-2 px-2 font-medium">{p.revendedora}</td>
@@ -342,7 +384,7 @@ export default function DreResumo() {
                     ({fmt(Number(p.comissao_valor))})
                   </td>
                   <td className="py-2 px-2 text-right tabular-nums font-semibold">
-                    {drilldown === "inadimplencia" ? fmt(saldoDevedor) : fmt(Number(p.valor_devido_empresa))}
+                    {drilldown === "inadimplencia" ? fmt(saldo) : fmt(Number(p.valor_devido_empresa))}
                   </td>
                 </tr>
               );
@@ -363,8 +405,6 @@ export default function DreResumo() {
     }
 
     if (drilldown === "recuperacao") {
-      const prestacoesMap: Record<string, Prestacao> = {};
-      for (const p of prestacoesRecuperacao) prestacoesMap[p.cobranca_id] = p;
       return (
         <table className="w-full text-xs">
           <thead className="text-muted-foreground border-b">
@@ -377,11 +417,11 @@ export default function DreResumo() {
           </thead>
           <tbody>
             {pagamentosRecuperacao.map((p, i) => {
-              const prestacao = prestacoesMap[p.cobranca_id];
+              const prest = prestacaoMap[p.cobranca_id];
               return (
                 <tr key={`${p.cobranca_id}-${i}`} className="border-b last:border-0 hover:bg-muted/30">
-                  <td className="py-2 px-2 font-medium">{prestacao?.revendedora ?? "—"}</td>
-                  <td className="py-2 px-2">{fmtData(prestacao?.data_execucao ?? null)}</td>
+                  <td className="py-2 px-2 font-medium">{prest?.revendedora ?? "—"}</td>
+                  <td className="py-2 px-2">{fmtData(prest?.data_execucao ?? null)}</td>
                   <td className="py-2 px-2">{fmtData(p.data_pagamento)}</td>
                   <td className="py-2 px-2 text-right tabular-nums text-blue-600 font-semibold">
                     {fmt(Number(p.valor))}
@@ -431,9 +471,7 @@ export default function DreResumo() {
                 <td className="py-2 px-2">{d.contato || "—"}</td>
                 <td className="py-2 px-2">
                   {d.forma_pagamento ? (
-                    <Badge variant="outline" className="text-[10px]">
-                      {d.forma_pagamento}
-                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">{d.forma_pagamento}</Badge>
                   ) : "—"}
                 </td>
                 <td className="py-2 px-2">{fmtData(d.data_pagamento)}</td>
@@ -456,7 +494,6 @@ export default function DreResumo() {
     return null;
   })();
 
-  // ── Render ──
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
@@ -475,26 +512,18 @@ export default function DreResumo() {
 
         <div className="flex items-center gap-2">
           <Select value={mes} onValueChange={setMes}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
             <SelectContent>
               {MESES.map((nome, i) => (
-                <SelectItem key={i} value={String(i + 1).padStart(2, "0")}>
-                  {nome}
-                </SelectItem>
+                <SelectItem key={i} value={String(i + 1).padStart(2, "0")}>{nome}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={ano} onValueChange={setAno}>
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
             <SelectContent>
               {ANOS.map((a) => (
-                <SelectItem key={a} value={String(a)}>
-                  {a}
-                </SelectItem>
+                <SelectItem key={a} value={String(a)}>{a}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -506,7 +535,6 @@ export default function DreResumo() {
       ) : (
         <Card>
           <CardContent className="p-4 space-y-2">
-            {/* RECEITAS */}
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2 pb-1">
               Receitas
             </div>
@@ -519,7 +547,6 @@ export default function DreResumo() {
               variant="receita"
               onClick={faturamentoBruto > 0 ? () => setDrilldown("faturamento") : undefined}
             />
-
             <LinhaDRE
               icone={<Minus className="h-4 w-4 text-red-600" />}
               label="(-) Comissões das Revendedoras"
@@ -528,7 +555,6 @@ export default function DreResumo() {
               variant="deducao"
               onClick={totalComissoes > 0 ? () => setDrilldown("comissoes") : undefined}
             />
-
             <LinhaDRE
               icone={<AlertTriangle className="h-4 w-4 text-red-600" />}
               label="(-) Inadimplência"
@@ -537,7 +563,6 @@ export default function DreResumo() {
               variant="deducao"
               onClick={inadimplencia > 0 ? () => setDrilldown("inadimplencia") : undefined}
             />
-
             {recuperacao > 0 && (
               <LinhaDRE
                 icone={<RefreshCw className="h-4 w-4 text-blue-600" />}
@@ -548,7 +573,6 @@ export default function DreResumo() {
                 onClick={() => setDrilldown("recuperacao")}
               />
             )}
-
             <LinhaDRE
               icone={<Equal className="h-4 w-4" />}
               label="(=) Receita Líquida"
@@ -556,7 +580,6 @@ export default function DreResumo() {
               variant="subtotal"
             />
 
-            {/* DESPESAS */}
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-4 pb-1">
               Despesas
             </div>
@@ -585,18 +608,15 @@ export default function DreResumo() {
               variant="subtotal"
             />
 
-            {/* RESULTADO */}
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-4 pb-1">
               Resultado
             </div>
 
             <LinhaDRE
               icone={
-                resultado >= 0 ? (
-                  <TrendingUp className="h-5 w-5 text-green-600" />
-                ) : (
-                  <TrendingDown className="h-5 w-5 text-red-600" />
-                )
+                resultado >= 0
+                  ? <TrendingUp className="h-5 w-5 text-green-600" />
+                  : <TrendingDown className="h-5 w-5 text-red-600" />
               }
               label={resultado >= 0 ? "✓ Lucro do Período" : "✗ Prejuízo do Período"}
               valor={Math.abs(resultado)}
@@ -606,7 +626,6 @@ export default function DreResumo() {
         </Card>
       )}
 
-      {/* Dialog Drilldown */}
       <Dialog open={!!drilldown} onOpenChange={(open) => !open && setDrilldown(null)}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
           <DialogHeader>
