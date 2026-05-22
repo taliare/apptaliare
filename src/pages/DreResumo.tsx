@@ -1,9 +1,15 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -11,370 +17,336 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import {
-  TrendingUp,
-  TrendingDown,
-  ChevronLeft,
-  ChevronRight,
-  DollarSign,
-  MinusCircle,
-  PlusCircle,
-} from "lucide-react";
+import { ChevronRight, TrendingDown, DollarSign, Receipt } from "lucide-react";
 
-// FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado
-interface CobrancaDiaria {
+interface Categoria {
   id: string;
-  data: string;
-  total_cobrado: number | null;
-  despesa_cobranca: number | null;
+  nome: string;
 }
 
 interface Despesa {
   id: string;
-  categoria_id: string | null;
+  descricao: string;
   valor: number;
-  dre_categorias_despesas: { nome: string } | null;
+  status: string;
+  forma_pagamento: string | null;
+  contato: string | null;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  observacao: string | null;
+  ano_mes: string;
+  categoria_id: string;
+  parcela_atual: number | null;
+  numero_parcelas: number | null;
 }
 
+const formatarValor = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+const formatarData = (d: string | null) => {
+  if (!d) return "—";
+  const [y, m, day] = d.split("-");
+  return `${day}/${m}/${y}`;
+};
+
 const MESES = [
-  { value: "01", label: "Janeiro" },
-  { value: "02", label: "Fevereiro" },
-  { value: "03", label: "Março" },
-  { value: "04", label: "Abril" },
-  { value: "05", label: "Maio" },
-  { value: "06", label: "Junho" },
-  { value: "07", label: "Julho" },
-  { value: "08", label: "Agosto" },
-  { value: "09", label: "Setembro" },
-  { value: "10", label: "Outubro" },
-  { value: "11", label: "Novembro" },
-  { value: "12", label: "Dezembro" },
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
+const anoAtual = new Date().getFullYear();
+const ANOS = [anoAtual - 1, anoAtual, anoAtual + 1];
+const mesAtualStr = (new Date().getMonth() + 1).toString().padStart(2, "0");
+
 export default function DreResumo() {
-  const currentDate = new Date();
-  const [selectedMes, setSelectedMes] = useState(String(currentDate.getMonth() + 1).padStart(2, "0"));
-  const [selectedAno, setSelectedAno] = useState(String(currentDate.getFullYear()));
+  const [ano, setAno] = useState(String(anoAtual));
+  const [mes, setMes] = useState(mesAtualStr);
+  const [categoriaDetalhe, setCategoriaDetalhe] = useState<Categoria | null>(null);
 
-  const anoMes = `${selectedAno}-${selectedMes}`;
-  const mesLabel = MESES.find(m => m.value === selectedMes)?.label || "";
-  const anos = Array.from({ length: 5 }, (_, i) => String(currentDate.getFullYear() - 2 + i));
+  const anoMesSelecionado = `${ano}-${mes}`;
 
-  // Navegação entre meses
-  const navegarMes = (direcao: 1 | -1) => {
-    let novoMes = parseInt(selectedMes) + direcao;
-    let novoAno = parseInt(selectedAno);
-
-    if (novoMes > 12) {
-      novoMes = 1;
-      novoAno += 1;
-    } else if (novoMes < 1) {
-      novoMes = 12;
-      novoAno -= 1;
-    }
-
-    setSelectedMes(String(novoMes).padStart(2, "0"));
-    setSelectedAno(String(novoAno));
-  };
-
-  // FONTE FINANCEIRA OFICIAL: cobrancas_diarias (fechamentos dos representantes)
-  const { data: cobrancasDiarias = [], isLoading: loadingCobrancas } = useQuery({
-    queryKey: ["dre-cobrancas-diarias", anoMes],
+  const { data: categorias = [] } = useQuery({
+    queryKey: ["dre_categorias"],
     queryFn: async () => {
-      const inicioMes = `${anoMes}-01`;
-      const ultimoDia = new Date(parseInt(selectedAno), parseInt(selectedMes), 0).getDate();
-      const fimMes = `${anoMes}-${String(ultimoDia).padStart(2, "0")}`;
-      
       const { data, error } = await supabase
-        .from("cobrancas_diarias")
-        .select("id, data, total_cobrado, despesa_cobranca")
-        .gte("data", inicioMes)
-        .lte("data", fimMes);
-
+        .from("dre_categorias_despesas")
+        .select("id, nome")
+        .order("nome");
       if (error) throw error;
-      return data || [];
+      return (data ?? []) as Categoria[];
     },
   });
 
-  // Fetch despesas manuais do DRE
-  const { data: despesasManuais = [] } = useQuery({
-    queryKey: ["dre-despesas-manuais", anoMes],
+  const { data: despesas = [], isLoading } = useQuery({
+    queryKey: ["dre_despesas_resumo", anoMesSelecionado],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("dre_despesas")
-        .select("id, categoria_id, valor, dre_categorias_despesas(nome)")
-        .eq("ano_mes", anoMes);
-
+        .select(
+          "id, descricao, valor, status, forma_pagamento, contato, data_vencimento, data_pagamento, observacao, ano_mes, categoria_id, parcela_atual, numero_parcelas"
+        )
+        .eq("ano_mes", anoMesSelecionado)
+        .eq("status", "pago")
+        .order("data_pagamento", { ascending: true });
       if (error) throw error;
-      return data as Despesa[];
+      return (data ?? []) as Despesa[];
     },
   });
 
-  // Cálculos do DRE - FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado
-  const dre = useMemo(() => {
-    // ======== RECEITA (TOTAL COBRADO) ========
-    // Soma dos fechamentos diários - já líquido, com comissão descontada
-    const totalCobrado = cobrancasDiarias.reduce(
-      (sum, cd) => sum + Number(cd.total_cobrado || 0), 0
-    );
-    
-    // Quantidade de fechamentos realizados
-    const qtdFechamentos = cobrancasDiarias.length;
+  const { data: despesasDetalhe = [], isLoading: isLoadingDetalhe } = useQuery({
+    queryKey: ["dre_despesas_detalhe", anoMesSelecionado, categoriaDetalhe?.id],
+    enabled: !!categoriaDetalhe,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dre_despesas")
+        .select(
+          "id, descricao, valor, status, forma_pagamento, contato, data_vencimento, data_pagamento, observacao, ano_mes, categoria_id, parcela_atual, numero_parcelas"
+        )
+        .eq("ano_mes", anoMesSelecionado)
+        .eq("categoria_id", categoriaDetalhe!.id)
+        .eq("status", "pago")
+        .order("data_pagamento", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Despesa[];
+    },
+  });
 
-    // ======== DESPESAS OPERACIONAIS ========
-    // Despesas de cobrança (automático do fechamento diário)
-    const despesasCobranca = cobrancasDiarias.reduce(
-      (sum, cd) => sum + Number(cd.despesa_cobranca || 0), 0
-    );
+  const totaisPorCategoria: Record<string, number> = {};
+  for (const d of despesas) {
+    totaisPorCategoria[d.categoria_id] = (totaisPorCategoria[d.categoria_id] ?? 0) + Number(d.valor);
+  }
 
-    // Despesas manuais agrupadas por categoria
-    const despesasPorCategoria: Record<string, { nome: string; valor: number }> = {};
-    despesasManuais.forEach((d) => {
-      const catNome = d.dre_categorias_despesas?.nome || "Sem categoria";
-      if (!despesasPorCategoria[catNome]) {
-        despesasPorCategoria[catNome] = { nome: catNome, valor: 0 };
-      }
-      despesasPorCategoria[catNome].valor += Number(d.valor);
-    });
-
-    const despesasListadas = Object.values(despesasPorCategoria).sort((a, b) =>
-      a.nome.localeCompare(b.nome)
-    );
-
-    const totalDespesasManuais = despesasManuais.reduce(
-      (sum, d) => sum + Number(d.valor), 0
-    );
-    const totalDespesas = despesasCobranca + totalDespesasManuais;
-
-    // ======== RESULTADO OPERACIONAL ========
-    // Resultado = Total Cobrado - Despesas
-    const resultadoOperacional = totalCobrado - totalDespesas;
-    const margemOperacional = totalCobrado > 0 
-      ? (resultadoOperacional / totalCobrado) * 100 
-      : 0;
-
-    return {
-      totalCobrado,
-      qtdFechamentos,
-      despesasCobranca,
-      despesasListadas,
-      totalDespesasManuais,
-      totalDespesas,
-      resultadoOperacional,
-      margemOperacional,
-    };
-  }, [cobrancasDiarias, despesasManuais]);
-
-  const formatCurrency = (value: number) =>
-    value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-  const isLoading = loadingCobrancas;
+  const totalGeral = Object.values(totaisPorCategoria).reduce((a, b) => a + b, 0);
+  const categoriasComDespesas = categorias.filter((c) => (totaisPorCategoria[c.id] ?? 0) > 0);
+  const totalDetalhe = despesasDetalhe.reduce((s, d) => s + Number(d.valor), 0);
 
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-primary/10">
+          <TrendingDown className="h-6 w-6 text-primary" />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingUp className="h-6 w-6 text-primary" />
-            DRE - Demonstrativo de Resultado
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Resultado Mensal Consolidado
+          <h1 className="text-2xl font-bold">DRE — Resumo de Despesas</h1>
+          <p className="text-sm text-muted-foreground">
+            Clique em uma categoria para ver o detalhamento
           </p>
         </div>
       </div>
 
-      {/* Navegação de Período */}
+      {/* Filtros */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => navegarMes(-1)}>
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Select value={selectedMes} onValueChange={setSelectedMes}>
-                <SelectTrigger className="w-32">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Mês:</span>
+              <Select value={mes} onValueChange={setMes}>
+                <SelectTrigger className="w-36">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {MESES.map((mes) => (
-                    <SelectItem key={mes.value} value={mes.value}>
-                      {mes.label}
-                    </SelectItem>
-                  ))}
+                  {MESES.map((nome, i) => {
+                    const v = String(i + 1).padStart(2, "0");
+                    return (
+                      <SelectItem key={v} value={v}>
+                        {nome}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
-              <Select value={selectedAno} onValueChange={setSelectedAno}>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Ano:</span>
+              <Select value={ano} onValueChange={setAno}>
                 <SelectTrigger className="w-24">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {anos.map((ano) => (
-                    <SelectItem key={ano} value={ano}>
-                      {ano}
+                  {ANOS.map((a) => (
+                    <SelectItem key={a} value={String(a)}>
+                      {a}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => navegarMes(1)}>
-              <ChevronRight className="h-5 w-5" />
-            </Button>
+
+            <Badge variant="outline" className="ml-auto">
+              {MESES[Number(mes) - 1]} / {ano}
+            </Badge>
           </div>
         </CardContent>
       </Card>
 
-      {isLoading ? (
-        <div className="text-center py-12 text-muted-foreground">
-          Carregando DRE...
-        </div>
-      ) : (
-        <>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl text-center">
-                {mesLabel} {selectedAno}
-              </CardTitle>
-              <p className="text-xs text-center text-muted-foreground">
-                Baseado nos fechamentos diários dos representantes
+      {/* Tabela de categorias */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5" />
+            Despesas por Categoria
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-center py-8 text-muted-foreground">Carregando...</p>
+          ) : categoriasComDespesas.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">
+              Nenhuma despesa paga encontrada para {MESES[Number(mes) - 1]}/{ano}.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="py-2 px-3">Categoria</th>
+                    <th className="py-2 px-3 text-center">Qtd</th>
+                    <th className="py-2 px-3 text-right">Total</th>
+                    <th className="py-2 px-3 text-right">% do Total</th>
+                    <th className="py-2 px-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categoriasComDespesas
+                    .sort((a, b) => (totaisPorCategoria[b.id] ?? 0) - (totaisPorCategoria[a.id] ?? 0))
+                    .map((cat) => {
+                      const total = totaisPorCategoria[cat.id] ?? 0;
+                      const qtd = despesas.filter((d) => d.categoria_id === cat.id).length;
+                      const pct = totalGeral > 0 ? (total / totalGeral) * 100 : 0;
+                      return (
+                        <tr
+                          key={cat.id}
+                          onClick={() => setCategoriaDetalhe(cat)}
+                          className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors group"
+                        >
+                          <td className="py-3 px-3 font-medium">{cat.nome}</td>
+                          <td className="py-3 px-3 text-center">
+                            <Badge variant="secondary">{qtd}</Badge>
+                          </td>
+                          <td className="py-3 px-3 text-right font-semibold">
+                            {formatarValor(total)}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <div className="w-20 h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className="h-full bg-primary"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground w-12 text-right">
+                                {pct.toFixed(1)}%
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary inline" />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+                <tfoot>
+                  <tr className="font-semibold bg-muted/30">
+                    <td className="py-3 px-3">Total Geral</td>
+                    <td className="py-3 px-3 text-center">
+                      <Badge>{despesas.length}</Badge>
+                    </td>
+                    <td className="py-3 px-3 text-right text-primary">
+                      {formatarValor(totalGeral)}
+                    </td>
+                    <td className="py-3 px-3 text-right">100%</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog de detalhe */}
+      <Dialog
+        open={!!categoriaDetalhe}
+        onOpenChange={(open) => !open && setCategoriaDetalhe(null)}
+      >
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              {categoriaDetalhe?.nome}
+              <Badge variant="outline" className="ml-2">
+                {MESES[Number(mes) - 1]} / {ano}
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto">
+            {isLoadingDetalhe ? (
+              <p className="text-center py-8 text-muted-foreground">Carregando...</p>
+            ) : despesasDetalhe.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">
+                Nenhuma despesa encontrada.
               </p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* RECEITA (TOTAL COBRADO) */}
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
-                  <PlusCircle className="h-4 w-4 text-success" />
-                  Receita
-                </h3>
-                
-                <div className="flex items-center justify-between p-4 rounded-lg bg-success/20 border border-success/30 font-semibold">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-success" />
-                    <div className="flex flex-col">
-                      <span>TOTAL COBRADO</span>
-                      <span className="text-xs font-normal text-muted-foreground">
-                        Soma dos fechamentos diários ({dre.qtdFechamentos} fechamentos)
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-xl text-success">{formatCurrency(dre.totalCobrado)}</span>
-                </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-muted-foreground sticky top-0 bg-background">
+                      <th className="py-2 px-3">Descrição</th>
+                      <th className="py-2 px-3">Contato</th>
+                      <th className="py-2 px-3">Forma Pgto</th>
+                      <th className="py-2 px-3">Data Pgto</th>
+                      <th className="py-2 px-3 text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {despesasDetalhe.map((d) => (
+                      <tr key={d.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="py-3 px-3">
+                          <p className="font-medium">{d.descricao}</p>
+                          {d.numero_parcelas && d.numero_parcelas > 1 && (
+                            <Badge variant="outline" className="mt-1 text-xs">
+                              Parcela {d.parcela_atual}/{d.numero_parcelas}
+                            </Badge>
+                          )}
+                          {d.observacao && (
+                            <p className="text-xs text-muted-foreground mt-1">{d.observacao}</p>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">{d.contato || "—"}</td>
+                        <td className="py-3 px-3">
+                          {d.forma_pagamento ? (
+                            <Badge variant="secondary">{d.forma_pagamento}</Badge>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="py-3 px-3">{formatarData(d.data_pagamento)}</td>
+                        <td className="py-3 px-3 text-right font-semibold">
+                          {formatarValor(Number(d.valor))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-semibold bg-muted/30">
+                      <td colSpan={4} className="py-3 px-3">
+                        Total — {categoriaDetalhe?.nome}
+                      </td>
+                      <td className="py-3 px-3 text-right text-primary">
+                        {formatarValor(totalDetalhe)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-
-              {/* SAÍDAS DE CAIXA (DESPESAS) */}
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
-                  <MinusCircle className="h-4 w-4 text-destructive" />
-                  Saídas de Caixa (Despesas)
-                </h3>
-
-                <div className="space-y-2">
-                  {/* Despesas de cobrança (automático) */}
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-destructive/10">
-                    <div className="flex items-center gap-2">
-                      <span>Despesas de cobrança</span>
-                      <Badge variant="outline" className="text-xs">automático</Badge>
-                    </div>
-                    <span className="font-medium text-destructive">
-                      - {formatCurrency(dre.despesasCobranca)}
-                    </span>
-                  </div>
-
-                  {/* Despesas manuais por categoria */}
-                  {dre.despesasListadas.map((cat) => (
-                    <div
-                      key={cat.nome}
-                      className="flex items-center justify-between p-3 rounded-lg bg-destructive/10"
-                    >
-                      <span>{cat.nome}</span>
-                      <span className="font-medium text-destructive">
-                        - {formatCurrency(cat.valor)}
-                      </span>
-                    </div>
-                  ))}
-
-                  {dre.despesasListadas.length === 0 && dre.despesasCobranca === 0 && (
-                    <div className="text-center py-4 text-muted-foreground text-sm">
-                      Nenhuma despesa lançada neste período
-                    </div>
-                  )}
-                </div>
-
-                <Separator className="my-3" />
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 font-semibold">
-                  <span>TOTAL DESPESAS</span>
-                  <span className="text-lg text-destructive">
-                    - {formatCurrency(dre.totalDespesas)}
-                  </span>
-                </div>
-              </div>
-
-              {/* RESULTADO */}
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-4 flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" />
-                  Resultado
-                </h3>
-
-                <div
-                  className={`p-4 rounded-lg ${
-                    dre.resultadoOperacional >= 0 ? "bg-success/20" : "bg-destructive/20"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex flex-col">
-                      <span className="font-semibold">RESULTADO</span>
-                      <span className="text-xs text-muted-foreground">
-                        = Total Cobrado - Total Despesas
-                      </span>
-                    </div>
-                    <span
-                      className={`text-2xl font-bold flex items-center gap-2 ${
-                        dre.resultadoOperacional >= 0 ? "text-success" : "text-destructive"
-                      }`}
-                    >
-                      {dre.resultadoOperacional >= 0 ? (
-                        <TrendingUp className="h-5 w-5" />
-                      ) : (
-                        <TrendingDown className="h-5 w-5" />
-                      )}
-                      {formatCurrency(dre.resultadoOperacional)}
-                    </span>
-                  </div>
-                <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      Margem sobre Total Cobrado
-                    </span>
-                    <Badge
-                      variant={dre.margemOperacional >= 0 ? "default" : "destructive"}
-                      className="text-sm"
-                    >
-                      {dre.margemOperacional.toFixed(1)}%
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* NOTA EXPLICATIVA */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="p-3 rounded-lg bg-muted/30 border border-muted">
-                <p className="text-xs text-muted-foreground">
-                  <strong>Fonte Oficial:</strong> Este DRE é baseado exclusivamente nos fechamentos diários 
-                  dos representantes (<code>cobrancas_diarias.total_cobrado</code>). O Total Cobrado representa 
-                  o valor líquido já com comissão descontada, informado conscientemente pelo representante 
-                  no momento do fechamento do dia.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
