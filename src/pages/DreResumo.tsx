@@ -40,6 +40,12 @@ interface Despesa {
   id: string;
   categoria_id: string | null;
   valor: number;
+  descricao?: string | null;
+  contato?: string | null;
+  forma_pagamento?: string | null;
+  data_pagamento?: string | null;
+  data_vencimento?: string | null;
+  status?: string | null;
   dre_categorias_despesas: { nome: string } | null;
 }
 
