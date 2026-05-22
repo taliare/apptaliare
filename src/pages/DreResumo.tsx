@@ -61,7 +61,7 @@ interface Prestacao {
   saldo_devedor: number;
   data_execucao: string;
   criado_em: string;
-  status: string;
+
 }
 
 interface Despesa {
@@ -181,7 +181,7 @@ export default function DreResumo() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
-        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em, status")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em")
         .gte("data_execucao", dataInicio)
         .lte("data_execucao", dataFim)
         .gt("comissao_valor", 0)
@@ -203,7 +203,7 @@ export default function DreResumo() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
-        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em, status")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em")
         .in("cobranca_id", cobrancaIdsDoMes)
         .order("data_execucao", { ascending: false })
         .order("criado_em",     { ascending: false });
@@ -218,7 +218,7 @@ export default function DreResumo() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
-        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em, status")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em")
         .gte("data_execucao", dataInicio)
         .lte("data_execucao", dataFim)
         .eq("comissao_valor", 0)
@@ -234,7 +234,7 @@ export default function DreResumo() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
-        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em, status")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em")
         .lt("data_execucao", dataInicio)
         .gt("saldo_devedor", 0)
         .gt("comissao_valor", 0)
