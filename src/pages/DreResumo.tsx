@@ -116,7 +116,7 @@ export default function DreResumo() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("dre_despesas")
-        .select("id, categoria_id, valor, dre_categorias_despesas(nome)")
+        .select("id, categoria_id, valor, descricao, contato, forma_pagamento, data_pagamento, data_vencimento, status, dre_categorias_despesas(nome)")
         .eq("ano_mes", anoMes);
 
       if (error) throw error;
