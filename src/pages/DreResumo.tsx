@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,6 +55,7 @@ interface Prestacao {
   valor_pago: number;
   saldo_devedor: number;
   data_execucao: string;
+  criado_em: string;
 }
 
 interface Despesa {
@@ -78,7 +79,7 @@ const fmt = (v: number) =>
 
 const fmtData = (d: string | null) => {
   if (!d) return "—";
-  const parts = d.split("-");
+  const parts = d.split("T")[0].split("-");
   if (parts.length < 3) return d;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 };
@@ -114,7 +115,7 @@ function LinhaDRE({
   onClick?: () => void;
   sublabel?: string;
 }) {
-  const isClickable = !!onClick && valor > 0;
+  const isClickable = !!onClick;
 
   const valorFormatado =
     variant === "deducao" || variant === "aviso" ? `(${fmt(valor)})` : fmt(valor);
@@ -130,7 +131,7 @@ function LinhaDRE({
       ? "text-orange-500"
       : variant === "despesa"
       ? "text-red-600"
-      : "text-foreground";
+      : "text-red-600";
 
   const bg =
     variant === "subtotal"
@@ -173,6 +174,7 @@ function LinhaDRE({
 type DrilldownTipo =
   | "faturamento"
   | "comissoes"
+  | "descontos"
   | "inadimplencia"
   | "em_aberto_anterior"
   | { categoriaId: string; categoriaNome: string }
@@ -187,42 +189,66 @@ export default function DreResumo() {
   const dataFim = `${ano}-${mes}-${String(ultimoDia(ano, mes)).padStart(2, "0")}`;
   const anoMes = `${ano}-${mes}`;
 
-  // Prestações deste mês
-  const { data: prestacoes = [], isLoading: loadingPrest } = useQuery({
-    queryKey: ["dre_prest_mes", anoMes],
+  // 1. Vendas do mês: apenas registros primários (comissao_valor > 0)
+  const { data: vendasDoMes = [], isLoading: loadingVendas } = useQuery({
+    queryKey: ["dre_vendas_mes", anoMes],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
         .select(
-          "id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao",
+          "id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em",
         )
         .gte("data_execucao", dataInicio)
         .lte("data_execucao", dataFim)
-        .gt("valor_devido_empresa", 0)
+        .gt("comissao_valor", 0)
         .order("data_execucao");
       if (error) throw error;
       return (data ?? []) as Prestacao[];
     },
   });
 
-  // Prestações de meses anteriores com saldo aberto
+  const cobrancaIdsDoMes = useMemo(
+    () => [...new Set(vendasDoMes.map((v) => v.cobranca_id))],
+    [vendasDoMes],
+  );
+
+  // 2. Todos os registros das cobranças do mês para saldo atualizado
+  const { data: todosRegistros = [], isLoading: loadingRegistros } = useQuery({
+    queryKey: ["dre_todos_registros", cobrancaIdsDoMes.join(",")],
+    enabled: cobrancaIdsDoMes.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prestacoes_contas")
+        .select(
+          "id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em",
+        )
+        .in("cobranca_id", cobrancaIdsDoMes)
+        .order("data_execucao", { ascending: false })
+        .order("criado_em", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Prestacao[];
+    },
+  });
+
+  // 3. Prestações de meses anteriores com saldo em aberto
   const { data: prestacoesAbertas = [], isLoading: loadingAbertas } = useQuery({
     queryKey: ["dre_prest_abertas", anoMes],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
         .select(
-          "id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao",
+          "id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em",
         )
         .lt("data_execucao", dataInicio)
         .gt("saldo_devedor", 0)
+        .gt("comissao_valor", 0)
         .order("data_execucao");
       if (error) throw error;
       return (data ?? []) as Prestacao[];
     },
   });
 
-  // Categorias
+  // 4. Categorias
   const { data: categorias = [] } = useQuery({
     queryKey: ["dre_categorias"],
     queryFn: async () => {
@@ -236,7 +262,7 @@ export default function DreResumo() {
     },
   });
 
-  // Despesas do mês
+  // 5. Despesas do mês
   const { data: despesas = [], isLoading: loadingDesp } = useQuery({
     queryKey: ["dre_desp_mes", anoMes],
     queryFn: async () => {
@@ -254,15 +280,27 @@ export default function DreResumo() {
   });
 
   // Cálculos
-  const faturamentoBruto = prestacoes.reduce((s, p) => s + Number(p.total_venda), 0);
-  const totalComissoes = prestacoes.reduce((s, p) => s + Number(p.comissao_valor), 0);
-  const inadimplencia = prestacoes.reduce((s, p) => s + Number(p.saldo_devedor), 0);
-  const receitaLiquida = prestacoes.reduce((s, p) => s + Number(p.valor_pago), 0);
+  const { latestPorCobranca, inadimplencia, receitaLiquida } = useMemo(() => {
+    const latest: Record<string, Prestacao> = {};
+    for (const r of todosRegistros) {
+      if (!latest[r.cobranca_id]) latest[r.cobranca_id] = r;
+    }
+    const inadimp = Object.values(latest).reduce(
+      (s, p) => s + Number(p.saldo_devedor),
+      0,
+    );
+    const totalDevido = vendasDoMes.reduce(
+      (s, v) => s + Number(v.valor_devido_empresa),
+      0,
+    );
+    const recLiq = Math.max(0, totalDevido - inadimp);
+    return { latestPorCobranca: latest, inadimplencia: inadimp, receitaLiquida: recLiq };
+  }, [todosRegistros, vendasDoMes]);
 
-  const totalEmAbertoAnterior = prestacoesAbertas.reduce(
-    (s, p) => s + Number(p.saldo_devedor),
-    0,
-  );
+  const faturamentoBruto = vendasDoMes.reduce((s, v) => s + Number(v.total_venda), 0);
+  const totalComissoes = vendasDoMes.reduce((s, v) => s + Number(v.comissao_valor), 0);
+  const totalDevido = vendasDoMes.reduce((s, v) => s + Number(v.valor_devido_empresa), 0);
+  const ajustes = Math.max(0, faturamentoBruto - totalComissoes - totalDevido);
 
   const totaisPorCategoria: Record<string, number> = {};
   for (const d of despesas) {
@@ -276,89 +314,172 @@ export default function DreResumo() {
     .filter((c) => (totaisPorCategoria[c.id] ?? 0) > 0)
     .sort((a, b) => (totaisPorCategoria[b.id] ?? 0) - (totaisPorCategoria[a.id] ?? 0));
 
-  const isLoading = loadingPrest || loadingAbertas || loadingDesp;
+  const totalEmAbertoAnterior = prestacoesAbertas.reduce(
+    (s, p) => s + Number(p.saldo_devedor),
+    0,
+  );
 
-  // Drilldown
+  const isLoading = loadingVendas || loadingRegistros || loadingAbertas || loadingDesp;
+
+  // Drilldowns
   const drilldownTitle = (() => {
     if (!drilldown) return "";
     if (drilldown === "faturamento") return "Faturamento Bruto";
     if (drilldown === "comissoes") return "Comissões das Revendedoras";
+    if (drilldown === "descontos") return "Descontos / Abatimentos por Representante";
     if (drilldown === "inadimplencia") return "Inadimplência do Mês";
     if (drilldown === "em_aberto_anterior") return "Saldo em Aberto — Meses Anteriores";
     if (typeof drilldown === "object") return drilldown.categoriaNome;
     return "";
   })();
 
-  const tabelaPrestacoes = (lista: Prestacao[], mostrarSaldo = false) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Revendedora</TableHead>
-          <TableHead>Data</TableHead>
-          <TableHead className="text-right">Venda</TableHead>
-          <TableHead className="text-right">Comissão</TableHead>
-          <TableHead className="text-right">Pago</TableHead>
-          {mostrarSaldo && <TableHead className="text-right">Saldo</TableHead>}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {lista.map((p) => (
-          <TableRow key={p.id}>
-            <TableCell>{p.revendedora}</TableCell>
-            <TableCell>{fmtData(p.data_execucao)}</TableCell>
-            <TableCell className="text-right font-mono tabular-nums">
-              {fmt(Number(p.total_venda))}
-            </TableCell>
+  const tabelaPrestacoes = (lista: Prestacao[], mostrarSaldo = false) => {
+    const totalVenda = lista.reduce((s, p) => s + Number(p.total_venda), 0);
+    const totalCom = lista.reduce((s, p) => s + Number(p.comissao_valor), 0);
+    return (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Revendedora</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead className="text-right">Venda</TableHead>
+            <TableHead className="text-right">Comissão</TableHead>
+            <TableHead className="text-right">Recebido</TableHead>
+            {mostrarSaldo && <TableHead className="text-right">Saldo</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {lista.map((p) => {
+            const latest = latestPorCobranca[p.cobranca_id] ?? p;
+            const saldoAtual = Number(latest.saldo_devedor);
+            const recebido = Number(p.valor_devido_empresa) - saldoAtual;
+            return (
+              <TableRow key={p.id}>
+                <TableCell>{p.revendedora}</TableCell>
+                <TableCell>{fmtData(p.data_execucao)}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">
+                  {fmt(Number(p.total_venda))}
+                </TableCell>
+                <TableCell className="text-right font-mono tabular-nums text-red-600">
+                  ({fmt(Number(p.comissao_valor))})
+                </TableCell>
+                <TableCell className="text-right font-mono tabular-nums text-green-700">
+                  {fmt(Math.max(0, recebido))}
+                </TableCell>
+                {mostrarSaldo && (
+                  <TableCell className="text-right font-mono tabular-nums text-orange-500">
+                    {fmt(saldoAtual)}
+                  </TableCell>
+                )}
+              </TableRow>
+            );
+          })}
+        </TableBody>
+        <TableFooter>
+          <TableRow>
+            <TableCell colSpan={2}>Total</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{fmt(totalVenda)}</TableCell>
             <TableCell className="text-right font-mono tabular-nums text-red-600">
-              ({fmt(Number(p.comissao_valor))})
+              ({fmt(totalCom)})
             </TableCell>
             <TableCell className="text-right font-mono tabular-nums text-green-700">
-              {fmt(Number(p.valor_pago))}
+              {fmt(receitaLiquida)}
             </TableCell>
             {mostrarSaldo && (
               <TableCell className="text-right font-mono tabular-nums text-orange-500">
-                {fmt(Number(p.saldo_devedor))}
+                {fmt(inadimplencia)}
               </TableCell>
             )}
           </TableRow>
-        ))}
-      </TableBody>
-      <TableFooter>
-        <TableRow>
-          <TableCell colSpan={2}>Total</TableCell>
-          <TableCell className="text-right font-mono tabular-nums">
-            {fmt(lista.reduce((s, p) => s + Number(p.total_venda), 0))}
-          </TableCell>
-          <TableCell className="text-right font-mono tabular-nums text-red-600">
-            ({fmt(lista.reduce((s, p) => s + Number(p.comissao_valor), 0))})
-          </TableCell>
-          <TableCell className="text-right font-mono tabular-nums text-green-700">
-            {fmt(lista.reduce((s, p) => s + Number(p.valor_pago), 0))}
-          </TableCell>
-          {mostrarSaldo && (
-            <TableCell className="text-right font-mono tabular-nums text-orange-500">
-              {fmt(lista.reduce((s, p) => s + Number(p.saldo_devedor), 0))}
-            </TableCell>
-          )}
-        </TableRow>
-      </TableFooter>
-    </Table>
-  );
+        </TableFooter>
+      </Table>
+    );
+  };
 
   const drilldownContent = (() => {
     if (!drilldown) return null;
 
     if (drilldown === "faturamento" || drilldown === "comissoes")
-      return tabelaPrestacoes(prestacoes, true);
+      return tabelaPrestacoes(vendasDoMes, true);
 
-    if (drilldown === "inadimplencia")
-      return tabelaPrestacoes(
-        prestacoes.filter((p) => Number(p.saldo_devedor) > 0),
-        true,
+    if (drilldown === "descontos") {
+      const descontosPorRep: Record<
+        string,
+        {
+          revendedora: string;
+          totalVenda: number;
+          comissao: number;
+          valorDevido: number;
+          desconto: number;
+        }
+      > = {};
+      for (const p of vendasDoMes) {
+        const desconto =
+          Number(p.total_venda) - Number(p.comissao_valor) - Number(p.valor_devido_empresa);
+        if (desconto <= 0) continue;
+        if (!descontosPorRep[p.cobranca_id]) {
+          descontosPorRep[p.cobranca_id] = {
+            revendedora: p.revendedora,
+            totalVenda: Number(p.total_venda),
+            comissao: Number(p.comissao_valor),
+            valorDevido: Number(p.valor_devido_empresa),
+            desconto,
+          };
+        }
+      }
+      const linhas = Object.values(descontosPorRep).sort((a, b) => b.desconto - a.desconto);
+      const totalDesc = linhas.reduce((s, l) => s + l.desconto, 0);
+      return (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Revendedora</TableHead>
+              <TableHead className="text-right">Venda Bruta</TableHead>
+              <TableHead className="text-right">Comissão</TableHead>
+              <TableHead className="text-right">Deveria Dever</TableHead>
+              <TableHead className="text-right">Cobrado</TableHead>
+              <TableHead className="text-right">Desconto</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {linhas.map((l, i) => (
+              <TableRow key={i}>
+                <TableCell>{l.revendedora}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">{fmt(l.totalVenda)}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums text-red-600">
+                  ({fmt(l.comissao)})
+                </TableCell>
+                <TableCell className="text-right font-mono tabular-nums">
+                  {fmt(l.totalVenda - l.comissao)}
+                </TableCell>
+                <TableCell className="text-right font-mono tabular-nums">{fmt(l.valorDevido)}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums text-orange-500">
+                  ({fmt(l.desconto)})
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={5}>Total de Descontos</TableCell>
+              <TableCell className="text-right font-mono tabular-nums text-orange-500">
+                ({fmt(totalDesc)})
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
       );
+    }
 
-    if (drilldown === "em_aberto_anterior")
-      return tabelaPrestacoes(prestacoesAbertas, true);
+    if (drilldown === "inadimplencia") {
+      const comSaldo = vendasDoMes.filter((p) => {
+        const latest = latestPorCobranca[p.cobranca_id] ?? p;
+        return Number(latest.saldo_devedor) > 0;
+      });
+      return tabelaPrestacoes(comSaldo, true);
+    }
+
+    if (drilldown === "em_aberto_anterior") return tabelaPrestacoes(prestacoesAbertas, true);
 
     if (typeof drilldown === "object") {
       const despesasCat = despesas.filter((d) => d.categoria_id === drilldown.categoriaId);
@@ -406,9 +527,7 @@ export default function DreResumo() {
           <TableFooter>
             <TableRow>
               <TableCell colSpan={4}>Total</TableCell>
-              <TableCell className="text-right font-mono tabular-nums">
-                {fmt(totalCat)}
-              </TableCell>
+              <TableCell className="text-right font-mono tabular-nums">{fmt(totalCat)}</TableCell>
             </TableRow>
           </TableFooter>
         </Table>
@@ -486,6 +605,18 @@ export default function DreResumo() {
                 onClick={() => setDrilldown("comissoes")}
               />
               <LinhaDRE
+                icone={<Minus className="h-4 w-4 text-orange-500" />}
+                label="(-) Descontos / Abatimentos"
+                sublabel={
+                  ajustes > 0
+                    ? "Clique para ver por representante"
+                    : "Nenhum desconto registrado neste mês"
+                }
+                valor={ajustes}
+                variant="deducao"
+                onClick={ajustes > 0 ? () => setDrilldown("descontos") : undefined}
+              />
+              <LinhaDRE
                 icone={<AlertTriangle className="h-4 w-4 text-orange-500" />}
                 label="(-) Inadimplência"
                 sublabel="Saldo ainda não recebido das prestações deste mês"
@@ -549,7 +680,6 @@ export default function DreResumo() {
             </CardContent>
           </Card>
 
-          {/* Saldo em aberto — meses anteriores */}
           {totalEmAbertoAnterior > 0 && (
             <Card
               className="cursor-pointer hover:bg-muted/40 transition-colors"
@@ -577,7 +707,6 @@ export default function DreResumo() {
         </>
       )}
 
-      {/* Dialog Drilldown */}
       <Dialog open={!!drilldown} onOpenChange={(open) => !open && setDrilldown(null)}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
