@@ -44,7 +44,6 @@ interface Prestacao {
   comissao_valor: number;
   valor_devido_empresa: number;
   data_execucao: string;
-  status: string;
 }
 
 interface Pagamento {
