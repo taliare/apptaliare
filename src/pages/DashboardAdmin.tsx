@@ -432,7 +432,7 @@ export default function DashboardAdmin() {
       realizado,
       meta: metaValor,
       percentual,
-      despesas: cobranca?.total_despesas || 0,
+      despesas: despesasPorRep[rep.id] || 0,
       qtdNotas,
       ticketMedio,
     };
@@ -445,14 +445,25 @@ export default function DashboardAdmin() {
     meta: rep.meta,
   }));
 
-  // Detalhamento de cobranças de hoje
-  const cobrancasHojeDetalhadas: CobrancaHojeRepresentante[] = cobrancasHoje.map(c => {
-    const rep = representantes.find(r => r.id === c.representante_id);
+  // Despesas de hoje por representante
+  const despesasHojePorRep = despesasHoje.reduce((acc: Record<string, number>, c) => {
+    acc[c.representante_id] = (acc[c.representante_id] || 0) + (Number(c.despesa_cobranca) || 0);
+    return acc;
+  }, {});
+
+  // Detalhamento de cobranças de hoje (agregado por representante)
+  const cobrancasHojeAgrupadas = cobrancasHoje.reduce((acc: Record<string, number>, c) => {
+    acc[c.representante_id] = (acc[c.representante_id] || 0) + (Number(c.valor_pago) || 0);
+    return acc;
+  }, {});
+
+  const cobrancasHojeDetalhadas: CobrancaHojeRepresentante[] = Object.entries(cobrancasHojeAgrupadas).map(([id, total]) => {
+    const rep = representantes.find(r => r.id === id);
     return {
-      representante_id: c.representante_id,
+      representante_id: id,
       nome: rep?.nome || 'Desconhecido',
-      total_cobrado: c.total_cobrado || 0,
-      despesa: c.despesa_cobranca || 0,
+      total_cobrado: total,
+      despesa: despesasHojePorRep[id] || 0,
     };
   }).sort((a, b) => b.total_cobrado - a.total_cobrado);
 
