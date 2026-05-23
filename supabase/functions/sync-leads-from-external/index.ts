@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
     // 5. Inserir novos leads em batch
     const { data: insertedLeads, error: insertError } = await internalClient
       .from("leads_revendedoras")
-      .insert(leadsToInsert)
+      .upsert(leadsToInsert, { onConflict: "external_id", ignoreDuplicates: true })
       .select();
 
     if (insertError) {
