@@ -384,13 +384,12 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Cálculos - FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado
-  const totalHoje = cobrancasHoje.reduce((sum, c) => sum + (c.total_cobrado || 0), 0);
-  
-  // VALOR FINANCEIRO OFICIAL = soma dos fechamentos diários (já líquido, com comissão descontada)
+  // Cálculos - FONTE FINANCEIRA OFICIAL: prestacoes_contas.valor_pago
+  const totalHoje = cobrancasHoje.reduce((sum, c) => sum + (Number(c.valor_pago) || 0), 0);
+
   const totalPeriodo = cobrancasMes.reduce((sum, c) => sum + c.total_cobrado, 0);
-  const totalDespesas = cobrancasMes.reduce((sum, c) => sum + c.total_despesas, 0);
-  
+  const totalDespesas = Object.values(despesasPorRep).reduce((sum, v) => sum + v, 0);
+
   // RESULTADO = Total Cobrado - Despesas
   const resultadoPeriodo = totalPeriodo - totalDespesas;
   
