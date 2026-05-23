@@ -142,48 +142,78 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para cobranças do período (informativo - valores registrados no fechamento)
+  // FONTE FINANCEIRA OFICIAL: prestacoes_contas.valor_pago (soma real das notas)
+  // cobrancas_diarias.total_cobrado foi descartado por aceitar lançamento manual.
+  // cobrancas_diarias continua sendo usado APENAS para despesa_cobranca.
+
+  // Query para cobranças do período (valor_pago somado por representante)
   const { data: cobrancasMes = [] } = useQuery({
     queryKey: ['cobrancas-mes-admin', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('cobrancas_diarias')
-        .select('representante_id, total_cobrado, despesa_cobranca')
-        .gte('data', startDate)
-        .lte('data', endDate);
-      
+        .from('prestacoes_contas')
+        .select('representante_id, valor_pago')
+        .gte('data_execucao', startDate)
+        .lte('data_execucao', endDate);
+
       if (error) throw error;
-      
+
       const agrupado = data.reduce((acc: Record<string, CobrancaData>, curr) => {
         const id = curr.representante_id;
         if (!acc[id]) {
-          acc[id] = {
-            representante_id: id,
-            total_cobrado: 0,
-            total_despesas: 0,
-          };
+          acc[id] = { representante_id: id, total_cobrado: 0, total_despesas: 0 };
         }
-        acc[id].total_cobrado += curr.total_cobrado || 0;
-        acc[id].total_despesas += curr.despesa_cobranca || 0;
+        acc[id].total_cobrado += Number(curr.valor_pago) || 0;
         return acc;
       }, {});
-      
+
       return Object.values(agrupado);
     },
   });
 
-  // REMOVIDO: Query de prestacoes_contas para regime de caixa
-  // A fonte financeira oficial é EXCLUSIVAMENTE cobrancas_diarias.total_cobrado
+  // Query para despesas do período (cobrancas_diarias.despesa_cobranca — campo correto)
+  const { data: despesasPorRep = {} } = useQuery({
+    queryKey: ['despesas-periodo-admin', startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cobrancas_diarias')
+        .select('representante_id, despesa_cobranca')
+        .gte('data', startDate)
+        .lte('data', endDate);
 
-  // Query para cobranças de hoje
+      if (error) throw error;
+
+      return data.reduce((acc: Record<string, number>, curr) => {
+        const id = curr.representante_id;
+        acc[id] = (acc[id] || 0) + (Number(curr.despesa_cobranca) || 0);
+        return acc;
+      }, {});
+    },
+  });
+
+  // Query para cobranças de hoje (prestacoes_contas)
   const { data: cobrancasHoje = [] } = useQuery({
     queryKey: ['cobrancas-hoje-admin', hoje],
     queryFn: async () => {
       const { data, error } = await supabase
+        .from('prestacoes_contas')
+        .select('representante_id, valor_pago')
+        .eq('data_execucao', hoje);
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Query para despesas de hoje (cobrancas_diarias)
+  const { data: despesasHoje = [] } = useQuery({
+    queryKey: ['despesas-hoje-admin', hoje],
+    queryFn: async () => {
+      const { data, error } = await supabase
         .from('cobrancas_diarias')
-        .select('representante_id, total_cobrado, despesa_cobranca')
+        .select('representante_id, despesa_cobranca')
         .eq('data', hoje);
-      
+
       if (error) throw error;
       return data;
     },
@@ -354,13 +384,12 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Cálculos - FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado
-  const totalHoje = cobrancasHoje.reduce((sum, c) => sum + (c.total_cobrado || 0), 0);
-  
-  // VALOR FINANCEIRO OFICIAL = soma dos fechamentos diários (já líquido, com comissão descontada)
+  // Cálculos - FONTE FINANCEIRA OFICIAL: prestacoes_contas.valor_pago
+  const totalHoje = cobrancasHoje.reduce((sum, c) => sum + (Number(c.valor_pago) || 0), 0);
+
   const totalPeriodo = cobrancasMes.reduce((sum, c) => sum + c.total_cobrado, 0);
-  const totalDespesas = cobrancasMes.reduce((sum, c) => sum + c.total_despesas, 0);
-  
+  const totalDespesas = Object.values(despesasPorRep).reduce((sum, v) => sum + v, 0);
+
   // RESULTADO = Total Cobrado - Despesas
   const resultadoPeriodo = totalPeriodo - totalDespesas;
   
@@ -403,7 +432,7 @@ export default function DashboardAdmin() {
       realizado,
       meta: metaValor,
       percentual,
-      despesas: cobranca?.total_despesas || 0,
+      despesas: despesasPorRep[rep.id] || 0,
       qtdNotas,
       ticketMedio,
     };
@@ -416,14 +445,25 @@ export default function DashboardAdmin() {
     meta: rep.meta,
   }));
 
-  // Detalhamento de cobranças de hoje
-  const cobrancasHojeDetalhadas: CobrancaHojeRepresentante[] = cobrancasHoje.map(c => {
-    const rep = representantes.find(r => r.id === c.representante_id);
+  // Despesas de hoje por representante
+  const despesasHojePorRep = despesasHoje.reduce((acc: Record<string, number>, c) => {
+    acc[c.representante_id] = (acc[c.representante_id] || 0) + (Number(c.despesa_cobranca) || 0);
+    return acc;
+  }, {});
+
+  // Detalhamento de cobranças de hoje (agregado por representante)
+  const cobrancasHojeAgrupadas = cobrancasHoje.reduce((acc: Record<string, number>, c) => {
+    acc[c.representante_id] = (acc[c.representante_id] || 0) + (Number(c.valor_pago) || 0);
+    return acc;
+  }, {});
+
+  const cobrancasHojeDetalhadas: CobrancaHojeRepresentante[] = Object.entries(cobrancasHojeAgrupadas).map(([id, total]) => {
+    const rep = representantes.find(r => r.id === id);
     return {
-      representante_id: c.representante_id,
+      representante_id: id,
       nome: rep?.nome || 'Desconhecido',
-      total_cobrado: c.total_cobrado || 0,
-      despesa: c.despesa_cobranca || 0,
+      total_cobrado: total,
+      despesa: despesasHojePorRep[id] || 0,
     };
   }).sort((a, b) => b.total_cobrado - a.total_cobrado);
 
