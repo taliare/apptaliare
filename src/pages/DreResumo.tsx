@@ -265,6 +265,7 @@ export default function DreResumo() {
         .select("id, descricao, valor, forma_pagamento, contato, data_pagamento, observacao, categoria_id, parcela_atual, numero_parcelas")
         .eq("ano_mes", anoMes)
         .eq("status_pagamento", "pago")
+        .not("data_pagamento", "is", null)
         .order("data_pagamento");
       if (error) throw error;
       return (data ?? []) as Despesa[];
