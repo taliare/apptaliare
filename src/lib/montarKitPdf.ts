@@ -143,7 +143,7 @@ export async function gerarPdfDetalhado(
   for (const it of ordenados) {
     y = checkPageBreak(doc, y);
     if (y === 20) {
-      drawHeader(doc, `Kit #${numero} — Detalhado (cont.)`, dataStr);
+      drawHeader(doc, `Kit #${numero} — Detalhado (cont.)`, dataStr, logo);
       y = 50;
       doc.setFillColor(139, 21, 56);
       doc.setTextColor(255);
