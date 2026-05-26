@@ -116,7 +116,7 @@ export async function gerarPdfDetalhado(
     0
   );
 
-  drawHeader(doc, `Kit #${numero} — Detalhado`, dataStr);
+  drawHeader(doc, `Kit #${numero} — Detalhado`, dataStr, logo);
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
