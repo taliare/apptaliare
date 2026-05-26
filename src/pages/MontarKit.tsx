@@ -411,10 +411,13 @@ export default function MontarKit() {
         preco_snapshot: i.preco_snapshot,
         quantidade: i.quantidade,
       }));
-      const blobDet = gerarPdfDetalhado(kitAtivo.numero, itensPdf, nowIso);
-      const blobRes = gerarPdfResumido(kitAtivo.numero, itensPdf, nowIso);
+      const [blobDet, blobRes] = await Promise.all([
+        gerarPdfDetalhado(kitAtivo.numero, itensPdf, nowIso, logoUrl),
+        gerarPdfResumido(kitAtivo.numero, itensPdf, nowIso, logoUrl),
+      ]);
       downloadBlob(blobDet, `Kit-${kitAtivo.numero}-Detalhado.pdf`);
       setTimeout(() => downloadBlob(blobRes, `Kit-${kitAtivo.numero}-Resumido.pdf`), 300);
+
 
       toast({ title: "Kit finalizado!", description: "PDFs gerados." });
       qc.invalidateQueries({ queryKey: ["kits_montagem_lista"] });
