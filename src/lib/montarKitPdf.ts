@@ -184,15 +184,18 @@ export async function gerarPdfDetalhado(
   return doc.output("blob");
 }
 
-export function gerarPdfResumido(
+export async function gerarPdfResumido(
   numero: string,
   itens: ItemKit[],
-  dataIso?: string | null
-): Blob {
+  dataIso?: string | null,
+  logoUrl?: string | null
+): Promise<Blob> {
+  const logo = logoUrl ? await carregarLogoBase64(logoUrl) : null;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const dataStr = formatarDataBR(dataIso);
 
-  drawHeader(doc, `Kit #${numero} — Resumo por Categoria`, dataStr);
+  drawHeader(doc, `Kit #${numero} — Resumo por Categoria`, dataStr, logo);
+
 
   // Agrupar por categoria
   const grupos = new Map<string, { qtd: number; total: number }>();
