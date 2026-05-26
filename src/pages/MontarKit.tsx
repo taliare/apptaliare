@@ -142,7 +142,22 @@ export default function MontarKit() {
     return m;
   }, [produtosMeta]);
 
+  // Logo configurada pela tela "Configuração PDF" (Supabase Storage)
+  const { data: logoUrl } = useQuery({
+    queryKey: ["pdf-config-logo-url"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("pdf_config")
+        .select("logo_url")
+        .eq("id", "00000000-0000-0000-0000-000000000001")
+        .maybeSingle();
+      return (data?.logo_url as string | null) ?? null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Contadores em tempo real
+
   const totalPecas = itens.reduce((s, i) => s + (i.quantidade || 1), 0);
   const totalValor = itens.reduce((s, i) => s + (i.preco_snapshot || 0) * (i.quantidade || 1), 0);
   const totalCusto = itens.reduce((s, i) => s + (i.custo_snapshot || 0) * (i.quantidade || 1), 0);
