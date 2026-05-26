@@ -91,11 +91,14 @@ const checkPageBreak = (doc: jsPDF, y: number, threshold = 280): number => {
   return y;
 };
 
-export function gerarPdfDetalhado(
+export async function gerarPdfDetalhado(
   numero: string,
   itens: ItemKit[],
-  dataIso?: string | null
-): Blob {
+  dataIso?: string | null,
+  logoUrl?: string | null
+): Promise<Blob> {
+  const logo = logoUrl ? await carregarLogoBase64(logoUrl) : null;
+
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const dataStr = formatarDataBR(dataIso);
 
