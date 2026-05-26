@@ -17,7 +17,43 @@ const formatarDataBR = (iso?: string | null) => {
   return `${dd}/${mm}/${d.getFullYear()}`;
 };
 
-const drawHeader = (doc: jsPDF, titulo: string, dataStr: string) => {
+// Cache em memória da logo já convertida (evita refazer fetch a cada PDF)
+const logoCache = new Map<string, string>();
+
+async function carregarLogoBase64(url: string): Promise<string | null> {
+  if (!url) return null;
+  if (logoCache.has(url)) return logoCache.get(url)!;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("read error"));
+      reader.readAsDataURL(blob);
+    });
+    logoCache.set(url, dataUrl);
+    return dataUrl;
+  } catch {
+    return null;
+  }
+}
+
+const drawHeader = (
+  doc: jsPDF,
+  titulo: string,
+  dataStr: string,
+  logoBase64?: string | null
+) => {
+  if (logoBase64) {
+    try {
+      const fmt = logoBase64.startsWith("data:image/png") ? "PNG" : "JPEG";
+      doc.addImage(logoBase64, fmt, 150, 6, 46, 24);
+    } catch {
+      // ignora silenciosamente se a imagem falhar
+    }
+  }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
   doc.setTextColor(139, 21, 56);
@@ -31,6 +67,7 @@ const drawHeader = (doc: jsPDF, titulo: string, dataStr: string) => {
   doc.setDrawColor(200);
   doc.line(14, 38, 196, 38);
 };
+
 
 const drawFooter = (doc: jsPDF) => {
   const pageHeight = doc.internal.pageSize.getHeight();
