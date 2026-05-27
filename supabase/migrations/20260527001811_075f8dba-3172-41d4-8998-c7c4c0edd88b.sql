@@ -1,0 +1,2 @@
+ALTER TABLE public.kits_estoque ADD COLUMN IF NOT EXISTS montagem_id uuid REFERENCES public.kits_montagem(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_kits_estoque_montagem ON public.kits_estoque(montagem_id);

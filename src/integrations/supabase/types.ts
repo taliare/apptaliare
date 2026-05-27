@@ -580,6 +580,7 @@ export type Database = {
           criado_em: string
           encomenda_id: string | null
           id: string
+          montagem_id: string | null
           origem_producao_id: string | null
           representante_id: string | null
           status: string
@@ -591,6 +592,7 @@ export type Database = {
           criado_em?: string
           encomenda_id?: string | null
           id?: string
+          montagem_id?: string | null
           origem_producao_id?: string | null
           representante_id?: string | null
           status: string
@@ -602,6 +604,7 @@ export type Database = {
           criado_em?: string
           encomenda_id?: string | null
           id?: string
+          montagem_id?: string | null
           origem_producao_id?: string | null
           representante_id?: string | null
           status?: string
@@ -614,6 +617,13 @@ export type Database = {
             columns: ["encomenda_id"]
             isOneToOne: false
             referencedRelation: "encomendas_kits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_estoque_montagem_id_fkey"
+            columns: ["montagem_id"]
+            isOneToOne: false
+            referencedRelation: "kits_montagem"
             referencedColumns: ["id"]
           },
           {
