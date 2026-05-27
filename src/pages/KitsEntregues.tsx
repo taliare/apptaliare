@@ -213,7 +213,10 @@ export default function KitsEntregues() {
       if (!descricaoAdicional.trim()) throw new Error('Descrição é obrigatória');
       const preco = parseFloat(precoAdicional.replace(',', '.')) || 0;
       const qtd = parseInt(qtdAdicional) || 1;
-      const { error } = await supabase
+      const valorTotal = preco * qtd;
+
+      // 1. Salva a peça na tabela de adicionais
+      const { error: insErr } = await supabase
         .from('kit_adicionais_itens')
         .insert({
           kit_entregue_id: kitSelecionado.id,
@@ -225,7 +228,19 @@ export default function KitsEntregues() {
           quantidade: qtd,
           criado_por: user.id,
         });
-      if (error) throw error;
+      if (insErr) throw insErr;
+
+      // 2. Registra o acréscimo na cobrança da revendedora
+      const { data: result, error: rpcErr } = await supabase.rpc('registrar_acrescimo_pedido', {
+        p_kit_entregue_id: kitSelecionado.id,
+        p_revendedora: kitSelecionado.revendedora,
+        p_user_id: user.id,
+        p_valor: valorTotal,
+        p_descricao: descricaoAdicional.trim(),
+      });
+      if (rpcErr) throw rpcErr;
+      const res = result as unknown as { success: boolean; error?: string };
+      if (!res.success) throw new Error(res.error || 'Erro ao registrar acréscimo');
     },
     onSuccess: () => {
       toast.success('Peça adicionada com sucesso!');
