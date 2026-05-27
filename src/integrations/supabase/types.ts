@@ -1954,6 +1954,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      recalcular_cobranca_por_historico: {
+        Args: { p_cobranca_id: string }
+        Returns: undefined
+      }
       registrar_acrescimo_pedido: {
         Args: {
           p_data_vencimento?: string
