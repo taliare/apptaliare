@@ -41,6 +41,27 @@ export default function Kits() {
   // State para acréscimos na entrega
   const [acrescimos, setAcrescimos] = useState<Array<{ valor: string; descricao: string }>>([]);
 
+  // State para visualizar peças do kit
+  const [kitPecasId, setKitPecasId] = useState<string | null>(null);
+  const [openPecas, setOpenPecas] = useState(false);
+
+  const { data: pecasDoKit = [], isLoading: loadingPecas } = useQuery({
+    queryKey: ['kit-pecas', kitPecasId],
+    enabled: !!kitPecasId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('kits_montagem_itens')
+        .select('*')
+        .eq('kit_id', kitPecasId!)
+        .order('categoria_snapshot', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const totalPecasKit = pecasDoKit.reduce((s: number, i: any) => s + (i.quantidade || 1), 0);
+  const totalValorKit = pecasDoKit.reduce((s: number, i: any) => s + (i.preco_snapshot || 0) * (i.quantidade || 1), 0);
+
   // Query for kits em estoque (atualmente com o representante)
   const { data: kitsEstoque = [], isLoading } = useQuery({
     queryKey: ['kits-estoque-rep', user?.id],
