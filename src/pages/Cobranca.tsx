@@ -1232,38 +1232,47 @@ export default function Cobranca() {
 
                   <div className="border border-border rounded-lg p-4 space-y-2 bg-muted/30">
                     <h3 className="text-sm font-semibold text-foreground">Resumo Financeiro</h3>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Total Recebido</span>
-                        <p className="font-semibold text-green-700">
-                          {formatarValor(
-                            (detailCobranca.valor_pago_acumulado || 0) +
-                              (detailCobranca.valor_adiantado || 0),
-                          )}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Saldo Restante</span>
-                        <p className="font-semibold">
-                          {detailCobranca.status === 'pago' ? (
-                            formatarValor(0)
-                          ) : detailCobranca.status === 'parcial' ? (
-                            formatarValor(
-                              Math.max(
-                                0,
-                                detailCobranca.valor_previsto -
-                                  (detailCobranca.valor_pago_acumulado || 0) -
-                                  (detailCobranca.valor_adiantado || 0),
-                              ),
-                            )
-                          ) : (
-                            <span className="text-muted-foreground italic font-normal">
-                              Apuração pendente
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
+                    {(() => {
+                      // Fonte de verdade: prestacoes_contas.valor_pago quando houver apuração.
+                      // Caso contrário, usa valor_pago_acumulado da cobrança.
+                      const adiantado = Number(detailCobranca.valor_adiantado || 0);
+                      const pagoPrestacao = detailPrestacao
+                        ? Number(detailPrestacao.valor_pago || 0)
+                        : null;
+                      const pagoAcumulado = Number(detailCobranca.valor_pago_acumulado || 0);
+                      const pagoBase = pagoPrestacao ?? pagoAcumulado;
+                      const totalRecebido = pagoBase + adiantado;
+
+                      const baseDevida = detailPrestacao
+                        ? Number(detailPrestacao.valor_devido_empresa || 0)
+                        : Number(detailCobranca.valor_previsto || 0);
+                      const saldoCalc = Math.max(0, baseDevida - pagoBase - adiantado);
+
+                      return (
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Total Recebido</span>
+                            <p className="font-semibold text-green-700">
+                              {formatarValor(totalRecebido)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Saldo Restante</span>
+                            <p className="font-semibold">
+                              {detailCobranca.status === 'pago' ? (
+                                formatarValor(0)
+                              ) : detailPrestacao || detailCobranca.status === 'parcial' ? (
+                                formatarValor(saldoCalc)
+                              ) : (
+                                <span className="text-muted-foreground italic font-normal">
+                                  Apuração pendente
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </>
               )}
