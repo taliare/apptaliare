@@ -47,7 +47,7 @@ export default function Kits() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('kits_estoque')
-        .select('*')
+        .select('*, montagem_id')
         .eq('representante_id', user?.id)
         .eq('status', 'com_representante')
         .order('criado_em', { ascending: false });
