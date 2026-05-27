@@ -599,10 +599,3 @@ export default function Kits() {
     </div>
   );
 }
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
