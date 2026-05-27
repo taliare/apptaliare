@@ -548,6 +548,10 @@ export function ModalReceberCobranca({
                       setDesconto('');
                       setMostrarDesconto(false);
                       // Recalcula valor a receber sem desconto
+                      if (isSubsequente) {
+                        setValorAReceber(saldoAberto);
+                        return;
+                      }
                       const valorDevolvidoNum = parseInputMoeda(valorDevolvido);
                       const valorBase = isRepasse 
                         ? cobranca.valor_previsto 
@@ -767,14 +771,16 @@ export function ModalReceberCobranca({
 
           {/* Botões de Ação */}
           <div className="flex gap-2 pt-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleDevolveuTudo}
-              disabled={loading}
-            >
-              Devolveu Tudo
-            </Button>
+            {!isRepasse && !isSubsequente && (
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleDevolveuTudo}
+                disabled={loading}
+              >
+                Devolveu Tudo
+              </Button>
+            )}
             <Button
               className="flex-1"
               onClick={handleReceberPagamento}
