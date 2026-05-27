@@ -57,6 +57,7 @@ export default function GerenciarAgenda() {
   const [detailCobranca, setDetailCobranca] = useState<Cobranca | null>(null);
   const [detailPrestacao, setDetailPrestacao] = useState<any>(null);
   const [detailNotas, setDetailNotas] = useState<any[]>([]);
+  const [detailPagamentosHistorico, setDetailPagamentosHistorico] = useState<any[]>([]);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -352,6 +353,7 @@ export default function GerenciarAgenda() {
     setLoadingDetail(true);
     setDetailPrestacao(null);
     setDetailNotas([]);
+    setDetailPagamentosHistorico([]);
 
     try {
       // Re-fetch cobrança para garantir status atualizado direto do banco
@@ -377,9 +379,15 @@ export default function GerenciarAgenda() {
         .select('*')
         .eq('cobranca_id', cobranca.id)
         .order('data', { ascending: true });
+      const { data: pagamentosHistorico } = await supabase
+        .from('pagamentos_historico')
+        .select('*')
+        .eq('cobranca_id', cobranca.id)
+        .order('data_pagamento', { ascending: true });
 
       setDetailPrestacao(pc && pc.length > 0 ? pc[0] : null);
       setDetailNotas(notas || []);
+      setDetailPagamentosHistorico(pagamentosHistorico || []);
     } catch (err) {
       console.error('Erro ao buscar detalhes:', err);
     } finally {
