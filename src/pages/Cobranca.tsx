@@ -120,6 +120,7 @@ export default function Cobranca() {
   const [detailCobranca, setDetailCobranca] = useState<Cobranca | null>(null);
   const [detailPrestacao, setDetailPrestacao] = useState<any>(null);
   const [detailNotas, setDetailNotas] = useState<any[]>([]);
+  const [detailPagamentosHistorico, setDetailPagamentosHistorico] = useState<any[]>([]);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
@@ -507,6 +508,7 @@ export default function Cobranca() {
     setLoadingDetail(true);
     setDetailPrestacao(null);
     setDetailNotas([]);
+    setDetailPagamentosHistorico([]);
     try {
       const { data: fresh } = await supabase
         .from('cobrancas_agendadas')
@@ -524,8 +526,14 @@ export default function Cobranca() {
         .select('*')
         .eq('cobranca_id', cobranca.id)
         .order('data', { ascending: true });
+      const { data: pagamentosHistorico } = await supabase
+        .from('pagamentos_historico')
+        .select('*')
+        .eq('cobranca_id', cobranca.id)
+        .order('data_pagamento', { ascending: true });
       setDetailPrestacao(pc && pc.length > 0 ? pc[0] : null);
       setDetailNotas(notas || []);
+      setDetailPagamentosHistorico(pagamentosHistorico || []);
     } catch (err) {
       console.error('Erro ao buscar detalhes:', err);
     } finally {
@@ -1233,14 +1241,17 @@ export default function Cobranca() {
                   <div className="border border-border rounded-lg p-4 space-y-2 bg-muted/30">
                     <h3 className="text-sm font-semibold text-foreground">Resumo Financeiro</h3>
                     {(() => {
-                      // Fonte de verdade: prestacoes_contas.valor_pago quando houver apuração.
-                      // Caso contrário, usa valor_pago_acumulado da cobrança.
+                      // Fonte de verdade para recebimento: pagamentos_historico.
                       const adiantado = Number(detailCobranca.valor_adiantado || 0);
+                      const pagoHistorico = detailPagamentosHistorico.reduce(
+                        (total, pagamento) => total + Number(pagamento.valor || 0),
+                        0
+                      );
                       const pagoPrestacao = detailPrestacao
                         ? Number(detailPrestacao.valor_pago || 0)
                         : null;
                       const pagoAcumulado = Number(detailCobranca.valor_pago_acumulado || 0);
-                      const pagoBase = pagoPrestacao ?? pagoAcumulado;
+                      const pagoBase = pagoHistorico > 0 ? pagoHistorico : (pagoAcumulado > 0 ? pagoAcumulado : (pagoPrestacao ?? 0));
                       const totalRecebido = pagoBase + adiantado;
 
                       const baseDevida = detailPrestacao
