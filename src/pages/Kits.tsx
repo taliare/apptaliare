@@ -518,21 +518,87 @@ export default function Kits() {
               {kitsEstoque.map((kit: any) => (
                 <div 
                   key={kit.id} 
-                  className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/30 transition-colors"
+                  className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-accent/30 transition-colors gap-3"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
                     <span className="font-mono text-lg font-semibold">{kit.codigo}</span>
                     <Badge className={cn("text-white", getTipoColor(kit.tipo))}>
                       {getTipoLabel(kit.tipo)}
                     </Badge>
                   </div>
-                  {kit.valor > 0 && (
-                    <span className="text-sm font-medium text-primary">
-                      {formatarValor(kit.valor)}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {kit.valor > 0 && (
+                      <span className="text-sm font-medium text-primary">
+                        {formatarValor(kit.valor)}
+                      </span>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setKitPecasId(kit.montagem_id ?? null);
+                        setOpenPecas(true);
+                      }}
+                      disabled={!kit.montagem_id}
+                    >
+                      Ver Peças
+                    </Button>
+                  </div>
                 </div>
               ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={openPecas} onOpenChange={setOpenPecas}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Peças do Kit</DialogTitle>
+          </DialogHeader>
+          {loadingPecas ? (
+            <p className="text-center text-muted-foreground py-8">Carregando...</p>
+          ) : pecasDoKit.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Nenhuma peça encontrada.</p>
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left p-2">Descrição</th>
+                    <th className="text-left p-2">Categoria</th>
+                    <th className="text-center p-2">Qtd.</th>
+                    <th className="text-right p-2">Preço Unit.</th>
+                    <th className="text-right p-2">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pecasDoKit.map((it: any) => (
+                    <tr key={it.id} className="border-t">
+                      <td className="p-2 font-medium">{it.descricao_snapshot ?? '—'}</td>
+                      <td className="p-2 text-muted-foreground">{it.categoria_snapshot ?? '—'}</td>
+                      <td className="p-2 text-center">{it.quantidade}</td>
+                      <td className="p-2 text-right">{formatarValor(it.preco_snapshot)}</td>
+                      <td className="p-2 text-right font-semibold">{formatarValor(it.preco_snapshot * it.quantidade)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-muted/50 font-bold">
+                  <tr>
+                    <td className="p-2" colSpan={2}>TOTAL</td>
+                    <td className="p-2 text-center">{totalPecasKit}</td>
+                    <td />
+                    <td className="p-2 text-right">{formatarValor(totalValorKit)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
             </div>
           )}
         </CardContent>
