@@ -1278,11 +1278,21 @@ export default function GerenciarAgenda() {
                   {/* Resumo financeiro */}
                   <div className="border border-border rounded-lg p-4 space-y-2 bg-muted/30">
                     <h3 className="text-sm font-semibold text-foreground">Resumo Financeiro</h3>
+                    {(() => {
+                      const pagoHistorico = detailPagamentosHistorico.reduce(
+                        (total, pagamento) => total + Number(pagamento.valor || 0),
+                        0
+                      );
+                      const pagoBase = pagoHistorico > 0 ? pagoHistorico : Number(detailCobranca.valor_pago_acumulado || 0);
+                      const adiantado = Number(detailCobranca.valor_adiantado || 0);
+                      const saldoRestante = Math.max(0, Number(detailCobranca.valor_previsto || 0) - pagoBase - adiantado);
+
+                      return (
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
                         <span className="text-muted-foreground">Total Recebido</span>
                         <p className="font-semibold text-green-700">
-                          {formatarValor((detailCobranca.valor_pago_acumulado || 0) + (detailCobranca.valor_adiantado || 0))}
+                          {formatarValor(pagoBase + adiantado)}
                         </p>
                       </div>
                       <div>
@@ -1290,11 +1300,13 @@ export default function GerenciarAgenda() {
                         <p className="font-semibold">
                           {detailCobranca.status === 'pago'
                             ? formatarValor(0)
-                            : formatarValor(Math.max(0, detailCobranca.valor_previsto - (detailCobranca.valor_pago_acumulado || 0) - (detailCobranca.valor_adiantado || 0)))
+                            : formatarValor(saldoRestante)
                           }
                         </p>
                       </div>
                     </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Estornar Baixa */}
