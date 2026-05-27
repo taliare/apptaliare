@@ -401,6 +401,7 @@ export default function MontarKit() {
           status: "estoque",
           representante_id: null,
           valor: valorTotal,
+          montagem_id: kitAtivo.id,
         });
       if (estoqueErr) throw estoqueErr;
 
