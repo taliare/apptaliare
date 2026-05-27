@@ -509,6 +509,91 @@ export type Database = {
           },
         ]
       }
+      kit_adicionais_itens: {
+        Row: {
+          codigo_barras: string | null
+          criado_em: string | null
+          criado_por: string | null
+          descricao: string
+          id: string
+          kit_entregue_id: string
+          preco_unitario: number
+          produto_id: string | null
+          quantidade: number
+          representante_id: string
+          revendedora: string
+        }
+        Insert: {
+          codigo_barras?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao: string
+          id?: string
+          kit_entregue_id: string
+          preco_unitario?: number
+          produto_id?: string | null
+          quantidade?: number
+          representante_id: string
+          revendedora: string
+        }
+        Update: {
+          codigo_barras?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          descricao?: string
+          id?: string
+          kit_entregue_id?: string
+          preco_unitario?: number
+          produto_id?: string | null
+          quantidade?: number
+          representante_id?: string
+          revendedora?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kit_adicionais_itens_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_adicionais_itens_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_adicionais_itens_kit_entregue_id_fkey"
+            columns: ["kit_entregue_id"]
+            isOneToOne: false
+            referencedRelation: "kits_entregues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_adicionais_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos_catalogo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_adicionais_itens_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_adicionais_itens_representante_id_fkey"
+            columns: ["representante_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_limited"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kits_entregues: {
         Row: {
           codigo_mostruario: string
