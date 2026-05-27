@@ -181,7 +181,23 @@ export default function Cobranca() {
     tipo: 'completo' | 'devolucao';
     dataNota: string;
   }) => {
-    const cobranca = cobrancas.find(c => c.id === cobrancaId);
+    const cobrancaLocal = cobrancas.find(c => c.id === cobrancaId);
+    const { data: freshCobranca, error: freshError } = await supabase
+      .from('cobrancas_agendadas')
+      .select('*')
+      .eq('id', cobrancaId)
+      .maybeSingle();
+    if (freshError) throw freshError;
+    const cobranca = (freshCobranca as Cobranca | null) || cobrancaLocal;
+    const { data: historicoAtual, error: historicoError } = await supabase
+      .from('pagamentos_historico')
+      .select('valor')
+      .eq('cobranca_id', cobrancaId);
+    if (historicoError) throw historicoError;
+    const acumuladoAtual = Math.max(
+      Number((cobranca as any)?.valor_pago_acumulado || 0),
+      (historicoAtual || []).reduce((total, pagamento) => total + Number(pagamento.valor || 0), 0)
+    );
     const dataNota = dados.dataNota;
     const codigoNotaGerado = cobranca?.codigo_nota || `AUTO-${Date.now()}`;
 
@@ -226,7 +242,6 @@ export default function Cobranca() {
       });
     if (notaError) throw notaError;
 
-    const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
     const valorAdiantado = cobranca?.valor_adiantado || 0;
     const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
 
@@ -287,7 +302,23 @@ export default function Cobranca() {
     data_repasse: Date;
     dataNota: string;
   }) => {
-    const cobranca = cobrancas.find(c => c.id === cobrancaId);
+    const cobrancaLocal = cobrancas.find(c => c.id === cobrancaId);
+    const { data: freshCobranca, error: freshError } = await supabase
+      .from('cobrancas_agendadas')
+      .select('*')
+      .eq('id', cobrancaId)
+      .maybeSingle();
+    if (freshError) throw freshError;
+    const cobranca = (freshCobranca as Cobranca | null) || cobrancaLocal;
+    const { data: historicoAtual, error: historicoError } = await supabase
+      .from('pagamentos_historico')
+      .select('valor')
+      .eq('cobranca_id', cobrancaId);
+    if (historicoError) throw historicoError;
+    const acumuladoAtual = Math.max(
+      Number((cobranca as any)?.valor_pago_acumulado || 0),
+      (historicoAtual || []).reduce((total, pagamento) => total + Number(pagamento.valor || 0), 0)
+    );
     const dataNota = dados.dataNota;
     const codigoNota = cobranca?.codigo_nota || `AUTO-${Date.now()}`;
 
@@ -333,7 +364,6 @@ export default function Cobranca() {
       if (prestacaoError) throw prestacaoError;
     }
 
-    const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
     const valorAdiantado = cobranca?.valor_adiantado || 0;
     let valorPrevistoEfetivo = cobranca?.valor_previsto || 0;
     const updateData: any = { valor_pago_acumulado: acumuladoAtual + dados.valor_recebido };
