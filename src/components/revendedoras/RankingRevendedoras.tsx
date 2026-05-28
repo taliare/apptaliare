@@ -4,12 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trophy, TrendingUp, Users, Star, Eye } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Star, Eye, Award } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
 import { formatarValor } from '@/lib/utils';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, endOfMonth, subMonths } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { PerfilRevendedoraDialog } from './PerfilRevendedoraDialog';
 
 interface Profile {
@@ -38,32 +39,43 @@ interface RevendedoraRanking {
   volumeVendido: number;
   comissaoTotal: number;
   valorEmpresa: number;
+  valorPago: number;
+  saldoDevedor: number;
   ticketMedio: number;
   nivel: string;
   cor: string;
+  quitada: boolean;
 }
 
 export default function RankingRevendedoras({ representantes, representanteFiltro, setRepresentanteFiltro }: RankingRevendedorasProps) {
-  const [periodoFiltro, setPeriodoFiltro] = useState<'mensal' | 'trimestral' | 'acumulado'>('acumulado');
+  const [mesSelecionado, setMesSelecionado] = useState<string>(() => format(new Date(), 'yyyy-MM'));
   const [ordenacao, setOrdenacao] = useState<'volume' | 'ciclos' | 'ticket'>('volume');
   const [perfilAberto, setPerfilAberto] = useState<string | null>(null);
 
+  const mesesDisponiveis = useMemo(() => {
+    const meses = [];
+    for (let i = -1; i <= 11; i++) {
+      const d = subMonths(new Date(), i - 1);
+      meses.push({
+        value: format(d, 'yyyy-MM'),
+        label: format(d, "MMMM 'de' yyyy", { locale: ptBR }),
+      });
+    }
+    return meses;
+  }, []);
+
   const { data: prestacoes = [], isLoading } = useQuery({
-    queryKey: ['ranking-revendedoras', periodoFiltro, representanteFiltro],
+    queryKey: ['ranking-revendedoras', mesSelecionado, representanteFiltro],
     queryFn: async () => {
+      const inicio = `${mesSelecionado}-01`;
+      const fim = format(endOfMonth(new Date(`${mesSelecionado}-01`)), 'yyyy-MM-dd');
+
       let query = supabase
         .from('prestacoes_contas')
         .select('cobranca_id, revendedora, representante_id, total_venda, comissao_percentual, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao')
-        .gt('total_venda', 0);
-
-      if (periodoFiltro === 'mensal') {
-        const inicio = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-        const fim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-        query = query.gte('data_execucao', inicio).lte('data_execucao', fim);
-      } else if (periodoFiltro === 'trimestral') {
-        const inicio = format(subMonths(new Date(), 3), 'yyyy-MM-dd');
-        query = query.gte('data_execucao', inicio);
-      }
+        .gt('total_venda', 0)
+        .gte('data_execucao', inicio)
+        .lte('data_execucao', fim);
 
       if (representanteFiltro !== 'todos') {
         query = query.eq('representante_id', representanteFiltro);
@@ -75,45 +87,38 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
     },
   });
 
-  // Build profile map for representative names
   const profileMap = useMemo(() => {
     const map = new Map<string, string>();
     representantes.forEach(r => map.set(r.id, r.nome));
     return map;
   }, [representantes]);
 
-  // Deduplicar: para cada cobranca_id, manter apenas o registro com maior total_venda
   const prestacoesDeduplicated = useMemo(() => {
     if (!prestacoes) return [];
-    
     const porCobranca = new Map<string, any>();
-    
     for (const p of prestacoes) {
-      if (!p.cobranca_id) {
-        continue;
-      }
+      if (!p.cobranca_id) continue;
       const existente = porCobranca.get(p.cobranca_id);
       if (!existente || Number(p.total_venda) > Number(existente.total_venda)) {
         porCobranca.set(p.cobranca_id, p);
       }
     }
-    
     const semCobrancaId = prestacoes.filter(p => !p.cobranca_id);
-    
     return [...porCobranca.values(), ...semCobrancaId];
   }, [prestacoes]);
 
-  // Group by revendedora name
   const ranking = useMemo(() => {
-    const grouped = new Map<string, { repId: string | null; totalVenda: number; comissao: number; empresa: number; count: number }>();
+    const grouped = new Map<string, { repId: string | null; totalVenda: number; comissao: number; empresa: number; valorPago: number; saldoDevedor: number; count: number }>();
 
     prestacoesDeduplicated.forEach(p => {
       const nome = p.revendedora;
-      const existing = grouped.get(nome) || { repId: null, totalVenda: 0, comissao: 0, empresa: 0, count: 0 };
+      const existing = grouped.get(nome) || { repId: null, totalVenda: 0, comissao: 0, empresa: 0, valorPago: 0, saldoDevedor: 0, count: 0 };
       existing.repId = p.representante_id;
       existing.totalVenda += Number(p.total_venda) || 0;
       existing.comissao += Number(p.comissao_valor) || 0;
       existing.empresa += Number(p.valor_devido_empresa) || 0;
+      existing.valorPago += Number(p.valor_pago) || 0;
+      existing.saldoDevedor += Number(p.saldo_devedor) || 0;
       existing.count += 1;
       grouped.set(nome, existing);
     });
@@ -130,13 +135,15 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
         volumeVendido: data.totalVenda,
         comissaoTotal: data.comissao,
         valorEmpresa: data.empresa,
+        valorPago: data.valorPago,
+        saldoDevedor: data.saldoDevedor,
         ticketMedio,
         nivel,
         cor,
+        quitada: data.saldoDevedor === 0,
       });
     });
 
-    // Sort
     if (ordenacao === 'volume') result.sort((a, b) => b.volumeVendido - a.volumeVendido);
     else if (ordenacao === 'ciclos') result.sort((a, b) => b.ciclos - a.ciclos);
     else result.sort((a, b) => b.ticketMedio - a.ticketMedio);
@@ -147,7 +154,9 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
   const totalVolume = ranking.reduce((s, r) => s + r.volumeVendido, 0);
   const totalCiclos = ranking.reduce((s, r) => s + r.ciclos, 0);
   const mediaCiclos = ranking.length > 0 ? totalCiclos / ranking.length : 0;
-  const destaque = ranking.length > 0 ? ranking[0] : null;
+  const quitadasCount = ranking.filter(r => r.quitada).length;
+  const destaqueQuitadas = ranking.filter(r => r.quitada);
+  const destaque = destaqueQuitadas.length > 0 ? destaqueQuitadas[0] : (ranking.length > 0 ? ranking[0] : null);
 
   const nivelBadgeVariant = (cor: string) => {
     if (cor === 'purple') return 'default' as const;
@@ -169,14 +178,14 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
       <Card>
         <CardContent className="py-4">
           <div className="flex flex-col md:flex-row gap-4">
-            <Select value={periodoFiltro} onValueChange={(v) => setPeriodoFiltro(v as typeof periodoFiltro)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Período" />
+            <Select value={mesSelecionado} onValueChange={setMesSelecionado}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Mês" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="mensal">Mês Atual</SelectItem>
-                <SelectItem value="trimestral">Últimos 3 Meses</SelectItem>
-                <SelectItem value="acumulado">Acumulado Total</SelectItem>
+                {mesesDisponiveis.map(m => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={representanteFiltro} onValueChange={setRepresentanteFiltro}>
@@ -205,7 +214,7 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
       </Card>
 
       {/* Cards resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="py-4">
             <div className="flex items-center gap-3">
@@ -235,6 +244,17 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
               <div>
                 <p className="text-2xl font-bold">{mediaCiclos.toFixed(1)}</p>
                 <p className="text-sm text-muted-foreground">Média Ciclos/Rev.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <Award className="h-8 w-8 text-yellow-500" />
+              <div>
+                <p className="text-2xl font-bold">{quitadasCount}</p>
+                <p className="text-sm text-muted-foreground">Aptas para Premiação</p>
               </div>
             </div>
           </CardContent>
@@ -277,6 +297,10 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
                     <TableHead className="text-right">Ciclos</TableHead>
                     <TableHead className="text-right">Volume Vendido</TableHead>
                     <TableHead className="text-right">Ticket Médio</TableHead>
+                    <TableHead className="text-right">Valor Pago</TableHead>
+                    <TableHead className="text-right">Saldo Devedor</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Premiação</TableHead>
                     <TableHead className="w-[100px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -294,6 +318,24 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
                       <TableCell className="text-right">{rev.ciclos}</TableCell>
                       <TableCell className="text-right">{formatarValor(rev.volumeVendido)}</TableCell>
                       <TableCell className="text-right">{formatarValor(rev.ticketMedio)}</TableCell>
+                      <TableCell className="text-right">{formatarValor(rev.valorPago)}</TableCell>
+                      <TableCell className="text-right text-destructive font-medium">
+                        {rev.saldoDevedor > 0 ? formatarValor(rev.saldoDevedor) : '—'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {rev.quitada ? (
+                          <Badge className="bg-green-600 text-white">Quitada</Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-orange-400 text-orange-600">Pendente</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {rev.quitada ? (
+                          <span title="Elegível para premiação">🏆</span>
+                        ) : (
+                          <span title="Saldo em aberto" className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Button variant="ghost" size="sm" onClick={() => setPerfilAberto(rev.nome)}>
                           <Eye className="h-4 w-4 mr-1" />
