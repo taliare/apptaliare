@@ -68,7 +68,8 @@ export default function RankingRevendedoras({ representantes, representanteFiltr
     queryKey: ['ranking-revendedoras', mesSelecionado, representanteFiltro],
     queryFn: async () => {
       const inicio = `${mesSelecionado}-01`;
-      const fim = format(endOfMonth(new Date(`${mesSelecionado}-01`)), 'yyyy-MM-dd');
+      const [anoStr, mesStr] = mesSelecionado.split('-');
+      const fim = format(endOfMonth(new Date(parseInt(anoStr), parseInt(mesStr) - 1, 1)), 'yyyy-MM-dd');
 
       let query = supabase
         .from('prestacoes_contas')
