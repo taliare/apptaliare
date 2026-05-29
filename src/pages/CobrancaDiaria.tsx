@@ -1051,7 +1051,6 @@ export default function CobrancaDiaria() {
     const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
     const codigoNota = cobranca.codigo_nota || `${cobranca.revendedora}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
     
-    // 1. Criar nota promissória para alimentar a Cobrança Diária (sempre criar, mesmo com valor 0)
     // Buscar status atual da cobrança para snapshot fiel no fechamento
     const { data: cobAtualSnap } = await supabase
       .from('cobrancas_agendadas')
@@ -1059,86 +1058,94 @@ export default function CobrancaDiaria() {
       .eq('id', cobranca.id)
       .maybeSingle();
 
-    const notaData: any = {
-      representante_id: user.id,
-      codigo_nota: codigoNota,
-      cobranca_id: cobranca.id,
-      data: dados.dataNota,
-      valor_total: dados.valor_recebido,
-      forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
-      valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
-      forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-      valor_pagamento_2: dados.pagamentos[1]?.valor || null,
-      status_no_pagamento: cobAtualSnap?.status ?? null,
-    };
-
-    const { error: notaError } = await supabase
-      .from('notas_promissorias')
-      .insert(notaData);
-
-    if (notaError) throw notaError;
-
-    // 2. Para KIT: criar prestação de contas
-    if (!isRepasse) {
-      const { error: prestacaoError } = await supabase
-        .from('prestacoes_contas')
-        .insert({
-          cobranca_id: cobranca.id,
-          representante_id: user.id,
-          revendedora: cobranca.revendedora || '',
-          total_venda: dados.valor_venda,
-          comissao_percentual: dados.comissao_percentual,
-          comissao_valor: dados.comissao_valor,
-          valor_devido_empresa: dados.valor_devido_empresa,
-          valor_pago: dados.valor_recebido,
-          saldo_devedor: dados.valor_repasse,
-          forma_pagamento: dados.pagamentos[0]?.forma || 'dinheiro',
-          data_execucao: dados.dataNota,
-          codigo_nota_referencia: codigoNota
-        });
-
-      if (prestacaoError) throw prestacaoError;
-    }
-
-    // 3. Atualizar a MESMA cobrança - abater saldo (NÃO criar nova cobrança)
+    // Cálculos comuns
     const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
     const valorAdiantado = cobranca.valor_adiantado || 0;
-    
-    // Se é primeira cobrança de KIT, atualizar valor_previsto para o total devido à empresa
     let valorPrevistoEfetivo = cobranca.valor_previsto || 0;
-    
+
     const updateData: any = {
       valor_pago_acumulado: acumuladoAtual + dados.valor_recebido,
     };
-    
+
     if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
       valorPrevistoEfetivo = dados.valor_devido_empresa + (cobranca.valor_adiantado || 0);
       updateData.valor_previsto = valorPrevistoEfetivo;
     }
-    
-    // Sempre atualizar data_agendada para a próxima data informada
+
     updateData.data_agendada = format(dados.data_repasse, 'yyyy-MM-dd');
-    
+
     const novoAcumulado = acumuladoAtual + dados.valor_recebido;
     const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
-    
+
     const novoStatus = saldoAberto <= 0 ? 'pago' : 'parcial';
     updateData.status = novoStatus;
-    
+
     if (novoStatus === 'pago') {
       updateData.data_quitacao = dados.dataNota;
     }
 
-    const { error: updateError } = await supabase
-      .from('cobrancas_agendadas')
-      .update(updateData)
-      .eq('id', cobranca.id);
+    if (!isRepasse) {
+      // KIT: usa RPC unificada (prestação + nota + update cobrança)
+      const { error: rpcError } = await supabase.rpc('registrar_pagamento_cobranca', {
+        p_cobranca_id:          cobranca.id,
+        p_representante_id:     user.id,
+        p_revendedora:          cobranca.revendedora || '',
+        p_total_venda:          dados.valor_venda,
+        p_comissao_percentual:  dados.comissao_percentual,
+        p_comissao_valor:       dados.comissao_valor,
+        p_valor_devido_empresa: dados.valor_devido_empresa,
+        p_valor_pago_prestacao: dados.valor_recebido,
+        p_saldo_devedor:        dados.valor_repasse,
+        p_forma_pagamento:      dados.pagamentos[0]?.forma || 'dinheiro',
+        p_data_execucao:        dados.dataNota,
+        p_codigo_nota_ref:      codigoNota,
+        p_valor_nota:           dados.valor_recebido,
+        p_forma_pagamento_1:    dados.pagamentos[0]?.forma || 'dinheiro',
+        p_valor_pagamento_1:    dados.pagamentos[0]?.valor || 0,
+        p_forma_pagamento_2:    dados.pagamentos[1]?.forma || null,
+        p_valor_pagamento_2:    dados.pagamentos[1]?.valor || null,
+        p_devolveu_tudo:        false,
+        p_status_no_pagamento:  cobAtualSnap?.status ?? null,
+        p_novo_acumulado:       novoAcumulado,
+        p_novo_valor_previsto:  updateData.valor_previsto ?? null,
+        p_novo_status:          novoStatus,
+        p_data_quitacao:        novoStatus === 'pago' ? dados.dataNota : null,
+        p_data_agendada:        format(dados.data_repasse, 'yyyy-MM-dd'),
+      });
 
-    if (updateError) throw updateError;
+      if (rpcError) throw rpcError;
+    } else {
+      // REPASSE: apenas nota + update cobrança (sem prestação)
+      const notaData: any = {
+        representante_id: user.id,
+        codigo_nota: codigoNota,
+        cobranca_id: cobranca.id,
+        data: dados.dataNota,
+        valor_total: dados.valor_recebido,
+        forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
+        valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
+        forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+        valor_pagamento_2: dados.pagamentos[1]?.valor || null,
+        status_no_pagamento: cobAtualSnap?.status ?? null,
+      };
 
-    await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
-    await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
-    await queryClient.invalidateQueries({ queryKey: ['notas-por-dia'] });
+      const { error: notaError } = await supabase
+        .from('notas_promissorias')
+        .insert(notaData);
+
+      if (notaError) throw notaError;
+
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update(updateData)
+        .eq('id', cobranca.id);
+
+      if (updateError) throw updateError;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+    queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+    queryClient.invalidateQueries({ queryKey: ['notas-por-dia'] });
     
     setCobrancaParaPagar(null);
     resetBuscarNotaForm();
