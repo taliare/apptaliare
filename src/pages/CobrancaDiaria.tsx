@@ -970,52 +970,6 @@ export default function CobrancaDiaria() {
     const cobranca = cobrancaParaPagar;
     const codigoNota = cobranca.codigo_nota || `${cobranca.revendedora}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
     
-    // 1. Criar prestação de contas
-    const { error: prestacaoError } = await supabase
-      .from('prestacoes_contas')
-      .insert({
-        cobranca_id: cobranca.id,
-        representante_id: user.id,
-        revendedora: cobranca.revendedora || '',
-        total_venda: dados.valor_venda,
-        comissao_percentual: dados.comissao_percentual,
-        comissao_valor: dados.comissao_valor,
-        valor_devido_empresa: dados.valor_devido_empresa,
-        valor_pago: dados.valor_devido_empresa,
-        saldo_devedor: 0,
-        forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : (dados.pagamentos[0]?.forma || 'dinheiro'),
-        data_execucao: dados.dataNota,
-        codigo_nota_referencia: codigoNota
-      });
-
-    if (prestacaoError) throw prestacaoError;
-
-    // 2. Criar nota promissória para alimentar a Cobrança Diária
-    // Buscar status atual da cobrança para snapshot fiel no fechamento
-    const { data: cobAtualSnap } = await supabase
-      .from('cobrancas_agendadas')
-      .select('status')
-      .eq('id', cobranca.id)
-      .maybeSingle();
-
-    const { error: notaError } = await supabase
-      .from('notas_promissorias')
-      .insert({
-        representante_id: user.id,
-        codigo_nota: codigoNota,
-        cobranca_id: cobranca.id,
-        data: dados.dataNota,
-        valor_total: dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
-        forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
-        valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : dados.pagamentos[0]?.valor || 0,
-        forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-        valor_pagamento_2: dados.pagamentos[1]?.valor || null,
-        devolveu_tudo: dados.tipo === 'devolucao',
-        status_no_pagamento: cobAtualSnap?.status ?? null,
-      });
-
-    if (notaError) throw notaError;
-
     const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
     const valorAdiantado = cobranca.valor_adiantado || 0;
     const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
@@ -1042,16 +996,38 @@ export default function CobrancaDiaria() {
     updateDataCobranca.status = (saldoAberto <= 0 ? 'pago' : 'parcial') as any;
     updateDataCobranca.data_quitacao = saldoAberto <= 0 ? dados.dataNota : null;
 
-    const { error: updateError } = await supabase
-      .from('cobrancas_agendadas')
-      .update(updateDataCobranca)
-      .eq('id', cobranca.id);
+    const { error: rpcError } = await supabase.rpc('registrar_pagamento_cobranca', {
+      p_cobranca_id:          cobranca.id,
+      p_representante_id:     user.id,
+      p_revendedora:          cobranca.revendedora || '',
+      p_total_venda:          dados.valor_venda,
+      p_comissao_percentual:  dados.comissao_percentual,
+      p_comissao_valor:       dados.comissao_valor,
+      p_valor_devido_empresa: dados.valor_devido_empresa,
+      p_valor_pago_prestacao: dados.valor_devido_empresa,
+      p_saldo_devedor:        0,
+      p_forma_pagamento:      dados.tipo === 'devolucao' ? 'dinheiro' : (dados.pagamentos[0]?.forma || 'dinheiro'),
+      p_data_execucao:        dados.dataNota,
+      p_codigo_nota_ref:      codigoNota,
+      p_valor_nota:           dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
+      p_forma_pagamento_1:    dados.tipo === 'devolucao' ? 'dinheiro' : (dados.pagamentos[0]?.forma || 'dinheiro'),
+      p_valor_pagamento_1:    dados.tipo === 'devolucao' ? 0 : (dados.pagamentos[0]?.valor || 0),
+      p_forma_pagamento_2:    dados.pagamentos[1]?.forma || null,
+      p_valor_pagamento_2:    dados.pagamentos[1]?.valor || null,
+      p_devolveu_tudo:        dados.tipo === 'devolucao',
+      p_status_no_pagamento:  null,
+      p_novo_acumulado:       novoAcumulado,
+      p_novo_valor_previsto:  updateDataCobranca.valor_previsto ?? null,
+      p_novo_status:          updateDataCobranca.status,
+      p_data_quitacao:        updateDataCobranca.data_quitacao ?? null,
+      p_data_agendada:        null,
+    });
 
-    if (updateError) throw updateError;
+    if (rpcError) throw rpcError;
 
-    await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
-    await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
-    await queryClient.invalidateQueries({ queryKey: ['notas-por-dia'] });
+    queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+    queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+    queryClient.invalidateQueries({ queryKey: ['notas-por-dia'] });
     
     setCobrancaParaPagar(null);
     resetBuscarNotaForm();
