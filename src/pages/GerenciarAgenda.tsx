@@ -74,6 +74,12 @@ export default function GerenciarAgenda() {
   // Estorno
   const [estornoCobranca, setEstornoCobranca] = useState<Cobranca | null>(null);
 
+  // Ajuste administrativo
+  const [ajusteOpen, setAjusteOpen] = useState(false);
+  const [ajusteQuitarTotal, setAjusteQuitarTotal] = useState(false);
+  const [ajusteValor, setAjusteValor] = useState('');
+  const [ajusteMotivo, setAjusteMotivo] = useState('');
+
   // Filtros
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
   const [filtroStatus, setFiltroStatus] = useState<string>('pendente'); // Padrão: pendente
