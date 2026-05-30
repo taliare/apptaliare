@@ -1447,6 +1447,59 @@ export default function GerenciarAgenda() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de Ajuste Administrativo */}
+      <Dialog open={ajusteOpen} onOpenChange={setAjusteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aplicar Ajuste — Nota {detailCobranca?.codigo_nota}</DialogTitle>
+          </DialogHeader>
+          {detailCobranca && (
+            <div className="space-y-4 text-sm">
+              <p className="text-muted-foreground">
+                Revendedora: <span className="font-medium text-foreground">{detailCobranca.revendedora}</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="quitar-total"
+                  checked={ajusteQuitarTotal}
+                  onCheckedChange={(v) => setAjusteQuitarTotal(!!v)}
+                />
+                <Label htmlFor="quitar-total" className="cursor-pointer">Quitar saldo total (desconto integral)</Label>
+              </div>
+              <div>
+                <Label>Valor do desconto (R$)</Label>
+                <Input
+                  value={ajusteValor}
+                  onChange={(e) => setAjusteValor(e.target.value)}
+                  disabled={ajusteQuitarTotal}
+                  placeholder="0,00"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Motivo (opcional)</Label>
+                <Input
+                  value={ajusteMotivo}
+                  onChange={(e) => setAjusteMotivo(e.target.value)}
+                  placeholder="Ex: Joias incorporadas em nova nota"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAjusteOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={() => ajusteMutation.mutate()}
+              disabled={ajusteMutation.isPending || (!ajusteQuitarTotal && !ajusteValor.trim())}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {ajusteMutation.isPending ? 'Aplicando...' : 'Confirmar Ajuste'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
