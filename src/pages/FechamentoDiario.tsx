@@ -224,7 +224,7 @@ export default function FechamentoDiario() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('id, codigo_nota, revendedora, tipo, apurado, status')
+        .select('id, codigo_nota, revendedora, tipo, apurado, status, valor_previsto, valor_pago_acumulado, valor_adiantado')
         .eq('representante_id', selectedRepresentante)
         .eq('vigente', true);
       
