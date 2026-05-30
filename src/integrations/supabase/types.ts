@@ -1927,6 +1927,16 @@ export type Database = {
         Args: { p_id: string; p_valor_original: number }
         Returns: undefined
       }
+      aplicar_ajuste_admin: {
+        Args: {
+          p_admin_id: string
+          p_cobranca_id: string
+          p_desconto_total?: boolean
+          p_motivo?: string
+          p_valor_desconto: number
+        }
+        Returns: Json
+      }
       atualizar_status_kit_entrega: {
         Args: { p_kit_id: string; p_user_id: string }
         Returns: boolean
