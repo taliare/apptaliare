@@ -74,6 +74,12 @@ export default function GerenciarAgenda() {
   // Estorno
   const [estornoCobranca, setEstornoCobranca] = useState<Cobranca | null>(null);
 
+  // Ajuste administrativo
+  const [ajusteOpen, setAjusteOpen] = useState(false);
+  const [ajusteQuitarTotal, setAjusteQuitarTotal] = useState(false);
+  const [ajusteValor, setAjusteValor] = useState('');
+  const [ajusteMotivo, setAjusteMotivo] = useState('');
+
   // Filtros
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
   const [filtroStatus, setFiltroStatus] = useState<string>('pendente'); // Padrão: pendente
@@ -344,6 +350,34 @@ export default function GerenciarAgenda() {
       console.error('Estorno error:', err);
       const msg = err?.message || err?.error_description || JSON.stringify(err);
       toast({ title: 'Erro ao estornar baixa', description: msg, variant: 'destructive' });
+    },
+  });
+
+  // Mutation para aplicar ajuste administrativo
+  const ajusteMutation = useMutation({
+    mutationFn: async () => {
+      if (!detailCobranca) throw new Error('Nota não selecionada');
+      const { data, error } = await supabase.rpc('aplicar_ajuste_admin', {
+        p_cobranca_id:    detailCobranca.id,
+        p_admin_id:       (await supabase.auth.getUser()).data.user?.id,
+        p_valor_desconto: ajusteQuitarTotal ? 0 : parseFloat(ajusteValor.replace(',', '.')) || 0,
+        p_motivo:         ajusteMotivo.trim() || null,
+        p_desconto_total: ajusteQuitarTotal,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
+      toast({ title: 'Ajuste aplicado com sucesso!' });
+      setAjusteOpen(false);
+      setAjusteValor('');
+      setAjusteMotivo('');
+      setAjusteQuitarTotal(false);
+      setIsDetailOpen(false);
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao aplicar ajuste', description: err.message, variant: 'destructive' });
     },
   });
 
@@ -1309,6 +1343,30 @@ export default function GerenciarAgenda() {
                     })()}
                   </div>
 
+                  {/* Aplicar Desconto / Quitar */}
+                  {detailCobranca.status !== 'pago' && (
+                    <div className="border border-amber-300/50 rounded-lg p-4 bg-amber-500/5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-amber-700">Aplicar Desconto / Quitar</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Aplique um desconto parcial ou quite o saldo restante administrativamente.
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm" className="shrink-0 border-amber-400 text-amber-700 hover:bg-amber-500/10"
+                          onClick={() => {
+                            const saldo = Math.max(0, (detailCobranca.valor_previsto || 0) - (detailCobranca.valor_pago_acumulado || 0) - (detailCobranca.valor_adiantado || 0));
+                            setAjusteValor(saldo.toFixed(2).replace('.', ','));
+                            setAjusteQuitarTotal(false);
+                            setAjusteMotivo('');
+                            setAjusteOpen(true);
+                          }}>
+                          Aplicar Ajuste
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Estornar Baixa */}
                   {(detailCobranca.status === 'pago' || detailCobranca.status === 'parcial') && (
                     <div className="border border-destructive/30 rounded-lg p-4 bg-destructive/5">
@@ -1389,6 +1447,59 @@ export default function GerenciarAgenda() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog de Ajuste Administrativo */}
+      <Dialog open={ajusteOpen} onOpenChange={setAjusteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aplicar Ajuste — Nota {detailCobranca?.codigo_nota}</DialogTitle>
+          </DialogHeader>
+          {detailCobranca && (
+            <div className="space-y-4 text-sm">
+              <p className="text-muted-foreground">
+                Revendedora: <span className="font-medium text-foreground">{detailCobranca.revendedora}</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="quitar-total"
+                  checked={ajusteQuitarTotal}
+                  onCheckedChange={(v) => setAjusteQuitarTotal(!!v)}
+                />
+                <Label htmlFor="quitar-total" className="cursor-pointer">Quitar saldo total (desconto integral)</Label>
+              </div>
+              <div>
+                <Label>Valor do desconto (R$)</Label>
+                <Input
+                  value={ajusteValor}
+                  onChange={(e) => setAjusteValor(e.target.value)}
+                  disabled={ajusteQuitarTotal}
+                  placeholder="0,00"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Motivo (opcional)</Label>
+                <Input
+                  value={ajusteMotivo}
+                  onChange={(e) => setAjusteMotivo(e.target.value)}
+                  placeholder="Ex: Joias incorporadas em nova nota"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAjusteOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={() => ajusteMutation.mutate()}
+              disabled={ajusteMutation.isPending || (!ajusteQuitarTotal && !ajusteValor.trim())}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {ajusteMutation.isPending ? 'Aplicando...' : 'Confirmar Ajuste'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
