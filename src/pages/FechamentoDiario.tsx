@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { CalendarIcon, CheckCircle2, XCircle, DollarSign, Receipt, CreditCard, Banknote, Wallet, RefreshCw, Lock, Package, TrendingUp, TrendingDown, Minus, MessageSquare, CalendarRange, Plus, Trash2, Eye, Search, AlertTriangle } from 'lucide-react';
@@ -106,6 +107,18 @@ export default function FechamentoDiario() {
 
   // Estado para deletar nota
   const [notaParaDeletar, setNotaParaDeletar] = useState<NotaPromissoria | null>(null);
+
+  // Estado para ajuste administrativo
+  const [ajusteAlvo, setAjusteAlvo] = useState<{
+    id: string;
+    revendedora: string;
+    codigo_nota: string;
+    saldo: number;
+  } | null>(null);
+  const [ajusteValor, setAjusteValor] = useState('');
+  const [ajusteMotivo, setAjusteMotivo] = useState('');
+  const [ajusteQuitarTotal, setAjusteQuitarTotal] = useState(false);
+  const [ajusteLoading, setAjusteLoading] = useState(false);
 
   // Estado para edição de despesa quando finalizado
   const [editandoDespesa, setEditandoDespesa] = useState(false);
@@ -223,7 +236,7 @@ export default function FechamentoDiario() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('id, codigo_nota, revendedora, tipo, apurado, status')
+        .select('id, codigo_nota, revendedora, tipo, apurado, status, valor_previsto, valor_pago_acumulado, valor_adiantado')
         .eq('representante_id', selectedRepresentante)
         .eq('vigente', true);
       
@@ -303,11 +316,14 @@ export default function FechamentoDiario() {
         codigo_nota: item.codigo_nota || '', 
         revendedora: item.revendedora, 
         tipo: item.tipo || '',
-        status: item.status || ''
+        status: item.status || '',
+        valor_previsto: Number(item.valor_previsto) || 0,
+        valor_pago_acumulado: Number(item.valor_pago_acumulado) || 0,
+        valor_adiantado: Number(item.valor_adiantado) || 0,
       };
     }
     return acc;
-  }, {} as Record<string, { codigo_nota: string; revendedora: string; tipo: string; status: string }>);
+  }, {} as Record<string, { codigo_nota: string; revendedora: string; tipo: string; status: string; valor_previsto: number; valor_pago_acumulado: number; valor_adiantado: number }>);
 
   // Cálculos baseados nas notas
   const totais = useMemo(() => {
@@ -1393,14 +1409,38 @@ export default function FechamentoDiario() {
                               {statusBadge}
                             </TableCell>
                             <TableCell className="text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => setNotaParaDeletar(nota)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center justify-center gap-1">
+                                {profile?.role === 'admin' && nota.cobranca_id && cobrancaIdMap[nota.cobranca_id] && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => {
+                                      const c = cobrancaIdMap[nota.cobranca_id!];
+                                      const saldo = Math.max(0, c.valor_previsto - c.valor_pago_acumulado - c.valor_adiantado);
+                                      setAjusteAlvo({
+                                        id: nota.cobranca_id!,
+                                        revendedora: c.revendedora || '-',
+                                        codigo_nota: c.codigo_nota || '-',
+                                        saldo,
+                                      });
+                                      setAjusteValor(saldo.toFixed(2));
+                                      setAjusteMotivo('');
+                                      setAjusteQuitarTotal(false);
+                                    }}
+                                  >
+                                    Ajuste
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => setNotaParaDeletar(nota)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -1580,6 +1620,118 @@ export default function FechamentoDiario() {
           onPagamentoParcial={handlePagamentoParcial}
         />
       )}
+
+      {/* Dialog: Aplicar Ajuste Administrativo */}
+      <Dialog
+        open={!!ajusteAlvo}
+        onOpenChange={(open) => {
+          if (!open && !ajusteLoading) {
+            setAjusteAlvo(null);
+            setAjusteValor('');
+            setAjusteMotivo('');
+            setAjusteQuitarTotal(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aplicar Ajuste Administrativo</DialogTitle>
+          </DialogHeader>
+          {ajusteAlvo && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Revendedora: <span className="font-medium text-foreground">{ajusteAlvo.revendedora}</span>
+                <br />
+                Código da nota: <span className="font-mono text-foreground">{ajusteAlvo.codigo_nota}</span>
+                <br />
+                Saldo atual: <span className="font-semibold text-foreground">{formatarValor(ajusteAlvo.saldo)}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="ajuste-quitar-total"
+                  checked={ajusteQuitarTotal}
+                  onCheckedChange={(v) => {
+                    const checked = v === true;
+                    setAjusteQuitarTotal(checked);
+                    if (checked) setAjusteValor(ajusteAlvo.saldo.toFixed(2));
+                  }}
+                />
+                <Label htmlFor="ajuste-quitar-total" className="cursor-pointer">
+                  Quitar saldo total
+                </Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ajuste-valor">Valor do desconto (R$)</Label>
+                <Input
+                  id="ajuste-valor"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  disabled={ajusteQuitarTotal}
+                  value={ajusteValor}
+                  onChange={(e) => setAjusteValor(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ajuste-motivo">Motivo (opcional)</Label>
+                <Input
+                  id="ajuste-motivo"
+                  value={ajusteMotivo}
+                  onChange={(e) => setAjusteMotivo(e.target.value)}
+                  placeholder="Ex: desconto promocional"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (ajusteLoading) return;
+                setAjusteAlvo(null);
+                setAjusteValor('');
+                setAjusteMotivo('');
+                setAjusteQuitarTotal(false);
+              }}
+              disabled={ajusteLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={ajusteLoading || !ajusteAlvo || (!ajusteQuitarTotal && (!ajusteValor || parseFloat(ajusteValor) <= 0))}
+              onClick={async () => {
+                if (!ajusteAlvo || !user?.id) return;
+                const valorDesconto = ajusteQuitarTotal ? ajusteAlvo.saldo : parseFloat(ajusteValor) || 0;
+                setAjusteLoading(true);
+                const { error } = await supabase.rpc('aplicar_ajuste_admin', {
+                  p_cobranca_id: ajusteAlvo.id,
+                  p_admin_id: user.id,
+                  p_valor_desconto: valorDesconto,
+                  p_motivo: ajusteMotivo.trim() || null,
+                  p_desconto_total: ajusteQuitarTotal,
+                });
+                setAjusteLoading(false);
+                if (error) {
+                  toast.error(error.message || 'Erro ao aplicar ajuste');
+                  return;
+                }
+                toast.success('Ajuste aplicado com sucesso');
+                queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas-lookup-fechamento'] });
+                queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+                setAjusteAlvo(null);
+                setAjusteValor('');
+                setAjusteMotivo('');
+                setAjusteQuitarTotal(false);
+              }}
+            >
+              {ajusteLoading ? 'Aplicando...' : 'Confirmar Ajuste'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
