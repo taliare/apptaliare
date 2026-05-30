@@ -1409,14 +1409,38 @@ export default function FechamentoDiario() {
                               {statusBadge}
                             </TableCell>
                             <TableCell className="text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => setNotaParaDeletar(nota)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              <div className="flex items-center justify-center gap-1">
+                                {profile?.role === 'admin' && nota.cobranca_id && cobrancaIdMap[nota.cobranca_id] && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => {
+                                      const c = cobrancaIdMap[nota.cobranca_id!];
+                                      const saldo = Math.max(0, c.valor_previsto - c.valor_pago_acumulado - c.valor_adiantado);
+                                      setAjusteAlvo({
+                                        id: nota.cobranca_id!,
+                                        revendedora: c.revendedora || '-',
+                                        codigo_nota: c.codigo_nota || '-',
+                                        saldo,
+                                      });
+                                      setAjusteValor(saldo.toFixed(2));
+                                      setAjusteMotivo('');
+                                      setAjusteQuitarTotal(false);
+                                    }}
+                                  >
+                                    Ajuste
+                                  </Button>
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => setNotaParaDeletar(nota)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
