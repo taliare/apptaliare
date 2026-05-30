@@ -353,6 +353,34 @@ export default function GerenciarAgenda() {
     },
   });
 
+  // Mutation para aplicar ajuste administrativo
+  const ajusteMutation = useMutation({
+    mutationFn: async () => {
+      if (!detailCobranca) throw new Error('Nota não selecionada');
+      const { data, error } = await supabase.rpc('aplicar_ajuste_admin', {
+        p_cobranca_id:    detailCobranca.id,
+        p_admin_id:       (await supabase.auth.getUser()).data.user?.id,
+        p_valor_desconto: ajusteQuitarTotal ? 0 : parseFloat(ajusteValor.replace(',', '.')) || 0,
+        p_motivo:         ajusteMotivo.trim() || null,
+        p_desconto_total: ajusteQuitarTotal,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
+      toast({ title: 'Ajuste aplicado com sucesso!' });
+      setAjusteOpen(false);
+      setAjusteValor('');
+      setAjusteMotivo('');
+      setAjusteQuitarTotal(false);
+      setIsDetailOpen(false);
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erro ao aplicar ajuste', description: err.message, variant: 'destructive' });
+    },
+  });
+
   const handleOpenDetail = async (cobranca: Cobranca) => {
     setDetailCobranca(cobranca);
     setIsDetailOpen(true);
