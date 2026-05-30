@@ -304,11 +304,14 @@ export default function FechamentoDiario() {
         codigo_nota: item.codigo_nota || '', 
         revendedora: item.revendedora, 
         tipo: item.tipo || '',
-        status: item.status || ''
+        status: item.status || '',
+        valor_previsto: Number(item.valor_previsto) || 0,
+        valor_pago_acumulado: Number(item.valor_pago_acumulado) || 0,
+        valor_adiantado: Number(item.valor_adiantado) || 0,
       };
     }
     return acc;
-  }, {} as Record<string, { codigo_nota: string; revendedora: string; tipo: string; status: string }>);
+  }, {} as Record<string, { codigo_nota: string; revendedora: string; tipo: string; status: string; valor_previsto: number; valor_pago_acumulado: number; valor_adiantado: number }>);
 
   // Cálculos baseados nas notas
   const totais = useMemo(() => {
