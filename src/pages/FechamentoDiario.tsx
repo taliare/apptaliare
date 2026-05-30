@@ -1620,6 +1620,118 @@ export default function FechamentoDiario() {
           onPagamentoParcial={handlePagamentoParcial}
         />
       )}
+
+      {/* Dialog: Aplicar Ajuste Administrativo */}
+      <Dialog
+        open={!!ajusteAlvo}
+        onOpenChange={(open) => {
+          if (!open && !ajusteLoading) {
+            setAjusteAlvo(null);
+            setAjusteValor('');
+            setAjusteMotivo('');
+            setAjusteQuitarTotal(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aplicar Ajuste Administrativo</DialogTitle>
+          </DialogHeader>
+          {ajusteAlvo && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Revendedora: <span className="font-medium text-foreground">{ajusteAlvo.revendedora}</span>
+                <br />
+                Código da nota: <span className="font-mono text-foreground">{ajusteAlvo.codigo_nota}</span>
+                <br />
+                Saldo atual: <span className="font-semibold text-foreground">{formatarValor(ajusteAlvo.saldo)}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="ajuste-quitar-total"
+                  checked={ajusteQuitarTotal}
+                  onCheckedChange={(v) => {
+                    const checked = v === true;
+                    setAjusteQuitarTotal(checked);
+                    if (checked) setAjusteValor(ajusteAlvo.saldo.toFixed(2));
+                  }}
+                />
+                <Label htmlFor="ajuste-quitar-total" className="cursor-pointer">
+                  Quitar saldo total
+                </Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ajuste-valor">Valor do desconto (R$)</Label>
+                <Input
+                  id="ajuste-valor"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  disabled={ajusteQuitarTotal}
+                  value={ajusteValor}
+                  onChange={(e) => setAjusteValor(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ajuste-motivo">Motivo (opcional)</Label>
+                <Input
+                  id="ajuste-motivo"
+                  value={ajusteMotivo}
+                  onChange={(e) => setAjusteMotivo(e.target.value)}
+                  placeholder="Ex: desconto promocional"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (ajusteLoading) return;
+                setAjusteAlvo(null);
+                setAjusteValor('');
+                setAjusteMotivo('');
+                setAjusteQuitarTotal(false);
+              }}
+              disabled={ajusteLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={ajusteLoading || !ajusteAlvo || (!ajusteQuitarTotal && (!ajusteValor || parseFloat(ajusteValor) <= 0))}
+              onClick={async () => {
+                if (!ajusteAlvo || !user?.id) return;
+                const valorDesconto = ajusteQuitarTotal ? ajusteAlvo.saldo : parseFloat(ajusteValor) || 0;
+                setAjusteLoading(true);
+                const { error } = await supabase.rpc('aplicar_ajuste_admin', {
+                  p_cobranca_id: ajusteAlvo.id,
+                  p_admin_id: user.id,
+                  p_valor_desconto: valorDesconto,
+                  p_motivo: ajusteMotivo.trim() || null,
+                  p_desconto_total: ajusteQuitarTotal,
+                });
+                setAjusteLoading(false);
+                if (error) {
+                  toast.error(error.message || 'Erro ao aplicar ajuste');
+                  return;
+                }
+                toast.success('Ajuste aplicado com sucesso');
+                queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas-lookup-fechamento'] });
+                queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+                setAjusteAlvo(null);
+                setAjusteValor('');
+                setAjusteMotivo('');
+                setAjusteQuitarTotal(false);
+              }}
+            >
+              {ajusteLoading ? 'Aplicando...' : 'Confirmar Ajuste'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
