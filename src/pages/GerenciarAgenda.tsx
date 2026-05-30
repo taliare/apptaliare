@@ -1343,6 +1343,30 @@ export default function GerenciarAgenda() {
                     })()}
                   </div>
 
+                  {/* Aplicar Desconto / Quitar */}
+                  {detailCobranca.status !== 'pago' && (
+                    <div className="border border-amber-300/50 rounded-lg p-4 bg-amber-500/5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-amber-700">Aplicar Desconto / Quitar</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Aplique um desconto parcial ou quite o saldo restante administrativamente.
+                          </p>
+                        </div>
+                        <Button variant="outline" size="sm" className="shrink-0 border-amber-400 text-amber-700 hover:bg-amber-500/10"
+                          onClick={() => {
+                            const saldo = Math.max(0, (detailCobranca.valor_previsto || 0) - (detailCobranca.valor_pago_acumulado || 0) - (detailCobranca.valor_adiantado || 0));
+                            setAjusteValor(saldo.toFixed(2).replace('.', ','));
+                            setAjusteQuitarTotal(false);
+                            setAjusteMotivo('');
+                            setAjusteOpen(true);
+                          }}>
+                          Aplicar Ajuste
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Estornar Baixa */}
                   {(detailCobranca.status === 'pago' || detailCobranca.status === 'parcial') && (
                     <div className="border border-destructive/30 rounded-lg p-4 bg-destructive/5">
