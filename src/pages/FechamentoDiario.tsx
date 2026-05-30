@@ -108,6 +108,18 @@ export default function FechamentoDiario() {
   // Estado para deletar nota
   const [notaParaDeletar, setNotaParaDeletar] = useState<NotaPromissoria | null>(null);
 
+  // Estado para ajuste administrativo
+  const [ajusteAlvo, setAjusteAlvo] = useState<{
+    id: string;
+    revendedora: string;
+    codigo_nota: string;
+    saldo: number;
+  } | null>(null);
+  const [ajusteValor, setAjusteValor] = useState('');
+  const [ajusteMotivo, setAjusteMotivo] = useState('');
+  const [ajusteQuitarTotal, setAjusteQuitarTotal] = useState(false);
+  const [ajusteLoading, setAjusteLoading] = useState(false);
+
   // Estado para edição de despesa quando finalizado
   const [editandoDespesa, setEditandoDespesa] = useState(false);
   const [despesaEditValue, setDespesaEditValue] = useState('');
