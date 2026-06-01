@@ -968,6 +968,23 @@ export default function CobrancaDiaria() {
     if (!cobrancaParaPagar || !user?.id) return;
 
     const cobranca = cobrancaParaPagar;
+
+    // Proteção anti-duplicata: nota criada nos últimos 30s
+    const { data: recentNota } = await supabase
+      .from('notas_promissorias')
+      .select('id')
+      .eq('cobranca_id', cobranca.id)
+      .gte('criado_em', new Date(Date.now() - 30000).toISOString())
+      .maybeSingle();
+
+    if (recentNota) {
+      queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      setCobrancaParaPagar(null);
+      resetBuscarNotaForm();
+      return;
+    }
+
     const codigoNota = cobranca.codigo_nota || `${cobranca.revendedora}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
     
     const acumuladoAtual = (cobranca as any)?.valor_pago_acumulado || 0;
@@ -993,7 +1010,7 @@ export default function CobrancaDiaria() {
 
     const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
 
-    updateDataCobranca.status = (saldoAberto <= 0 ? 'pago' : 'parcial') as any;
+    updateDataCobranca.status = (cobranca.status === 'pago' || saldoAberto <= 0 ? 'pago' : 'parcial') as any;
     updateDataCobranca.data_quitacao = saldoAberto <= 0 ? dados.dataNota : null;
 
     const { error: rpcError } = await supabase.rpc('registrar_pagamento_cobranca', {
@@ -1048,6 +1065,23 @@ export default function CobrancaDiaria() {
     if (!cobrancaParaPagar || !user?.id) return;
 
     const cobranca = cobrancaParaPagar;
+
+    // Proteção anti-duplicata: nota criada nos últimos 30s
+    const { data: recentNota } = await supabase
+      .from('notas_promissorias')
+      .select('id')
+      .eq('cobranca_id', cobranca.id)
+      .gte('criado_em', new Date(Date.now() - 30000).toISOString())
+      .maybeSingle();
+
+    if (recentNota) {
+      queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+      setCobrancaParaPagar(null);
+      resetBuscarNotaForm();
+      return;
+    }
+
     const isRepasse = cobranca.tipo?.toLowerCase() === 'repasse';
     const codigoNota = cobranca.codigo_nota || `${cobranca.revendedora}-${format(new Date(), 'ddMMyyyyHHmmss')}`;
     
@@ -1077,7 +1111,7 @@ export default function CobrancaDiaria() {
     const novoAcumulado = acumuladoAtual + dados.valor_recebido;
     const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
 
-    const novoStatus = saldoAberto <= 0 ? 'pago' : 'parcial';
+    const novoStatus = (cobranca.status === 'pago' || saldoAberto <= 0) ? 'pago' : 'parcial';
     updateData.status = novoStatus;
 
     if (novoStatus === 'pago') {
