@@ -1063,6 +1063,7 @@ export default function CobrancaDiaria() {
     valor_repasse: number;
     data_repasse: Date;
     dataNota: string;
+    valor_devolvido?: number;
   }) => {
     if (!cobrancaParaPagar || !user?.id) return;
 
