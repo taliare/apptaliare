@@ -292,7 +292,8 @@ export function ModalReceberCobranca({
           pagamentos,
           valor_repasse: valorRestante,
           data_repasse: dataProximaCobranca,
-          dataNota: format(dataNota, 'yyyy-MM-dd')
+          dataNota: format(dataNota, 'yyyy-MM-dd'),
+          valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
         });
         
         const saldoAbertoAtual = cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0);
