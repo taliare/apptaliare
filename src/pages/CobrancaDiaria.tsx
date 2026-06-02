@@ -964,6 +964,7 @@ export default function CobrancaDiaria() {
     pagamentos: Array<{ forma: any; valor: number }>;
     tipo: 'completo' | 'devolucao';
     dataNota: string;
+    valor_devolvido?: number;
   }) => {
     if (!cobrancaParaPagar || !user?.id) return;
 
