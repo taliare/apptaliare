@@ -43,6 +43,7 @@ interface ModalReceberCobrancaProps {
     pagamentos: Array<{ forma: FormaPagamento; valor: number }>;
     tipo: 'completo' | 'devolucao';
     dataNota: string;
+    valor_devolvido: number;
   }) => Promise<void>;
   onPagamentoParcial: (dados: {
     valor_venda: number;
@@ -54,6 +55,7 @@ interface ModalReceberCobrancaProps {
     valor_repasse: number;
     data_repasse: Date;
     dataNota: string;
+    valor_devolvido: number;
   }) => Promise<void>;
 }
 
