@@ -1415,6 +1415,7 @@ export type Database = {
           saldo_devedor: number | null
           total_venda: number
           valor_devido_empresa: number
+          valor_devolvido: number
           valor_pago: number
         }
         Insert: {
@@ -1434,6 +1435,7 @@ export type Database = {
           saldo_devedor?: number | null
           total_venda: number
           valor_devido_empresa: number
+          valor_devolvido?: number
           valor_pago: number
         }
         Update: {
@@ -1453,6 +1455,7 @@ export type Database = {
           saldo_devedor?: number | null
           total_venda?: number
           valor_devido_empresa?: number
+          valor_devolvido?: number
           valor_pago?: number
         }
         Relationships: [
