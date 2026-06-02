@@ -1148,6 +1148,7 @@ export default function CobrancaDiaria() {
         p_novo_status:          novoStatus,
         p_data_quitacao:        novoStatus === 'pago' ? dados.dataNota : null,
         p_data_agendada:        format(dados.data_repasse, 'yyyy-MM-dd'),
+        p_valor_devolvido:      dados.valor_devolvido ?? 0,
       });
 
       if (rpcError) throw rpcError;
