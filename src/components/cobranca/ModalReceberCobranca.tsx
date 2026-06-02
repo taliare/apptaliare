@@ -43,6 +43,7 @@ interface ModalReceberCobrancaProps {
     pagamentos: Array<{ forma: FormaPagamento; valor: number }>;
     tipo: 'completo' | 'devolucao';
     dataNota: string;
+    valor_devolvido: number;
   }) => Promise<void>;
   onPagamentoParcial: (dados: {
     valor_venda: number;
@@ -54,6 +55,7 @@ interface ModalReceberCobrancaProps {
     valor_repasse: number;
     data_repasse: Date;
     dataNota: string;
+    valor_devolvido: number;
   }) => Promise<void>;
 }
 
@@ -193,7 +195,8 @@ export function ModalReceberCobranca({
         valor_devido_empresa: 0,
         pagamentos: [],
         tipo: 'devolucao',
-        dataNota: format(dataNota, 'yyyy-MM-dd')
+        dataNota: format(dataNota, 'yyyy-MM-dd'),
+        valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
       });
       
       toast({
@@ -289,7 +292,8 @@ export function ModalReceberCobranca({
           pagamentos,
           valor_repasse: valorRestante,
           data_repasse: dataProximaCobranca,
-          dataNota: format(dataNota, 'yyyy-MM-dd')
+          dataNota: format(dataNota, 'yyyy-MM-dd'),
+          valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
         });
         
         const saldoAbertoAtual = cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0);
@@ -341,7 +345,8 @@ export function ModalReceberCobranca({
         valor_devido_empresa: valorAReceber,
         pagamentos,
         tipo: 'completo',
-        dataNota: format(dataNota, 'yyyy-MM-dd')
+        dataNota: format(dataNota, 'yyyy-MM-dd'),
+        valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
       });
       
       toast({

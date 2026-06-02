@@ -964,6 +964,7 @@ export default function CobrancaDiaria() {
     pagamentos: Array<{ forma: any; valor: number }>;
     tipo: 'completo' | 'devolucao';
     dataNota: string;
+    valor_devolvido?: number;
   }) => {
     if (!cobrancaParaPagar || !user?.id) return;
 
@@ -1038,6 +1039,7 @@ export default function CobrancaDiaria() {
       p_novo_status:          updateDataCobranca.status,
       p_data_quitacao:        updateDataCobranca.data_quitacao ?? null,
       p_data_agendada:        null,
+      p_valor_devolvido:      dados.valor_devolvido ?? 0,
     });
 
     if (rpcError) throw rpcError;
@@ -1061,6 +1063,7 @@ export default function CobrancaDiaria() {
     valor_repasse: number;
     data_repasse: Date;
     dataNota: string;
+    valor_devolvido?: number;
   }) => {
     if (!cobrancaParaPagar || !user?.id) return;
 
@@ -1145,6 +1148,7 @@ export default function CobrancaDiaria() {
         p_novo_status:          novoStatus,
         p_data_quitacao:        novoStatus === 'pago' ? dados.dataNota : null,
         p_data_agendada:        format(dados.data_repasse, 'yyyy-MM-dd'),
+        p_valor_devolvido:      dados.valor_devolvido ?? 0,
       });
 
       if (rpcError) throw rpcError;
