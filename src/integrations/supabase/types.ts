@@ -1982,35 +1982,66 @@ export type Database = {
         }
         Returns: Json
       }
-      registrar_pagamento_cobranca: {
-        Args: {
-          p_cobranca_id: string
-          p_codigo_nota_ref: string
-          p_comissao_percentual: number
-          p_comissao_valor: number
-          p_data_agendada?: string
-          p_data_execucao: string
-          p_data_quitacao?: string
-          p_devolveu_tudo?: boolean
-          p_forma_pagamento: string
-          p_forma_pagamento_1: string
-          p_forma_pagamento_2?: string
-          p_novo_acumulado?: number
-          p_novo_status?: string
-          p_novo_valor_previsto?: number
-          p_representante_id: string
-          p_revendedora: string
-          p_saldo_devedor: number
-          p_status_no_pagamento?: string
-          p_total_venda: number
-          p_valor_devido_empresa: number
-          p_valor_nota: number
-          p_valor_pagamento_1: number
-          p_valor_pagamento_2?: number
-          p_valor_pago_prestacao: number
-        }
-        Returns: Json
-      }
+      registrar_pagamento_cobranca:
+        | {
+            Args: {
+              p_cobranca_id: string
+              p_codigo_nota_ref: string
+              p_comissao_percentual: number
+              p_comissao_valor: number
+              p_data_agendada?: string
+              p_data_execucao: string
+              p_data_quitacao?: string
+              p_devolveu_tudo?: boolean
+              p_forma_pagamento: string
+              p_forma_pagamento_1: string
+              p_forma_pagamento_2?: string
+              p_novo_acumulado?: number
+              p_novo_status?: string
+              p_novo_valor_previsto?: number
+              p_representante_id: string
+              p_revendedora: string
+              p_saldo_devedor: number
+              p_status_no_pagamento?: string
+              p_total_venda: number
+              p_valor_devido_empresa: number
+              p_valor_nota: number
+              p_valor_pagamento_1: number
+              p_valor_pagamento_2?: number
+              p_valor_pago_prestacao: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_cobranca_id: string
+              p_codigo_nota_ref: string
+              p_comissao_percentual: number
+              p_comissao_valor: number
+              p_data_agendada?: string
+              p_data_execucao: string
+              p_data_quitacao?: string
+              p_devolveu_tudo?: boolean
+              p_forma_pagamento: string
+              p_forma_pagamento_1: string
+              p_forma_pagamento_2?: string
+              p_novo_acumulado?: number
+              p_novo_status?: string
+              p_novo_valor_previsto?: number
+              p_representante_id: string
+              p_revendedora: string
+              p_saldo_devedor: number
+              p_status_no_pagamento?: string
+              p_total_venda: number
+              p_valor_devido_empresa: number
+              p_valor_devolvido?: number
+              p_valor_nota: number
+              p_valor_pagamento_1: number
+              p_valor_pagamento_2?: number
+              p_valor_pago_prestacao: number
+            }
+            Returns: Json
+          }
       reverter_entrega_kit: {
         Args: { p_codigo_kit: string; p_user_id: string }
         Returns: boolean
