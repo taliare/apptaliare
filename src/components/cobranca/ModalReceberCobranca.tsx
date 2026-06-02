@@ -195,7 +195,8 @@ export function ModalReceberCobranca({
         valor_devido_empresa: 0,
         pagamentos: [],
         tipo: 'devolucao',
-        dataNota: format(dataNota, 'yyyy-MM-dd')
+        dataNota: format(dataNota, 'yyyy-MM-dd'),
+        valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
       });
       
       toast({
