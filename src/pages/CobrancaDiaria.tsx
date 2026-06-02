@@ -1039,6 +1039,7 @@ export default function CobrancaDiaria() {
       p_novo_status:          updateDataCobranca.status,
       p_data_quitacao:        updateDataCobranca.data_quitacao ?? null,
       p_data_agendada:        null,
+      p_valor_devolvido:      dados.valor_devolvido ?? 0,
     });
 
     if (rpcError) throw rpcError;
