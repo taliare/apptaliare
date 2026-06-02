@@ -1270,8 +1270,8 @@ export default function GerenciarAgenda() {
                           <p className="font-semibold">{formatarValor(detailCobranca?.valor_previsto ?? 0)}</p>
                         </div>
                         <div>
-                          <span className="text-muted-foreground">Forma de Pagamento</span>
-                          <p className="font-medium capitalize">{detailPrestacao.forma_pagamento}</p>
+                          <span className="text-muted-foreground">Valor Devolvido</span>
+                          <p className="font-medium">{formatarValor(detailPrestacao?.valor_devolvido ?? 0)}</p>
                         </div>
                       </div>
                     </div>
