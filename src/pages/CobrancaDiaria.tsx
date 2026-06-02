@@ -1105,7 +1105,7 @@ export default function CobrancaDiaria() {
     };
 
     if (acumuladoAtual === 0 && cobranca.tipo?.toLowerCase() !== 'repasse') {
-      valorPrevistoEfetivo = dados.valor_devido_empresa + (cobranca.valor_adiantado || 0);
+      valorPrevistoEfetivo = dados.valor_recebido + (dados.valor_repasse || 0);
       updateData.valor_previsto = valorPrevistoEfetivo;
     }
 
