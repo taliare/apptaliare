@@ -96,7 +96,6 @@ type StatusChipKey =
   | 'inadimplente'
   | 'juridico_solicitado'
   | 'juridico_aprovado'
-  | 'sem_kit'
   | 'inativa';
 
 const STATUS_CHIPS: { value: StatusChipKey; label: string; emoji?: string }[] = [
@@ -108,7 +107,6 @@ const STATUS_CHIPS: { value: StatusChipKey; label: string; emoji?: string }[] = 
   { value: 'inadimplente', label: 'Inadimplente', emoji: '🔴' },
   { value: 'juridico_solicitado', label: 'Sol. Jurídico', emoji: '⚖️' },
   { value: 'juridico_aprovado', label: 'Jurídico', emoji: '⛔' },
-  { value: 'sem_kit', label: 'Sem Kit', emoji: '⚪' },
   { value: 'inativa', label: 'Inativa', emoji: '💤' },
 ];
 
