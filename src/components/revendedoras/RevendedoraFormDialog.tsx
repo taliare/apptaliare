@@ -83,6 +83,32 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
   const [observacoes, setObservacoes] = useState('');
   const [referencias, setReferencias] = useState<Referencia[]>([]);
   const [cepLoading, setCepLoading] = useState(false);
+  const [bloqueioJuridico, setBloqueioJuridico] = useState(false);
+  const [checandoBloqueio, setChecandoBloqueio] = useState(false);
+
+  const verificarBloqueio = async (nomeVal: string, cpfVal: string) => {
+    if (revendedoraId) return; // só aplica no cadastro
+    const nomeLimpo = nomeVal.trim();
+    const cpfLimpo = cpfVal.replace(/\D/g, '');
+    if (!nomeLimpo && !cpfLimpo) {
+      setBloqueioJuridico(false);
+      return;
+    }
+    setChecandoBloqueio(true);
+    try {
+      const { data, error } = await supabase.rpc('verificar_bloqueio_juridico', {
+        p_nome: nomeLimpo,
+        p_cpf: cpfLimpo || null,
+      });
+      if (error) throw error;
+      const isBlocked = Array.isArray(data) ? data[0]?.blocked : (data as any)?.blocked;
+      setBloqueioJuridico(!!isBlocked);
+    } catch {
+      setBloqueioJuridico(false);
+    } finally {
+      setChecandoBloqueio(false);
+    }
+  };
 
   // Carregar dados existentes
   const { data: rev } = useQuery({
