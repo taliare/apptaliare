@@ -743,6 +743,7 @@ export default function RevendedorasInativas() {
             setPerfilAberto={setPerfilAberto}
             handleOpenReativar={handleOpenReativar}
             kitsDisponiveisLen={kitsDisponiveis.length}
+            onNovaRevendedora={() => setNovaRevOpen(true)}
           />
         </TabsContent>
 
