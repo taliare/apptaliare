@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { UserX, RefreshCw, CalendarIcon, Search, Package, Phone, Pencil, Edit2, Trophy, TrendingUp, Users, Award, Check, X, MessageCircle, MapPin, User as UserIcon, Filter, Plus, UserPlus } from 'lucide-react';
 import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
+import { PerfilRevendedoraDialog } from '@/components/revendedoras/PerfilRevendedoraDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatusRevendedoraBadge } from '@/components/revendedoras/StatusRevendedoraBadge';
 import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
@@ -877,131 +878,13 @@ export default function RevendedorasInativas() {
         </DialogContent>
       </Dialog>
 
-      {/* ==================== DIALOG PERFIL ==================== */}
-      <Dialog open={!!perfilAberto} onOpenChange={(open) => !open && setPerfilAberto(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl">{perfilAberto}</DialogTitle>
-            <DialogDescription>Perfil completo da revendedora</DialogDescription>
-          </DialogHeader>
-
-          {perfilAberto && (
-            <div className="space-y-4">
-              {/* Status */}
-              <div className="flex items-center gap-2">
-                {revendedorasAtivas.some(a => a.nome === perfilAberto) ? (
-                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Ativa</Badge>
-                ) : (
-                  <Badge variant="secondary">Inativa</Badge>
-                )}
-                <Badge className={nivelBadgeVariant(perfilResumo.cor)}>{perfilResumo.nivel}</Badge>
-              </div>
-
-              {/* WhatsApp no perfil */}
-              {(() => {
-                const ativa = revendedorasAtivas.find(a => a.nome === perfilAberto);
-                if (!ativa) return null;
-                return (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    {editandoWhatsApp === `perfil-${perfilAberto}` ? (
-                      <div className="flex items-center gap-1">
-                        <Input value={whatsAppTemp} onChange={(e) => setWhatsAppTemp(e.target.value)} className="h-8 text-sm w-48" placeholder="(00) 00000-0000" />
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleSaveWhatsApp(ativa.revendedora_id)}>
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditandoWhatsApp(null)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <span>{ativa.whatsapp || 'Não informado'}</span>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditandoWhatsApp(`perfil-${perfilAberto}`); setWhatsAppTemp(ativa.whatsapp || ''); }}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Cards resumo */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card><CardContent className="p-3">
-                  <div className="text-xs text-muted-foreground">Ciclos</div>
-                  <div className="text-2xl font-bold">{perfilResumo.ciclos}</div>
-                </CardContent></Card>
-                <Card><CardContent className="p-3">
-                  <div className="text-xs text-muted-foreground">Volume Total</div>
-                  <div className="text-lg font-bold text-primary">{formatarValor(perfilResumo.volumeTotal)}</div>
-                </CardContent></Card>
-                <Card><CardContent className="p-3">
-                  <div className="text-xs text-muted-foreground">Ticket Médio</div>
-                  <div className="text-lg font-bold">{formatarValor(perfilResumo.ticketMedio)}</div>
-                </CardContent></Card>
-                <Card><CardContent className="p-3">
-                  <div className="text-xs text-muted-foreground">Nível</div>
-                  <div className="text-lg font-bold"><Badge className={nivelBadgeVariant(perfilResumo.cor)}>{perfilResumo.nivel}</Badge></div>
-                </CardContent></Card>
-              </div>
-
-              {/* Histórico de ciclos */}
-              <div>
-                <h3 className="font-semibold mb-2 flex items-center gap-2"><TrendingUp className="h-4 w-4" />Histórico de Ciclos</h3>
-                {prestacoesPerfilDedup.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhum ciclo registrado</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Data</TableHead>
-                          <TableHead className="text-right">Vendido</TableHead>
-                          <TableHead className="text-right">Comissão (%)</TableHead>
-                          <TableHead className="text-right">Empresa</TableHead>
-                          <TableHead className="text-right">Pago</TableHead>
-                          <TableHead className="text-right">Saldo</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {prestacoesPerfilDedup.map((p, i) => (
-                          <TableRow key={i}>
-                            <TableCell>{format(new Date(p.data_execucao + 'T12:00:00'), 'dd/MM/yyyy')}</TableCell>
-                            <TableCell className="text-right font-medium">{formatarValor(p.total_venda)}</TableCell>
-                            <TableCell className="text-right">{p.comissao_percentual}%</TableCell>
-                            <TableCell className="text-right">{formatarValor(p.valor_devido_empresa)}</TableCell>
-                            <TableCell className="text-right">{formatarValor(p.valor_pago)}</TableCell>
-                            <TableCell className="text-right">{formatarValor(p.saldo_devedor || 0)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-
-              {/* Evolução de nível */}
-              {prestacoesPerfilDedup.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-2 flex items-center gap-2"><Award className="h-4 w-4" />Evolução de Nível</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {[...prestacoesPerfilDedup].reverse().map((p, i) => {
-                      const n = calcularNivel(p.total_venda);
-                      return (
-                        <div key={i} className="flex flex-col items-center gap-1">
-                          <Badge className={cn('text-xs', nivelBadgeVariant(n.cor))}>{n.nivel}</Badge>
-                          <span className="text-[10px] text-muted-foreground">{format(new Date(p.data_execucao + 'T12:00:00'), 'MM/yy')}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {perfilAberto && (
+        <PerfilRevendedoraDialog
+          nomeRevendedora={perfilAberto}
+          representantes={[]}
+          onClose={() => setPerfilAberto(null)}
+        />
+      )}
 
       <RevendedoraFormDialog
         open={novaRevOpen}
