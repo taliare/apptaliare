@@ -8,7 +8,7 @@ export type RevendedoraStatusKey =
   | 'pagando'
   | 'ativa'
   | 'quite'
-  | 'sem_kit';
+  | 'inativa';
 
 export interface RevendedoraStatusInfo {
   key: RevendedoraStatusKey;
