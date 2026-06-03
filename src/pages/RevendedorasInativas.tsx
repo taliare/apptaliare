@@ -168,30 +168,53 @@ function ListagemUnificada({
 
   return (
     <div className="space-y-4">
-      {/* Chips de status */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_CHIPS.map((chip) => {
-          const active = statusFiltro === chip.value;
-          const count = contagens[chip.value] ?? 0;
-          return (
-            <button
-              key={chip.value}
-              type="button"
-              onClick={() => setStatusFiltro(chip.value)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
-                active
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'bg-background text-foreground border-border hover:bg-accent'
+      {/* Total + botão de filtro */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          {itensFiltrados.length} revendedora{itensFiltrados.length !== 1 ? 's' : ''}
+          {statusFiltro !== 'todas' && (
+            <span className="ml-1 opacity-70">de {itens.length}</span>
+          )}
+        </p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Filtrar
+              {statusFiltro !== 'todas' && (
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">1</Badge>
               )}
-            >
-              {chip.emoji && <span className="mr-1">{chip.emoji}</span>}
-              {chip.label}
-              <span className={cn('ml-1.5 opacity-70', active && 'opacity-90')}>({count})</span>
-            </button>
-          );
-        })}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-56 p-2">
+            <div className="flex flex-col gap-1">
+              <p className="text-[11px] uppercase text-muted-foreground px-2 py-1">Status</p>
+              {STATUS_CHIPS.map((chip) => {
+                const active = statusFiltro === chip.value;
+                const count = contagens[chip.value] ?? 0;
+                return (
+                  <button
+                    key={chip.value}
+                    type="button"
+                    onClick={() => setStatusFiltro(chip.value)}
+                    className={cn(
+                      'flex items-center justify-between px-2 py-1.5 rounded-md text-xs text-left transition-colors',
+                      active ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+                    )}
+                  >
+                    <span>
+                      {chip.emoji && <span className="mr-1">{chip.emoji}</span>}
+                      {chip.label}
+                    </span>
+                    <span className="opacity-70">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
+
 
       {loading ? (
         <div className="text-center py-8 text-muted-foreground">Carregando...</div>
