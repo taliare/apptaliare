@@ -470,15 +470,31 @@ export default function RevendedorasInativas() {
         <Input placeholder="Buscar por nome da revendedora..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
       </div>
 
-      <Tabs defaultValue="ativas">
-        <TabsList className="w-full">
-          <TabsTrigger value="ativas" className="flex-1">Ativas ({revendedorasAtivas.length})</TabsTrigger>
-          <TabsTrigger value="inativas" className="flex-1">Inativas ({revendedorasInativas.length})</TabsTrigger>
-          <TabsTrigger value="ranking" className="flex-1">Ranking</TabsTrigger>
+      <Tabs defaultValue="listagem">
+        <TabsList>
+          <TabsTrigger value="listagem">Listagem</TabsTrigger>
+          <TabsTrigger value="ranking">Ranking</TabsTrigger>
         </TabsList>
 
-        {/* ==================== ABA ATIVAS ==================== */}
-        <TabsContent value="ativas" className="space-y-4">
+        {/* ==================== ABA LISTAGEM ==================== */}
+        <TabsContent value="listagem" className="space-y-4">
+          <ListagemUnificada
+            ativas={ativasFiltradas}
+            inativas={inativasFiltradas}
+            loading={loadingAtivas || loadingInativas}
+            searchTerm={searchTerm}
+            editandoWhatsApp={editandoWhatsApp}
+            whatsAppTemp={whatsAppTemp}
+            setWhatsAppTemp={setWhatsAppTemp}
+            setEditandoWhatsApp={setEditandoWhatsApp}
+            handleEditWhatsApp={handleEditWhatsApp}
+            handleSaveWhatsApp={handleSaveWhatsApp}
+            setPerfilAberto={setPerfilAberto}
+            handleOpenReativar={handleOpenReativar}
+            kitsDisponiveisLen={kitsDisponiveis.length}
+          />
+        </TabsContent>
+
           {loadingAtivas ? (
             <div className="text-center py-8 text-muted-foreground">Carregando...</div>
           ) : ativasFiltradas.length === 0 ? (
