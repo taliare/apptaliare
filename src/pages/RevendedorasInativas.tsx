@@ -1002,6 +1002,16 @@ export default function RevendedorasInativas() {
           )}
         </DialogContent>
       </Dialog>
+
+      <RevendedoraFormDialog
+        open={novaRevOpen}
+        onClose={() => setNovaRevOpen(false)}
+        onSaved={() => {
+          setNovaRevOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['minhas-revendedoras-ativas'] });
+          queryClient.invalidateQueries({ queryKey: ['revendedoras-inativas'] });
+        }}
+      />
     </div>
   );
 }
