@@ -531,9 +531,9 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
 
         <DialogFooter className="pt-2">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || bloqueioJuridico || checandoBloqueio}>
             {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Salvar
+            {bloqueioJuridico ? 'Bloqueado pelo Jurídico' : 'Salvar'}
           </Button>
         </DialogFooter>
       </DialogContent>
