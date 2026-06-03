@@ -216,7 +216,12 @@ function ListagemUnificada({
               })}
             </div>
           </PopoverContent>
-        </Popover>
+          </Popover>
+          <Button size="sm" className="gap-2" onClick={onNovaRevendedora}>
+            <Plus className="h-4 w-4" />
+            Nova Revendedora
+          </Button>
+        </div>
       </div>
 
 
