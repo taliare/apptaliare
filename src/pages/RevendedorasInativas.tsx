@@ -118,7 +118,7 @@ function ListagemUnificada({
   ativas, inativas, loading, searchTerm,
   editandoWhatsApp, whatsAppTemp, setWhatsAppTemp, setEditandoWhatsApp,
   handleEditWhatsApp, handleSaveWhatsApp, setPerfilAberto, handleOpenReativar,
-  kitsDisponiveisLen,
+  kitsDisponiveisLen, onNovaRevendedora,
 }: {
   ativas: RevendedoraAtiva[];
   inativas: RevendedoraInativa[];
@@ -133,6 +133,7 @@ function ListagemUnificada({
   setPerfilAberto: (nome: string | null) => void;
   handleOpenReativar: (rev: RevendedoraInativa) => void;
   kitsDisponiveisLen: number;
+  onNovaRevendedora: () => void;
 }) {
   const [statusFiltro, setStatusFiltro] = useState<StatusChipKey>('todas');
 
