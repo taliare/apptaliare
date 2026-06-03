@@ -68,9 +68,9 @@ const STATUS_MAP: Record<RevendedoraStatusKey, Omit<RevendedoraStatusInfo, 'key'
     className: 'bg-teal-600 text-white hover:bg-teal-600',
     blocked: false,
   },
-  sem_kit: {
-    label: 'Sem Kit',
-    emoji: '⚪',
+  inativa: {
+    label: 'Inativa',
+    emoji: '💤',
     className: 'bg-muted text-muted-foreground hover:bg-muted',
     blocked: false,
   },
