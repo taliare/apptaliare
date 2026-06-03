@@ -1,15 +1,28 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useQuery } from '@tanstack/react-query';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatarValor } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { calcularNivel } from './RankingRevendedoras';
-import { Trophy, TrendingUp, Hash, Award } from 'lucide-react';
+import { Trophy, TrendingUp, Hash, Award, Edit2, Gavel, ShieldCheck, ShieldX } from 'lucide-react';
+import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
+import { StatusRevendedoraBadge } from './StatusRevendedoraBadge';
+import { useFotoUrl } from '@/hooks/useFotoUrl';
+import { RevendedoraFormDialog } from './RevendedoraFormDialog';
+import { toast } from 'sonner';
 
 interface Props {
   nomeRevendedora: string;
@@ -18,6 +31,12 @@ interface Props {
 }
 
 export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClose }: Props) {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const [editOpen, setEditOpen] = useState(false);
+  const [solicJuridicoOpen, setSolicJuridicoOpen] = useState(false);
+  const [motivoJuridico, setMotivoJuridico] = useState('');
+
   const { data: prestacoesBruto = [], isLoading } = useQuery({
     queryKey: ['perfil-revendedora', nomeRevendedora],
     queryFn: async () => {
@@ -31,30 +50,22 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
     },
   });
 
-  // Deduplicar: para cada cobranca_id, manter apenas o registro com maior total_venda
   const prestacoes = useMemo(() => {
     if (!prestacoesBruto) return [];
-    
     const porCobranca = new Map<string, any>();
-    
     for (const p of prestacoesBruto) {
-      if (!p.cobranca_id) {
-        continue;
-      }
+      if (!p.cobranca_id) continue;
       const existente = porCobranca.get(p.cobranca_id);
       if (!existente || Number(p.total_venda) > Number(existente.total_venda)) {
         porCobranca.set(p.cobranca_id, p);
       }
     }
-    
-    const semCobrancaId = prestacoesBruto.filter(p => !p.cobranca_id);
-    
+    const semCobrancaId = prestacoesBruto.filter((p) => !p.cobranca_id);
     return [...porCobranca.values(), ...semCobrancaId].sort(
       (a, b) => new Date(b.data_execucao).getTime() - new Date(a.data_execucao).getTime()
     );
   }, [prestacoesBruto]);
 
-  // Buscar info da revendedora na tabela revendedoras
   const { data: revendedoraInfo } = useQuery({
     queryKey: ['revendedora-info', nomeRevendedora],
     queryFn: async () => {
@@ -68,9 +79,39 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
     },
   });
 
+  const { data: cobrancas = [] } = useQuery({
+    queryKey: ['revendedora-cobrancas-perfil', nomeRevendedora],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cobrancas_agendadas')
+        .select('status, data_agendada')
+        .eq('revendedora', nomeRevendedora.trim().toUpperCase());
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: isAdmin } = useQuery({
+    queryKey: ['is-admin', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user!.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      if (error) return false;
+      return !!data;
+    },
+  });
+
+  const fotoUrl = useFotoUrl(revendedoraInfo?.foto_url ?? null);
+  const statusInfo = calcularStatusRevendedora(revendedoraInfo ?? null, cobrancas as any[]);
+
   const profileMap = useMemo(() => {
     const map = new Map<string, string>();
-    representantes.forEach(r => map.set(r.id, r.nome));
+    representantes.forEach((r) => map.set(r.id, r.nome));
     return map;
   }, [representantes]);
 
@@ -90,6 +131,65 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
     return '';
   };
 
+  const initials = nomeRevendedora.split(' ').slice(0, 2).map((n) => n[0]?.toUpperCase() ?? '').join('');
+
+  // Mutation: solicitar jurídico
+  const solicitarJuridico = useMutation({
+    mutationFn: async () => {
+      if (!revendedoraInfo?.id) throw new Error('Revendedora sem cadastro.');
+      const { error } = await supabase
+        .from('revendedoras')
+        .update({
+          status_juridico: 'solicitado',
+          data_solicitacao_juridico: new Date().toISOString(),
+          motivo_juridico: motivoJuridico.trim() || null,
+        })
+        .eq('id', revendedoraInfo.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Solicitação enviada ao admin');
+      setSolicJuridicoOpen(false);
+      setMotivoJuridico('');
+      qc.invalidateQueries({ queryKey: ['revendedora-info'] });
+      qc.invalidateQueries({ queryKey: ['revendedoras-admin'] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Erro ao solicitar'),
+  });
+
+  // Mutation: admin define status jurídico
+  const definirJuridico = useMutation({
+    mutationFn: async (acao: 'aprovado' | 'negado' | 'remover') => {
+      if (!revendedoraInfo?.id) throw new Error('Revendedora sem cadastro.');
+      const payload: any =
+        acao === 'remover'
+          ? {
+              status_juridico: null,
+              data_aprovacao_juridico: null,
+              aprovado_por: null,
+              motivo_juridico: null,
+            }
+          : {
+              status_juridico: acao,
+              data_aprovacao_juridico: new Date().toISOString(),
+              aprovado_por: user!.id,
+            };
+      const { error } = await supabase.from('revendedoras').update(payload).eq('id', revendedoraInfo.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Status jurídico atualizado');
+      qc.invalidateQueries({ queryKey: ['revendedora-info'] });
+      qc.invalidateQueries({ queryKey: ['revendedoras-admin'] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Erro'),
+  });
+
+  const podeSolicitarJuridico =
+    !!revendedoraInfo?.id &&
+    !revendedoraInfo.status_juridico &&
+    !isAdmin;
+
   return (
     <Dialog open onOpenChange={() => onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
@@ -98,16 +198,64 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Info básica */}
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <Badge variant={revendedoraInfo?.ativo !== false ? 'default' : 'secondary'}>
-              {revendedoraInfo?.ativo !== false ? '🟢 Ativa' : '🔴 Inativa'}
-            </Badge>
-            <span className="text-muted-foreground">Representante: <strong>{repNome}</strong></span>
-            {revendedoraInfo?.whatsapp && (
-              <span className="text-muted-foreground">WhatsApp: <strong>{revendedoraInfo.whatsapp}</strong></span>
-            )}
+          {/* Header com foto + status */}
+          <div className="flex flex-wrap items-center gap-4">
+            <Avatar className="h-16 w-16 border-2 border-primary/30">
+              {fotoUrl && <AvatarImage src={fotoUrl} alt={nomeRevendedora} />}
+              <AvatarFallback>{initials || '?'}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-[200px] space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusRevendedoraBadge status={statusInfo} />
+                {statusInfo.blocked && (
+                  <span className="text-xs text-red-500">🚫 Cadastro de novas cobranças bloqueado</span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Representante: <strong>{repNome}</strong>
+              </p>
+              {revendedoraInfo?.whatsapp && (
+                <p className="text-sm text-muted-foreground">
+                  WhatsApp: <strong>{revendedoraInfo.whatsapp}</strong>
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {revendedoraInfo?.id && (
+                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1">
+                  <Edit2 className="h-4 w-4" />Editar
+                </Button>
+              )}
+              {podeSolicitarJuridico && (
+                <Button variant="outline" size="sm" onClick={() => setSolicJuridicoOpen(true)} className="gap-1">
+                  <Gavel className="h-4 w-4" />Solicitar Jurídico
+                </Button>
+              )}
+              {isAdmin && revendedoraInfo?.status_juridico === 'solicitado' && (
+                <>
+                  <Button size="sm" onClick={() => definirJuridico.mutate('aprovado')} className="gap-1">
+                    <ShieldCheck className="h-4 w-4" />Aprovar
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => definirJuridico.mutate('negado')} className="gap-1">
+                    <ShieldX className="h-4 w-4" />Negar
+                  </Button>
+                </>
+              )}
+              {isAdmin && (revendedoraInfo?.status_juridico === 'aprovado' || revendedoraInfo?.status_juridico === 'negado') && (
+                <Button size="sm" variant="outline" onClick={() => definirJuridico.mutate('remover')}>
+                  Remover Status
+                </Button>
+              )}
+            </div>
           </div>
+
+          {revendedoraInfo?.motivo_juridico && (
+            <Card>
+              <CardContent className="py-3 text-sm">
+                <strong className="text-purple-600">Motivo jurídico:</strong> {revendedoraInfo.motivo_juridico}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Cards resumo */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -141,28 +289,6 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
             </Card>
           </div>
 
-          {/* Evolução de nível */}
-          {prestacoes.length > 1 && (
-            <Card>
-              <CardContent className="py-3">
-                <p className="text-sm font-medium mb-2">Evolução de Nível</p>
-                <div className="flex flex-wrap gap-2">
-                  {[...prestacoes].reverse().map((p, i) => {
-                    const n = calcularNivel(Number(p.total_venda));
-                    return (
-                      <div key={i} className="flex flex-col items-center gap-1">
-                        <Badge variant="default" className={`text-xs ${nivelBadgeClass(n.cor)}`}>{n.nivel}</Badge>
-                        <span className="text-[10px] text-muted-foreground">
-                          {format(new Date(p.data_execucao), 'dd/MM/yy', { locale: ptBR })}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Histórico */}
           <Card>
             <CardContent className="py-3">
@@ -185,7 +311,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {prestacoes.map(p => (
+                      {prestacoes.map((p) => (
                         <TableRow key={p.id}>
                           <TableCell>{format(new Date(p.data_execucao), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                           <TableCell className="text-right">{formatarValor(Number(p.total_venda))}</TableCell>
@@ -202,6 +328,37 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
             </CardContent>
           </Card>
         </div>
+
+        {revendedoraInfo?.id && (
+          <RevendedoraFormDialog
+            open={editOpen}
+            onClose={() => setEditOpen(false)}
+            revendedoraId={revendedoraInfo.id}
+          />
+        )}
+
+        <AlertDialog open={solicJuridicoOpen} onOpenChange={setSolicJuridicoOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Solicitar Encaminhamento Jurídico</AlertDialogTitle>
+              <AlertDialogDescription>
+                Descreva brevemente o motivo da solicitação. O admin precisa aprovar.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Textarea
+              value={motivoJuridico}
+              onChange={(e) => setMotivoJuridico(e.target.value)}
+              rows={3}
+              placeholder="Ex: cliente sumiu há 60 dias, sem retorno em WhatsApp."
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => solicitarJuridico.mutate()}>
+                Enviar solicitação
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
