@@ -120,7 +120,7 @@ export default function RevendedorasInativas() {
       if (nomes.length > 0) {
         const { data: cadastros } = await supabase
           .from('revendedoras')
-          .select('id, nome, whatsapp, ativo')
+          .select('id, nome, whatsapp, ativo, foto_url, status_juridico, cep, logradouro, numero, bairro, cidade, estado')
           .eq('representante_id', user!.id)
           .in('nome', nomes);
         cadastroMap = new Map(cadastros?.map(c => [c.nome.toUpperCase(), c]) || []);
