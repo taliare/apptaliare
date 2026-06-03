@@ -471,86 +471,94 @@ export default function RevendedorasInativas() {
               {searchTerm ? 'Nenhuma revendedora encontrada' : 'Nenhuma revendedora ativa no momento'}
             </CardContent></Card>
           ) : (
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {ativasFiltradas.map((rev) => (
-                <Card key={rev.nome} className="hover:shadow-lg transition-all duration-200 border border-border/50 hover:border-primary/30">
-                  <CardContent className="p-4 space-y-3">
-                    {/* Header: nome + badge */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-sm leading-tight truncate">{rev.nome}</h3>
+            <Card>
+              <ul className="divide-y divide-border">
+                {ativasFiltradas.map((rev) => {
+                  const statusInfo = calcularStatusRevendedora(
+                    { status_juridico: rev.status_juridico },
+                    rev.cobrancas.map((c: any) => ({ status: c.status, data_agendada: c.data_agendada }))
+                  );
+                  const waUrl = buildWaUrl(rev.whatsapp);
+                  const mapsUrl = buildMapsUrlEndereco(rev);
+                  const saldoLabel = rev.temApuracao ? formatarValor(rev.saldoTotal) : 'Pendente apuração';
+                  return (
+                    <li
+                      key={rev.nome}
+                      className="px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-accent/40 transition-colors"
+                    >
+                      {/* Foto + nome */}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <RevendedoraAvatar path={rev.foto_url} nome={rev.nome} />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate">{rev.nome}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            {rev.cobrancas.length} cobrança{rev.cobrancas.length !== 1 ? 's' : ''}
+                          </p>
+                        </div>
                       </div>
-                      <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0 shrink-0 text-xs">
-                        Ativa
-                      </Badge>
-                    </div>
 
-                    {/* WhatsApp */}
-                    <div className="flex items-center gap-2">
-                      {editandoWhatsApp === rev.nome ? (
-                        <div className="flex items-center gap-1 flex-1">
+                      {/* Status + saldo */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <StatusRevendedoraBadge status={statusInfo} />
+                        <div className="text-right min-w-[90px]">
+                          <p className="text-[10px] uppercase text-muted-foreground leading-none">Saldo</p>
+                          <p className={cn(
+                            'text-sm font-semibold',
+                            rev.temApuracao && rev.saldoTotal > 0 ? 'text-amber-600' : 'text-emerald-600'
+                          )}>
+                            {saldoLabel}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Ações */}
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {waUrl ? (
+                          <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-emerald-600 hover:text-emerald-700" title="Abrir WhatsApp">
+                            <a href={waUrl} target="_blank" rel="noopener noreferrer">
+                              <MessageCircle className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" size="icon" className="h-9 w-9 opacity-60" title="Adicionar WhatsApp" onClick={() => handleEditWhatsApp(rev.nome, rev.whatsapp)}>
+                            <Phone className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {mapsUrl && (
+                          <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-blue-600 hover:text-blue-700" title="Abrir no Google Maps">
+                            <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                              <MapPin className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(rev.nome)}>
+                          <UserIcon className="h-3.5 w-3.5" />
+                          Ver Perfil
+                        </Button>
+                      </div>
+
+                      {/* Edição inline de WhatsApp (quando ativada) */}
+                      {editandoWhatsApp === rev.nome && (
+                        <div className="flex items-center gap-1 w-full sm:w-auto">
                           <Input
                             value={whatsAppTemp}
                             onChange={(e) => setWhatsAppTemp(e.target.value)}
                             placeholder="Ex: 92999998888"
-                            className="h-7 text-xs flex-1"
+                            className="h-8 text-xs flex-1 sm:w-48"
                           />
-                          <Button size="sm" className="h-7 px-2 text-xs" onClick={() => handleSaveWhatsApp(rev.revendedora_id)}>
+                          <Button size="sm" className="h-8 px-2 text-xs" onClick={() => handleSaveWhatsApp(rev.revendedora_id)}>
                             Salvar
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditandoWhatsApp(null)}>
+                          <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setEditandoWhatsApp(null)}>
                             <X className="h-3 w-3" />
                           </Button>
                         </div>
-                      ) : (
-                        <div className="flex items-center gap-2 flex-1">
-                          <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="text-xs text-muted-foreground flex-1">
-                            {rev.whatsapp || 'Sem WhatsApp'}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
-                            onClick={() => handleEditWhatsApp(rev.nome, rev.whatsapp)}
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </Button>
-                        </div>
                       )}
-                    </div>
-
-                    {/* Divisor */}
-                    <div className="border-t border-border/50" />
-
-                    {/* Métricas */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="bg-muted/50 rounded-lg p-2 text-center">
-                        <p className="text-[10px] text-muted-foreground mb-0.5">Saldo em aberto</p>
-                        {rev.temApuracao
-                          ? <p className="text-sm font-bold text-destructive">{formatarValor(rev.saldoTotal)}</p>
-                          : <p className="text-sm font-medium text-muted-foreground">Pendente apuração</p>
-                        }
-                      </div>
-                      <div className="bg-muted/50 rounded-lg p-2 text-center">
-                        <p className="text-[10px] text-muted-foreground mb-0.5">Cobranças</p>
-                        <p className="text-sm font-bold">{rev.cobrancas.length}</p>
-                      </div>
-                    </div>
-
-                    {/* Botão Ver Perfil */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full text-xs h-8 hover:bg-primary hover:text-primary-foreground transition-colors"
-                      onClick={() => setPerfilAberto(rev.nome)}
-                    >
-                      Ver Perfil
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
           )}
         </TabsContent>
 
