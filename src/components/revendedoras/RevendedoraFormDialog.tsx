@@ -362,11 +362,25 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
               <div className="grid md:grid-cols-2 gap-3">
                 <div className="md:col-span-2">
                   <Label>Nome Completo *</Label>
-                  <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+                  <Input
+                    value={nome}
+                    onChange={(e) => { setNome(e.target.value); if (bloqueioJuridico) setBloqueioJuridico(false); }}
+                    onBlur={(e) => verificarBloqueio(e.target.value, cpf)}
+                  />
+                  {bloqueioJuridico && (
+                    <p className="mt-1 text-xs text-red-600 font-medium">
+                      ⚠️ Esta pessoa consta na lista de inadimplentes/protestadas do jurídico.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label>CPF *</Label>
-                  <Input value={cpf} onChange={(e) => setCpf(maskCpf(e.target.value))} placeholder="000.000.000-00" />
+                  <Input
+                    value={cpf}
+                    onChange={(e) => { setCpf(maskCpf(e.target.value)); if (bloqueioJuridico) setBloqueioJuridico(false); }}
+                    onBlur={(e) => verificarBloqueio(nome, e.target.value)}
+                    placeholder="000.000.000-00"
+                  />
                 </div>
                 <div>
                   <Label>RG</Label>
