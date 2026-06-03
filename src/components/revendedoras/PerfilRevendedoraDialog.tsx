@@ -232,11 +232,9 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {revendedoraInfo?.id && (
-                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1">
-                  <Edit2 className="h-4 w-4" />Editar
-                </Button>
-              )}
+              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="gap-1">
+                <Edit2 className="h-4 w-4" />Editar
+              </Button>
               {podeSolicitarJuridico && (
                 <Button variant="outline" size="sm" onClick={() => setSolicJuridicoOpen(true)} className="gap-1">
                   <Gavel className="h-4 w-4" />Solicitar Jurídico
