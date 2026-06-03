@@ -217,6 +217,16 @@ export default function GerenciarAgenda() {
       if (valorNumerico === null) {
         throw new Error('Valor inválido');
       }
+
+      if (data.revendedora) {
+        const { fetchStatusRevendedoraPorNome } = await import('@/lib/revendedoraStatus');
+        const statusInfo = await fetchStatusRevendedoraPorNome(sanitizeString(data.revendedora));
+        if (statusInfo.blocked) {
+          throw new Error('⚠️ Revendedora com pendência jurídica — novos pedidos bloqueados. Entre em contato com o jurídico para mais informações.');
+        }
+      }
+
+
       
       // Sanitize input data
       const insertData = {
