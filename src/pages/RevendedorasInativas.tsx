@@ -87,7 +87,213 @@ function RevendedoraAvatar({ path, nome }: { path: string | null; nome: string }
   );
 }
 
+type StatusChipKey =
+  | 'todas'
+  | 'ativa'
+  | 'pagando'
+  | 'quite'
+  | 'em_atraso'
+  | 'inadimplente'
+  | 'juridico_solicitado'
+  | 'juridico_aprovado'
+  | 'sem_kit'
+  | 'inativa';
+
+const STATUS_CHIPS: { value: StatusChipKey; label: string; emoji?: string }[] = [
+  { value: 'todas', label: 'Todas' },
+  { value: 'ativa', label: 'Ativa', emoji: '🟢' },
+  { value: 'pagando', label: 'Pagando', emoji: '🔵' },
+  { value: 'quite', label: 'Quite', emoji: '✅' },
+  { value: 'em_atraso', label: 'Em Atraso', emoji: '⚠️' },
+  { value: 'inadimplente', label: 'Inadimplente', emoji: '🔴' },
+  { value: 'juridico_solicitado', label: 'Sol. Jurídico', emoji: '⚖️' },
+  { value: 'juridico_aprovado', label: 'Jurídico', emoji: '⛔' },
+  { value: 'sem_kit', label: 'Sem Kit', emoji: '⚪' },
+  { value: 'inativa', label: 'Inativa', emoji: '💤' },
+];
+
+function ListagemUnificada({
+  ativas, inativas, loading, searchTerm,
+  editandoWhatsApp, whatsAppTemp, setWhatsAppTemp, setEditandoWhatsApp,
+  handleEditWhatsApp, handleSaveWhatsApp, setPerfilAberto, handleOpenReativar,
+  kitsDisponiveisLen,
+}: {
+  ativas: RevendedoraAtiva[];
+  inativas: RevendedoraInativa[];
+  loading: boolean;
+  searchTerm: string;
+  editandoWhatsApp: string | null;
+  whatsAppTemp: string;
+  setWhatsAppTemp: (v: string) => void;
+  setEditandoWhatsApp: (v: string | null) => void;
+  handleEditWhatsApp: (nome: string, whatsappAtual: string | null) => void;
+  handleSaveWhatsApp: (revendedora_id: string | null) => void;
+  setPerfilAberto: (nome: string | null) => void;
+  handleOpenReativar: (rev: RevendedoraInativa) => void;
+  kitsDisponiveisLen: number;
+}) {
+  const [statusFiltro, setStatusFiltro] = useState<StatusChipKey>('todas');
+
+  type Item =
+    | { kind: 'ativa'; nome: string; statusKey: string; rev: RevendedoraAtiva; statusInfo: ReturnType<typeof calcularStatusRevendedora> }
+    | { kind: 'inativa'; nome: string; statusKey: 'inativa'; rev: RevendedoraInativa };
+
+  const itens = useMemo<Item[]>(() => {
+    const ativasItens: Item[] = ativas.map((rev) => {
+      const statusInfo = calcularStatusRevendedora(
+        { status_juridico: rev.status_juridico },
+        rev.cobrancas.map((c: any) => ({ status: c.status, data_agendada: c.data_agendada }))
+      );
+      return { kind: 'ativa' as const, nome: rev.nome, statusKey: statusInfo.key, rev, statusInfo };
+    });
+    const inativasItens: Item[] = inativas.map((r) => ({
+      kind: 'inativa' as const, nome: r.nome, statusKey: 'inativa' as const, rev: r,
+    }));
+    return [...ativasItens, ...inativasItens].sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [ativas, inativas]);
+
+  const contagens = useMemo(() => {
+    const c: Partial<Record<StatusChipKey, number>> = { todas: itens.length };
+    itens.forEach((i) => {
+      const k = i.statusKey as StatusChipKey;
+      c[k] = (c[k] ?? 0) + 1;
+    });
+    return c;
+  }, [itens]);
+
+  const itensFiltrados = useMemo(() => {
+    if (statusFiltro === 'todas') return itens;
+    return itens.filter((i) => i.statusKey === statusFiltro);
+  }, [itens, statusFiltro]);
+
+  return (
+    <div className="space-y-4">
+      {/* Chips de status */}
+      <div className="flex flex-wrap gap-2">
+        {STATUS_CHIPS.map((chip) => {
+          const active = statusFiltro === chip.value;
+          const count = contagens[chip.value] ?? 0;
+          return (
+            <button
+              key={chip.value}
+              type="button"
+              onClick={() => setStatusFiltro(chip.value)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
+                active
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : 'bg-background text-foreground border-border hover:bg-accent'
+              )}
+            >
+              {chip.emoji && <span className="mr-1">{chip.emoji}</span>}
+              {chip.label}
+              <span className={cn('ml-1.5 opacity-70', active && 'opacity-90')}>({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+      ) : itensFiltrados.length === 0 ? (
+        <Card><CardContent className="py-8 text-center text-muted-foreground">
+          {searchTerm ? 'Nenhuma revendedora encontrada' : 'Nenhuma revendedora nesse filtro'}
+        </CardContent></Card>
+      ) : (
+        <Card>
+          <ul className="divide-y divide-border">
+            {itensFiltrados.map((item) => {
+              if (item.kind === 'inativa') {
+                return (
+                  <li key={`inativa-${item.nome}`} className="px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-accent/40 transition-colors">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <RevendedoraAvatar path={null} nome={item.nome} />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{item.nome}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          Última venda: {format(new Date(item.rev.ultimaVendaData + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })} • {formatarValor(item.rev.ultimaVendaValor)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Badge variant="secondary" className="gap-1">💤 Inativa</Badge>
+                    </div>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(item.nome)}>
+                        <UserIcon className="h-3.5 w-3.5" />
+                        Ver Perfil
+                      </Button>
+                      <Button size="sm" className="gap-1" disabled={kitsDisponiveisLen === 0} onClick={() => handleOpenReativar(item.rev)}>
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Reativar
+                      </Button>
+                    </div>
+                  </li>
+                );
+              }
+              const { rev, statusInfo } = item;
+              const waUrl = buildWaUrl(rev.whatsapp);
+              const mapsUrl = buildMapsUrlEndereco(rev);
+              const saldoLabel = rev.temApuracao ? formatarValor(rev.saldoTotal) : 'Pendente apuração';
+              return (
+                <li key={`ativa-${rev.nome}`} className="px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-accent/40 transition-colors">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <RevendedoraAvatar path={rev.foto_url} nome={rev.nome} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{rev.nome}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {rev.cobrancas.length} cobrança{rev.cobrancas.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <StatusRevendedoraBadge status={statusInfo} />
+                    <div className="text-right min-w-[90px]">
+                      <p className="text-[10px] uppercase text-muted-foreground leading-none">Saldo</p>
+                      <p className={cn('text-sm font-semibold', rev.temApuracao && rev.saldoTotal > 0 ? 'text-amber-600' : 'text-emerald-600')}>
+                        {saldoLabel}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {waUrl ? (
+                      <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-emerald-600 hover:text-emerald-700" title="Abrir WhatsApp">
+                        <a href={waUrl} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-4 w-4" /></a>
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="icon" className="h-9 w-9 opacity-60" title="Adicionar WhatsApp" onClick={() => handleEditWhatsApp(rev.nome, rev.whatsapp)}>
+                        <Phone className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {mapsUrl && (
+                      <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-blue-600 hover:text-blue-700" title="Abrir no Google Maps">
+                        <a href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin className="h-4 w-4" /></a>
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(rev.nome)}>
+                      <UserIcon className="h-3.5 w-3.5" />
+                      Ver Perfil
+                    </Button>
+                  </div>
+                  {editandoWhatsApp === rev.nome && (
+                    <div className="flex items-center gap-1 w-full sm:w-auto">
+                      <Input value={whatsAppTemp} onChange={(e) => setWhatsAppTemp(e.target.value)} placeholder="Ex: 92999998888" className="h-8 text-xs flex-1 sm:w-48" />
+                      <Button size="sm" className="h-8 px-2 text-xs" onClick={() => handleSaveWhatsApp(rev.revendedora_id)}>Salvar</Button>
+                      <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setEditandoWhatsApp(null)}><X className="h-3 w-3" /></Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function RevendedorasInativas() {
+
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -470,159 +676,32 @@ export default function RevendedorasInativas() {
         <Input placeholder="Buscar por nome da revendedora..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
       </div>
 
-      <Tabs defaultValue="ativas">
-        <TabsList className="w-full">
-          <TabsTrigger value="ativas" className="flex-1">Ativas ({revendedorasAtivas.length})</TabsTrigger>
-          <TabsTrigger value="inativas" className="flex-1">Inativas ({revendedorasInativas.length})</TabsTrigger>
-          <TabsTrigger value="ranking" className="flex-1">Ranking</TabsTrigger>
+      <Tabs defaultValue="listagem">
+        <TabsList>
+          <TabsTrigger value="listagem">Listagem</TabsTrigger>
+          <TabsTrigger value="ranking">Ranking</TabsTrigger>
         </TabsList>
 
-        {/* ==================== ABA ATIVAS ==================== */}
-        <TabsContent value="ativas" className="space-y-4">
-          {loadingAtivas ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : ativasFiltradas.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">
-              {searchTerm ? 'Nenhuma revendedora encontrada' : 'Nenhuma revendedora ativa no momento'}
-            </CardContent></Card>
-          ) : (
-            <Card>
-              <ul className="divide-y divide-border">
-                {ativasFiltradas.map((rev) => {
-                  const statusInfo = calcularStatusRevendedora(
-                    { status_juridico: rev.status_juridico },
-                    rev.cobrancas.map((c: any) => ({ status: c.status, data_agendada: c.data_agendada }))
-                  );
-                  const waUrl = buildWaUrl(rev.whatsapp);
-                  const mapsUrl = buildMapsUrlEndereco(rev);
-                  const saldoLabel = rev.temApuracao ? formatarValor(rev.saldoTotal) : 'Pendente apuração';
-                  return (
-                    <li
-                      key={rev.nome}
-                      className="px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-accent/40 transition-colors"
-                    >
-                      {/* Foto + nome */}
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <RevendedoraAvatar path={rev.foto_url} nome={rev.nome} />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm truncate">{rev.nome}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {rev.cobrancas.length} cobrança{rev.cobrancas.length !== 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Status + saldo */}
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <StatusRevendedoraBadge status={statusInfo} />
-                        <div className="text-right min-w-[90px]">
-                          <p className="text-[10px] uppercase text-muted-foreground leading-none">Saldo</p>
-                          <p className={cn(
-                            'text-sm font-semibold',
-                            rev.temApuracao && rev.saldoTotal > 0 ? 'text-amber-600' : 'text-emerald-600'
-                          )}>
-                            {saldoLabel}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Ações */}
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {waUrl ? (
-                          <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-emerald-600 hover:text-emerald-700" title="Abrir WhatsApp">
-                            <a href={waUrl} target="_blank" rel="noopener noreferrer">
-                              <MessageCircle className="h-4 w-4" />
-                            </a>
-                          </Button>
-                        ) : (
-                          <Button variant="ghost" size="icon" className="h-9 w-9 opacity-60" title="Adicionar WhatsApp" onClick={() => handleEditWhatsApp(rev.nome, rev.whatsapp)}>
-                            <Phone className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {mapsUrl && (
-                          <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-blue-600 hover:text-blue-700" title="Abrir no Google Maps">
-                            <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                              <MapPin className="h-4 w-4" />
-                            </a>
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(rev.nome)}>
-                          <UserIcon className="h-3.5 w-3.5" />
-                          Ver Perfil
-                        </Button>
-                      </div>
-
-                      {/* Edição inline de WhatsApp (quando ativada) */}
-                      {editandoWhatsApp === rev.nome && (
-                        <div className="flex items-center gap-1 w-full sm:w-auto">
-                          <Input
-                            value={whatsAppTemp}
-                            onChange={(e) => setWhatsAppTemp(e.target.value)}
-                            placeholder="Ex: 92999998888"
-                            className="h-8 text-xs flex-1 sm:w-48"
-                          />
-                          <Button size="sm" className="h-8 px-2 text-xs" onClick={() => handleSaveWhatsApp(rev.revendedora_id)}>
-                            Salvar
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setEditandoWhatsApp(null)}>
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </Card>
-          )}
+        {/* ==================== ABA LISTAGEM ==================== */}
+        <TabsContent value="listagem" className="space-y-4">
+          <ListagemUnificada
+            ativas={ativasFiltradas}
+            inativas={inativasFiltradas}
+            loading={loadingAtivas || loadingInativas}
+            searchTerm={searchTerm}
+            editandoWhatsApp={editandoWhatsApp}
+            whatsAppTemp={whatsAppTemp}
+            setWhatsAppTemp={setWhatsAppTemp}
+            setEditandoWhatsApp={setEditandoWhatsApp}
+            handleEditWhatsApp={handleEditWhatsApp}
+            handleSaveWhatsApp={handleSaveWhatsApp}
+            setPerfilAberto={setPerfilAberto}
+            handleOpenReativar={handleOpenReativar}
+            kitsDisponiveisLen={kitsDisponiveis.length}
+          />
         </TabsContent>
 
-        {/* ==================== ABA INATIVAS ==================== */}
-        <TabsContent value="inativas" className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg"><UserX className="h-5 w-5" />Total de Revendedoras Inativas</CardTitle>
-            </CardHeader>
-            <CardContent><div className="text-3xl font-bold">{inativasFiltradas.length}</div></CardContent>
-          </Card>
 
-          {loadingInativas ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : inativasFiltradas.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">
-              {searchTerm ? 'Nenhuma revendedora encontrada com esse termo' : 'Nenhuma revendedora inativa no momento'}
-            </CardContent></Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {inativasFiltradas.map((revendedora) => (
-                <Card key={revendedora.nome} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex flex-col gap-3">
-                      <div>
-                        <h3 className="font-semibold text-lg truncate">{revendedora.nome}</h3>
-                        <Badge variant="secondary" className="mt-1">Inativa</Badge>
-                      </div>
-                      <div className="text-sm space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Última venda:</span>
-                          <span className="font-medium">{format(new Date(revendedora.ultimaVendaData + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valor:</span>
-                          <span className="font-semibold text-primary">{formatarValor(revendedora.ultimaVendaValor)}</span>
-                        </div>
-                      </div>
-                      <Button size="sm" className="w-full mt-2" onClick={() => handleOpenReativar(revendedora)} disabled={kitsDisponiveis.length === 0}>
-                        <RefreshCw className="h-4 w-4 mr-2" />Reativar Revendedora
-                      </Button>
-                      {kitsDisponiveis.length === 0 && <p className="text-xs text-muted-foreground text-center">Você não possui kits disponíveis</p>}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
 
         {/* ==================== ABA RANKING ==================== */}
         <TabsContent value="ranking" className="space-y-4">
