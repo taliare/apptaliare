@@ -509,6 +509,30 @@ export type Database = {
           },
         ]
       }
+      juridico_bloqueados: {
+        Row: {
+          cpf: string | null
+          criado_em: string | null
+          id: string
+          nome_norm: string
+          origem: string | null
+        }
+        Insert: {
+          cpf?: string | null
+          criado_em?: string | null
+          id?: string
+          nome_norm: string
+          origem?: string | null
+        }
+        Update: {
+          cpf?: string | null
+          criado_em?: string | null
+          id?: string
+          nome_norm?: string
+          origem?: string | null
+        }
+        Relationships: []
+      }
       kit_adicionais_itens: {
         Row: {
           codigo_barras: string | null
@@ -2152,6 +2176,13 @@ export type Database = {
       t2_reverter_ciclo_desistencia: {
         Args: { p_ciclo_id: string }
         Returns: Json
+      }
+      unaccent: { Args: { "": string }; Returns: string }
+      verificar_bloqueio_juridico: {
+        Args: { p_cpf?: string; p_nome: string }
+        Returns: {
+          blocked: boolean
+        }[]
       }
     }
     Enums: {

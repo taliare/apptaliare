@@ -221,6 +221,19 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
         throw new Error(parsed.error.errors[0].message);
       }
 
+      // Bloqueio jurídico: verifica se nome ou CPF estão na lista de bloqueados
+      if (!revendedoraId) {
+        const { data: bloqueio, error: bloqErr } = await supabase.rpc('verificar_bloqueio_juridico', {
+          p_nome: nome.trim(),
+          p_cpf: cpf.replace(/\D/g, '') || null,
+        });
+        if (bloqErr) throw bloqErr;
+        const isBlocked = Array.isArray(bloqueio) ? bloqueio[0]?.blocked : (bloqueio as any)?.blocked;
+        if (isBlocked) {
+          throw new Error('⚠️ Esta pessoa consta na lista de inadimplentes/protestadas do jurídico e está bloqueada para novo cadastro.');
+        }
+      }
+
       const payload: any = {
         nome: nome.trim().toUpperCase(),
         cpf: cpf.replace(/\D/g, '') || null,
