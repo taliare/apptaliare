@@ -83,6 +83,32 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
   const [observacoes, setObservacoes] = useState('');
   const [referencias, setReferencias] = useState<Referencia[]>([]);
   const [cepLoading, setCepLoading] = useState(false);
+  const [bloqueioJuridico, setBloqueioJuridico] = useState(false);
+  const [checandoBloqueio, setChecandoBloqueio] = useState(false);
+
+  const verificarBloqueio = async (nomeVal: string, cpfVal: string) => {
+    if (revendedoraId) return; // só aplica no cadastro
+    const nomeLimpo = nomeVal.trim();
+    const cpfLimpo = cpfVal.replace(/\D/g, '');
+    if (!nomeLimpo && !cpfLimpo) {
+      setBloqueioJuridico(false);
+      return;
+    }
+    setChecandoBloqueio(true);
+    try {
+      const { data, error } = await supabase.rpc('verificar_bloqueio_juridico', {
+        p_nome: nomeLimpo,
+        p_cpf: cpfLimpo || null,
+      });
+      if (error) throw error;
+      const isBlocked = Array.isArray(data) ? data[0]?.blocked : (data as any)?.blocked;
+      setBloqueioJuridico(!!isBlocked);
+    } catch {
+      setBloqueioJuridico(false);
+    } finally {
+      setChecandoBloqueio(false);
+    }
+  };
 
   // Carregar dados existentes
   const { data: rev } = useQuery({
@@ -157,6 +183,7 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
       setObservacoes('');
       setReferencias([]);
     }
+    setBloqueioJuridico(false);
   }, [rev, open, revendedoraId, initialNome]);
 
   useEffect(() => {
@@ -336,11 +363,25 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
               <div className="grid md:grid-cols-2 gap-3">
                 <div className="md:col-span-2">
                   <Label>Nome Completo *</Label>
-                  <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+                  <Input
+                    value={nome}
+                    onChange={(e) => { setNome(e.target.value); if (bloqueioJuridico) setBloqueioJuridico(false); }}
+                    onBlur={(e) => verificarBloqueio(e.target.value, cpf)}
+                  />
+                  {bloqueioJuridico && (
+                    <p className="mt-1 text-xs text-red-600 font-medium">
+                      ⚠️ Esta pessoa consta na lista de inadimplentes/protestadas do jurídico.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label>CPF *</Label>
-                  <Input value={cpf} onChange={(e) => setCpf(maskCpf(e.target.value))} placeholder="000.000.000-00" />
+                  <Input
+                    value={cpf}
+                    onChange={(e) => { setCpf(maskCpf(e.target.value)); if (bloqueioJuridico) setBloqueioJuridico(false); }}
+                    onBlur={(e) => verificarBloqueio(nome, e.target.value)}
+                    placeholder="000.000.000-00"
+                  />
                 </div>
                 <div>
                   <Label>RG</Label>
@@ -491,9 +532,9 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
 
         <DialogFooter className="pt-2">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || bloqueioJuridico || checandoBloqueio}>
             {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Salvar
+            {bloqueioJuridico ? 'Bloqueado pelo Jurídico' : 'Salvar'}
           </Button>
         </DialogFooter>
       </DialogContent>
