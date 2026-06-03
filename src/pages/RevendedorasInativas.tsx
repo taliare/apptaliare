@@ -320,6 +320,7 @@ export default function RevendedorasInativas() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [novaRevOpen, setNovaRevOpen] = useState(false);
   const [reativarDialogOpen, setReativarDialogOpen] = useState(false);
   const [selectedRevendedora, setSelectedRevendedora] = useState<RevendedoraInativa | null>(null);
   const [selectedKit, setSelectedKit] = useState('');
