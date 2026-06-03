@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { UserX, RefreshCw, CalendarIcon, Search, Package, Phone, Pencil, Edit2, Trophy, TrendingUp, Users, Award, Check, X, MessageCircle, MapPin, User as UserIcon } from 'lucide-react';
+import { UserX, RefreshCw, CalendarIcon, Search, Package, Phone, Pencil, Edit2, Trophy, TrendingUp, Users, Award, Check, X, MessageCircle, MapPin, User as UserIcon, Filter } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatusRevendedoraBadge } from '@/components/revendedoras/StatusRevendedoraBadge';
 import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
@@ -168,30 +168,53 @@ function ListagemUnificada({
 
   return (
     <div className="space-y-4">
-      {/* Chips de status */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_CHIPS.map((chip) => {
-          const active = statusFiltro === chip.value;
-          const count = contagens[chip.value] ?? 0;
-          return (
-            <button
-              key={chip.value}
-              type="button"
-              onClick={() => setStatusFiltro(chip.value)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
-                active
-                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                  : 'bg-background text-foreground border-border hover:bg-accent'
+      {/* Total + botão de filtro */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          {itensFiltrados.length} revendedora{itensFiltrados.length !== 1 ? 's' : ''}
+          {statusFiltro !== 'todas' && (
+            <span className="ml-1 opacity-70">de {itens.length}</span>
+          )}
+        </p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Filtrar
+              {statusFiltro !== 'todas' && (
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">1</Badge>
               )}
-            >
-              {chip.emoji && <span className="mr-1">{chip.emoji}</span>}
-              {chip.label}
-              <span className={cn('ml-1.5 opacity-70', active && 'opacity-90')}>({count})</span>
-            </button>
-          );
-        })}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-56 p-2">
+            <div className="flex flex-col gap-1">
+              <p className="text-[11px] uppercase text-muted-foreground px-2 py-1">Status</p>
+              {STATUS_CHIPS.map((chip) => {
+                const active = statusFiltro === chip.value;
+                const count = contagens[chip.value] ?? 0;
+                return (
+                  <button
+                    key={chip.value}
+                    type="button"
+                    onClick={() => setStatusFiltro(chip.value)}
+                    className={cn(
+                      'flex items-center justify-between px-2 py-1.5 rounded-md text-xs text-left transition-colors',
+                      active ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+                    )}
+                  >
+                    <span>
+                      {chip.emoji && <span className="mr-1">{chip.emoji}</span>}
+                      {chip.label}
+                    </span>
+                    <span className="opacity-70">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
+
 
       {loading ? (
         <div className="text-center py-8 text-muted-foreground">Carregando...</div>
@@ -223,18 +246,13 @@ function ListagemUnificada({
                         <UserIcon className="h-3.5 w-3.5" />
                         Ver Perfil
                       </Button>
-                      <Button size="sm" className="gap-1" disabled={kitsDisponiveisLen === 0} onClick={() => handleOpenReativar(item.rev)}>
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        Reativar
-                      </Button>
                     </div>
+
                   </li>
                 );
               }
               const { rev, statusInfo } = item;
               const waUrl = buildWaUrl(rev.whatsapp);
-              const mapsUrl = buildMapsUrlEndereco(rev);
-              const saldoLabel = rev.temApuracao ? formatarValor(rev.saldoTotal) : 'Pendente apuração';
               return (
                 <li key={`ativa-${rev.nome}`} className="px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-accent/40 transition-colors">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -248,12 +266,6 @@ function ListagemUnificada({
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <StatusRevendedoraBadge status={statusInfo} />
-                    <div className="text-right min-w-[90px]">
-                      <p className="text-[10px] uppercase text-muted-foreground leading-none">Saldo</p>
-                      <p className={cn('text-sm font-semibold', rev.temApuracao && rev.saldoTotal > 0 ? 'text-amber-600' : 'text-emerald-600')}>
-                        {saldoLabel}
-                      </p>
-                    </div>
                   </div>
                   <div className="flex items-center gap-1 flex-wrap">
                     {waUrl ? (
@@ -265,16 +277,12 @@ function ListagemUnificada({
                         <Phone className="h-4 w-4" />
                       </Button>
                     )}
-                    {mapsUrl && (
-                      <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-blue-600 hover:text-blue-700" title="Abrir no Google Maps">
-                        <a href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin className="h-4 w-4" /></a>
-                      </Button>
-                    )}
                     <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(rev.nome)}>
                       <UserIcon className="h-3.5 w-3.5" />
                       Ver Perfil
                     </Button>
                   </div>
+
                   {editandoWhatsApp === rev.nome && (
                     <div className="flex items-center gap-1 w-full sm:w-auto">
                       <Input value={whatsAppTemp} onChange={(e) => setWhatsAppTemp(e.target.value)} placeholder="Ex: 92999998888" className="h-8 text-xs flex-1 sm:w-48" />
