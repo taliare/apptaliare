@@ -246,11 +246,8 @@ function ListagemUnificada({
                         <UserIcon className="h-3.5 w-3.5" />
                         Ver Perfil
                       </Button>
-                      <Button size="sm" className="gap-1" disabled={kitsDisponiveisLen === 0} onClick={() => handleOpenReativar(item.rev)}>
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        Reativar
-                      </Button>
                     </div>
+
                   </li>
                 );
               }
