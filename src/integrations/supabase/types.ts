@@ -1789,36 +1789,134 @@ export type Database = {
       }
       revendedoras: {
         Row: {
+          aprovado_por: string | null
           ativo: boolean
           atualizado_em: string | null
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
+          cpf: string | null
           criado_em: string | null
+          data_aprovacao_juridico: string | null
+          data_nascimento: string | null
+          data_solicitacao_juridico: string | null
+          email: string | null
+          estado: string | null
+          estado_civil: string | null
+          foto_url: string | null
+          genero: string | null
           id: string
+          logradouro: string | null
+          motivo_juridico: string | null
           nome: string
+          numero: string | null
+          observacoes: string | null
           representante_id: string | null
+          rg: string | null
+          status_juridico: string | null
+          telefone_alternativo: string | null
           ultima_atividade: string | null
           whatsapp: string | null
         }
         Insert: {
+          aprovado_por?: string | null
           ativo?: boolean
           atualizado_em?: string | null
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf?: string | null
           criado_em?: string | null
+          data_aprovacao_juridico?: string | null
+          data_nascimento?: string | null
+          data_solicitacao_juridico?: string | null
+          email?: string | null
+          estado?: string | null
+          estado_civil?: string | null
+          foto_url?: string | null
+          genero?: string | null
           id?: string
+          logradouro?: string | null
+          motivo_juridico?: string | null
           nome: string
+          numero?: string | null
+          observacoes?: string | null
           representante_id?: string | null
+          rg?: string | null
+          status_juridico?: string | null
+          telefone_alternativo?: string | null
           ultima_atividade?: string | null
           whatsapp?: string | null
         }
         Update: {
+          aprovado_por?: string | null
           ativo?: boolean
           atualizado_em?: string | null
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
+          complemento?: string | null
+          cpf?: string | null
           criado_em?: string | null
+          data_aprovacao_juridico?: string | null
+          data_nascimento?: string | null
+          data_solicitacao_juridico?: string | null
+          email?: string | null
+          estado?: string | null
+          estado_civil?: string | null
+          foto_url?: string | null
+          genero?: string | null
           id?: string
+          logradouro?: string | null
+          motivo_juridico?: string | null
           nome?: string
+          numero?: string | null
+          observacoes?: string | null
           representante_id?: string | null
+          rg?: string | null
+          status_juridico?: string | null
+          telefone_alternativo?: string | null
           ultima_atividade?: string | null
           whatsapp?: string | null
         }
         Relationships: []
+      }
+      revendedoras_referencias: {
+        Row: {
+          criado_em: string | null
+          id: string
+          nome: string
+          revendedora_id: string
+          telefone: string | null
+          vinculo: string | null
+        }
+        Insert: {
+          criado_em?: string | null
+          id?: string
+          nome: string
+          revendedora_id: string
+          telefone?: string | null
+          vinculo?: string | null
+        }
+        Update: {
+          criado_em?: string | null
+          id?: string
+          nome?: string
+          revendedora_id?: string
+          telefone?: string | null
+          vinculo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revendedoras_referencias_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
+            referencedRelation: "revendedoras"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_menu_permissions: {
         Row: {
