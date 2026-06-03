@@ -130,7 +130,7 @@ export function calcularStatusRevendedora(
   if (temParcial) return getStatusInfo('pagando');
   if (temPendenteFutura) return getStatusInfo('ativa');
   if (temAlguma && todasPagas) return getStatusInfo('quite');
-  return getStatusInfo('sem_kit');
+  return getStatusInfo('inativa');
 }
 
 /** Busca o status atual de uma revendedora pelo nome normalizado (UPPER+TRIM). */
