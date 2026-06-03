@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { Search, UserPlus, X, Check, Loader2 } from 'lucide-react';
+import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 
 interface Revendedora {
   id: string;
@@ -29,27 +28,22 @@ export function RevendedoraSearchSelect({
   const [results, setResults] = useState<Revendedora[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [showCadastro, setShowCadastro] = useState(false);
-  const [novoNome, setNovoNome] = useState('');
-  const [novoWhatsapp, setNovoWhatsapp] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [initialNome, setInitialNome] = useState('');
   const [selected, setSelected] = useState(!!value);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setShowResults(false);
-        setShowCadastro(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Sync external value changes
   useEffect(() => {
     if (!value) {
       setSearchTerm('');
@@ -84,9 +78,8 @@ export function RevendedoraSearchSelect({
   const handleInputChange = (val: string) => {
     setSearchTerm(val);
     setSelected(false);
-    onSelect(''); // Clear selection while typing
+    onSelect('');
     setShowResults(true);
-    setShowCadastro(false);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => searchRevendedoras(val), 300);
@@ -96,7 +89,6 @@ export function RevendedoraSearchSelect({
     setSearchTerm(rev.nome);
     setSelected(true);
     setShowResults(false);
-    setShowCadastro(false);
     onSelect(rev.nome);
   };
 
@@ -108,58 +100,16 @@ export function RevendedoraSearchSelect({
   };
 
   const handleOpenCadastro = () => {
-    setNovoNome(searchTerm);
-    setNovoWhatsapp('');
-    setShowCadastro(true);
+    setInitialNome(searchTerm);
+    setFormOpen(true);
     setShowResults(false);
   };
 
-  const handleSaveNova = async () => {
-    const nomeTrimmed = novoNome.trim();
-    if (!nomeTrimmed) {
-      toast.error('Nome é obrigatório');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // Check for duplicates
-      const { data: existing } = await supabase
-        .from('revendedoras')
-        .select('id, nome')
-        .eq('representante_id', representanteId)
-        .ilike('nome', nomeTrimmed)
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        toast.error(`Já existe uma revendedora "${existing[0].nome}" cadastrada`);
-        setIsSaving(false);
-        return;
-      }
-
-      const { error } = await supabase.from('revendedoras').insert({
-        nome: nomeTrimmed,
-        whatsapp: novoWhatsapp.trim() || null,
-        representante_id: representanteId,
-        ativo: true,
-      });
-
-      if (error) throw error;
-
-      toast.success('Revendedora cadastrada!');
-      setSearchTerm(nomeTrimmed);
-      setSelected(true);
-      setShowCadastro(false);
-      onSelect(nomeTrimmed);
-    } catch (err: any) {
-      if (err?.code === '23505') {
-        toast.error('Revendedora já cadastrada com este nome');
-      } else {
-        toast.error(`Erro ao cadastrar: ${err.message}`);
-      }
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSaved = (_id: string, nome: string) => {
+    setSearchTerm(nome);
+    setSelected(true);
+    setFormOpen(false);
+    onSelect(nome);
   };
 
   return (
@@ -190,7 +140,6 @@ export function RevendedoraSearchSelect({
         </p>
       )}
 
-      {/* Results dropdown */}
       {showResults && !selected && searchTerm.length >= 2 && (
         <div className="absolute z-50 w-full mt-1 bg-popover border rounded-lg shadow-lg max-h-60 overflow-y-auto">
           {isSearching ? (
@@ -221,8 +170,8 @@ export function RevendedoraSearchSelect({
               </button>
             </>
           ) : (
-            <div className="p-3">
-              <p className="text-sm text-muted-foreground mb-2">Nenhuma revendedora encontrada</p>
+            <div className="p-3 space-y-2">
+              <p className="text-sm text-muted-foreground">Nenhuma revendedora encontrada</p>
               <Button
                 type="button"
                 variant="outline"
@@ -230,50 +179,20 @@ export function RevendedoraSearchSelect({
                 onClick={handleOpenCadastro}
                 className="w-full gap-2"
               >
-                <UserPlus className="h-4 w-4" /> Cadastrar Nova Revendedora
+                <UserPlus className="h-4 w-4" />
+                Cadastrar {searchTerm.trim() ? `"${searchTerm.trim()}"` : 'nova revendedora'}
               </Button>
             </div>
           )}
         </div>
       )}
 
-      {/* Inline registration form */}
-      {showCadastro && (
-        <div className="mt-2 p-3 border rounded-lg bg-muted/30 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Nova Revendedora</span>
-            <button type="button" onClick={() => setShowCadastro(false)}>
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
-          </div>
-          <div>
-            <Label className="text-xs">Nome Completo *</Label>
-            <Input
-              value={novoNome}
-              onChange={(e) => setNovoNome(e.target.value)}
-              placeholder="Ex: Maria Silva"
-            />
-          </div>
-          <div>
-            <Label className="text-xs">WhatsApp</Label>
-            <Input
-              value={novoWhatsapp}
-              onChange={(e) => setNovoWhatsapp(e.target.value)}
-              placeholder="Ex: (11) 99999-9999"
-            />
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleSaveNova}
-            disabled={isSaving || !novoNome.trim()}
-            className="w-full"
-          >
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UserPlus className="h-4 w-4 mr-2" />}
-            {isSaving ? 'Salvando...' : 'Cadastrar e Selecionar'}
-          </Button>
-        </div>
-      )}
+      <RevendedoraFormDialog
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        initialNome={initialNome}
+        onSaved={handleSaved}
+      />
     </div>
   );
 }

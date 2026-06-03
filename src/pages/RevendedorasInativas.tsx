@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { UserX, RefreshCw, CalendarIcon, Search, Package, Phone, Pencil, Edit2, Trophy, TrendingUp, Users, Award, Check, X, MessageCircle, MapPin, User as UserIcon, Filter } from 'lucide-react';
+import { UserX, RefreshCw, CalendarIcon, Search, Package, Phone, Pencil, Edit2, Trophy, TrendingUp, Users, Award, Check, X, MessageCircle, MapPin, User as UserIcon, Filter, Plus, UserPlus } from 'lucide-react';
+import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatusRevendedoraBadge } from '@/components/revendedoras/StatusRevendedoraBadge';
 import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
@@ -27,6 +28,9 @@ interface RevendedoraInativa {
   nome: string;
   ultimaVendaData: string;
   ultimaVendaValor: number;
+  revendedora_id: string | null;
+  whatsapp: string | null;
+  foto_url: string | null;
 }
 
 interface RevendedoraAtiva {
@@ -114,7 +118,7 @@ function ListagemUnificada({
   ativas, inativas, loading, searchTerm,
   editandoWhatsApp, whatsAppTemp, setWhatsAppTemp, setEditandoWhatsApp,
   handleEditWhatsApp, handleSaveWhatsApp, setPerfilAberto, handleOpenReativar,
-  kitsDisponiveisLen,
+  kitsDisponiveisLen, onNovaRevendedora,
 }: {
   ativas: RevendedoraAtiva[];
   inativas: RevendedoraInativa[];
@@ -129,6 +133,7 @@ function ListagemUnificada({
   setPerfilAberto: (nome: string | null) => void;
   handleOpenReativar: (rev: RevendedoraInativa) => void;
   kitsDisponiveisLen: number;
+  onNovaRevendedora: () => void;
 }) {
   const [statusFiltro, setStatusFiltro] = useState<StatusChipKey>('todas');
 
@@ -174,16 +179,17 @@ function ListagemUnificada({
             <span className="ml-1 opacity-70">de {itens.length}</span>
           )}
         </p>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter className="h-4 w-4" />
-              Filtrar
-              {statusFiltro !== 'todas' && (
-                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">1</Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" />
+                Filtrar
+                {statusFiltro !== 'todas' && (
+                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">1</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
           <PopoverContent align="end" className="w-56 p-2">
             <div className="flex flex-col gap-1">
               <p className="text-[11px] uppercase text-muted-foreground px-2 py-1">Status</p>
@@ -210,7 +216,12 @@ function ListagemUnificada({
               })}
             </div>
           </PopoverContent>
-        </Popover>
+          </Popover>
+          <Button size="sm" className="gap-2" onClick={onNovaRevendedora}>
+            <Plus className="h-4 w-4" />
+            Nova Revendedora
+          </Button>
+        </div>
       </div>
 
 
@@ -225,10 +236,11 @@ function ListagemUnificada({
           <ul className="divide-y divide-border">
             {itensFiltrados.map((item) => {
               if (item.kind === 'inativa') {
+                const waUrl = buildWaUrl(item.rev.whatsapp);
                 return (
                   <li key={`inativa-${item.nome}`} className="px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-accent/40 transition-colors">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <RevendedoraAvatar path={null} nome={item.nome} />
+                      <RevendedoraAvatar path={item.rev.foto_url} nome={item.nome} />
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate">{item.nome}</p>
                         <p className="text-[11px] text-muted-foreground truncate">
@@ -240,6 +252,11 @@ function ListagemUnificada({
                       <Badge variant="secondary" className="gap-1">💤 Inativa</Badge>
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
+                      {waUrl && (
+                        <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-emerald-600 hover:text-emerald-700" title="Abrir WhatsApp">
+                          <a href={waUrl} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-4 w-4" /></a>
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(item.nome)}>
                         <UserIcon className="h-3.5 w-3.5" />
                         Ver Perfil
@@ -303,6 +320,7 @@ export default function RevendedorasInativas() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [novaRevOpen, setNovaRevOpen] = useState(false);
   const [reativarDialogOpen, setReativarDialogOpen] = useState(false);
   const [selectedRevendedora, setSelectedRevendedora] = useState<RevendedoraInativa | null>(null);
   const [selectedKit, setSelectedKit] = useState('');
@@ -455,11 +473,32 @@ export default function RevendedorasInativas() {
         }
       });
 
-      const inativas: RevendedoraInativa[] = [];
-      ultimaPrestacaoPorRevendedora.forEach((info, nome) => {
-        if (!revendedorasAtivasSet.has(nome)) {
-          inativas.push({ nome, ultimaVendaData: info.data, ultimaVendaValor: info.valor });
-        }
+      const nomesInativas: string[] = [];
+      ultimaPrestacaoPorRevendedora.forEach((_info, nome) => {
+        if (!revendedorasAtivasSet.has(nome)) nomesInativas.push(nome);
+      });
+
+      let cadastroMap = new Map<string, { id: string; whatsapp: string | null; foto_url: string | null }>();
+      if (nomesInativas.length > 0) {
+        const { data: cadastros } = await supabase
+          .from('revendedoras')
+          .select('id, nome, whatsapp, foto_url')
+          .eq('representante_id', user!.id)
+          .in('nome', nomesInativas);
+        cadastroMap = new Map(cadastros?.map((c: any) => [c.nome, { id: c.id, whatsapp: c.whatsapp, foto_url: c.foto_url }]) || []);
+      }
+
+      const inativas: RevendedoraInativa[] = nomesInativas.map((nome) => {
+        const info = ultimaPrestacaoPorRevendedora.get(nome)!;
+        const cad = cadastroMap.get(nome);
+        return {
+          nome,
+          ultimaVendaData: info.data,
+          ultimaVendaValor: info.valor,
+          revendedora_id: cad?.id ?? null,
+          whatsapp: cad?.whatsapp ?? null,
+          foto_url: cad?.foto_url ?? null,
+        };
       });
 
       return inativas.sort((a, b) => new Date(b.ultimaVendaData).getTime() - new Date(a.ultimaVendaData).getTime());
@@ -704,6 +743,7 @@ export default function RevendedorasInativas() {
             setPerfilAberto={setPerfilAberto}
             handleOpenReativar={handleOpenReativar}
             kitsDisponiveisLen={kitsDisponiveis.length}
+            onNovaRevendedora={() => setNovaRevOpen(true)}
           />
         </TabsContent>
 
@@ -962,6 +1002,16 @@ export default function RevendedorasInativas() {
           )}
         </DialogContent>
       </Dialog>
+
+      <RevendedoraFormDialog
+        open={novaRevOpen}
+        onClose={() => setNovaRevOpen(false)}
+        onSaved={() => {
+          setNovaRevOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['minhas-revendedoras-ativas'] });
+          queryClient.invalidateQueries({ queryKey: ['revendedoras-inativas'] });
+        }}
+      />
     </div>
   );
 }
