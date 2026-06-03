@@ -28,10 +28,8 @@ export function RevendedoraSearchSelect({
   const [results, setResults] = useState<Revendedora[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [showCadastro, setShowCadastro] = useState(false);
-  const [novoNome, setNovoNome] = useState('');
-  const [novoWhatsapp, setNovoWhatsapp] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [initialNome, setInitialNome] = useState('');
   const [selected, setSelected] = useState(!!value);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
