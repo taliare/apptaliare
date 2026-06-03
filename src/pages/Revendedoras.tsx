@@ -185,7 +185,7 @@ export default function Revendedoras() {
     { value: 'inadimplente', label: 'Inadimplente', emoji: '🔴' },
     { value: 'juridico_solicitado', label: 'Sol. Jurídico', emoji: '⚖️' },
     { value: 'juridico_aprovado', label: 'Jurídico', emoji: '⛔' },
-    { value: 'sem_kit', label: 'Sem Kit', emoji: '⚪' },
+    { value: 'inativa', label: 'Inativa', emoji: '💤' },
   ];
 
   return (

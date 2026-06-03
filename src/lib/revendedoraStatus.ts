@@ -8,7 +8,7 @@ export type RevendedoraStatusKey =
   | 'pagando'
   | 'ativa'
   | 'quite'
-  | 'sem_kit';
+  | 'inativa';
 
 export interface RevendedoraStatusInfo {
   key: RevendedoraStatusKey;
@@ -68,9 +68,9 @@ const STATUS_MAP: Record<RevendedoraStatusKey, Omit<RevendedoraStatusInfo, 'key'
     className: 'bg-teal-600 text-white hover:bg-teal-600',
     blocked: false,
   },
-  sem_kit: {
-    label: 'Sem Kit',
-    emoji: '⚪',
+  inativa: {
+    label: 'Inativa',
+    emoji: '💤',
     className: 'bg-muted text-muted-foreground hover:bg-muted',
     blocked: false,
   },
@@ -130,7 +130,7 @@ export function calcularStatusRevendedora(
   if (temParcial) return getStatusInfo('pagando');
   if (temPendenteFutura) return getStatusInfo('ativa');
   if (temAlguma && todasPagas) return getStatusInfo('quite');
-  return getStatusInfo('sem_kit');
+  return getStatusInfo('inativa');
 }
 
 /** Busca o status atual de uma revendedora pelo nome normalizado (UPPER+TRIM). */
