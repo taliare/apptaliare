@@ -338,13 +338,13 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
           </Card>
         </div>
 
-        {revendedoraInfo?.id && (
-          <RevendedoraFormDialog
-            open={editOpen}
-            onClose={() => setEditOpen(false)}
-            revendedoraId={revendedoraInfo.id}
-          />
-        )}
+        <RevendedoraFormDialog
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          revendedoraId={revendedoraInfo?.id ?? null}
+          initialNome={revendedoraInfo?.id ? undefined : nomeRevendedora}
+        />
+
 
         <AlertDialog open={solicJuridicoOpen} onOpenChange={setSolicJuridicoOpen}>
           <AlertDialogContent>
