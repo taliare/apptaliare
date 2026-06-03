@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { UserX, RefreshCw, CalendarIcon, Search, Package, Phone, Pencil, Edit2, Trophy, TrendingUp, Users, Award, Check, X, MessageCircle, MapPin, User as UserIcon, Filter, Plus, UserPlus } from 'lucide-react';
+import { CalendarIcon, Search, Package, Phone, Trophy, Users, X, MessageCircle, User as UserIcon, Filter, Plus } from 'lucide-react';
 import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 import { PerfilRevendedoraDialog } from '@/components/revendedoras/PerfilRevendedoraDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
