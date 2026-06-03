@@ -459,11 +459,32 @@ export default function RevendedorasInativas() {
         }
       });
 
-      const inativas: RevendedoraInativa[] = [];
-      ultimaPrestacaoPorRevendedora.forEach((info, nome) => {
-        if (!revendedorasAtivasSet.has(nome)) {
-          inativas.push({ nome, ultimaVendaData: info.data, ultimaVendaValor: info.valor });
-        }
+      const nomesInativas: string[] = [];
+      ultimaPrestacaoPorRevendedora.forEach((_info, nome) => {
+        if (!revendedorasAtivasSet.has(nome)) nomesInativas.push(nome);
+      });
+
+      let cadastroMap = new Map<string, { id: string; whatsapp: string | null; foto_url: string | null }>();
+      if (nomesInativas.length > 0) {
+        const { data: cadastros } = await supabase
+          .from('revendedoras')
+          .select('id, nome, whatsapp, foto_url')
+          .eq('representante_id', user!.id)
+          .in('nome', nomesInativas);
+        cadastroMap = new Map(cadastros?.map((c: any) => [c.nome, { id: c.id, whatsapp: c.whatsapp, foto_url: c.foto_url }]) || []);
+      }
+
+      const inativas: RevendedoraInativa[] = nomesInativas.map((nome) => {
+        const info = ultimaPrestacaoPorRevendedora.get(nome)!;
+        const cad = cadastroMap.get(nome);
+        return {
+          nome,
+          ultimaVendaData: info.data,
+          ultimaVendaValor: info.valor,
+          revendedora_id: cad?.id ?? null,
+          whatsapp: cad?.whatsapp ?? null,
+          foto_url: cad?.foto_url ?? null,
+        };
       });
 
       return inativas.sort((a, b) => new Date(b.ultimaVendaData).getTime() - new Date(a.ultimaVendaData).getTime());
