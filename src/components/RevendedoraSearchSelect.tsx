@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { Search, UserPlus, X, Check, Loader2 } from 'lucide-react';
+import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 
 interface Revendedora {
   id: string;
