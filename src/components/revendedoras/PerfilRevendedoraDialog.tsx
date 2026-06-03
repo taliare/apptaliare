@@ -69,13 +69,24 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
   const { data: revendedoraInfo } = useQuery({
     queryKey: ['revendedora-info', nomeRevendedora],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const nomeNorm = nomeRevendedora.trim().toUpperCase();
+      // Tenta match exato normalizado (UPPER+TRIM, como o registro centralizado salva)
+      const { data: exato, error: e1 } = await supabase
         .from('revendedoras')
         .select('*')
-        .eq('nome', nomeRevendedora)
+        .eq('nome', nomeNorm)
         .maybeSingle();
-      if (error) throw error;
-      return data;
+      if (e1 && e1.code !== 'PGRST116') throw e1;
+      if (exato) return exato;
+      // Fallback: busca case-insensitive (cadastros antigos podem ter casing diferente)
+      const { data: ilike, error: e2 } = await supabase
+        .from('revendedoras')
+        .select('*')
+        .ilike('nome', nomeRevendedora.trim())
+        .limit(1)
+        .maybeSingle();
+      if (e2 && e2.code !== 'PGRST116') throw e2;
+      return ilike ?? null;
     },
   });
 
