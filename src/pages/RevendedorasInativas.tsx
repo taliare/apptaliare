@@ -179,16 +179,17 @@ function ListagemUnificada({
             <span className="ml-1 opacity-70">de {itens.length}</span>
           )}
         </p>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter className="h-4 w-4" />
-              Filtrar
-              {statusFiltro !== 'todas' && (
-                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">1</Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" />
+                Filtrar
+                {statusFiltro !== 'todas' && (
+                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">1</Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
           <PopoverContent align="end" className="w-56 p-2">
             <div className="flex flex-col gap-1">
               <p className="text-[11px] uppercase text-muted-foreground px-2 py-1">Status</p>
