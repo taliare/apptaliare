@@ -27,6 +27,9 @@ interface RevendedoraInativa {
   nome: string;
   ultimaVendaData: string;
   ultimaVendaValor: number;
+  revendedora_id: string | null;
+  whatsapp: string | null;
+  foto_url: string | null;
 }
 
 interface RevendedoraAtiva {
