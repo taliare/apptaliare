@@ -229,10 +229,11 @@ function ListagemUnificada({
           <ul className="divide-y divide-border">
             {itensFiltrados.map((item) => {
               if (item.kind === 'inativa') {
+                const waUrl = buildWaUrl(item.rev.whatsapp);
                 return (
                   <li key={`inativa-${item.nome}`} className="px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-accent/40 transition-colors">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <RevendedoraAvatar path={null} nome={item.nome} />
+                      <RevendedoraAvatar path={item.rev.foto_url} nome={item.nome} />
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate">{item.nome}</p>
                         <p className="text-[11px] text-muted-foreground truncate">
@@ -244,6 +245,11 @@ function ListagemUnificada({
                       <Badge variant="secondary" className="gap-1">💤 Inativa</Badge>
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
+                      {waUrl && (
+                        <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-emerald-600 hover:text-emerald-700" title="Abrir WhatsApp">
+                          <a href={waUrl} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-4 w-4" /></a>
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(item.nome)}>
                         <UserIcon className="h-3.5 w-3.5" />
                         Ver Perfil
