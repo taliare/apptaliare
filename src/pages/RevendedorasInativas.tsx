@@ -29,9 +29,31 @@ interface RevendedoraAtiva {
   nome: string;
   whatsapp: string | null;
   revendedora_id: string | null;
+  foto_url: string | null;
+  status_juridico: string | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
   cobrancas: any[];
   saldoTotal: number;
   temApuracao: boolean;
+}
+
+function buildWaUrl(numero: string | null): string | null {
+  if (!numero) return null;
+  const d = numero.replace(/\D/g, '');
+  if (!d) return null;
+  return `https://wa.me/${d.startsWith('55') ? d : '55' + d}`;
+}
+
+function buildMapsUrlEndereco(r: { cep: string | null; logradouro: string | null; numero: string | null; bairro: string | null; cidade: string | null; estado: string | null }): string | null {
+  if (!r.cep && !r.logradouro) return null;
+  const parts = [r.logradouro, r.numero, r.bairro, r.cidade, r.estado].filter(Boolean).join(' ');
+  const q = parts || r.cep || '';
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 }
 
 function calcularNivel(ticketMedio: number) {
