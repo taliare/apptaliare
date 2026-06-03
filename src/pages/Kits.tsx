@@ -150,6 +150,15 @@ export default function Kits() {
       dataVencimento: string;
       acrescimos: Array<{ valor: number; descricao: string }>;
     }) => {
+      // Bloqueio por status (Inadimplente / Jurídico)
+      const { fetchStatusRevendedoraPorNome } = await import('@/lib/revendedoraStatus');
+      const statusInfo = await fetchStatusRevendedoraPorNome(data.revendedora);
+      if (statusInfo.blocked) {
+        throw new Error(
+          `Entrega bloqueada — revendedora com status "${statusInfo.label}". ${statusInfo.blockReason ?? ''}`
+        );
+      }
+
       // Usar função RPC atômica que faz tudo em uma única transação
       const { data: result, error } = await supabase
         .rpc('entregar_kit_para_revendedora', {
@@ -160,6 +169,7 @@ export default function Kits() {
           p_vendedora_id: data.vendedoraId || null,
           p_vendedora_nome: data.vendedoraNome || null
         });
+
 
       if (error) throw error;
       
