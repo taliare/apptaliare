@@ -2178,6 +2178,12 @@ export type Database = {
         Returns: Json
       }
       unaccent: { Args: { "": string }; Returns: string }
+      verificar_bloqueio_juridico: {
+        Args: { p_cpf?: string; p_nome: string }
+        Returns: {
+          blocked: boolean
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "representante" | "producao" | "equipe_interna"
