@@ -644,6 +644,13 @@ export default function RevendedorasInativas() {
       const kit = kitsDisponiveis.find(k => k.id === selectedKit);
       if (!kit) throw new Error('Kit não encontrado');
 
+      const { fetchStatusRevendedoraPorNome } = await import('@/lib/revendedoraStatus');
+      const statusInfo = await fetchStatusRevendedoraPorNome(selectedRevendedora.nome);
+      if (statusInfo.blocked) {
+        throw new Error('⚠️ Revendedora com pendência jurídica — novos pedidos bloqueados. Entre em contato com o jurídico para mais informações.');
+      }
+
+
       const { error: cobrancaError } = await supabase.from('cobrancas_agendadas').insert({
         representante_id: user!.id,
         revendedora: selectedRevendedora.nome,
