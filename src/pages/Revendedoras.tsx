@@ -2,25 +2,22 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Search, Phone, Edit2, Upload, Plus } from 'lucide-react';
+import { Users, Search, Upload, Plus, MessageCircle, MapPin, User as UserIcon } from 'lucide-react';
 import RankingRevendedoras from '@/components/revendedoras/RankingRevendedoras';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
-import { toast } from 'sonner';
 import { ImportWhatsAppDialog } from '@/components/revendedoras/ImportWhatsAppDialog';
 import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 import { StatusRevendedoraBadge } from '@/components/revendedoras/StatusRevendedoraBadge';
-import { calcularStatusRevendedora, getStatusInfo, type RevendedoraStatusKey } from '@/lib/revendedoraStatus';
+import { PerfilRevendedoraDialog } from '@/components/revendedoras/PerfilRevendedoraDialog';
+import { calcularStatusRevendedora, type RevendedoraStatusKey } from '@/lib/revendedoraStatus';
 import { useFotoUrl } from '@/hooks/useFotoUrl';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatarValor, cn } from '@/lib/utils';
 
 interface Revendedora {
   id: string;
@@ -31,6 +28,12 @@ interface Revendedora {
   ultima_atividade: string | null;
   foto_url: string | null;
   status_juridico: string | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
   profiles?: { nome: string } | null;
 }
 
@@ -39,15 +42,31 @@ interface Profile {
   nome: string;
 }
 
-function RevendedoraAvatar({ path, nome }: { path: string | null; nome: string }) {
+function RevendedoraAvatar({ path, nome, size = 'sm' }: { path: string | null; nome: string; size?: 'sm' | 'md' }) {
   const url = useFotoUrl(path);
   const initials = nome.split(' ').slice(0, 2).map((n) => n[0]?.toUpperCase() ?? '').join('');
+  const cls = size === 'md' ? 'h-11 w-11' : 'h-9 w-9';
   return (
-    <Avatar className="h-9 w-9">
+    <Avatar className={cls}>
       {url && <AvatarImage src={url} alt={nome} />}
       <AvatarFallback className="text-xs">{initials || '?'}</AvatarFallback>
     </Avatar>
   );
+}
+
+function buildMapsUrl(r: Revendedora): string | null {
+  if (!r.cep && !r.logradouro) return null;
+  const parts = [r.logradouro, r.numero, r.bairro, r.cidade, r.estado].filter(Boolean).join(' ');
+  const query = parts || r.cep || '';
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function buildWhatsappUrl(numero: string | null): string | null {
+  if (!numero) return null;
+  const digits = numero.replace(/\D/g, '');
+  if (!digits) return null;
+  const full = digits.startsWith('55') ? digits : `55${digits}`;
+  return `https://wa.me/${full}`;
 }
 
 export default function Revendedoras() {
@@ -59,6 +78,7 @@ export default function Revendedoras() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [formEditId, setFormEditId] = useState<string | null>(null);
+  const [perfilNome, setPerfilNome] = useState<string | null>(null);
 
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes-lista'],
@@ -91,37 +111,40 @@ export default function Revendedoras() {
     },
   });
 
-  // Carrega cobranças para calcular status (filtra pelos nomes visíveis)
   const nomesNorm = useMemo(
     () => revendedoras.map((r) => r.nome.trim().toUpperCase()),
     [revendedoras]
   );
 
-  const { data: cobrancasMap = new Map<string, { status: string | null; data_agendada: string | null }[]>() } = useQuery({
+  const { data: cobrancasMap = new Map<string, any[]>() } = useQuery({
     queryKey: ['revendedoras-cobrancas-status', nomesNorm],
     enabled: nomesNorm.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
-        .select('revendedora, status, data_agendada')
+        .select('revendedora, status, data_agendada, valor_previsto, valor_pago_acumulado, valor_adiantado')
         .in('revendedora', nomesNorm);
       if (error) throw error;
-      const map = new Map<string, { status: string | null; data_agendada: string | null }[]>();
+      const map = new Map<string, any[]>();
       (data ?? []).forEach((c: any) => {
         const k = (c.revendedora ?? '').trim().toUpperCase();
         if (!map.has(k)) map.set(k, []);
-        map.get(k)!.push({ status: c.status, data_agendada: c.data_agendada });
+        map.get(k)!.push(c);
       });
       return map;
     },
   });
 
-  // Anexa o status calculado
   const revendedorasComStatus = useMemo(() => {
     return revendedoras.map((r) => {
       const cobs = cobrancasMap.get(r.nome.trim().toUpperCase()) ?? [];
       const status = calcularStatusRevendedora(r, cobs);
-      return { ...r, statusInfo: status };
+      const saldo = cobs.reduce((sum, c) => {
+        if (c.status === 'pago') return sum;
+        const restante = Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0) - Number(c.valor_adiantado || 0);
+        return sum + Math.max(0, restante);
+      }, 0);
+      return { ...r, statusInfo: status, saldoAberto: saldo };
     });
   }, [revendedoras, cobrancasMap]);
 
@@ -140,7 +163,6 @@ export default function Revendedoras() {
     return list;
   }, [revendedorasComStatus, statusFiltro, searchTerm]);
 
-  // Contagens
   const contagens = useMemo(() => {
     const c: Partial<Record<RevendedoraStatusKey, number>> = {};
     revendedorasComStatus.forEach((r) => {
@@ -153,21 +175,17 @@ export default function Revendedoras() {
     setFormEditId(null);
     setFormOpen(true);
   };
-  const openEdit = (id: string) => {
-    setFormEditId(id);
-    setFormOpen(true);
-  };
 
-  const statusOptions: { value: 'todos' | RevendedoraStatusKey; label: string }[] = [
-    { value: 'todos', label: 'Todos status' },
-    { value: 'ativa', label: '🟢 Ativa' },
-    { value: 'pagando', label: '🔵 Pagando' },
-    { value: 'quite', label: '✅ Quite' },
-    { value: 'em_atraso', label: '⚠️ Em Atraso' },
-    { value: 'inadimplente', label: '🔴 Inadimplente' },
-    { value: 'juridico_solicitado', label: '⚖️ Sol. Jurídico' },
-    { value: 'juridico_aprovado', label: '⛔ Jurídico' },
-    { value: 'sem_kit', label: '⚪ Sem Kit' },
+  const statusChips: { value: 'todos' | RevendedoraStatusKey; label: string; emoji?: string }[] = [
+    { value: 'todos', label: 'Todas' },
+    { value: 'ativa', label: 'Ativa', emoji: '🟢' },
+    { value: 'pagando', label: 'Pagando', emoji: '🔵' },
+    { value: 'quite', label: 'Quite', emoji: '✅' },
+    { value: 'em_atraso', label: 'Em Atraso', emoji: '⚠️' },
+    { value: 'inadimplente', label: 'Inadimplente', emoji: '🔴' },
+    { value: 'juridico_solicitado', label: 'Sol. Jurídico', emoji: '⚖️' },
+    { value: 'juridico_aprovado', label: 'Jurídico', emoji: '⛔' },
+    { value: 'sem_kit', label: 'Sem Kit', emoji: '⚪' },
   ];
 
   return (
@@ -190,7 +208,7 @@ export default function Revendedoras() {
         </TabsList>
 
         <TabsContent value="listagem">
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="flex justify-end">
               <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
                 <Upload className="h-4 w-4" />
@@ -198,67 +216,70 @@ export default function Revendedoras() {
               </Button>
             </div>
 
-            {/* Filtros */}
+            {/* Filtros: busca + representante */}
             <Card>
-              <CardContent className="py-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar por nome, WhatsApp ou representante..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
+              <CardContent className="py-4 space-y-3">
+                <div className="flex flex-col md:flex-row gap-3">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nome, WhatsApp ou representante..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Select value={statusFiltro} onValueChange={(v) => setStatusFiltro(v as typeof statusFiltro)}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={representanteFiltro} onValueChange={setRepresentanteFiltro}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Representante" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="todos">Todos</SelectItem>
-                        {representantes.map((rep) => (
-                          <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select value={representanteFiltro} onValueChange={setRepresentanteFiltro}>
+                    <SelectTrigger className="w-full md:w-[200px]">
+                      <SelectValue placeholder="Representante" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos representantes</SelectItem>
+                      {representantes.map((rep) => (
+                        <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Chips de status */}
+                <div className="flex flex-wrap gap-2">
+                  {statusChips.map((chip) => {
+                    const active = statusFiltro === chip.value;
+                    const count = chip.value === 'todos'
+                      ? revendedorasComStatus.length
+                      : (contagens[chip.value as RevendedoraStatusKey] ?? 0);
+                    return (
+                      <button
+                        key={chip.value}
+                        type="button"
+                        onClick={() => setStatusFiltro(chip.value)}
+                        className={cn(
+                          'px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
+                          active
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                            : 'bg-background text-foreground border-border hover:bg-accent'
+                        )}
+                      >
+                        {chip.emoji && <span className="mr-1">{chip.emoji}</span>}
+                        {chip.label}
+                        <span className={cn('ml-1.5 opacity-70', active && 'opacity-90')}>({count})</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Resumo */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-              <Card><CardContent className="py-3 text-center"><p className="text-2xl font-bold">{revendedorasFiltradas.length}</p><p className="text-xs text-muted-foreground">Exibidas</p></CardContent></Card>
-              <Card><CardContent className="py-3 text-center"><p className="text-2xl font-bold text-emerald-600">{contagens.ativa ?? 0}</p><p className="text-xs text-muted-foreground">🟢 Ativas</p></CardContent></Card>
-              <Card><CardContent className="py-3 text-center"><p className="text-2xl font-bold text-blue-600">{contagens.pagando ?? 0}</p><p className="text-xs text-muted-foreground">🔵 Pagando</p></CardContent></Card>
-              <Card><CardContent className="py-3 text-center"><p className="text-2xl font-bold text-amber-600">{contagens.em_atraso ?? 0}</p><p className="text-xs text-muted-foreground">⚠️ Em Atraso</p></CardContent></Card>
-              <Card><CardContent className="py-3 text-center"><p className="text-2xl font-bold text-red-600">{contagens.inadimplente ?? 0}</p><p className="text-xs text-muted-foreground">🔴 Inadimplente</p></CardContent></Card>
-              <Card><CardContent className="py-3 text-center"><p className="text-2xl font-bold text-purple-600">{(contagens.juridico_solicitado ?? 0) + (contagens.juridico_aprovado ?? 0)}</p><p className="text-xs text-muted-foreground">⚖️ Jurídico</p></CardContent></Card>
-            </div>
-
-            {/* Tabela */}
+            {/* Lista */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
                   <Users className="h-5 w-5" />
-                  Revendedoras Cadastradas
+                  {revendedorasFiltradas.length} revendedora{revendedorasFiltradas.length !== 1 ? 's' : ''}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-0 sm:px-6">
                 {isLoading ? (
                   <div className="text-center py-8 text-muted-foreground">Carregando...</div>
                 ) : revendedorasFiltradas.length === 0 ? (
@@ -266,56 +287,82 @@ export default function Revendedoras() {
                     {searchTerm ? 'Nenhuma revendedora encontrada' : 'Nenhuma revendedora cadastrada'}
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Revendedora</TableHead>
-                          <TableHead>Representante</TableHead>
-                          <TableHead>WhatsApp</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Última Atividade</TableHead>
-                          <TableHead className="w-[100px]">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {revendedorasFiltradas.map((revendedora) => (
-                          <TableRow key={revendedora.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                <RevendedoraAvatar path={revendedora.foto_url} nome={revendedora.nome} />
-                                <span className="font-medium">{revendedora.nome}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>{revendedora.profiles?.nome || '-'}</TableCell>
-                            <TableCell>
-                              {revendedora.whatsapp ? (
-                                <div className="flex items-center gap-1">
-                                  <Phone className="h-3 w-3 text-muted-foreground" />
-                                  {revendedora.whatsapp}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">(vazio)</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <StatusRevendedoraBadge status={revendedora.statusInfo} />
-                            </TableCell>
-                            <TableCell>
-                              {revendedora.ultima_atividade
-                                ? format(new Date(revendedora.ultima_atividade + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })
-                                : '-'}
-                            </TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="sm" onClick={() => openEdit(revendedora.id)}>
-                                <Edit2 className="h-4 w-4" />
+                  <ul className="divide-y divide-border">
+                    {revendedorasFiltradas.map((rev) => {
+                      const mapsUrl = buildMapsUrl(rev);
+                      const waUrl = buildWhatsappUrl(rev.whatsapp);
+                      return (
+                        <li
+                          key={rev.id}
+                          className="px-3 sm:px-2 py-3 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-accent/40 transition-colors"
+                        >
+                          {/* Foto + nome + rep */}
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <RevendedoraAvatar path={rev.foto_url} nome={rev.nome} size="md" />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">{rev.nome}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {rev.profiles?.nome || 'Sem representante'}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Status + saldo */}
+                          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                            <StatusRevendedoraBadge status={rev.statusInfo} />
+                            <div className="text-right min-w-[90px]">
+                              <p className="text-[10px] uppercase text-muted-foreground leading-none">Saldo</p>
+                              <p className={cn(
+                                'text-sm font-semibold',
+                                rev.saldoAberto > 0 ? 'text-amber-600' : 'text-emerald-600'
+                              )}>
+                                {formatarValor(rev.saldoAberto)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Ações */}
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {waUrl && (
+                              <Button
+                                asChild
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 text-emerald-600 hover:text-emerald-700"
+                                title="Abrir WhatsApp"
+                              >
+                                <a href={waUrl} target="_blank" rel="noopener noreferrer">
+                                  <MessageCircle className="h-4 w-4" />
+                                </a>
                               </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                            )}
+                            {mapsUrl && (
+                              <Button
+                                asChild
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 text-blue-600 hover:text-blue-700"
+                                title="Abrir no Google Maps"
+                              >
+                                <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                                  <MapPin className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => setPerfilNome(rev.nome)}
+                            >
+                              <UserIcon className="h-3.5 w-3.5" />
+                              Ver Perfil
+                            </Button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
               </CardContent>
             </Card>
@@ -342,6 +389,14 @@ export default function Revendedoras() {
         onClose={() => setFormOpen(false)}
         revendedoraId={formEditId}
       />
+
+      {perfilNome && (
+        <PerfilRevendedoraDialog
+          nomeRevendedora={perfilNome}
+          representantes={representantes}
+          onClose={() => setPerfilNome(null)}
+        />
+      )}
     </div>
   );
 }
