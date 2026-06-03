@@ -183,6 +183,7 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
       setObservacoes('');
       setReferencias([]);
     }
+    setBloqueioJuridico(false);
   }, [rev, open, revendedoraId, initialNome]);
 
   useEffect(() => {
