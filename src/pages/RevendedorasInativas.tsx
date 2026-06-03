@@ -253,8 +253,6 @@ function ListagemUnificada({
               }
               const { rev, statusInfo } = item;
               const waUrl = buildWaUrl(rev.whatsapp);
-              const mapsUrl = buildMapsUrlEndereco(rev);
-              const saldoLabel = rev.temApuracao ? formatarValor(rev.saldoTotal) : 'Pendente apuração';
               return (
                 <li key={`ativa-${rev.nome}`} className="px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-3 hover:bg-accent/40 transition-colors">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -268,12 +266,6 @@ function ListagemUnificada({
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <StatusRevendedoraBadge status={statusInfo} />
-                    <div className="text-right min-w-[90px]">
-                      <p className="text-[10px] uppercase text-muted-foreground leading-none">Saldo</p>
-                      <p className={cn('text-sm font-semibold', rev.temApuracao && rev.saldoTotal > 0 ? 'text-amber-600' : 'text-emerald-600')}>
-                        {saldoLabel}
-                      </p>
-                    </div>
                   </div>
                   <div className="flex items-center gap-1 flex-wrap">
                     {waUrl ? (
@@ -285,16 +277,12 @@ function ListagemUnificada({
                         <Phone className="h-4 w-4" />
                       </Button>
                     )}
-                    {mapsUrl && (
-                      <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-blue-600 hover:text-blue-700" title="Abrir no Google Maps">
-                        <a href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin className="h-4 w-4" /></a>
-                      </Button>
-                    )}
                     <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(rev.nome)}>
                       <UserIcon className="h-3.5 w-3.5" />
                       Ver Perfil
                     </Button>
                   </div>
+
                   {editandoWhatsApp === rev.nome && (
                     <div className="flex items-center gap-1 w-full sm:w-auto">
                       <Input value={whatsAppTemp} onChange={(e) => setWhatsAppTemp(e.target.value)} placeholder="Ex: 92999998888" className="h-8 text-xs flex-1 sm:w-48" />
