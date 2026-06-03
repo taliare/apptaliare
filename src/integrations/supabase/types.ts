@@ -509,6 +509,30 @@ export type Database = {
           },
         ]
       }
+      juridico_bloqueados: {
+        Row: {
+          cpf: string | null
+          criado_em: string | null
+          id: string
+          nome_norm: string
+          origem: string | null
+        }
+        Insert: {
+          cpf?: string | null
+          criado_em?: string | null
+          id?: string
+          nome_norm: string
+          origem?: string | null
+        }
+        Update: {
+          cpf?: string | null
+          criado_em?: string | null
+          id?: string
+          nome_norm?: string
+          origem?: string | null
+        }
+        Relationships: []
+      }
       kit_adicionais_itens: {
         Row: {
           codigo_barras: string | null
@@ -2153,6 +2177,7 @@ export type Database = {
         Args: { p_ciclo_id: string }
         Returns: Json
       }
+      unaccent: { Args: { "": string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "representante" | "producao" | "equipe_interna"
