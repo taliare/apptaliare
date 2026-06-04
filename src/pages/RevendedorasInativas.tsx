@@ -490,14 +490,15 @@ export default function RevendedorasInativas() {
         const { data: cadastros } = await supabase
           .from('revendedoras')
           .select('id, nome, whatsapp, foto_url')
-          .eq('representante_id', user!.id)
-          .in('nome', nomesInativas);
-        cadastroMap = new Map(cadastros?.map((c: any) => [c.nome, { id: c.id, whatsapp: c.whatsapp, foto_url: c.foto_url }]) || []);
+          .eq('representante_id', user!.id);
+        cadastroMap = new Map(
+          cadastros?.map((c: any) => [c.nome.trim().toUpperCase(), { id: c.id, whatsapp: c.whatsapp, foto_url: c.foto_url }]) || []
+        );
       }
 
       const inativas: RevendedoraInativa[] = nomesInativas.map((nome) => {
         const info = ultimaPrestacaoPorRevendedora.get(nome)!;
-        const cad = cadastroMap.get(nome);
+        const cad = cadastroMap.get(nome.trim().toUpperCase());
         return {
           nome,
           ultimaVendaData: info.data,
