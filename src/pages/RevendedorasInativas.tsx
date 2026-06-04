@@ -374,9 +374,8 @@ export default function RevendedorasInativas() {
         const { data: cadastros } = await supabase
           .from('revendedoras')
           .select('id, nome, whatsapp, ativo, foto_url, status_juridico, cep, logradouro, numero, bairro, cidade, estado')
-          .eq('representante_id', user!.id)
-          .in('nome', nomes);
-        cadastroMap = new Map(cadastros?.map(c => [c.nome.toUpperCase(), c]) || []);
+          .eq('representante_id', user!.id);
+        cadastroMap = new Map(cadastros?.map(c => [c.nome.trim().toUpperCase(), c]) || []);
       }
 
       // Buscar prestações APENAS das cobranças ativas
