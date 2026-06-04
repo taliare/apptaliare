@@ -19,7 +19,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   TrendingUp, TrendingDown, Minus, DollarSign, Target,
   Receipt, Repeat, Wallet, Percent, ChevronDown, ChevronRight,
-  BarChart3,
+  BarChart3, Boxes, Clock, RotateCcw, AlertTriangle, Scale, Hourglass,
+  Activity,
 } from "lucide-react";
 
 // ─── Helpers ───────────────────────────────────
