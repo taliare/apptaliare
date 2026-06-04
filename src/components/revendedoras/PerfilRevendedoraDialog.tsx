@@ -278,11 +278,41 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
           {/* Dados cadastrais */}
           <Card>
             <CardContent className="py-4 space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="text-sm font-semibold text-primary uppercase tracking-wide">Dados Cadastrais</p>
-                <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)} className="gap-1 h-7">
-                  <Edit2 className="h-3.5 w-3.5" /> Editar
-                </Button>
+                <div className="flex gap-1">
+                  {(() => {
+                    const parts = [
+                      [revendedoraInfo?.logradouro, revendedoraInfo?.numero].filter(Boolean).join(', '),
+                      revendedoraInfo?.bairro,
+                      revendedoraInfo?.cidade,
+                      revendedoraInfo?.estado,
+                      revendedoraInfo?.cep,
+                    ].filter(Boolean);
+                    if (parts.length === 0) return null;
+                    const query = encodeURIComponent(parts.join(', ') + ', Brasil');
+                    return (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        asChild
+                        className="gap-1 h-7"
+                        title="Abrir no Google Maps"
+                      >
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${query}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <MapPin className="h-3.5 w-3.5" /> Ver localização
+                        </a>
+                      </Button>
+                    );
+                  })()}
+                  <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)} className="gap-1 h-7">
+                    <Edit2 className="h-3.5 w-3.5" /> Editar
+                  </Button>
+                </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
                 <div><span className="text-muted-foreground">CPF:</span> {fmtField(revendedoraInfo?.cpf)}</div>
