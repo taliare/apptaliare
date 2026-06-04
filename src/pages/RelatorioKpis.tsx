@@ -21,12 +21,14 @@ import {
   Receipt, Repeat, Wallet, Percent, ChevronDown, ChevronRight,
   BarChart3, Boxes, Clock, RotateCcw, AlertTriangle, Scale, Hourglass,
   Activity, Users, UserPlus, UserMinus, Trophy, BarChartHorizontal, Briefcase,
+  LineChart as LineChartIcon, Sparkles, Bell, UserX, Heart,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, ReferenceLine, Tooltip as RTooltip,
-  ResponsiveContainer, Cell,
+  ResponsiveContainer, Cell, LineChart, Line, Legend, CartesianGrid,
 } from "recharts";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 // ─── Helpers ───────────────────────────────────
 const fmt = (v: number) =>
@@ -202,8 +204,118 @@ async function fetchProfilesTodos() {
   return (data ?? []) as ProfileRow[];
 }
 
-// Cobranças do mês anterior ao anterior (para perdidasPrev = comparativo)
-// já temos cobrPrev no escopo principal; pessoas usa cobrAtual+cobrPrev existentes.
+// ─── CRESCIMENTO / ALERTAS fetchers ────────────
+interface MesTrend {
+  anoMes: string;
+  label: string;
+  receita: number;
+  kitsCampo: number;
+  aproveit: number;
+  novas: number;
+}
+
+const MESES_CURTOS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+function buildLastMeses(ano: string, mes: string, n: number) {
+  const out: { ano: string; mes: string; inicio: string; fim: string; anoMes: string; label: string }[] = [];
+  let y = Number(ano);
+  let m = Number(mes);
+  for (let i = 0; i < n; i++) {
+    const ymes = String(m).padStart(2, "0");
+    const yano = String(y);
+    out.unshift({
+      ano: yano,
+      mes: ymes,
+      inicio: `${yano}-${ymes}-01`,
+      fim: `${yano}-${ymes}-${String(ultimoDia(yano, ymes)).padStart(2, "0")}`,
+      anoMes: `${yano}-${ymes}`,
+      label: `${MESES_CURTOS[m - 1]}/${yano.slice(2)}`,
+    });
+    m -= 1;
+    if (m === 0) { m = 12; y -= 1; }
+  }
+  return out;
+}
+
+async function fetchMesTrend(m: { inicio: string; fim: string; anoMes: string; label: string }): Promise<MesTrend> {
+  const [prest, cobr, novas] = await Promise.all([
+    supabase.from("prestacoes_contas").select("valor_pago").gte("data_execucao", m.inicio).lte("data_execucao", m.fim),
+    supabase.from("cobrancas_agendadas").select("valor_previsto,valor_pago_acumulado")
+      .gte("data_agendada", m.inicio).lte("data_agendada", m.fim).eq("vigente", true),
+    supabase.from("revendedoras").select("id", { count: "exact", head: true })
+      .gte("criado_em", `${m.inicio}T00:00:00`).lte("criado_em", `${m.fim}T23:59:59`),
+  ]);
+  const receita = (prest.data ?? []).reduce((s: number, p: any) => s + Number(p.valor_pago || 0), 0);
+  const previsto = (cobr.data ?? []).reduce((s: number, c: any) => s + Number(c.valor_previsto || 0), 0);
+  const pago = (cobr.data ?? []).reduce((s: number, c: any) => s + Number(c.valor_pago_acumulado || 0), 0);
+  return {
+    anoMes: m.anoMes,
+    label: m.label,
+    receita,
+    kitsCampo: previsto,
+    aproveit: previsto > 0 ? (pago / previsto) * 100 : 0,
+    novas: novas.count ?? 0,
+  };
+}
+
+async function fetchLTV() {
+  // soma paginada de prestacoes_contas.valor_pago
+  let receitaTotal = 0;
+  let from = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from("prestacoes_contas")
+      .select("valor_pago")
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    receitaTotal += data.reduce((s: number, p: any) => s + Number(p.valor_pago || 0), 0);
+    if (data.length < pageSize) break;
+    from += pageSize;
+    if (from > 100000) break;
+  }
+  // distinct revendedoras com pelo menos uma cobrança
+  const revSet = new Set<string>();
+  let from2 = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("cobrancas_agendadas")
+      .select("revendedora")
+      .range(from2, from2 + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    for (const r of data) {
+      const n = String((r as any).revendedora || "").trim().toUpperCase();
+      if (n) revSet.add(n);
+    }
+    if (data.length < pageSize) break;
+    from2 += pageSize;
+    if (from2 > 200000) break;
+  }
+  return { receitaTotal, revendedorasCount: revSet.size };
+}
+
+async function fetchRepsComCobrancaUltimos7Dias(): Promise<Set<string>> {
+  const hoje = new Date();
+  const ini = new Date(hoje);
+  ini.setDate(ini.getDate() - 7);
+  const f = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("representante_id")
+    .gte("data_agendada", f(ini))
+    .lte("data_agendada", f(hoje));
+  if (error) throw error;
+  const s = new Set<string>();
+  for (const r of data ?? []) {
+    const rid = (r as any).representante_id;
+    if (rid) s.add(rid);
+  }
+  return s;
+}
+
 
 
 // ─── Variation chip ────────────────────────────
@@ -304,6 +416,9 @@ type Drilldown =
   | { tipo: "pe_revendedoras"; titulo: string; rows: { nome: string; representante: string }[] }
   | { tipo: "pe_novas"; titulo: string; rows: RevendedoraRow[]; nomeRep: Map<string, string> }
   | { tipo: "pe_rep_notas"; titulo: string; rows: Cobranca[] }
+  | { tipo: "al_cobrancas"; titulo: string; rows: Cobranca[] }
+  | { tipo: "al_reps"; titulo: string; rows: { nome: string; detalhe: string }[] }
+  | { tipo: "al_revendedoras"; titulo: string; rows: { nome: string; qtd: number; saldo: number }[] }
   | null;
 
 // ─── Main ──────────────────────────────────────
@@ -313,6 +428,8 @@ export default function RelatorioKpis() {
   const [openFinanceiro, setOpenFinanceiro] = useState(true);
   const [openOperacional, setOpenOperacional] = useState(true);
   const [openPessoas, setOpenPessoas] = useState(true);
+  const [openCrescimento, setOpenCrescimento] = useState(true);
+  const [openAlertas, setOpenAlertas] = useState(true);
   const [drill, setDrill] = useState<Drilldown>(null);
 
   const dataInicio = `${ano}-${mes}-01`;
@@ -382,6 +499,25 @@ export default function RelatorioKpis() {
     queryKey: ["kpi_pe_profiles"],
     queryFn: fetchProfilesTodos,
   });
+
+  // ─── Queries CRESCIMENTO ───
+  const meses6 = useMemo(() => buildLastMeses(ano, mes, 6), [ano, mes]);
+  const { data: trend6 = [], isLoading: lcr1 } = useQuery({
+    queryKey: ["kpi_trend6", anoMes],
+    queryFn: async () => Promise.all(meses6.map(m => fetchMesTrend(m))),
+  });
+  const { data: ltv, isLoading: lcr2 } = useQuery({
+    queryKey: ["kpi_ltv"],
+    queryFn: fetchLTV,
+  });
+
+  // ─── Queries ALERTAS ───
+  const { data: repsAtivos7d = new Set<string>(), isLoading: lal1 } = useQuery({
+    queryKey: ["kpi_al_reps7d"],
+    queryFn: fetchRepsComCobrancaUltimos7Dias,
+  });
+
+
 
 
   // ─── Cálculos ───
@@ -644,9 +780,88 @@ export default function RelatorioKpis() {
     };
   }, [cobrAtual, cobrPrev, revendedoras, profilesAll, dataInicio, dataFim, prevInicio, prevFim]);
 
+  // ─── Cálculos CRESCIMENTO ───
+  const crescimento = useMemo(() => {
+    const data = trend6 ?? [];
+    // tendência de aproveitamento (slope)
+    let slope = 0;
+    if (data.length >= 2) {
+      const xs = data.map((_, i) => i);
+      const ys = data.map(d => d.aproveit);
+      const n = data.length;
+      const mX = xs.reduce((a, b) => a + b, 0) / n;
+      const mY = ys.reduce((a, b) => a + b, 0) / n;
+      const num = xs.reduce((s, x, i) => s + (x - mX) * (ys[i] - mY), 0);
+      const den = xs.reduce((s, x) => s + (x - mX) ** 2, 0);
+      slope = den > 0 ? num / den : 0;
+    }
+    // média móvel 3 períodos
+    const aproveitChart = data.map((d, i) => {
+      const slice = data.slice(Math.max(0, i - 2), i + 1);
+      const ma = slice.reduce((s, x) => s + x.aproveit, 0) / slice.length;
+      return { label: d.label, aproveit: d.aproveit, ma };
+    });
+    // LTV
+    const ltvMedio = ltv && ltv.revendedorasCount > 0
+      ? ltv.receitaTotal / ltv.revendedorasCount
+      : 0;
+    return { data, slope, aproveitChart, ltvMedio };
+  }, [trend6, ltv]);
+
+  // ─── Cálculos ALERTAS ───
+  const alertas = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const f = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const hojeStr = f(hoje);
+    const lim30 = new Date(hoje); lim30.setDate(lim30.getDate() - 30);
+    const lim90 = new Date(hoje); lim90.setDate(lim90.getDate() - 90);
+    const lim30Str = f(lim30);
+    const lim90Str = f(lim90);
+
+    // 1. Vencidas > 30 dias
+    const vencidas30 = cobrAbertas.filter(c => c.data_agendada < lim30Str);
+    // 3. Kits em campo > 90 dias
+    const campo90 = cobrAbertas.filter(c => c.data_agendada < lim90Str);
+
+    // 2. Representantes sem cobrança nos últimos 7 dias
+    const repsSem7d: { nome: string; detalhe: string }[] = [];
+    for (const p of profilesAll) {
+      if (!repsAtivos7d.has(p.id)) {
+        repsSem7d.push({ nome: p.nome, detalhe: "Sem cobrança nos últimos 7 dias" });
+      }
+    }
+
+    // 4. Aproveitamento < 20% no mês atual (por representante)
+    const repBaixo: { nome: string; detalhe: string }[] = pessoas.ranking
+      .filter(r => r.previsto > 0 && r.aproveit < 20)
+      .map(r => ({ nome: r.nome, detalhe: `Aproveitamento ${fmtPct(r.aproveit)}` }));
+
+    // 5. Revendedoras com 2+ notas em aberto
+    const porRev = new Map<string, { qtd: number; saldo: number }>();
+    for (const c of cobrAbertas) {
+      const nome = String(c.revendedora || "").trim().toUpperCase();
+      if (!nome) continue;
+      const cur = porRev.get(nome) ?? { qtd: 0, saldo: 0 };
+      cur.qtd += 1;
+      cur.saldo += Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0);
+      porRev.set(nome, cur);
+    }
+    const revAcumulo = Array.from(porRev.entries())
+      .filter(([, v]) => v.qtd >= 2)
+      .map(([nome, v]) => ({ nome, qtd: v.qtd, saldo: v.saldo }))
+      .sort((a, b) => b.qtd - a.qtd);
+
+    return { vencidas30, campo90, repsSem7d, repBaixo, revAcumulo };
+  }, [cobrAbertas, profilesAll, repsAtivos7d, pessoas.ranking]);
+
   const loading = lp1 || lc1 || ld1;
   const loadingOp = lo1 || lo2 || lo3 || lo4;
   const loadingPe = lpe1 || lpe2 || lc1;
+  const loadingCr = lcr1 || lcr2;
+  const loadingAl = lal1 || lo1 || lpe2;
+
 
   return (
     <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
@@ -1174,7 +1389,187 @@ export default function RelatorioKpis() {
         </Card>
       </Collapsible>
 
+      {/* SEÇÃO 4 — CRESCIMENTO */}
+      <Collapsible open={openCrescimento} onOpenChange={setOpenCrescimento}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-lg">Crescimento</span>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform ${openCrescimento ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-4 pt-0 space-y-4">
+              {loadingCr ? (
+                <div className="grid grid-cols-1 gap-3">
+                  <Skeleton className="h-64" />
+                  <Skeleton className="h-64" />
+                  <Skeleton className="h-24" />
+                </div>
+              ) : (
+                <>
+                  {/* Card 1 — Comparativo Mensal */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <LineChartIcon className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Comparativo Mensal (últimos 6 meses)</span>
+                      </div>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <LineChart data={crescimento.data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                          <YAxis
+                            yAxisId="money"
+                            stroke="hsl(var(--muted-foreground))"
+                            fontSize={11}
+                            tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                          />
+                          <YAxis
+                            yAxisId="count"
+                            orientation="right"
+                            stroke="hsl(var(--muted-foreground))"
+                            fontSize={11}
+                          />
+                          <RTooltip
+                            contentStyle={{
+                              background: "hsl(var(--popover))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: 6,
+                              fontSize: 12,
+                            }}
+                            formatter={(v: number, name: string) =>
+                              name === "Novas Revendedoras" ? [v, name] : [fmt(v), name]
+                            }
+                          />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          <Line yAxisId="money" type="monotone" dataKey="receita" name="Receita Líquida"
+                            stroke="hsl(142 71% 45%)" strokeWidth={2} dot={{ r: 3 }} />
+                          <Line yAxisId="money" type="monotone" dataKey="kitsCampo" name="Kits em Campo"
+                            stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                          <Line yAxisId="count" type="monotone" dataKey="novas" name="Novas Revendedoras"
+                            stroke="hsl(45 93% 47%)" strokeWidth={2} dot={{ r: 3 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 2 — Tendência de Aproveitamento */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChart3 className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Tendência de Aproveitamento</span>
+                        <span className={`ml-auto inline-flex items-center gap-1 text-xs font-medium ${
+                          crescimento.slope >= 0
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-red-600 dark:text-red-400"
+                        }`}>
+                          {crescimento.slope >= 0
+                            ? <TrendingUp className="h-3 w-3" />
+                            : <TrendingDown className="h-3 w-3" />}
+                          {crescimento.slope >= 0 ? "Tendência de alta" : "Tendência de queda"}
+                        </span>
+                      </div>
+                      <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={crescimento.aproveitChart} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                          <YAxis
+                            stroke="hsl(var(--muted-foreground))"
+                            fontSize={11}
+                            tickFormatter={(v) => `${v}%`}
+                          />
+                          <RTooltip
+                            contentStyle={{
+                              background: "hsl(var(--popover))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: 6,
+                              fontSize: 12,
+                            }}
+                            formatter={(v: number, name: string) => [fmtPct(v), name]}
+                          />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          <Bar dataKey="aproveit" name="Aproveitamento %" radius={[4, 4, 0, 0]}>
+                            {crescimento.aproveitChart.map((d, i) => (
+                              <Cell
+                                key={i}
+                                fill={
+                                  d.aproveit >= 35 ? "hsl(142 71% 45%)" :
+                                  d.aproveit >= 20 ? "hsl(45 93% 47%)" :
+                                  "hsl(0 84% 60%)"
+                                }
+                              />
+                            ))}
+                          </Bar>
+                          <Line type="monotone" dataKey="ma" name="Média móvel (3m)"
+                            stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 3 — LTV Médio */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <KpiCard
+                      icon={<Heart className="h-4 w-4" />}
+                      titulo="LTV Médio da Revendedora"
+                      valor={fmt(crescimento.ltvMedio)}
+                      subtitulo={`Valor médio gerado por revendedora ao longo do tempo · base: ${ltv?.revendedorasCount ?? 0}`}
+                      accent="green"
+                    />
+                    <KpiCard
+                      icon={<DollarSign className="h-4 w-4" />}
+                      titulo="Receita Total Histórica"
+                      valor={fmt(ltv?.receitaTotal ?? 0)}
+                      subtitulo="Soma de todas as prestações pagas registradas"
+                      accent="neutral"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* SEÇÃO 5 — ALERTAS OPERACIONAIS */}
+      <Collapsible open={openAlertas} onOpenChange={setOpenAlertas}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-lg">Alertas Operacionais</span>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform ${openAlertas ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-4 pt-0">
+              {loadingAl ? (
+                <Skeleton className="h-48" />
+              ) : (
+                <AlertasList
+                  vencidas30={alertas.vencidas30}
+                  campo90={alertas.campo90}
+                  repsSem7d={alertas.repsSem7d}
+                  repBaixo={alertas.repBaixo}
+                  revAcumulo={alertas.revAcumulo}
+                  onDrill={setDrill}
+                />
+              )}
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
       {/* Drilldown Sheet */}
+
+
 
       <Sheet open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
         <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
@@ -1203,6 +1598,9 @@ export default function RelatorioKpis() {
               {drill?.tipo === "pe_revendedoras" && <DrillRevendedoras rows={drill.rows} />}
               {drill?.tipo === "pe_novas" && <DrillNovasRevendedoras rows={drill.rows} nomeRep={drill.nomeRep} />}
               {drill?.tipo === "pe_rep_notas" && <DrillCobrancas rows={drill.rows} mostrarSaldo />}
+              {drill?.tipo === "al_cobrancas" && <DrillCobrancas rows={drill.rows} mostrarSaldo />}
+              {drill?.tipo === "al_reps" && <DrillRepsAlerta rows={drill.rows} />}
+              {drill?.tipo === "al_revendedoras" && <DrillRevendedorasAcumulo rows={drill.rows} />}
             </div>
           </ScrollArea>
         </SheetContent>
@@ -1516,3 +1914,182 @@ function DrillNovasRevendedoras({
   );
 }
 
+
+// ─── Alertas operacionais ──────────────────────
+function AlertasList({
+  vencidas30, campo90, repsSem7d, repBaixo, revAcumulo, onDrill,
+}: {
+  vencidas30: Cobranca[];
+  campo90: Cobranca[];
+  repsSem7d: { nome: string; detalhe: string }[];
+  repBaixo: { nome: string; detalhe: string }[];
+  revAcumulo: { nome: string; qtd: number; saldo: number }[];
+  onDrill: (d: Drilldown) => void;
+}) {
+  const valorVencidas30 = vencidas30.reduce(
+    (s, c) => s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
+  );
+  const valorCampo90 = campo90.reduce(
+    (s, c) => s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
+  );
+
+  type Alerta = {
+    nivel: "red" | "yellow" | "green";
+    icon: React.ReactNode;
+    titulo: string;
+    descricao: string;
+    qtd: number;
+    onClick?: () => void;
+  };
+
+  const itens: Alerta[] = [
+    {
+      nivel: "red",
+      icon: <AlertTriangle className="h-4 w-4" />,
+      titulo: "Notas vencidas há mais de 30 dias",
+      descricao: `${fmt(valorVencidas30)} em saldo aberto`,
+      qtd: vencidas30.length,
+      onClick: vencidas30.length > 0
+        ? () => onDrill({ tipo: "al_cobrancas", titulo: "Notas vencidas há mais de 30 dias", rows: vencidas30 })
+        : undefined,
+    },
+    {
+      nivel: "red",
+      icon: <Boxes className="h-4 w-4" />,
+      titulo: "Kits em campo há mais de 90 dias",
+      descricao: `${fmt(valorCampo90)} imobilizado`,
+      qtd: campo90.length,
+      onClick: campo90.length > 0
+        ? () => onDrill({ tipo: "al_cobrancas", titulo: "Kits em campo há mais de 90 dias", rows: campo90 })
+        : undefined,
+    },
+    {
+      nivel: "yellow",
+      icon: <UserX className="h-4 w-4" />,
+      titulo: "Representante sem cobrança há 7 dias",
+      descricao: "Representantes ativos sem agendamento recente",
+      qtd: repsSem7d.length,
+      onClick: repsSem7d.length > 0
+        ? () => onDrill({ tipo: "al_reps", titulo: "Representantes sem cobrança nos últimos 7 dias", rows: repsSem7d })
+        : undefined,
+    },
+    {
+      nivel: "yellow",
+      icon: <Target className="h-4 w-4" />,
+      titulo: "Aproveitamento < 20% no mês atual",
+      descricao: "Representantes abaixo da meta mínima",
+      qtd: repBaixo.length,
+      onClick: repBaixo.length > 0
+        ? () => onDrill({ tipo: "al_reps", titulo: "Representantes com aproveitamento < 20%", rows: repBaixo })
+        : undefined,
+    },
+    {
+      nivel: "yellow",
+      icon: <Users className="h-4 w-4" />,
+      titulo: "Revendedoras com 2+ notas em aberto",
+      descricao: "Risco de acúmulo de dívida",
+      qtd: revAcumulo.length,
+      onClick: revAcumulo.length > 0
+        ? () => onDrill({ tipo: "al_revendedoras", titulo: "Revendedoras com 2+ notas em aberto", rows: revAcumulo })
+        : undefined,
+    },
+  ];
+
+  const ordem = { red: 0, yellow: 1, green: 2 };
+  itens.sort((a, b) => (ordem[a.nivel] - ordem[b.nivel]) || (b.qtd - a.qtd));
+
+  const corBadge = (n: "red" | "yellow" | "green") =>
+    n === "red"
+      ? "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30"
+      : n === "yellow"
+      ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
+      : "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30";
+
+  const corBorda = (n: "red" | "yellow" | "green") =>
+    n === "red" ? "border-l-red-500"
+      : n === "yellow" ? "border-l-yellow-500"
+      : "border-l-green-500";
+
+  return (
+    <div className="space-y-2">
+      {itens.map((a, i) => {
+        const ativo = a.qtd > 0;
+        return (
+          <div
+            key={i}
+            onClick={a.onClick}
+            className={`flex items-center gap-3 p-3 rounded-md border border-border border-l-4 ${corBorda(a.nivel)} ${
+              a.onClick ? "cursor-pointer hover:bg-muted/40 transition" : ""
+            } ${!ativo ? "opacity-60" : ""}`}
+          >
+            <div className={`p-2 rounded-md ${corBadge(a.nivel)}`}>{a.icon}</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm">{a.titulo}</div>
+              <div className="text-xs text-muted-foreground truncate">{a.descricao}</div>
+            </div>
+            <Badge variant="outline" className={`font-mono tabular-nums ${corBadge(a.nivel)}`}>
+              {a.qtd}
+            </Badge>
+            {a.onClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DrillRepsAlerta({ rows }: { rows: { nome: string; detalhe: string }[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Representante</TableHead>
+          <TableHead>Detalhe</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-6">Nenhum.</TableCell></TableRow>
+        ) : rows.map((r, i) => (
+          <TableRow key={`${r.nome}-${i}`}>
+            <TableCell className="text-sm font-medium">{r.nome}</TableCell>
+            <TableCell className="text-sm text-muted-foreground">{r.detalhe}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={2}>Total: {rows.length}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DrillRevendedorasAcumulo({ rows }: { rows: { nome: string; qtd: number; saldo: number }[] }) {
+  const totalSaldo = rows.reduce((s, r) => s + r.saldo, 0);
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Revendedora</TableHead>
+          <TableHead className="text-right">Notas em aberto</TableHead>
+          <TableHead className="text-right">Saldo total</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Nenhuma.</TableCell></TableRow>
+        ) : rows.map((r, i) => (
+          <TableRow key={`${r.nome}-${i}`}>
+            <TableCell className="text-sm font-medium">{r.nome}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{r.qtd}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{fmt(r.saldo)}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={2}>Total: {rows.length}</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{fmt(totalSaldo)}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
