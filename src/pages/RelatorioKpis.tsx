@@ -204,8 +204,118 @@ async function fetchProfilesTodos() {
   return (data ?? []) as ProfileRow[];
 }
 
-// Cobranças do mês anterior ao anterior (para perdidasPrev = comparativo)
-// já temos cobrPrev no escopo principal; pessoas usa cobrAtual+cobrPrev existentes.
+// ─── CRESCIMENTO / ALERTAS fetchers ────────────
+interface MesTrend {
+  anoMes: string;
+  label: string;
+  receita: number;
+  kitsCampo: number;
+  aproveit: number;
+  novas: number;
+}
+
+const MESES_CURTOS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+function buildLastMeses(ano: string, mes: string, n: number) {
+  const out: { ano: string; mes: string; inicio: string; fim: string; anoMes: string; label: string }[] = [];
+  let y = Number(ano);
+  let m = Number(mes);
+  for (let i = 0; i < n; i++) {
+    const ymes = String(m).padStart(2, "0");
+    const yano = String(y);
+    out.unshift({
+      ano: yano,
+      mes: ymes,
+      inicio: `${yano}-${ymes}-01`,
+      fim: `${yano}-${ymes}-${String(ultimoDia(yano, ymes)).padStart(2, "0")}`,
+      anoMes: `${yano}-${ymes}`,
+      label: `${MESES_CURTOS[m - 1]}/${yano.slice(2)}`,
+    });
+    m -= 1;
+    if (m === 0) { m = 12; y -= 1; }
+  }
+  return out;
+}
+
+async function fetchMesTrend(m: { inicio: string; fim: string; anoMes: string; label: string }): Promise<MesTrend> {
+  const [prest, cobr, novas] = await Promise.all([
+    supabase.from("prestacoes_contas").select("valor_pago").gte("data_execucao", m.inicio).lte("data_execucao", m.fim),
+    supabase.from("cobrancas_agendadas").select("valor_previsto,valor_pago_acumulado")
+      .gte("data_agendada", m.inicio).lte("data_agendada", m.fim).eq("vigente", true),
+    supabase.from("revendedoras").select("id", { count: "exact", head: true })
+      .gte("criado_em", `${m.inicio}T00:00:00`).lte("criado_em", `${m.fim}T23:59:59`),
+  ]);
+  const receita = (prest.data ?? []).reduce((s: number, p: any) => s + Number(p.valor_pago || 0), 0);
+  const previsto = (cobr.data ?? []).reduce((s: number, c: any) => s + Number(c.valor_previsto || 0), 0);
+  const pago = (cobr.data ?? []).reduce((s: number, c: any) => s + Number(c.valor_pago_acumulado || 0), 0);
+  return {
+    anoMes: m.anoMes,
+    label: m.label,
+    receita,
+    kitsCampo: previsto,
+    aproveit: previsto > 0 ? (pago / previsto) * 100 : 0,
+    novas: novas.count ?? 0,
+  };
+}
+
+async function fetchLTV() {
+  // soma paginada de prestacoes_contas.valor_pago
+  let receitaTotal = 0;
+  let from = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from("prestacoes_contas")
+      .select("valor_pago")
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    receitaTotal += data.reduce((s: number, p: any) => s + Number(p.valor_pago || 0), 0);
+    if (data.length < pageSize) break;
+    from += pageSize;
+    if (from > 100000) break;
+  }
+  // distinct revendedoras com pelo menos uma cobrança
+  const revSet = new Set<string>();
+  let from2 = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("cobrancas_agendadas")
+      .select("revendedora")
+      .range(from2, from2 + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    for (const r of data) {
+      const n = String((r as any).revendedora || "").trim().toUpperCase();
+      if (n) revSet.add(n);
+    }
+    if (data.length < pageSize) break;
+    from2 += pageSize;
+    if (from2 > 200000) break;
+  }
+  return { receitaTotal, revendedorasCount: revSet.size };
+}
+
+async function fetchRepsComCobrancaUltimos7Dias(): Promise<Set<string>> {
+  const hoje = new Date();
+  const ini = new Date(hoje);
+  ini.setDate(ini.getDate() - 7);
+  const f = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("representante_id")
+    .gte("data_agendada", f(ini))
+    .lte("data_agendada", f(hoje));
+  if (error) throw error;
+  const s = new Set<string>();
+  for (const r of data ?? []) {
+    const rid = (r as any).representante_id;
+    if (rid) s.add(rid);
+  }
+  return s;
+}
+
 
 
 // ─── Variation chip ────────────────────────────
