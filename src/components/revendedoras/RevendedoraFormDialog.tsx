@@ -88,6 +88,7 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
   const [cepLoading, setCepLoading] = useState(false);
   const [bloqueioJuridico, setBloqueioJuridico] = useState(false);
   const [checandoBloqueio, setChecandoBloqueio] = useState(false);
+  const [duplicidade, setDuplicidade] = useState<{ motivo: string; representante_nome: string } | null>(null);
 
   const verificarBloqueio = async (nomeVal: string, cpfVal: string) => {
     if (revendedoraId) return; // só aplica no cadastro
@@ -110,6 +111,34 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
       setBloqueioJuridico(false);
     } finally {
       setChecandoBloqueio(false);
+    }
+  };
+
+  const verificarDuplicidade = async (nomeVal: string, cpfVal: string, whatsappVal: string) => {
+    const nomeLimpo = nomeVal.trim();
+    const cpfLimpo = cpfVal.replace(/\D/g, '');
+    const wppLimpo = whatsappVal.replace(/\D/g, '');
+    if (!nomeLimpo && !cpfLimpo && !wppLimpo) {
+      setDuplicidade(null);
+      return;
+    }
+    try {
+      const { data, error } = await supabase.rpc('checar_duplicidade_revendedora', {
+        p_representante_id: user?.id ?? null,
+        p_nome: nomeLimpo,
+        p_cpf: cpfLimpo || null,
+        p_whatsapp: wppLimpo || null,
+        p_ignorar_id: revendedoraId ?? null,
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (res?.duplicado) {
+        setDuplicidade({ motivo: res.motivo, representante_nome: res.representante_nome });
+      } else {
+        setDuplicidade(null);
+      }
+    } catch {
+      setDuplicidade(null);
     }
   };
 
@@ -187,6 +216,7 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
       setReferencias([]);
     }
     setBloqueioJuridico(false);
+    setDuplicidade(null);
   }, [rev, open, revendedoraId, initialNome]);
 
   useEffect(() => {
@@ -363,6 +393,16 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+          {duplicidade && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm">
+              <p className="font-semibold">⚠️ Revendedora já cadastrada</p>
+              <p className="mt-1">
+                Esta revendedora já está cadastrada com o representante <strong>{duplicidade.representante_nome}</strong>
+                {' '}({duplicidade.motivo === 'cpf' ? 'CPF igual' : duplicidade.motivo === 'whatsapp' ? 'WhatsApp igual' : 'nome igual'}).
+                Solicite a transferência ao administrador.
+              </p>
+            </div>
+          )}
           {/* DADOS PESSOAIS */}
           <Card>
             <CardContent className="pt-6 space-y-4">
@@ -377,8 +417,8 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
                   <Label>Nome Completo *</Label>
                   <Input
                     value={nome}
-                    onChange={(e) => { setNome(e.target.value); if (bloqueioJuridico) setBloqueioJuridico(false); }}
-                    onBlur={(e) => verificarBloqueio(e.target.value, cpf)}
+                    onChange={(e) => { setNome(e.target.value); if (bloqueioJuridico) setBloqueioJuridico(false); if (duplicidade) setDuplicidade(null); }}
+                    onBlur={(e) => { verificarBloqueio(e.target.value, cpf); verificarDuplicidade(e.target.value, cpf, whatsapp); }}
                   />
                   {bloqueioJuridico && (
                     <p className="mt-1 text-xs text-red-600 font-medium">
@@ -390,8 +430,8 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
                   <Label>CPF *</Label>
                   <Input
                     value={cpf}
-                    onChange={(e) => { setCpf(maskCpf(e.target.value)); if (bloqueioJuridico) setBloqueioJuridico(false); }}
-                    onBlur={(e) => verificarBloqueio(nome, e.target.value)}
+                    onChange={(e) => { setCpf(maskCpf(e.target.value)); if (bloqueioJuridico) setBloqueioJuridico(false); if (duplicidade) setDuplicidade(null); }}
+                    onBlur={(e) => { verificarBloqueio(nome, e.target.value); verificarDuplicidade(nome, e.target.value, whatsapp); }}
                     placeholder="000.000.000-00"
                   />
                 </div>
@@ -485,7 +525,12 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
               <div className="grid md:grid-cols-2 gap-3">
                 <div>
                   <Label>WhatsApp *</Label>
-                  <Input value={whatsapp} onChange={(e) => setWhatsapp(maskFone(e.target.value))} placeholder="(11) 99999-9999" />
+                  <Input
+                    value={whatsapp}
+                    onChange={(e) => { setWhatsapp(maskFone(e.target.value)); if (duplicidade) setDuplicidade(null); }}
+                    onBlur={(e) => verificarDuplicidade(nome, cpf, e.target.value)}
+                    placeholder="(11) 99999-9999"
+                  />
                 </div>
                 <div>
                   <Label>Telefone Alternativo</Label>
@@ -546,9 +591,9 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
 
         <DialogFooter className="pt-2">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || bloqueioJuridico || checandoBloqueio}>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || bloqueioJuridico || checandoBloqueio || !!duplicidade}>
             {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {bloqueioJuridico ? 'Bloqueado pelo Jurídico' : 'Salvar'}
+            {bloqueioJuridico ? 'Bloqueado pelo Jurídico' : duplicidade ? 'Já cadastrada com outro' : 'Salvar'}
           </Button>
         </DialogFooter>
       </DialogContent>

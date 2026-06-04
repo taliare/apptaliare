@@ -1,48 +1,57 @@
-## Diagnóstico
 
-O salvamento no banco está funcionando para o Representante 1: encontrei registros atualizados e trilha de auditoria às 15:50. O problema que faz parecer que “não salvou” é de vínculo por nome:
+## Objetivo
 
-- A listagem e o modal procuram o cadastro usando o texto da cobrança/prestação (`revendedora`).
-- Quando o representante edita o cadastro e o nome é normalizado/alterado para maiúsculas ou nome completo, o cadastro atualizado deixa de bater exatamente com o nome antigo da cobrança/prestação.
-- Resultado: o banco salva, mas a tela abre/mostra outro registro antigo ou um cadastro “limpo”.
-- Também há cadastros duplicados por variação de nome, exemplo: `Ana Rafaela Sabino de Souza` e `ANA RAFAELA SABINO DE SOUZA`.
-- O trigger de auditoria foi criado na migration, mas não está ativo no banco; vou recriá-lo de forma idempotente.
+Impedir que um representante cadastre uma revendedora que já está vinculada a outro representante. O bloqueio acontece no banco (à prova de bypass) e o formulário mostra mensagem clara informando com quem a revendedora já está cadastrada, orientando a solicitar transferência ao admin.
 
-## Plano de correção
+## Regra de duplicidade
 
-1. **Banco de dados**
-   - Criar/atualizar uma função segura para normalizar nomes de revendedoras.
-   - Criar uma função RPC para buscar o cadastro correto da revendedora por:
-     - `representante_id`
-     - `nome` exato ou nome normalizado
-     - fallback por similaridade quando houver variação simples de maiúsculas/acentos
-     - preferindo o cadastro mais recentemente atualizado e com dados preenchidos.
-   - Recriar os triggers de auditoria de `revendedoras` para garantir histórico e `atualizado_em`.
-   - Opcionalmente consolidar duplicados óbvios do Representante 1 quando o nome normalizado for igual, mantendo o registro mais completo/recente.
+Considera-se a mesma revendedora quando qualquer um destes bate (normalizado):
+- **CPF** (só dígitos) — match forte, quando preenchido.
+- **WhatsApp** (só dígitos, últimos 11) — match forte, quando preenchido.
+- **Nome normalizado** (UPPER + TRIM + unaccent) — match fraco, exige confirmação só se CPF/WhatsApp não baterem (porque homônimo existe).
 
-2. **Tela `RevendedorasInativas`**
-   - Trocar os joins por nome exato para usar chave normalizada.
-   - Quando abrir “Ver Perfil”, passar também o `revendedora_id` quando já existir, evitando depender só do nome.
-   - Atualizar os invalidates após salvar para recarregar listagem, perfil e histórico.
+Comportamento:
+- Match por CPF ou WhatsApp com outro representante → **bloqueia sempre**.
+- Match só por nome com outro representante → **bloqueia também** (regra rígida pedida), mas mensagem diferencia "nome igual" de "CPF/WhatsApp igual".
+- Admin continua podendo cadastrar/editar livremente (a transferência é feita pelo admin alterando `representante_id`).
 
-3. **Modal `PerfilRevendedoraDialog`**
-   - Aceitar `revendedoraId` opcional.
-   - Buscar o cadastro pelo ID quando disponível.
-   - Quando só houver nome, usar a nova função de busca robusta, em vez de `.eq('nome')`/`.ilike()` frágil.
-   - Após editar e salvar, manter o modal apontado para o cadastro salvo.
+## Mudanças no banco
 
-4. **Formulário `RevendedoraFormDialog`**
-   - Manter a checagem `.select('id')` no update.
-   - Depois de salvar, invalidar todas as queries relacionadas à revendedora/listagem.
-   - Se o nome foi alterado, garantir que o modal continue usando o ID correto.
+1. **Função `public.checar_duplicidade_revendedora(p_representante_id, p_nome, p_cpf, p_whatsapp, p_ignorar_id)`** `SECURITY DEFINER`, retorna JSON:
+   ```
+   { duplicado: bool, motivo: 'cpf'|'whatsapp'|'nome', representante_nome: text, revendedora_id: uuid }
+   ```
+   - Ignora `p_ignorar_id` para permitir edição do próprio registro.
+   - Lê `revendedoras` + join com `profiles` (via `profiles_limited`) para retornar o nome do dono.
 
-5. **Correção paralela do erro do Maps**
-   - Remover o fallback proibido `window.top.location.href` que gera `SecurityError` no preview.
-   - Usar apenas abertura segura em nova aba/janela e mostrar aviso se o navegador bloquear.
+2. **Trigger `BEFORE INSERT OR UPDATE` em `revendedoras`** (`fn_bloquear_duplicidade_revendedora`):
+   - Se o usuário não for admin (`has_role(auth.uid(),'admin')`), roda a checagem.
+   - Em caso de duplicidade, `RAISE EXCEPTION` com mensagem amigável incluindo o nome do representante atual.
+   - Garante o bloqueio mesmo se a UI for burlada.
+
+3. Sem novas tabelas, sem mudança de RLS.
+
+## Mudanças no frontend
+
+1. **`RevendedoraFormDialog.tsx`**
+   - Ao perder foco do CPF, WhatsApp ou nome (ou ao submeter), chamar `supabase.rpc('checar_duplicidade_revendedora', …)` passando o `id` em edição quando houver.
+   - Se duplicado, exibir alerta inline vermelho no topo do formulário: *"Esta revendedora já está cadastrada com o representante <Nome>. Solicite a transferência ao administrador."* e desabilitar o botão Salvar.
+   - Tratar também o erro vindo do trigger (fallback) com `toast.error` da mesma mensagem.
+
+2. **`ImportWhatsAppDialog.tsx`** (importação em massa) — capturar erros de duplicidade por linha e listar no resultado: *"X linhas ignoradas (já cadastradas com outro representante)"*. Sem alterar UX além disso.
+
+## Detalhes técnicos
+
+- Normalizações usam `unaccent` (já instalado, visto em `verificar_bloqueio_juridico` e `buscar_revendedora_match`).
+- WhatsApp normalizado = `regexp_replace(whatsapp,'\D','','g')` e comparação pelos últimos 11 dígitos para tolerar prefixo 55.
+- A função e o trigger ficam com `SET search_path = public`.
+- Admin é exceção verificada via `has_role(auth.uid(),'admin')`; isso permite que o admin faça a transferência (mudar `representante_id`) sem cair na própria regra.
 
 ## Validação
 
-- Confirmar no banco que o cadastro alterado pelo Representante 1 aparece como atualizado.
-- Confirmar que o modal “Ver Perfil” mostra o cadastro preenchido mesmo quando a cobrança/prestação tem o nome antigo.
-- Confirmar que o histórico de edição aparece após nova alteração.
-- Confirmar que clicar em “Ver localização” não gera mais erro de navegação bloqueada.
+- Tentar cadastrar revendedora com mesmo CPF de outra carteira → bloqueio + toast.
+- Tentar com mesmo WhatsApp → bloqueio.
+- Tentar com nome idêntico (sem CPF/WhatsApp) → bloqueio com mensagem "nome igual".
+- Editar a própria revendedora sem alterar dados → salva normal.
+- Admin transferir `representante_id` de A para B → permitido.
+- Importação em massa relata quantas foram ignoradas.
