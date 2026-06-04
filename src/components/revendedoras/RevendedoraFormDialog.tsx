@@ -515,7 +515,12 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
               <div className="grid md:grid-cols-2 gap-3">
                 <div>
                   <Label>WhatsApp *</Label>
-                  <Input value={whatsapp} onChange={(e) => setWhatsapp(maskFone(e.target.value))} placeholder="(11) 99999-9999" />
+                  <Input
+                    value={whatsapp}
+                    onChange={(e) => { setWhatsapp(maskFone(e.target.value)); if (duplicidade) setDuplicidade(null); }}
+                    onBlur={(e) => verificarDuplicidade(nome, cpf, e.target.value)}
+                    placeholder="(11) 99999-9999"
+                  />
                 </div>
                 <div>
                   <Label>Telefone Alternativo</Label>
