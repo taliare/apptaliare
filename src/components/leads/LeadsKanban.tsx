@@ -21,13 +21,14 @@ import { ZoomIn, ZoomOut } from "lucide-react";
 import { KanbanColumn } from "./KanbanColumn";
 import { LeadCard } from "./LeadCard";
 import { LeadDetailsSheet } from "./LeadDetailsSheet";
-import { LeadRevendedora, KANBAN_COLUMNS } from "./types";
+import { LeadCountsByStatus, LeadRevendedora, KANBAN_COLUMNS } from "./types";
 
 interface LeadsKanbanProps {
   leads: LeadRevendedora[];
+  countsByStatus?: LeadCountsByStatus;
 }
 
-export function LeadsKanban({ leads }: LeadsKanbanProps) {
+export function LeadsKanban({ leads, countsByStatus }: LeadsKanbanProps) {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -203,6 +204,7 @@ export function LeadsKanban({ leads }: LeadsKanbanProps) {
                 key={column.id}
                 column={column}
                 leads={leadsByStatus[column.id] || []}
+                count={countsByStatus?.[column.id]}
                 onLeadClick={handleLeadClick}
               />
             ))}
