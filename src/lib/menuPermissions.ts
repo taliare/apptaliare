@@ -46,6 +46,7 @@ export const MENU_EXTRA_CONFIG: Record<string, { iconName: string; category: str
   dre_resumo:        { iconName: "TrendingUp",    category: "FINANCEIRO" },
   dre_despesas:      { iconName: "Receipt",       category: "FINANCEIRO" },
   dre_categorias:    { iconName: "FolderOpen",    category: "FINANCEIRO" },
+  fluxo_caixa:       { iconName: "Wallet",        category: "FINANCEIRO" },
   relatorio_kpis:    { iconName: "BarChart3",     category: "RELATÓRIOS" },
   analise_comercial: { iconName: "LineChart",     category: "RELATÓRIOS" },
   auditoria_geral:   { iconName: "ClipboardList", category: "RELATÓRIOS" },
