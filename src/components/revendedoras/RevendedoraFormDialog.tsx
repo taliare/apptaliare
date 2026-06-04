@@ -14,6 +14,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { FotoCapture } from './FotoCapture';
 import { uploadRevendedoraFoto } from '@/lib/revendedoraFoto';
+import { useRevendedoraHistorico } from '@/hooks/useRevendedoraHistorico';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface Referencia {
   id?: string;
@@ -279,14 +282,20 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
         telefone_alternativo: telAlt.replace(/\D/g, '') || null,
         email: email.trim() || null,
         observacoes: observacoes.trim() || null,
-        atualizado_em: new Date().toISOString(),
       };
 
       let id = revendedoraId ?? null;
 
       if (id) {
-        const { error } = await supabase.from('revendedoras').update(payload).eq('id', id);
+        const { data, error } = await supabase
+          .from('revendedoras')
+          .update(payload)
+          .eq('id', id)
+          .select('id');
         if (error) throw error;
+        if (!data || data.length === 0) {
+          throw new Error('Sem permissão para atualizar esta revendedora (verifique se ela pertence a você).');
+        }
       } else {
         payload.representante_id = user?.id;
         payload.ativo = true;
@@ -528,6 +537,8 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={3} />
             </CardContent>
           </Card>
+
+          {revendedoraId && <HistoricoEdicoes revendedoraId={revendedoraId} />}
         </div>
 
         <DialogFooter className="pt-2">
@@ -541,3 +552,69 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
     </Dialog>
   );
 }
+
+const CAMPO_LABELS: Record<string, string> = {
+  nome: 'Nome', cpf: 'CPF', rg: 'RG', data_nascimento: 'Data de nascimento',
+  genero: 'Gênero', estado_civil: 'Estado civil', cep: 'CEP', logradouro: 'Logradouro',
+  numero: 'Número', complemento: 'Complemento', bairro: 'Bairro', cidade: 'Cidade',
+  estado: 'UF', whatsapp: 'WhatsApp', telefone_alternativo: 'Telefone alternativo',
+  email: 'Email', observacoes: 'Observações', foto_url: 'Foto',
+  status_juridico: 'Status jurídico', ativo: 'Ativo',
+};
+
+function HistoricoEdicoes({ revendedoraId }: { revendedoraId: string }) {
+  const { data: historico = [], isLoading } = useRevendedoraHistorico(revendedoraId);
+  const [expandido, setExpandido] = useState(false);
+  const visivel = expandido ? historico : historico.slice(0, 10);
+
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-3">
+        <h3 className="font-semibold text-sm text-primary uppercase tracking-wide">Histórico de Edições</h3>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : historico.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem registros de auditoria.</p>
+        ) : (
+          <>
+            <ul className="space-y-3 text-sm">
+              {visivel.map((h) => (
+                <li key={h.id} className="border-l-2 border-primary/40 pl-3">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-medium">
+                      {h.acao === 'criou' ? 'Cadastrada' : 'Editada'}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {format(new Date(h.criado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </span>
+                    {h.user_nome && (
+                      <span className="text-muted-foreground">por <strong>{h.user_nome}</strong></span>
+                    )}
+                  </div>
+                  {h.acao === 'editou' && Object.keys(h.campos_alterados).length > 0 && (
+                    <ul className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                      {Object.entries(h.campos_alterados).map(([campo, diff]) => (
+                        <li key={campo}>
+                          <strong>{CAMPO_LABELS[campo] ?? campo}:</strong>{' '}
+                          <span className="line-through">{String((diff as any).antes ?? '—')}</span>
+                          {' → '}
+                          <span className="text-foreground">{String((diff as any).depois ?? '—')}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {historico.length > 10 && (
+              <Button type="button" size="sm" variant="ghost" onClick={() => setExpandido((v) => !v)}>
+                {expandido ? 'Ver menos' : `Ver mais (${historico.length - 10})`}
+              </Button>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+

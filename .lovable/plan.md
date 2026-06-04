@@ -1,91 +1,56 @@
-# Reformulação do Cadastro de Revendedoras
+## Causa raiz
 
-## Estado atual (descoberto)
+A tabela `revendedoras` **não tem política RLS de UPDATE para representantes**. As únicas políticas hoje são:
+- `INSERT` para representantes (`representante_id = auth.uid()`)
+- `SELECT` para representantes (suas revendedoras)
+- `ALL` apenas para admin
 
-✅ Tabela `revendedoras` **já tem todas as colunas necessárias**: `foto_url`, `cpf`, `rg`, `data_nascimento`, `genero`, `estado_civil`, `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `email`, `telefone_alternativo`, `status_juridico` (com check `solicitado|aprovado|negado`), `data_solicitacao_juridico`, `motivo_juridico`, `data_aprovacao_juridico`, `aprovado_por`.
-✅ Tabela `revendedoras_referencias` já existe com RLS por representante.
-✅ RLS de `revendedoras` já isola por representante e libera admin.
+Como o código faz `supabase.from('revendedoras').update(payload).eq('id', id)` **sem `.select()`**, o PostgREST responde 204 (sucesso) mesmo quando 0 linhas foram afetadas pela RLS. Resultado: o toast "Revendedora atualizada" aparece, o dialog fecha, **mas nada foi gravado**. Os representantes percebem isso de forma intermitente — só notam quando reabrem o perfil e veem dados antigos. (Para revendedoras editadas pelo admin tudo salva normalmente, daí "algumas sim, outras não".)
 
-→ **Não preciso de migração de schema.** Só criar o bucket de storage.
+## Plano
 
-## Entregáveis
+### 1. Migration — destravar UPDATE e criar trilha de auditoria
 
-### 1. Storage
-- Criar bucket público `revendedoras-fotos` (via `storage_create_bucket`).
-- RLS em `storage.objects`:
-  - SELECT público (bucket público).
-  - INSERT/UPDATE/DELETE para `authenticated` (pasta `{revendedora_id}/...`).
+- **Política `UPDATE` em `revendedoras`** para o dono (`representante_id = auth.uid()`), com `WITH CHECK` igual ao `USING` para impedir transferir a revendedora para outro representante.
+- Mesma política para `revendedoras_referencias` (verificar; se faltar, criar análoga via `EXISTS` no parent).
+- Nova tabela `public.revendedoras_audit`:
+  - `revendedora_id`, `user_id`, `acao` (`criou` | `editou`), `campos_alterados jsonb` (diff campo → {antes, depois}), `criado_em`.
+  - GRANTs para `authenticated`/`service_role`.
+  - RLS: SELECT permitido ao representante dono da revendedora e ao admin; INSERT só via trigger (sem policy de insert para usuários).
+- Trigger `AFTER INSERT OR UPDATE` em `revendedoras` (SECURITY DEFINER) que grava no audit:
+  - No `INSERT`: registra `criou` com `auth.uid()`.
+  - No `UPDATE`: monta diff dos campos relevantes (nome, cpf, rg, endereço completo, contatos, observações, foto_url, status_juridico) e só insere se houver mudança real.
+- Garantir `atualizado_em = now()` via trigger para não depender do cliente.
 
-### 2. Componente novo: `RevendedoraFormDialog`
-Arquivo: `src/components/revendedoras/RevendedoraFormDialog.tsx`.
-Dialog scrollável (`max-h-[85vh] flex-col overflow-y-auto`) com 4 seções em abas ou stacked:
+### 2. Hook — histórico de edições
 
-**Dados Pessoais**
-- Foto: avatar com botão "Upload" + botão "Câmera" (usa `navigator.mediaDevices.getUserMedia` → captura para `<canvas>` → blob → upload). Preview circular.
-- Nome* (obrigatório), CPF* (com máscara `000.000.000-00`), RG, Data nascimento (date input), Gênero (Select: Feminino/Masculino/Outro), Estado civil (Select).
+Novo `useRevendedoraHistorico(revendedoraId)` em `src/hooks/`:
+- Query em `revendedoras_audit` ordenada desc, faz join com `profiles_limited` para mostrar quem editou.
 
-**Endereço**
-- CEP com debounce 600ms → fetch `https://viacep.com.br/ws/{cep}/json/` → preenche logradouro/bairro/cidade/estado (campos em modo readonly se vieram do ViaCEP, mas editáveis).
-- Número, Complemento manuais.
+### 3. `RevendedoraFormDialog.tsx`
 
-**Contato**
-- WhatsApp* (máscara), Telefone alternativo, Email (validação zod).
+- Adicionar `.select('id').single()` ao `UPDATE` para que falhas de RLS retornem erro real (defesa em profundidade).
+- Remover envio manual de `atualizado_em` (passa a ser do trigger).
+- Adicionar uma nova seção colapsável **"Histórico de edições"** no final do formulário (só quando `revendedoraId`):
+  - Lista `criado_em` (primeira linha "Cadastrada em … por …") + cada edição com data/hora e usuário.
+  - Limite inicial 10, "ver mais" expande.
 
-**Referências**
-- Lista dinâmica `useFieldArray`-style: cada item com Nome, Telefone, Vínculo + botão remover. Botão "Adicionar referência".
-- No submit: faz `upsert` na revendedora, depois deleta refs antigas e insere as novas (ou diff).
+### 4. `PerfilRevendedoraDialog.tsx`
 
-Validação com **zod**: nome non-empty (≤120), cpf 11 dígitos, whatsapp non-empty. Demais opcionais.
+- Garantir que todos os campos do cadastro são exibidos em uma nova seção "Dados cadastrais" — quando vazios, mostrar `—` (campos limpos) ao invés de esconder.
+- Manter botão lápis (`Edit2`) já existente.
+- Adicionar duas linhas no header:
+  - **Cadastrada em:** `revendedoraInfo.criado_em` formatada.
+  - **Última edição:** `revendedoraInfo.atualizado_em` + nome do último editor (via última linha do audit).
+- Para revendedoras **sem registro** em `revendedoras` (apenas com cobranças antigas pelo nome), o dialog hoje já mostra o botão "Editar" que abre o form com `initialNome`. Manter esse comportamento; campos limpos aparecem naturalmente.
 
-### 3. Hook: `useRevendedoraStatus`
-Arquivo: `src/hooks/useRevendedoraStatus.ts`.
+### 5. Validação pós-deploy
 
-Calcula status para uma ou várias revendedoras a partir de:
-- `revendedoras.status_juridico`
-- cobranças associadas (join via `revendedora` text norm ou `revendedora_id` se existir — verificar; nas memórias está em uppercase trim).
-
-Prioridade do status (primeiro match vence):
-1. `status_juridico = 'aprovado'` → **⛔ Jurídico** (vermelho escuro).
-2. `status_juridico = 'solicitado'` → **⚖️ Sol. Jurídico** (roxo).
-3. Existe cobrança `pendente` com `data_agendada` ≥ 30 dias atrás → **🔴 Inadimplente**.
-4. Existe cobrança `pendente` com `data_agendada` entre 1 e 29 dias atrás → **⚠️ Em Atraso**.
-5. Existe cobrança `parcial` → **🔵 Pagando**.
-6. Existe cobrança `pendente` (futura/hoje) → **🟢 Ativa**.
-7. Tem cobranças, todas `pago` → **✅ Quite**.
-8. Nenhuma cobrança ativa → **⚪ Sem Kit**.
-
-Exporta `{ status, label, color, blocked }`. `blocked = true` para Inadimplente, Sol. Jurídico, Jurídico.
-
-Função utilitária `getRevendedoraStatusBadge(status)` retorna classes Tailwind/cor.
-
-### 4. Listagem `src/pages/Revendedoras.tsx`
-- Substituir o badge atual "Ativa/Inativa" pelo badge de status dinâmico.
-- Substituir o ícone "Edit2" (que só edita WhatsApp) por botão "Editar" que abre `RevendedoraFormDialog`.
-- Adicionar botão "Nova Revendedora" no topo (representante e admin).
-- Filtro de status passa a aceitar os novos valores.
-- Card de resumo mostra contagem por status.
-
-### 5. Solicitação de Jurídico
-- Botão "Solicitar Jurídico" no perfil/dialog (representante): abre prompt de motivo, atualiza `status_juridico='solicitado'`, `data_solicitacao_juridico=now()`, `motivo_juridico`.
-- Botão "Aprovar Jurídico" / "Negar" / "Remover Status" (admin only): seta `aprovado` / `negado` / `null`, grava `aprovado_por`, `data_aprovacao_juridico`.
-
-### 6. Bloqueio de nova cobrança
-Em `MontarKit.tsx` / `CobrancaDiaria.tsx` / qualquer fluxo que cria `cobrancas_agendadas` para uma revendedora:
-- Antes de inserir, calcular status via `useRevendedoraStatus` (ou função utilitária pura).
-- Se `blocked`, abortar com `toast.error` explicando: "Revendedora bloqueada (status: X). Motivo: ..."
-- **Locais a tocar**: `MontarKit.tsx` (entrega de kit), `CobrancaDiaria.tsx` se criar nota nova ali, e `RevendedoraAutocomplete`/`RevendedoraSearchSelect` mostrarem badge visualmente.
-
-### 7. Perfil
-`PerfilRevendedoraDialog.tsx` — adicionar header com foto, badge de status, botões de jurídico e link "Editar dados".
-
-## Detalhes técnicos
-
-- ViaCEP: `fetch('https://viacep.com.br/ws/' + cep.replace(/\D/g,'') + '/json/')`. Tratar `{erro: true}`.
-- Câmera: stream do `getUserMedia({video:{facingMode:'environment'}})`, renderiza em `<video>`, snapshot via `<canvas>`, converte para Blob webp, upload no bucket com path `{revendedora_id || 'novo-' + uuid}/foto.webp`. Após upload, pega `publicUrl`.
-- Máscaras: implementação inline simples (sem nova dep). CPF/WhatsApp formatadores em `src/lib/utils.ts`.
-- Mobile-first, glassmorphism, paleta burgundy `#8B1538` (segue Core memory).
+- Logar como representante, editar endereço de uma revendedora existente, recarregar e confirmar persistência.
+- Conferir que o audit gerou linha com diff.
+- Confirmar que a tentativa de editar revendedora de outro representante continua sendo bloqueada.
 
 ## Fora de escopo
-- Migração de dados antigos (campos novos ficam null nos registros existentes — formulário aceita isso).
-- Histórico de mudanças do status_juridico além dos campos já existentes.
-- Tela admin dedicada de "Aprovação Jurídica" (faremos só os botões no dialog).
+
+- Não vou tocar em `RevendedoraFormDialog` para mudar layout das seções existentes além de inserir o bloco de histórico.
+- Sem backfill de auditoria para edições passadas (não há como reconstruir diffs antigos).

@@ -22,6 +22,7 @@ import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
 import { StatusRevendedoraBadge } from './StatusRevendedoraBadge';
 import { useFotoUrl } from '@/hooks/useFotoUrl';
 import { RevendedoraFormDialog } from './RevendedoraFormDialog';
+import { useRevendedoraHistorico } from '@/hooks/useRevendedoraHistorico';
 import { toast } from 'sonner';
 
 interface Props {
@@ -202,6 +203,16 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
     !revendedoraInfo.status_juridico &&
     !isAdmin;
 
+  const { data: historico = [] } = useRevendedoraHistorico(revendedoraInfo?.id);
+  const ultimaEdicao = historico.find((h) => h.acao === 'editou') ?? null;
+  const cadastro = historico.find((h) => h.acao === 'criou') ?? null;
+
+  const fmtField = (v: any) => (v === null || v === undefined || v === '' ? '—' : String(v));
+  const fmtDateTime = (iso?: string | null) =>
+    iso ? format(new Date(iso), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : '—';
+
+
+
   return (
     <Dialog open onOpenChange={() => onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
@@ -266,6 +277,43 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
               </CardContent>
             </Card>
           )}
+
+          {/* Dados cadastrais */}
+          <Card>
+            <CardContent className="py-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-primary uppercase tracking-wide">Dados Cadastrais</p>
+                <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)} className="gap-1 h-7">
+                  <Edit2 className="h-3.5 w-3.5" /> Editar
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+                <div><span className="text-muted-foreground">CPF:</span> {fmtField(revendedoraInfo?.cpf)}</div>
+                <div><span className="text-muted-foreground">RG:</span> {fmtField(revendedoraInfo?.rg)}</div>
+                <div><span className="text-muted-foreground">Nascimento:</span> {fmtField(revendedoraInfo?.data_nascimento)}</div>
+                <div><span className="text-muted-foreground">Gênero:</span> {fmtField(revendedoraInfo?.genero)}</div>
+                <div><span className="text-muted-foreground">Estado civil:</span> {fmtField(revendedoraInfo?.estado_civil)}</div>
+                <div><span className="text-muted-foreground">Email:</span> {fmtField(revendedoraInfo?.email)}</div>
+                <div><span className="text-muted-foreground">WhatsApp:</span> {fmtField(revendedoraInfo?.whatsapp)}</div>
+                <div><span className="text-muted-foreground">Tel. alternativo:</span> {fmtField(revendedoraInfo?.telefone_alternativo)}</div>
+                <div><span className="text-muted-foreground">CEP:</span> {fmtField(revendedoraInfo?.cep)}</div>
+                <div className="md:col-span-2"><span className="text-muted-foreground">Endereço:</span> {fmtField([revendedoraInfo?.logradouro, revendedoraInfo?.numero, revendedoraInfo?.complemento].filter(Boolean).join(', ') || null)}</div>
+                <div><span className="text-muted-foreground">Bairro:</span> {fmtField(revendedoraInfo?.bairro)}</div>
+                <div><span className="text-muted-foreground">Cidade/UF:</span> {fmtField([revendedoraInfo?.cidade, revendedoraInfo?.estado].filter(Boolean).join('/') || null)}</div>
+              </div>
+              <div className="border-t pt-2 mt-2 grid grid-cols-1 md:grid-cols-2 gap-1 text-xs text-muted-foreground">
+                <div>
+                  📅 Cadastrada em: <strong className="text-foreground">{fmtDateTime(revendedoraInfo?.criado_em)}</strong>
+                  {cadastro?.user_nome && <> por <strong className="text-foreground">{cadastro.user_nome}</strong></>}
+                </div>
+                <div>
+                  ✏️ Última edição: <strong className="text-foreground">{ultimaEdicao ? fmtDateTime(ultimaEdicao.criado_em) : (revendedoraInfo?.atualizado_em ? fmtDateTime(revendedoraInfo.atualizado_em) : '—')}</strong>
+                  {ultimaEdicao?.user_nome && <> por <strong className="text-foreground">{ultimaEdicao.user_nome}</strong></>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
 
           {/* Cards resumo */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
