@@ -34,18 +34,14 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    
-    // Verificar se é chamada do cron (POST sem auth de usuário, mas com body específico)
-    let isCronCall = false;
-    let body: { source?: string } = {};
-    
-    if (req.method === "POST") {
-      try {
-        body = await req.json();
-        isCronCall = body?.source === "cron";
-      } catch {
-        // Body vazio ou inválido, não é cron
-      }
+    const cronSecret = req.headers.get("x-cron-secret");
+
+    // Cron detection: only trust header secret matching SERVICE_ROLE_KEY (server-side only).
+    // Body-based detection was vulnerable to spoofing.
+    let isCronCall = cronSecret === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (req.method === "POST" && !isCronCall) {
+      try { await req.json(); } catch { /* ignore */ }
     }
 
     // Cliente do Supabase externo (site Taliare)
