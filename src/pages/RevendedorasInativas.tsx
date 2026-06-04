@@ -334,7 +334,7 @@ export default function RevendedorasInativas() {
   const [selectedKit, setSelectedKit] = useState('');
   const [dataVencimento, setDataVencimento] = useState<Date>(addDays(new Date(), 60));
   const [periodoRanking, setPeriodoRanking] = useState<'mensal' | 'trimestral' | 'total'>('total');
-  const [perfilAberto, setPerfilAberto] = useState<string | null>(null);
+  const [perfilAberto, setPerfilAberto] = useState<{ nome: string; id: string | null } | null>(null);
   const [editandoWhatsApp, setEditandoWhatsApp] = useState<string | null>(null);
   const [whatsAppTemp, setWhatsAppTemp] = useState('');
 
