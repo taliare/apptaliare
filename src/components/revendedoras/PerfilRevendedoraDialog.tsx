@@ -225,6 +225,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
         </DialogHeader>
 
         <div className="space-y-4">
+          <FotoLightbox open={fotoExpandida} url={fotoUrl} nome={nomeRevendedora} onClose={() => setFotoExpandida(false)} />
           {/* Header com foto + status */}
           <div className="flex flex-wrap items-center gap-4">
             <Avatar
