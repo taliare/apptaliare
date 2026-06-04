@@ -27,6 +27,8 @@ import {
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -39,6 +41,7 @@ import {
   TrendingDown,
   Wallet,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 
 const fmt = (v: number) =>
@@ -111,6 +114,43 @@ export function DFCView() {
       return data || [];
     },
   });
+
+  // CONTAS bancárias (para saldo total + chart de saldo acumulado)
+  const { data: contas = [] } = useQuery({
+    queryKey: ["dfc-contas"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("contas_bancarias")
+        .select("id, nome, saldo_inicial, ativo")
+        .eq("ativo", true);
+      return data || [];
+    },
+  });
+
+  // TRANSAÇÕES bancárias (todas até fim do período, para saldo acumulado por conta)
+  const { data: transacoesBanco = [] } = useQuery({
+    queryKey: ["dfc-transacoes-banco", fimPeriodo],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("transacoes_bancarias")
+        .select("conta_id, data_transacao, valor, tipo, status_conciliacao")
+        .lte("data_transacao", fimPeriodo)
+        .neq("status_conciliacao", "ignorado");
+      return data || [];
+    },
+  });
+
+  // Créditos do período (para detectar divergências com prestações)
+  const creditosPeriodo = useMemo(
+    () =>
+      (transacoesBanco as any[]).filter(
+        (t) =>
+          t.tipo === "credito" &&
+          t.data_transacao >= inicioPeriodo &&
+          t.data_transacao <= fimPeriodo,
+      ),
+    [transacoesBanco, inicioPeriodo, fimPeriodo],
+  );
 
   // Perfis para nomes de representantes
   const repIds = useMemo(
@@ -249,6 +289,100 @@ export function DFCView() {
     ? despesas.filter((d: any) => (d.categoria_id || "sem") === catFiltro)
     : despesas;
 
+  // Saldo atual de cada conta (saldo_inicial + soma de tudo até hoje)
+  const saldosPorConta = useMemo(() => {
+    const map = new Map<string, number>();
+    contas.forEach((c: any) => map.set(c.id, Number(c.saldo_inicial || 0)));
+    (transacoesBanco as any[]).forEach((t) => {
+      map.set(t.conta_id, (map.get(t.conta_id) || 0) + Number(t.valor));
+    });
+    return map;
+  }, [contas, transacoesBanco]);
+
+  const saldoTotal = useMemo(
+    () => Array.from(saldosPorConta.values()).reduce((s, v) => s + v, 0),
+    [saldosPorConta],
+  );
+
+  // Dados do gráfico de saldo acumulado por conta ao longo do mês
+  const dadosSaldoConta = useMemo(() => {
+    // Saldo inicial = saldo_inicial + transações anteriores ao período
+    const saldoBase = new Map<string, number>();
+    contas.forEach((c: any) => saldoBase.set(c.id, Number(c.saldo_inicial || 0)));
+    (transacoesBanco as any[])
+      .filter((t) => t.data_transacao < inicioPeriodo)
+      .forEach((t) => {
+        saldoBase.set(t.conta_id, (saldoBase.get(t.conta_id) || 0) + Number(t.valor));
+      });
+
+    // Transações do período por dia/conta
+    const porDia: Record<string, Record<string, number>> = {};
+    (transacoesBanco as any[])
+      .filter((t) => t.data_transacao >= inicioPeriodo && t.data_transacao <= fimPeriodo)
+      .forEach((t) => {
+        const dia = t.data_transacao.slice(0, 10);
+        if (!porDia[dia]) porDia[dia] = {};
+        porDia[dia][t.conta_id] = (porDia[dia][t.conta_id] || 0) + Number(t.valor);
+      });
+
+    // Acumular dia a dia
+    const acumulado: Record<string, number> = {};
+    contas.forEach((c: any) => (acumulado[c.id] = saldoBase.get(c.id) || 0));
+    const series: any[] = [];
+    for (let d = 1; d <= ultimoDiaNum; d++) {
+      const diaStr = `${ano}-${mes}-${String(d).padStart(2, "0")}`;
+      const movs = porDia[diaStr] || {};
+      Object.entries(movs).forEach(([cid, v]) => {
+        acumulado[cid] = (acumulado[cid] || 0) + v;
+      });
+      const row: any = { dia: String(d).padStart(2, "0") };
+      contas.forEach((c: any) => (row[c.nome] = Number((acumulado[c.id] || 0).toFixed(2))));
+      series.push(row);
+    }
+    return series;
+  }, [contas, transacoesBanco, inicioPeriodo, fimPeriodo, ano, mes, ultimoDiaNum]);
+
+  const CORES_CONTA = [
+    "hsl(210 90% 55%)",
+    "hsl(280 75% 60%)",
+    "hsl(35 90% 55%)",
+    "hsl(160 70% 45%)",
+    "hsl(340 80% 60%)",
+    "hsl(190 80% 50%)",
+  ];
+
+  // Divergências: prestações sem correspondência em crédito do extrato (±3 dias, dif < 5%)
+  const divergencias = useMemo(() => {
+    const addDays = (s: string, n: number) => {
+      const [y, mo, d] = s.split("-").map(Number);
+      const dt = new Date(y, mo - 1, d + n);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    };
+    return prestacoes
+      .filter((p: any) => {
+        const valor = Number(p.valor_pago || 0);
+        if (!valor || !p.data_execucao) return false;
+        const dRef = p.data_execucao.slice(0, 10);
+        const min = addDays(dRef, -3);
+        const max = addDays(dRef, 3);
+        const match = creditosPeriodo.find((t: any) => {
+          if (t.data_transacao < min || t.data_transacao > max) return false;
+          const diff = Math.abs(Number(t.valor) - valor) / valor;
+          return diff < 0.05;
+        });
+        return !match;
+      })
+      .map((p: any) => ({
+        id: p.id,
+        revendedora: p.revendedora,
+        data: p.data_execucao,
+        valor: Number(p.valor_pago),
+        representante: nomeRep(p.representante_id),
+      }));
+  }, [prestacoes, creditosPeriodo, perfis]);
+
+
+
   return (
     <div className="space-y-4">
       {/* Seletor de período */}
@@ -278,7 +412,18 @@ export function DFCView() {
       </Card>
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className={`border-l-4 ${saldoTotal >= 0 ? "border-l-blue-500" : "border-l-red-500"}`}>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs">
+              <Wallet className="h-4 w-4 text-blue-500" /> Saldo Total (Contas)
+            </div>
+            <div className={`text-2xl font-bold mt-1 ${saldoTotal >= 0 ? "text-blue-600" : "text-red-600"}`}>
+              {fmt(saldoTotal)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">{contas.length} conta(s)</div>
+          </CardContent>
+        </Card>
         <Card className="border-l-4 border-l-green-500">
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs">
@@ -307,6 +452,7 @@ export function DFCView() {
         </Card>
       </div>
 
+
       {/* Gráfico */}
       <Card>
         <CardHeader><CardTitle className="text-base">Entradas x Saídas por Semana</CardTitle></CardHeader>
@@ -324,6 +470,92 @@ export function DFCView() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* Saldo acumulado por conta */}
+      {contas.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Saldo Acumulado por Conta</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={dadosSaldoConta}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                <XAxis dataKey="dia" />
+                <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: number) => fmt(v)} />
+                <Legend />
+                {contas.map((c: any, i: number) => (
+                  <Line
+                    key={c.id}
+                    type="monotone"
+                    dataKey={c.nome}
+                    stroke={CORES_CONTA[i % CORES_CONTA.length]}
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+            {transacoesBanco.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Importe extratos OFX para visualizar a evolução do saldo.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Divergências */}
+      <Card className={divergencias.length > 0 ? "border-amber-500/40" : ""}>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className={`h-4 w-4 ${divergencias.length > 0 ? "text-amber-500" : "text-muted-foreground"}`} />
+            Divergências ({divergencias.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground mb-3">
+            Prestações de contas pagas no sistema sem crédito correspondente no extrato bancário (±3 dias, diferença &lt; 5%).
+          </p>
+          {divergencias.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma divergência detectada no período.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Revendedora</TableHead>
+                    <TableHead>Representante</TableHead>
+                    <TableHead className="text-right">Valor Esperado</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {divergencias.map((d) => (
+                    <TableRow key={d.id}>
+                      <TableCell>{fmtData(d.data)}</TableCell>
+                      <TableCell>{d.revendedora}</TableCell>
+                      <TableCell className="text-xs">{d.representante}</TableCell>
+                      <TableCell className="text-right font-medium">{fmt(d.valor)}</TableCell>
+                      <TableCell>
+                        <span className="text-xs text-amber-600 font-medium">
+                          Não encontrado no extrato
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
 
       {/* Entradas */}
       <Card>

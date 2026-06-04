@@ -131,7 +131,9 @@ export default function FluxoCaixa() {
         .select("conta_id,valor,status_conciliacao")
         .in("conta_id", ids);
       (txs || []).forEach((t: any) => {
-        somas[t.conta_id] = (somas[t.conta_id] || 0) + Number(t.valor);
+        if (t.status_conciliacao !== "ignorado") {
+          somas[t.conta_id] = (somas[t.conta_id] || 0) + Number(t.valor);
+        }
         if (t.status_conciliacao === "pendente") {
           pendentes[t.conta_id] = (pendentes[t.conta_id] || 0) + 1;
         }
@@ -276,54 +278,53 @@ export default function FluxoCaixa() {
               ) : contas.length === 0 ? (
                 <p className="text-muted-foreground">Nenhuma conta cadastrada</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Banco</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead className="text-right">Saldo Inicial</TableHead>
-                        <TableHead className="text-right">Saldo Atual</TableHead>
-                        <TableHead>Pendentes</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contas.map((c) => (
-                        <TableRow key={c.id}>
-                          <TableCell className="font-medium">{c.nome}</TableCell>
-                          <TableCell>{c.banco || "—"}</TableCell>
-                          <TableCell className="capitalize">{c.tipo}</TableCell>
-                          <TableCell className="text-right">
-                            {BRL(Number(c.saldo_inicial))}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {BRL(c.saldo_atual || 0)}
-                          </TableCell>
-                          <TableCell>
-                            {c.pendentes && c.pendentes > 0 ? (
-                              <Badge variant="destructive">
-                                {c.pendentes} pendentes
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {contas.map((c) => {
+                    const saldo = c.saldo_atual || 0;
+                    const positivo = saldo >= 0;
+                    return (
+                      <Card
+                        key={c.id}
+                        className={`border-l-4 ${positivo ? "border-l-green-500" : "border-l-red-500"}`}
+                      >
+                        <CardContent className="pt-4 space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="font-semibold">{c.nome}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {c.banco || "—"} · <span className="capitalize">{c.tipo}</span>
+                              </div>
+                            </div>
                             <Badge variant={c.ativo ? "default" : "secondary"}>
                               {c.ativo ? "Ativo" : "Inativo"}
                             </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                          </div>
+                          <div>
+                            <div className="text-xs text-muted-foreground">Saldo atual</div>
+                            <div
+                              className={`text-2xl font-bold ${positivo ? "text-green-600" : "text-red-600"}`}
+                            >
+                              {BRL(saldo)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Inicial: {BRL(Number(c.saldo_inicial))}
+                            </div>
+                          </div>
+                          {c.pendentes && c.pendentes > 0 ? (
+                            <Badge variant="destructive">
+                              {c.pendentes} pendentes
+                            </Badge>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
+
 
         <TabsContent value="importar" className="space-y-4">
           <Card>
