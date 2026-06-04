@@ -416,6 +416,9 @@ type Drilldown =
   | { tipo: "pe_revendedoras"; titulo: string; rows: { nome: string; representante: string }[] }
   | { tipo: "pe_novas"; titulo: string; rows: RevendedoraRow[]; nomeRep: Map<string, string> }
   | { tipo: "pe_rep_notas"; titulo: string; rows: Cobranca[] }
+  | { tipo: "al_cobrancas"; titulo: string; rows: Cobranca[] }
+  | { tipo: "al_reps"; titulo: string; rows: { nome: string; detalhe: string }[] }
+  | { tipo: "al_revendedoras"; titulo: string; rows: { nome: string; qtd: number; saldo: number }[] }
   | null;
 
 // ─── Main ──────────────────────────────────────
