@@ -566,17 +566,30 @@ export default function RevendedorasInativas() {
 
   // ==================== MEMOS ====================
 
-  // Filtro de busca compartilhado
+  // Filtro de busca compartilhado (nome, CPF ou WhatsApp)
+  const matchBusca = (r: any, termo: string, digitos: string) => {
+    if (r.nome?.toLowerCase().includes(termo)) return true;
+    if (digitos) {
+      const cpfDig = (r.cpf ?? '').replace(/\D/g, '');
+      const wppDig = (r.whatsapp ?? '').replace(/\D/g, '');
+      if (cpfDig && cpfDig.includes(digitos)) return true;
+      if (wppDig && wppDig.includes(digitos)) return true;
+    }
+    return false;
+  };
+
   const ativasFiltradas = useMemo(() => {
     if (!searchTerm) return revendedorasAtivas;
     const t = searchTerm.toLowerCase();
-    return revendedorasAtivas.filter(r => r.nome.toLowerCase().includes(t));
+    const d = searchTerm.replace(/\D/g, '');
+    return revendedorasAtivas.filter(r => matchBusca(r, t, d));
   }, [revendedorasAtivas, searchTerm]);
 
   const inativasFiltradas = useMemo(() => {
     if (!searchTerm) return revendedorasInativas;
     const t = searchTerm.toLowerCase();
-    return revendedorasInativas.filter(r => r.nome.toLowerCase().includes(t));
+    const d = searchTerm.replace(/\D/g, '');
+    return revendedorasInativas.filter(r => matchBusca(r, t, d));
   }, [revendedorasInativas, searchTerm]);
 
   // Deduplicar ranking por cobranca_id
