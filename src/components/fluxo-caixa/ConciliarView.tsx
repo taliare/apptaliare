@@ -19,7 +19,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import { CategorizarDialog } from "./CategorizarDialog";
+import { NovaTransacaoDialog } from "./NovaTransacaoDialog";
 
 interface Conta {
   id: string;
