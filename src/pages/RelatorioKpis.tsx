@@ -1914,3 +1914,182 @@ function DrillNovasRevendedoras({
   );
 }
 
+
+// ─── Alertas operacionais ──────────────────────
+function AlertasList({
+  vencidas30, campo90, repsSem7d, repBaixo, revAcumulo, onDrill,
+}: {
+  vencidas30: Cobranca[];
+  campo90: Cobranca[];
+  repsSem7d: { nome: string; detalhe: string }[];
+  repBaixo: { nome: string; detalhe: string }[];
+  revAcumulo: { nome: string; qtd: number; saldo: number }[];
+  onDrill: (d: Drilldown) => void;
+}) {
+  const valorVencidas30 = vencidas30.reduce(
+    (s, c) => s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
+  );
+  const valorCampo90 = campo90.reduce(
+    (s, c) => s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
+  );
+
+  type Alerta = {
+    nivel: "red" | "yellow" | "green";
+    icon: React.ReactNode;
+    titulo: string;
+    descricao: string;
+    qtd: number;
+    onClick?: () => void;
+  };
+
+  const itens: Alerta[] = [
+    {
+      nivel: "red",
+      icon: <AlertTriangle className="h-4 w-4" />,
+      titulo: "Notas vencidas há mais de 30 dias",
+      descricao: `${fmt(valorVencidas30)} em saldo aberto`,
+      qtd: vencidas30.length,
+      onClick: vencidas30.length > 0
+        ? () => onDrill({ tipo: "al_cobrancas", titulo: "Notas vencidas há mais de 30 dias", rows: vencidas30 })
+        : undefined,
+    },
+    {
+      nivel: "red",
+      icon: <Boxes className="h-4 w-4" />,
+      titulo: "Kits em campo há mais de 90 dias",
+      descricao: `${fmt(valorCampo90)} imobilizado`,
+      qtd: campo90.length,
+      onClick: campo90.length > 0
+        ? () => onDrill({ tipo: "al_cobrancas", titulo: "Kits em campo há mais de 90 dias", rows: campo90 })
+        : undefined,
+    },
+    {
+      nivel: "yellow",
+      icon: <UserX className="h-4 w-4" />,
+      titulo: "Representante sem cobrança há 7 dias",
+      descricao: "Representantes ativos sem agendamento recente",
+      qtd: repsSem7d.length,
+      onClick: repsSem7d.length > 0
+        ? () => onDrill({ tipo: "al_reps", titulo: "Representantes sem cobrança nos últimos 7 dias", rows: repsSem7d })
+        : undefined,
+    },
+    {
+      nivel: "yellow",
+      icon: <Target className="h-4 w-4" />,
+      titulo: "Aproveitamento < 20% no mês atual",
+      descricao: "Representantes abaixo da meta mínima",
+      qtd: repBaixo.length,
+      onClick: repBaixo.length > 0
+        ? () => onDrill({ tipo: "al_reps", titulo: "Representantes com aproveitamento < 20%", rows: repBaixo })
+        : undefined,
+    },
+    {
+      nivel: "yellow",
+      icon: <Users className="h-4 w-4" />,
+      titulo: "Revendedoras com 2+ notas em aberto",
+      descricao: "Risco de acúmulo de dívida",
+      qtd: revAcumulo.length,
+      onClick: revAcumulo.length > 0
+        ? () => onDrill({ tipo: "al_revendedoras", titulo: "Revendedoras com 2+ notas em aberto", rows: revAcumulo })
+        : undefined,
+    },
+  ];
+
+  const ordem = { red: 0, yellow: 1, green: 2 };
+  itens.sort((a, b) => (ordem[a.nivel] - ordem[b.nivel]) || (b.qtd - a.qtd));
+
+  const corBadge = (n: "red" | "yellow" | "green") =>
+    n === "red"
+      ? "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30"
+      : n === "yellow"
+      ? "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400 border-yellow-500/30"
+      : "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30";
+
+  const corBorda = (n: "red" | "yellow" | "green") =>
+    n === "red" ? "border-l-red-500"
+      : n === "yellow" ? "border-l-yellow-500"
+      : "border-l-green-500";
+
+  return (
+    <div className="space-y-2">
+      {itens.map((a, i) => {
+        const ativo = a.qtd > 0;
+        return (
+          <div
+            key={i}
+            onClick={a.onClick}
+            className={`flex items-center gap-3 p-3 rounded-md border border-border border-l-4 ${corBorda(a.nivel)} ${
+              a.onClick ? "cursor-pointer hover:bg-muted/40 transition" : ""
+            } ${!ativo ? "opacity-60" : ""}`}
+          >
+            <div className={`p-2 rounded-md ${corBadge(a.nivel)}`}>{a.icon}</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm">{a.titulo}</div>
+              <div className="text-xs text-muted-foreground truncate">{a.descricao}</div>
+            </div>
+            <Badge variant="outline" className={`font-mono tabular-nums ${corBadge(a.nivel)}`}>
+              {a.qtd}
+            </Badge>
+            {a.onClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DrillRepsAlerta({ rows }: { rows: { nome: string; detalhe: string }[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Representante</TableHead>
+          <TableHead>Detalhe</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-6">Nenhum.</TableCell></TableRow>
+        ) : rows.map((r, i) => (
+          <TableRow key={`${r.nome}-${i}`}>
+            <TableCell className="text-sm font-medium">{r.nome}</TableCell>
+            <TableCell className="text-sm text-muted-foreground">{r.detalhe}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={2}>Total: {rows.length}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DrillRevendedorasAcumulo({ rows }: { rows: { nome: string; qtd: number; saldo: number }[] }) {
+  const totalSaldo = rows.reduce((s, r) => s + r.saldo, 0);
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Revendedora</TableHead>
+          <TableHead className="text-right">Notas em aberto</TableHead>
+          <TableHead className="text-right">Saldo total</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Nenhuma.</TableCell></TableRow>
+        ) : rows.map((r, i) => (
+          <TableRow key={`${r.nome}-${i}`}>
+            <TableCell className="text-sm font-medium">{r.nome}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{r.qtd}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{fmt(r.saldo)}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={2}>Total: {rows.length}</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{fmt(totalSaldo)}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
