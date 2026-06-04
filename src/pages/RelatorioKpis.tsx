@@ -758,6 +758,12 @@ export default function RelatorioKpis() {
               {drill?.tipo === "margem" && (
                 <DrillMargem receita={drill.receita} custo={drill.custo} />
               )}
+              {drill?.tipo === "op_cobrancas" && (
+                <DrillCobrancas rows={drill.rows} mostrarSaldo={drill.mostrarSaldo} />
+              )}
+              {drill?.tipo === "op_tempo" && <DrillTempo rows={drill.rows} />}
+              {drill?.tipo === "op_atraso" && <DrillAtraso rows={drill.rows} />}
+              {drill?.tipo === "op_prazo" && <DrillPrazo rows={drill.rows} />}
             </div>
           </ScrollArea>
         </SheetContent>
