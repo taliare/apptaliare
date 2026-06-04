@@ -439,6 +439,7 @@ export default function FluxoCaixa() {
                   <SelectItem value="corrente">Conta Corrente</SelectItem>
                   <SelectItem value="poupanca">Poupança</SelectItem>
                   <SelectItem value="pagamento">Conta Pagamento</SelectItem>
+                  <SelectItem value="caixa">Caixa Físico</SelectItem>
                 </SelectContent>
               </Select>
             </div>
