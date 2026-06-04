@@ -289,6 +289,100 @@ export function DFCView() {
     ? despesas.filter((d: any) => (d.categoria_id || "sem") === catFiltro)
     : despesas;
 
+  // Saldo atual de cada conta (saldo_inicial + soma de tudo até hoje)
+  const saldosPorConta = useMemo(() => {
+    const map = new Map<string, number>();
+    contas.forEach((c: any) => map.set(c.id, Number(c.saldo_inicial || 0)));
+    (transacoesBanco as any[]).forEach((t) => {
+      map.set(t.conta_id, (map.get(t.conta_id) || 0) + Number(t.valor));
+    });
+    return map;
+  }, [contas, transacoesBanco]);
+
+  const saldoTotal = useMemo(
+    () => Array.from(saldosPorConta.values()).reduce((s, v) => s + v, 0),
+    [saldosPorConta],
+  );
+
+  // Dados do gráfico de saldo acumulado por conta ao longo do mês
+  const dadosSaldoConta = useMemo(() => {
+    // Saldo inicial = saldo_inicial + transações anteriores ao período
+    const saldoBase = new Map<string, number>();
+    contas.forEach((c: any) => saldoBase.set(c.id, Number(c.saldo_inicial || 0)));
+    (transacoesBanco as any[])
+      .filter((t) => t.data_transacao < inicioPeriodo)
+      .forEach((t) => {
+        saldoBase.set(t.conta_id, (saldoBase.get(t.conta_id) || 0) + Number(t.valor));
+      });
+
+    // Transações do período por dia/conta
+    const porDia: Record<string, Record<string, number>> = {};
+    (transacoesBanco as any[])
+      .filter((t) => t.data_transacao >= inicioPeriodo && t.data_transacao <= fimPeriodo)
+      .forEach((t) => {
+        const dia = t.data_transacao.slice(0, 10);
+        if (!porDia[dia]) porDia[dia] = {};
+        porDia[dia][t.conta_id] = (porDia[dia][t.conta_id] || 0) + Number(t.valor);
+      });
+
+    // Acumular dia a dia
+    const acumulado: Record<string, number> = {};
+    contas.forEach((c: any) => (acumulado[c.id] = saldoBase.get(c.id) || 0));
+    const series: any[] = [];
+    for (let d = 1; d <= ultimoDiaNum; d++) {
+      const diaStr = `${ano}-${mes}-${String(d).padStart(2, "0")}`;
+      const movs = porDia[diaStr] || {};
+      Object.entries(movs).forEach(([cid, v]) => {
+        acumulado[cid] = (acumulado[cid] || 0) + v;
+      });
+      const row: any = { dia: String(d).padStart(2, "0") };
+      contas.forEach((c: any) => (row[c.nome] = Number((acumulado[c.id] || 0).toFixed(2))));
+      series.push(row);
+    }
+    return series;
+  }, [contas, transacoesBanco, inicioPeriodo, fimPeriodo, ano, mes, ultimoDiaNum]);
+
+  const CORES_CONTA = [
+    "hsl(210 90% 55%)",
+    "hsl(280 75% 60%)",
+    "hsl(35 90% 55%)",
+    "hsl(160 70% 45%)",
+    "hsl(340 80% 60%)",
+    "hsl(190 80% 50%)",
+  ];
+
+  // Divergências: prestações sem correspondência em crédito do extrato (±3 dias, dif < 5%)
+  const divergencias = useMemo(() => {
+    const addDays = (s: string, n: number) => {
+      const [y, mo, d] = s.split("-").map(Number);
+      const dt = new Date(y, mo - 1, d + n);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    };
+    return prestacoes
+      .filter((p: any) => {
+        const valor = Number(p.valor_pago || 0);
+        if (!valor || !p.data_execucao) return false;
+        const dRef = p.data_execucao.slice(0, 10);
+        const min = addDays(dRef, -3);
+        const max = addDays(dRef, 3);
+        const match = creditosPeriodo.find((t: any) => {
+          if (t.data_transacao < min || t.data_transacao > max) return false;
+          const diff = Math.abs(Number(t.valor) - valor) / valor;
+          return diff < 0.05;
+        });
+        return !match;
+      })
+      .map((p: any) => ({
+        id: p.id,
+        revendedora: p.revendedora,
+        data: p.data_execucao,
+        valor: Number(p.valor_pago),
+        representante: nomeRep(p.representante_id),
+      }));
+  }, [prestacoes, creditosPeriodo, perfis]);
+
+
+
   return (
     <div className="space-y-4">
       {/* Seletor de período */}
