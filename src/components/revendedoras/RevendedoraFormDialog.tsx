@@ -216,6 +216,7 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
       setReferencias([]);
     }
     setBloqueioJuridico(false);
+    setDuplicidade(null);
   }, [rev, open, revendedoraId, initialNome]);
 
   useEffect(() => {
