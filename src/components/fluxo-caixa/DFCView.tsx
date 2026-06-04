@@ -652,6 +652,74 @@ export function DFCView() {
         </Card>
       )}
 
+      {/* Projeção 30 dias */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
+            <span>Projeção — Próximos 30 dias</span>
+            <span className="text-xs font-normal text-muted-foreground">
+              Taxa histórica: <strong>{(taxaAdimplencia * 100).toFixed(1)}%</strong>
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="border-l-4 border-l-blue-500">
+              <CardContent className="pt-4">
+                <div className="text-xs text-muted-foreground">Total Previsto (30d)</div>
+                <div className="text-xl font-bold text-blue-600 mt-1">{fmt(totalPrevisto30)}</div>
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-l-emerald-500">
+              <CardContent className="pt-4">
+                <div className="text-xs text-muted-foreground">Total Realista (30d)</div>
+                <div className="text-xl font-bold text-emerald-600 mt-1">{fmt(totalRealista30)}</div>
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-l-red-400">
+              <CardContent className="pt-4">
+                <div className="text-xs text-muted-foreground">Despesas Fixas (média 3m)</div>
+                <div className="text-xl font-bold text-red-500 mt-1">{fmt(despesasFixasMedia)}</div>
+              </CardContent>
+            </Card>
+            <Card className={`border-l-4 ${semaforoCfg.cls}`}>
+              <CardContent className="pt-4">
+                <div className="text-xs text-muted-foreground flex items-center justify-between">
+                  <span>Saldo Projetado</span>
+                  <span className={`text-[10px] font-semibold uppercase ${semaforoCfg.text}`}>
+                    {semaforoCfg.label}
+                  </span>
+                </div>
+                <div className={`text-xl font-bold mt-1 ${semaforoCfg.text}`}>
+                  {fmt(saldoProjetado)}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  Saldo atual + realista − despesas fixas
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={projecaoSemanas}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis dataKey="semana" />
+              <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+              <Tooltip formatter={(v: number) => fmt(v)} />
+              <Legend />
+              <Bar dataKey="previsto" name="Previsto" fill="hsl(210 90% 55%)" />
+              <Bar dataKey="realista" name="Realista" fill="hsl(160 70% 45%)" />
+            </BarChart>
+          </ResponsiveContainer>
+
+          {cobrancasProj.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Nenhuma cobrança agendada nos próximos 30 dias.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Divergências */}
       <Card className={divergencias.length > 0 ? "border-amber-500/40" : ""}>
         <CardHeader>
