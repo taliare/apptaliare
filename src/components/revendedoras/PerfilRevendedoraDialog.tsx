@@ -22,6 +22,7 @@ import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
 import { StatusRevendedoraBadge } from './StatusRevendedoraBadge';
 import { useFotoUrl } from '@/hooks/useFotoUrl';
 import { RevendedoraFormDialog } from './RevendedoraFormDialog';
+import { useRevendedoraHistorico } from '@/hooks/useRevendedoraHistorico';
 import { toast } from 'sonner';
 
 interface Props {
