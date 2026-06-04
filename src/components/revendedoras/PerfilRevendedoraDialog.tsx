@@ -33,6 +33,24 @@ interface Props {
   onClose: () => void;
 }
 
+const normalizarNome = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase()
+    .split(/\s+/)
+    .filter(Boolean);
+
+const nomesCompativeis = (origem: string, candidato: string) => {
+  const origemTokens = normalizarNome(origem);
+  const candidatoTokens = normalizarNome(candidato);
+  if (!origemTokens.length || !candidatoTokens.length) return false;
+  return origemTokens.every((token) =>
+    candidatoTokens.some((cand) => cand === token || (token.length === 1 && cand.startsWith(token)))
+  );
+};
+
 export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, representantes, onClose }: Props) {
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -72,7 +90,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
   }, [prestacoesBruto]);
 
   const { data: revendedoraInfo } = useQuery({
-    queryKey: ['revendedora-info', revendedoraId ?? nomeRevendedora],
+    queryKey: ['revendedora-info', revendedoraId ?? nomeRevendedora, user?.id],
     queryFn: async () => {
       // 1) Prefere busca por ID quando a tela já o conhece
       if (revendedoraId) {
@@ -86,11 +104,21 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
       }
       // 2) RPC tolerante a variações (UPPER/TRIM/unaccent + prefixo)
       const { data: rpcData, error: rpcErr } = await (supabase as any).rpc('buscar_revendedora_match', {
-        p_representante_id: null,
+        p_representante_id: user?.id ?? null,
         p_nome: nomeRevendedora,
       });
       if (!rpcErr && rpcData) {
-        return Array.isArray(rpcData) ? (rpcData[0] ?? null) : rpcData;
+        const found = Array.isArray(rpcData) ? (rpcData[0] ?? null) : rpcData;
+        if (found?.id) return found;
+      }
+
+      // Fallback para nomes abreviados nas cobranças/prestações, ex: "Maria M. Silva" x "MARIA MARIA SILVA".
+      const fallbackQuery = supabase.from('revendedoras').select('*').order('atualizado_em', { ascending: false });
+      const { data: candidatas, error: fallbackErr } = user?.id
+        ? await fallbackQuery.eq('representante_id', user.id)
+        : await fallbackQuery.limit(200);
+      if (!fallbackErr) {
+        return candidatas?.find((r: any) => nomesCompativeis(nomeRevendedora, r.nome ?? '')) ?? null;
       }
       return null;
     },

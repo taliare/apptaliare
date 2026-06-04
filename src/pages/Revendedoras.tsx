@@ -90,7 +90,7 @@ export default function Revendedoras() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [formEditId, setFormEditId] = useState<string | null>(null);
-  const [perfilNome, setPerfilNome] = useState<string | null>(null);
+  const [perfilAberto, setPerfilAberto] = useState<{ nome: string; id: string | null } | null>(null);
 
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes-lista'],
@@ -410,7 +410,7 @@ export default function Revendedoras() {
                               variant="outline"
                               size="sm"
                               className="gap-1"
-                              onClick={() => setPerfilNome(rev.nome)}
+                              onClick={() => setPerfilAberto({ nome: rev.nome, id: rev.id })}
                             >
                               <UserIcon className="h-3.5 w-3.5" />
                               Ver Perfil
@@ -447,11 +447,12 @@ export default function Revendedoras() {
         revendedoraId={formEditId}
       />
 
-      {perfilNome && (
+      {perfilAberto && (
         <PerfilRevendedoraDialog
-          nomeRevendedora={perfilNome}
+          nomeRevendedora={perfilAberto.nome}
+          revendedoraId={perfilAberto.id}
           representantes={representantes}
-          onClose={() => setPerfilNome(null)}
+          onClose={() => setPerfilAberto(null)}
         />
       )}
     </div>
