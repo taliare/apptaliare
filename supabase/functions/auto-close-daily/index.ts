@@ -12,6 +12,17 @@ serve(async (req) => {
   }
 
   try {
+    // Cron auth: bearer must match SERVICE_ROLE_KEY (only known server-side)
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    const cronHeader = req.headers.get("x-cron-secret") || "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    if (token !== serviceKey && cronHeader !== serviceKey) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     console.log("🔄 Iniciando fechamento automático de dias anteriores...");
 
     const supabaseAdmin = createClient(
