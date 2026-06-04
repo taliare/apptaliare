@@ -118,16 +118,35 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
     const nomeLimpo = nomeVal.trim();
     const cpfLimpo = cpfVal.replace(/\D/g, '');
     const wppLimpo = whatsappVal.replace(/\D/g, '');
-    if (!nomeLimpo && !cpfLimpo && !wppLimpo) {
+
+    // Em modo edição, só checa campos que mudaram em relação ao valor original.
+    // Evita falso positivo com homônimos pré-existentes em outras carteiras.
+    let nomeParam = nomeLimpo;
+    let cpfParam: string | null = cpfLimpo || null;
+    let wppParam: string | null = wppLimpo || null;
+    if (revendedoraId && rev) {
+      const nomeOrig = (rev.nome ?? '').trim();
+      const cpfOrig = (rev.cpf ?? '').replace(/\D/g, '');
+      const wppOrig = (rev.whatsapp ?? '').replace(/\D/g, '');
+      if (nomeLimpo.toUpperCase() === nomeOrig.toUpperCase()) nomeParam = '';
+      if (cpfLimpo === cpfOrig) cpfParam = null;
+      if (wppLimpo === wppOrig) wppParam = null;
+      if (!nomeParam && !cpfParam && !wppParam) {
+        setDuplicidade(null);
+        return;
+      }
+    }
+
+    if (!nomeParam && !cpfParam && !wppParam) {
       setDuplicidade(null);
       return;
     }
     try {
       const { data, error } = await supabase.rpc('checar_duplicidade_revendedora', {
         p_representante_id: user?.id ?? null,
-        p_nome: nomeLimpo,
-        p_cpf: cpfLimpo || null,
-        p_whatsapp: wppLimpo || null,
+        p_nome: nomeParam,
+        p_cpf: cpfParam,
+        p_whatsapp: wppParam,
         p_ignorar_id: revendedoraId ?? null,
       });
       if (error) throw error;
