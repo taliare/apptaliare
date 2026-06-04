@@ -19,7 +19,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   TrendingUp, TrendingDown, Minus, DollarSign, Target,
   Receipt, Repeat, Wallet, Percent, ChevronDown, ChevronRight,
-  BarChart3,
+  BarChart3, Boxes, Clock, RotateCcw, AlertTriangle, Scale, Hourglass,
+  Activity,
 } from "lucide-react";
 
 // ─── Helpers ───────────────────────────────────
@@ -73,6 +74,8 @@ interface Cobranca {
   valor_pago_acumulado: number | null;
   data_agendada: string;
   status: string | null;
+  data_quitacao?: string | null;
+  data_encaminhado_juridico?: string | null;
 }
 
 interface Despesa {
@@ -98,12 +101,60 @@ async function fetchPrestacoesPeriodo(inicio: string, fim: string) {
 async function fetchCobrancasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
     .gte("data_agendada", inicio)
     .lte("data_agendada", fim)
     .eq("vigente", true);
   if (error) throw error;
   return (data ?? []) as Cobranca[];
+}
+
+// Cobranças quitadas (status=pago) com data_quitacao no período
+async function fetchQuitadasPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .eq("status", "pago")
+    .gte("data_quitacao", inicio)
+    .lte("data_quitacao", fim)
+    .eq("vigente", true);
+  if (error) throw error;
+  return (data ?? []) as Cobranca[];
+}
+
+// Snapshot: todas pendentes/parciais vigentes (kits em campo)
+async function fetchCobrancasAbertas() {
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .in("status", ["pendente", "parcial"])
+    .eq("vigente", true);
+  if (error) throw error;
+  return (data ?? []) as Cobranca[];
+}
+
+// Cobranças no jurídico com data_encaminhado_juridico no período
+async function fetchJuridicoPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .not("data_encaminhado_juridico", "is", null)
+    .gte("data_encaminhado_juridico", `${inicio}T00:00:00`)
+    .lte("data_encaminhado_juridico", `${fim}T23:59:59`);
+  if (error) throw error;
+  return (data ?? []) as Cobranca[];
+}
+
+// Notas com devolveu_tudo no período (para taxa devolução total)
+async function fetchDevolucoesTotaisPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("notas_promissorias")
+    .select("id,cobranca_id,codigo_nota,data,valor_total")
+    .eq("devolveu_tudo", true)
+    .gte("data", inicio)
+    .lte("data", fim);
+  if (error) throw error;
+  return (data ?? []) as { id: string; cobranca_id: string | null; codigo_nota: string; data: string; valor_total: number }[];
 }
 
 async function fetchDespesasMes(anoMes: string) {
@@ -207,6 +258,10 @@ type Drilldown =
   | { tipo: "recuperacao"; titulo: string; rows: Prestacao[] }
   | { tipo: "custo"; titulo: string; rows: Despesa[] }
   | { tipo: "margem"; titulo: string; receita: number; custo: number }
+  | { tipo: "op_cobrancas"; titulo: string; rows: Cobranca[]; mostrarSaldo?: boolean }
+  | { tipo: "op_tempo"; titulo: string; rows: { cobranca: Cobranca; dias: number }[] }
+  | { tipo: "op_atraso"; titulo: string; rows: { cobranca: Cobranca; dias: number; bucket: string }[] }
+  | { tipo: "op_prazo"; titulo: string; rows: { cobranca: Cobranca; primeira: string; dias: number }[] }
   | null;
 
 // ─── Main ──────────────────────────────────────
@@ -214,6 +269,7 @@ export default function RelatorioKpis() {
   const [ano, setAno] = useState(String(anoAtual));
   const [mes, setMes] = useState(mesAtualStr);
   const [openFinanceiro, setOpenFinanceiro] = useState(true);
+  const [openOperacional, setOpenOperacional] = useState(true);
   const [drill, setDrill] = useState<Drilldown>(null);
 
   const dataInicio = `${ano}-${mes}-01`;
@@ -250,6 +306,28 @@ export default function RelatorioKpis() {
   const { data: despPrev = [] } = useQuery({
     queryKey: ["kpi_desp", prevAnoMes],
     queryFn: () => fetchDespesasMes(prevAnoMes),
+  });
+
+  // ─── Queries OPERACIONAL ───
+  const { data: cobrAbertas = [], isLoading: lo1 } = useQuery({
+    queryKey: ["kpi_op_abertas"],
+    queryFn: fetchCobrancasAbertas,
+  });
+  const { data: cobrQuitadas = [], isLoading: lo2 } = useQuery({
+    queryKey: ["kpi_op_quitadas", anoMes],
+    queryFn: () => fetchQuitadasPeriodo(dataInicio, dataFim),
+  });
+  const { data: juridicoAtual = [], isLoading: lo3 } = useQuery({
+    queryKey: ["kpi_op_juridico", anoMes],
+    queryFn: () => fetchJuridicoPeriodo(dataInicio, dataFim),
+  });
+  const { data: juridicoPrev = [] } = useQuery({
+    queryKey: ["kpi_op_juridico", prevAnoMes],
+    queryFn: () => fetchJuridicoPeriodo(prevInicio, prevFim),
+  });
+  const { data: devolucoesAtual = [], isLoading: lo4 } = useQuery({
+    queryKey: ["kpi_op_devol", anoMes],
+    queryFn: () => fetchDevolucoesTotaisPeriodo(dataInicio, dataFim),
   });
 
   // ─── Cálculos ───
@@ -299,7 +377,93 @@ export default function RelatorioKpis() {
     };
   }, [prestAtual, prestPrev, cobrAtual, cobrPrev, despAtual, despPrev]);
 
+  // ─── Cálculos OPERACIONAL ───
+  const op = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+
+    const diffDias = (a: string, b: string) => {
+      const d1 = new Date(a + "T12:00:00").getTime();
+      const d2 = new Date(b + "T12:00:00").getTime();
+      return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
+    };
+
+    // 1. Kits em campo
+    const kitsCampoValor = cobrAbertas.reduce((s, c) =>
+      s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
+    );
+
+    // 2. Tempo médio de retorno (status=pago, data_quitacao no período)
+    const retornoRows = cobrQuitadas
+      .filter(c => c.data_quitacao && c.data_agendada)
+      .map(c => ({ cobranca: c, dias: diffDias(c.data_quitacao!, c.data_agendada) }))
+      .filter(r => r.dias >= 0);
+    const tempoMedioRetorno = retornoRows.length > 0
+      ? retornoRows.reduce((s, r) => s + r.dias, 0) / retornoRows.length
+      : 0;
+
+    // 3. Taxa de devolução total
+    const cobrIdsDevolucao = new Set(devolucoesAtual.map(d => d.cobranca_id).filter(Boolean));
+    const encerradasIds = new Set(cobrQuitadas.map(c => c.id));
+    const devolvidasEncerradas = cobrQuitadas.filter(c => cobrIdsDevolucao.has(c.id));
+    const taxaDevolucao = encerradasIds.size > 0
+      ? (devolvidasEncerradas.length / encerradasIds.size) * 100
+      : 0;
+
+    // 4. Notas em atraso (snapshot agora)
+    const atrasadas = cobrAbertas
+      .filter(c => c.data_agendada < hojeStr)
+      .map(c => {
+        const dias = diffDias(hojeStr, c.data_agendada);
+        let bucket = "0-30";
+        if (dias > 60) bucket = "+60";
+        else if (dias > 30) bucket = "31-60";
+        return { cobranca: c, dias, bucket };
+      });
+    const atraso030 = atrasadas.filter(a => a.bucket === "0-30");
+    const atraso3160 = atrasadas.filter(a => a.bucket === "31-60");
+    const atraso60plus = atrasadas.filter(a => a.bucket === "+60");
+
+    // 5. Notas no jurídico
+    const juridicoCountAtual = juridicoAtual.length;
+    const juridicoValorAtual = juridicoAtual.reduce((s, c) =>
+      s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
+    );
+    const juridicoCountPrev = juridicoPrev.length;
+
+    // 6. Prazo médio recebimento (cobranças do período com prestação)
+    const primeiraPorCobranca = new Map<string, string>();
+    for (const p of prestAtual) {
+      if (!p.cobranca_id || Number(p.valor_pago || 0) <= 0) continue;
+      const cur = primeiraPorCobranca.get(p.cobranca_id);
+      if (!cur || p.data_execucao < cur) {
+        primeiraPorCobranca.set(p.cobranca_id, p.data_execucao);
+      }
+    }
+    const prazoRows: { cobranca: Cobranca; primeira: string; dias: number }[] = [];
+    for (const c of cobrAtual) {
+      const primeira = primeiraPorCobranca.get(c.id);
+      if (!primeira) continue;
+      const dias = diffDias(primeira, c.data_agendada);
+      prazoRows.push({ cobranca: c, primeira, dias });
+    }
+    const prazoMedio = prazoRows.length > 0
+      ? prazoRows.reduce((s, r) => s + r.dias, 0) / prazoRows.length
+      : 0;
+
+    return {
+      kitsCampoValor, cobrAbertasCount: cobrAbertas.length,
+      tempoMedioRetorno, retornoRows,
+      taxaDevolucao, devolvidasEncerradas, encerradasTotal: encerradasIds.size,
+      atrasadas, atraso030, atraso3160, atraso60plus,
+      juridicoCountAtual, juridicoValorAtual, juridicoCountPrev,
+      prazoMedio, prazoRows,
+    };
+  }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual]);
+
   const loading = lp1 || lc1 || ld1;
+  const loadingOp = lo1 || lo2 || lo3 || lo4;
 
   return (
     <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
@@ -455,6 +619,126 @@ export default function RelatorioKpis() {
         </Card>
       </Collapsible>
 
+      {/* SEÇÃO 2 — OPERACIONAL */}
+      <Collapsible open={openOperacional} onOpenChange={setOpenOperacional}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-lg">Operacional</span>
+              </div>
+              <ChevronDown
+                className={`h-5 w-5 transition-transform ${openOperacional ? "rotate-180" : ""}`}
+              />
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
+            <div className="p-4 pt-0">
+              {loadingOp ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-32" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <KpiCard
+                    icon={<Boxes className="h-4 w-4" />}
+                    titulo="Kits em Campo (Valor Total)"
+                    valor={fmt(op.kitsCampoValor)}
+                    subtitulo={`Capital imobilizado · ${op.cobrAbertasCount} nota(s)`}
+                    accent="neutral"
+                    onClick={() => setDrill({
+                      tipo: "op_cobrancas",
+                      titulo: "Kits em Campo — Cobranças abertas",
+                      rows: cobrAbertas,
+                      mostrarSaldo: true,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Clock className="h-4 w-4" />}
+                    titulo="Tempo Médio de Retorno"
+                    valor={`${op.tempoMedioRetorno.toFixed(0)} dias`}
+                    subtitulo={`${op.retornoRows.length} kit(s) encerrado(s)`}
+                    accent={
+                      op.tempoMedioRetorno < 45 ? "green" :
+                      op.tempoMedioRetorno <= 90 ? "neutral" : "red"
+                    }
+                    onClick={() => setDrill({
+                      tipo: "op_tempo",
+                      titulo: "Tempo de Retorno — Kits encerrados",
+                      rows: op.retornoRows,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<RotateCcw className="h-4 w-4" />}
+                    titulo="Taxa de Devolução Total"
+                    valor={fmtPct(op.taxaDevolucao)}
+                    subtitulo={`Kits que voltaram sem nenhuma venda · ${op.devolvidasEncerradas.length}/${op.encerradasTotal}`}
+                    accent={op.taxaDevolucao > 20 ? "red" : op.taxaDevolucao > 10 ? "neutral" : "green"}
+                    onClick={() => setDrill({
+                      tipo: "op_cobrancas",
+                      titulo: "Kits devolvidos totalmente no período",
+                      rows: op.devolvidasEncerradas,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<AlertTriangle className="h-4 w-4" />}
+                    titulo="Notas em Atraso"
+                    valor={String(op.atrasadas.length)}
+                    subtitulo={`0-30: ${op.atraso030.length} · 31-60: ${op.atraso3160.length} · +60: ${op.atraso60plus.length}`}
+                    accent={op.atraso60plus.length > 0 ? "red" : op.atraso3160.length > 0 ? "neutral" : "green"}
+                    onClick={() => setDrill({
+                      tipo: "op_atraso",
+                      titulo: "Notas em Atraso (snapshot atual)",
+                      rows: op.atrasadas,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Scale className="h-4 w-4" />}
+                    titulo="Notas no Jurídico"
+                    valor={String(op.juridicoCountAtual)}
+                    subtitulo={`${fmt(op.juridicoValorAtual)} encaminhado`}
+                    atual={op.juridicoCountAtual}
+                    anterior={op.juridicoCountPrev}
+                    accent={op.juridicoCountAtual > op.juridicoCountPrev ? "red" : "neutral"}
+                    onClick={() => setDrill({
+                      tipo: "op_cobrancas",
+                      titulo: "Notas encaminhadas ao Jurídico",
+                      rows: juridicoAtual,
+                      mostrarSaldo: true,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Hourglass className="h-4 w-4" />}
+                    titulo="Prazo Médio de Recebimento"
+                    valor={`${op.prazoMedio.toFixed(0)} dias`}
+                    subtitulo={`${op.prazoRows.length} nota(s) com pagamento`}
+                    accent={
+                      op.prazoMedio < 30 ? "green" :
+                      op.prazoMedio <= 60 ? "neutral" : "red"
+                    }
+                    onClick={() => setDrill({
+                      tipo: "op_prazo",
+                      titulo: "Prazo de Recebimento — Agendamento → 1º pagamento",
+                      rows: op.prazoRows,
+                    })}
+                  />
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+
       {/* Drilldown Sheet */}
       <Sheet open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
         <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
@@ -474,6 +758,12 @@ export default function RelatorioKpis() {
               {drill?.tipo === "margem" && (
                 <DrillMargem receita={drill.receita} custo={drill.custo} />
               )}
+              {drill?.tipo === "op_cobrancas" && (
+                <DrillCobrancas rows={drill.rows} mostrarSaldo={drill.mostrarSaldo} />
+              )}
+              {drill?.tipo === "op_tempo" && <DrillTempo rows={drill.rows} />}
+              {drill?.tipo === "op_atraso" && <DrillAtraso rows={drill.rows} />}
+              {drill?.tipo === "op_prazo" && <DrillPrazo rows={drill.rows} />}
             </div>
           </ScrollArea>
         </SheetContent>
@@ -613,5 +903,118 @@ function Row({ label, valor, cor, bold }: { label: string; valor: string; cor: s
       <span className={`text-sm ${bold ? "font-bold" : ""}`}>{label}</span>
       <span className={`font-mono tabular-nums ${cor} ${bold ? "font-bold text-lg" : ""}`}>{valor}</span>
     </div>
+  );
+}
+
+function DrillTempo({ rows }: { rows: { cobranca: Cobranca; dias: number }[] }) {
+  const media = rows.length > 0 ? rows.reduce((s, r) => s + r.dias, 0) / rows.length : 0;
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nota</TableHead>
+          <TableHead>Revendedora</TableHead>
+          <TableHead className="text-right">Agendada</TableHead>
+          <TableHead className="text-right">Quitação</TableHead>
+          <TableHead className="text-right">Dias</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem registros</TableCell></TableRow>
+        ) : rows.map(r => (
+          <TableRow key={r.cobranca.id}>
+            <TableCell className="text-xs">{r.cobranca.codigo_nota || "—"}</TableCell>
+            <TableCell className="text-sm">{r.cobranca.revendedora || "—"}</TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.cobranca.data_agendada)}</TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.cobranca.data_quitacao || null)}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{r.dias}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={4}>Média ({rows.length})</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{media.toFixed(1)} d</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DrillAtraso({ rows }: { rows: { cobranca: Cobranca; dias: number; bucket: string }[] }) {
+  const sorted = [...rows].sort((a, b) => b.dias - a.dias);
+  const totalValor = sorted.reduce((s, r) =>
+    s + (Number(r.cobranca.valor_previsto || 0) - Number(r.cobranca.valor_pago_acumulado || 0)), 0
+  );
+  const corBucket = (b: string) =>
+    b === "+60" ? "text-red-600 dark:text-red-400 font-semibold" :
+    b === "31-60" ? "text-yellow-600 dark:text-yellow-400" :
+    "text-muted-foreground";
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nota</TableHead>
+          <TableHead>Revendedora</TableHead>
+          <TableHead>Bucket</TableHead>
+          <TableHead className="text-right">Dias</TableHead>
+          <TableHead className="text-right">Saldo</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sorted.length === 0 ? (
+          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem notas em atraso</TableCell></TableRow>
+        ) : sorted.map(r => {
+          const saldo = Number(r.cobranca.valor_previsto || 0) - Number(r.cobranca.valor_pago_acumulado || 0);
+          return (
+            <TableRow key={r.cobranca.id}>
+              <TableCell className="text-xs">{r.cobranca.codigo_nota || "—"}</TableCell>
+              <TableCell className="text-sm">{r.cobranca.revendedora || "—"}</TableCell>
+              <TableCell className={`text-xs ${corBucket(r.bucket)}`}>{r.bucket} dias</TableCell>
+              <TableCell className="text-right font-mono tabular-nums">{r.dias}</TableCell>
+              <TableCell className="text-right font-mono tabular-nums">{fmt(saldo)}</TableCell>
+            </TableRow>
+          );
+        })}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={4}>Total ({sorted.length})</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{fmt(totalValor)}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DrillPrazo({ rows }: { rows: { cobranca: Cobranca; primeira: string; dias: number }[] }) {
+  const sorted = [...rows].sort((a, b) => b.dias - a.dias);
+  const media = sorted.length > 0 ? sorted.reduce((s, r) => s + r.dias, 0) / sorted.length : 0;
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nota</TableHead>
+          <TableHead>Revendedora</TableHead>
+          <TableHead className="text-right">Agendada</TableHead>
+          <TableHead className="text-right">1º Pagto</TableHead>
+          <TableHead className="text-right">Dias</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sorted.length === 0 ? (
+          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem registros</TableCell></TableRow>
+        ) : sorted.map(r => (
+          <TableRow key={r.cobranca.id}>
+            <TableCell className="text-xs">{r.cobranca.codigo_nota || "—"}</TableCell>
+            <TableCell className="text-sm">{r.cobranca.revendedora || "—"}</TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.cobranca.data_agendada)}</TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.primeira)}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{r.dias}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={4}>Média ({sorted.length})</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{media.toFixed(1)} d</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
   );
 }
