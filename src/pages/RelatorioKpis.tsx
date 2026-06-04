@@ -81,6 +81,7 @@ interface Cobranca {
   status: string | null;
   data_quitacao?: string | null;
   data_encaminhado_juridico?: string | null;
+  representante_id?: string | null;
 }
 
 interface Despesa {
