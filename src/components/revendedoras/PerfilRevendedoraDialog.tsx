@@ -24,6 +24,7 @@ import { useFotoUrl } from '@/hooks/useFotoUrl';
 import { RevendedoraFormDialog } from './RevendedoraFormDialog';
 import { useRevendedoraHistorico } from '@/hooks/useRevendedoraHistorico';
 import { toast } from 'sonner';
+import { FotoLightbox } from './FotoLightbox';
 
 interface Props {
   nomeRevendedora: string;
