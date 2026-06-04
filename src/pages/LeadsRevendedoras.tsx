@@ -109,7 +109,7 @@ export default function LeadsRevendedoras() {
   });
 
   const { data: exactCounts } = useQuery({
-    queryKey: ["leads-revendedoras-counts", statusFiltro, origemFiltro, responsavelFiltro, busca, dataInicio, dataFim],
+    queryKey: ["leads-revendedoras", "counts", statusFiltro, origemFiltro, responsavelFiltro, busca, dataInicio, dataFim],
     queryFn: async () => {
       const counts: LeadCountsByStatus = {};
       const termoBusca = busca.trim();
@@ -213,8 +213,10 @@ export default function LeadsRevendedoras() {
 
 
   // Contadores
-  const totalLeads = leads.length;
-  const totalNovos = leads.filter((l) => l.status === "leads_novos").length;
+  const totalLeads = exactCounts
+    ? KANBAN_COLUMNS.reduce((total, col) => total + (exactCounts[col.id] ?? 0), 0)
+    : leads.length;
+  const totalNovos = exactCounts?.leads_novos ?? leads.filter((l) => l.status === "leads_novos").length;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -440,7 +442,7 @@ export default function LeadsRevendedoras() {
           Carregando...
         </div>
       ) : (
-        <LeadsKanban leads={leadsFiltrados} />
+        <LeadsKanban leads={leadsFiltrados} countsByStatus={exactCounts} />
       )}
 
       {/* Dialog de Importação */}
