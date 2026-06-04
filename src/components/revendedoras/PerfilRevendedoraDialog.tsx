@@ -225,7 +225,10 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
         <div className="space-y-4">
           {/* Header com foto + status */}
           <div className="flex flex-wrap items-center gap-4">
-            <Avatar className="h-16 w-16 border-2 border-primary/30">
+            <Avatar
+              className={`h-16 w-16 border-2 border-primary/30 ${fotoUrl ? 'cursor-zoom-in' : ''}`}
+              onClick={() => { if (fotoUrl) setFotoExpandida(true); }}
+            >
               {fotoUrl && <AvatarImage src={fotoUrl} alt={nomeRevendedora} />}
               <AvatarFallback>{initials || '?'}</AvatarFallback>
             </Avatar>
