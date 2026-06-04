@@ -402,7 +402,7 @@ export default function RevendedorasInativas() {
           ? Math.max(0, c.valor_previsto - (c.valor_pago_acumulado || 0) - (c.valor_adiantado || 0))
           : 0;
         if (!map.has(nome)) {
-          const cadastro = cadastroMap.get(nome.toUpperCase());
+          const cadastro = cadastroMap.get(nome.trim().toUpperCase());
           map.set(nome, {
             nome,
             whatsapp: cadastro?.whatsapp || null,
