@@ -328,6 +328,36 @@ export type Database = {
           },
         ]
       }
+      contas_bancarias: {
+        Row: {
+          ativo: boolean
+          banco: string | null
+          criado_em: string
+          id: string
+          nome: string
+          saldo_inicial: number
+          tipo: string
+        }
+        Insert: {
+          ativo?: boolean
+          banco?: string | null
+          criado_em?: string
+          id?: string
+          nome: string
+          saldo_inicial?: number
+          tipo?: string
+        }
+        Update: {
+          ativo?: boolean
+          banco?: string | null
+          criado_em?: string
+          id?: string
+          nome?: string
+          saldo_inicial?: number
+          tipo?: string
+        }
+        Relationships: []
+      }
       dre_categorias_despesas: {
         Row: {
           ativo: boolean | null
@@ -1938,6 +1968,63 @@ export type Database = {
             columns: ["revendedora_id"]
             isOneToOne: false
             referencedRelation: "revendedoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transacoes_bancarias: {
+        Row: {
+          categoria_id: string | null
+          conta_id: string
+          criado_em: string
+          data_transacao: string
+          descricao: string | null
+          id: string
+          id_externo: string | null
+          observacao: string | null
+          status_conciliacao: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          categoria_id?: string | null
+          conta_id: string
+          criado_em?: string
+          data_transacao: string
+          descricao?: string | null
+          id?: string
+          id_externo?: string | null
+          observacao?: string | null
+          status_conciliacao?: string
+          tipo: string
+          valor: number
+        }
+        Update: {
+          categoria_id?: string | null
+          conta_id?: string
+          criado_em?: string
+          data_transacao?: string
+          descricao?: string | null
+          id?: string
+          id_externo?: string | null
+          observacao?: string | null
+          status_conciliacao?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transacoes_bancarias_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "dre_categorias_despesas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_bancarias_conta_id_fkey"
+            columns: ["conta_id"]
+            isOneToOne: false
+            referencedRelation: "contas_bancarias"
             referencedColumns: ["id"]
           },
         ]
