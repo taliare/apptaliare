@@ -111,8 +111,26 @@ export default function FluxoCaixa() {
   const [importando, setImportando] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const ensureCaixaFisico = async () => {
+    const { data: existente } = await supabase
+      .from("contas_bancarias")
+      .select("id")
+      .eq("nome", "Caixa Físico")
+      .maybeSingle();
+    if (!existente) {
+      await supabase.from("contas_bancarias").insert({
+        nome: "Caixa Físico",
+        banco: "Caixa",
+        tipo: "caixa",
+        saldo_inicial: 0,
+        ativo: true,
+      });
+    }
+  };
+
   const loadContas = async () => {
     setLoading(true);
+    await ensureCaixaFisico();
     const { data: contasData, error } = await supabase
       .from("contas_bancarias")
       .select("*")
