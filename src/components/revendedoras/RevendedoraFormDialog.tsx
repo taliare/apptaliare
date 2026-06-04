@@ -88,6 +88,7 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
   const [cepLoading, setCepLoading] = useState(false);
   const [bloqueioJuridico, setBloqueioJuridico] = useState(false);
   const [checandoBloqueio, setChecandoBloqueio] = useState(false);
+  const [duplicidade, setDuplicidade] = useState<{ motivo: string; representante_nome: string } | null>(null);
 
   const verificarBloqueio = async (nomeVal: string, cpfVal: string) => {
     if (revendedoraId) return; // só aplica no cadastro
@@ -110,6 +111,34 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
       setBloqueioJuridico(false);
     } finally {
       setChecandoBloqueio(false);
+    }
+  };
+
+  const verificarDuplicidade = async (nomeVal: string, cpfVal: string, whatsappVal: string) => {
+    const nomeLimpo = nomeVal.trim();
+    const cpfLimpo = cpfVal.replace(/\D/g, '');
+    const wppLimpo = whatsappVal.replace(/\D/g, '');
+    if (!nomeLimpo && !cpfLimpo && !wppLimpo) {
+      setDuplicidade(null);
+      return;
+    }
+    try {
+      const { data, error } = await supabase.rpc('checar_duplicidade_revendedora', {
+        p_representante_id: user?.id ?? null,
+        p_nome: nomeLimpo,
+        p_cpf: cpfLimpo || null,
+        p_whatsapp: wppLimpo || null,
+        p_ignorar_id: revendedoraId ?? null,
+      });
+      if (error) throw error;
+      const res = data as any;
+      if (res?.duplicado) {
+        setDuplicidade({ motivo: res.motivo, representante_nome: res.representante_nome });
+      } else {
+        setDuplicidade(null);
+      }
+    } catch {
+      setDuplicidade(null);
     }
   };
 
