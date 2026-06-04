@@ -258,6 +258,10 @@ type Drilldown =
   | { tipo: "recuperacao"; titulo: string; rows: Prestacao[] }
   | { tipo: "custo"; titulo: string; rows: Despesa[] }
   | { tipo: "margem"; titulo: string; receita: number; custo: number }
+  | { tipo: "op_cobrancas"; titulo: string; rows: Cobranca[]; mostrarSaldo?: boolean }
+  | { tipo: "op_tempo"; titulo: string; rows: { cobranca: Cobranca; dias: number }[] }
+  | { tipo: "op_atraso"; titulo: string; rows: { cobranca: Cobranca; dias: number; bucket: string }[] }
+  | { tipo: "op_prazo"; titulo: string; rows: { cobranca: Cobranca; primeira: string; dias: number }[] }
   | null;
 
 // ─── Main ──────────────────────────────────────
