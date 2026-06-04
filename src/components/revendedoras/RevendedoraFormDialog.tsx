@@ -340,6 +340,9 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
       qc.invalidateQueries({ queryKey: ['revendedora-form'] });
       qc.invalidateQueries({ queryKey: ['revendedora-refs'] });
       qc.invalidateQueries({ queryKey: ['revendedora-info'] });
+      qc.invalidateQueries({ queryKey: ['revendedora-historico'] });
+      qc.invalidateQueries({ queryKey: ['minhas-revendedoras-ativas'] });
+      qc.invalidateQueries({ queryKey: ['revendedoras-inativas'] });
       onSaved?.(id, nome);
       onClose();
     },
