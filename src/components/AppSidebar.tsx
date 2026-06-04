@@ -167,6 +167,7 @@ export function AppSidebar() {
         { title: "Resumo DRE", url: "/dre-resumo", icon: TrendingUp },
         { title: "Despesas", url: "/dre-despesas", icon: Receipt },
         { title: "Categorias", url: "/dre-categorias", icon: FolderOpen },
+        { title: "Fluxo de Caixa", url: "/fluxo-caixa", icon: Wallet },
         { title: "Configuração PDF", url: "/configuracao-pdf", icon: FileText },
       ],
     },
