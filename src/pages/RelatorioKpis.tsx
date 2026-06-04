@@ -301,6 +301,9 @@ type Drilldown =
   | { tipo: "op_tempo"; titulo: string; rows: { cobranca: Cobranca; dias: number }[] }
   | { tipo: "op_atraso"; titulo: string; rows: { cobranca: Cobranca; dias: number; bucket: string }[] }
   | { tipo: "op_prazo"; titulo: string; rows: { cobranca: Cobranca; primeira: string; dias: number }[] }
+  | { tipo: "pe_revendedoras"; titulo: string; rows: { nome: string; representante: string }[] }
+  | { tipo: "pe_novas"; titulo: string; rows: RevendedoraRow[]; nomeRep: Map<string, string> }
+  | { tipo: "pe_rep_notas"; titulo: string; rows: Cobranca[] }
   | null;
 
 // ─── Main ──────────────────────────────────────
