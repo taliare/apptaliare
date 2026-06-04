@@ -17,7 +17,7 @@ import { formatarValor } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { calcularNivel } from './RankingRevendedoras';
-import { Trophy, TrendingUp, Hash, Award, Edit2, Gavel, ShieldCheck, ShieldX } from 'lucide-react';
+import { Trophy, TrendingUp, Hash, Award, Edit2, Gavel, ShieldCheck, ShieldX, Eye, EyeOff } from 'lucide-react';
 import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
 import { StatusRevendedoraBadge } from './StatusRevendedoraBadge';
 import { useFotoUrl } from '@/hooks/useFotoUrl';
@@ -36,6 +36,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
   const [editOpen, setEditOpen] = useState(false);
   const [solicJuridicoOpen, setSolicJuridicoOpen] = useState(false);
   const [motivoJuridico, setMotivoJuridico] = useState('');
+  const [saldoVisivel, setSaldoVisivel] = useState(false);
 
   const { data: prestacoesBruto = [], isLoading } = useQuery({
     queryKey: ['perfil-revendedora', nomeRevendedora],
@@ -316,7 +317,19 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
                         <TableHead className="text-right">Comissão (%)</TableHead>
                         <TableHead className="text-right">Valor Empresa</TableHead>
                         <TableHead className="text-right">Pago</TableHead>
-                        <TableHead className="text-right">Saldo</TableHead>
+                        <TableHead className="text-right">
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <span>Saldo</span>
+                            <button
+                              type="button"
+                              onClick={() => setSaldoVisivel((v) => !v)}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              title={saldoVisivel ? 'Ocultar saldo' : 'Mostrar saldo'}
+                            >
+                              {saldoVisivel ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </button>
+                          </div>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -327,7 +340,9 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
                           <TableCell className="text-right">{p.comissao_percentual}%</TableCell>
                           <TableCell className="text-right">{formatarValor(Number(p.valor_devido_empresa))}</TableCell>
                           <TableCell className="text-right">{formatarValor(Number(p.valor_pago))}</TableCell>
-                          <TableCell className="text-right">{formatarValor(Number(p.saldo_devedor) || 0)}</TableCell>
+                          <TableCell className="text-right">
+                            {saldoVisivel ? formatarValor(Number(p.saldo_devedor) || 0) : '••••'}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
