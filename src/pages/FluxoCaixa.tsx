@@ -357,13 +357,18 @@ export default function FluxoCaixa() {
                     <SelectValue placeholder="Selecione uma conta" />
                   </SelectTrigger>
                   <SelectContent>
-                    {contas.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nome} {c.banco ? `(${c.banco})` : ""}
-                      </SelectItem>
-                    ))}
+                    {contas
+                      .filter((c) => c.tipo !== "caixa")
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nome} {c.banco ? `(${c.banco})` : ""}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Contas do tipo "Caixa" não aceitam OFX — use lançamento manual.
+                </p>
               </div>
 
               <div className="space-y-2">
