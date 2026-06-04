@@ -1,1283 +1,617 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { profilesLimited } from "@/lib/profilesLimited";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+} from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Calendar,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  AlertCircle,
-  Info,
-  Package,
-  Users,
-  DollarSign,
-  Target,
-  Clock,
-  ArrowUpDown,
-  ChevronDown,
-  ChevronRight,
-  Repeat,
+  TrendingUp, TrendingDown, Minus, DollarSign, Target,
+  Receipt, Repeat, Wallet, Percent, ChevronDown, ChevronRight,
+  BarChart3,
 } from "lucide-react";
-import { formatarValor, getLocalDateString } from "@/lib/utils";
-import { format, subDays, startOfMonth, endOfMonth, addDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
-type PeriodFilter = "hoje" | "mes" | "ciclo" | "custom";
-type SortField = "totalCobrado" | "percentualMeta" | "ticketMedio" | "eficiencia";
-type SortDirection = "asc" | "desc";
+// ─── Helpers ───────────────────────────────────
+const fmt = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 
-interface Alerta {
-  tipo: "info" | "warning" | "error";
-  titulo: string;
-  descricao: string;
+const fmtPct = (v: number) =>
+  `${(v || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 })}%`;
+
+const fmtData = (d: string | null) => {
+  if (!d) return "—";
+  const parts = d.split("T")[0].split("-");
+  if (parts.length < 3) return d;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
+const ultimoDia = (ano: string, mes: string) =>
+  new Date(Number(ano), Number(mes), 0).getDate();
+
+const mesAnterior = (ano: string, mes: string) => {
+  const m = Number(mes) - 1;
+  if (m <= 0) return { ano: String(Number(ano) - 1), mes: "12" };
+  return { ano, mes: String(m).padStart(2, "0") };
+};
+
+const MESES = [
+  "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+  "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro",
+];
+const anoAtual = new Date().getFullYear();
+const ANOS = [anoAtual - 1, anoAtual, anoAtual + 1];
+const mesAtualStr = String(new Date().getMonth() + 1).padStart(2, "0");
+
+// ─── Types ─────────────────────────────────────
+interface Prestacao {
+  id: string;
+  cobranca_id: string | null;
+  revendedora: string | null;
+  total_venda: number | null;
+  comissao_valor: number | null;
+  valor_pago: number | null;
+  saldo_devedor: number | null;
+  data_execucao: string;
 }
 
-export default function RelatorioKpis() {
-  const hoje = new Date();
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("mes");
-  const [customStart, setCustomStart] = useState(getLocalDateString(startOfMonth(hoje)));
-  const [customEnd, setCustomEnd] = useState(getLocalDateString(endOfMonth(hoje)));
-  const [sortField, setSortField] = useState<SortField>("totalCobrado");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+interface Cobranca {
+  id: string;
+  revendedora: string | null;
+  codigo_nota: string | null;
+  valor_previsto: number | null;
+  valor_pago_acumulado: number | null;
+  data_agendada: string;
+  status: string | null;
+}
 
-  // Sheet states for drill-down
-  const [sheetPrevisao, setSheetPrevisao] = useState(false);
-  const [sheetKitsEntregues, setSheetKitsEntregues] = useState(false);
-  const [sheetKitsPosse, setSheetKitsPosse] = useState(false);
-  const [sheetRevendedorasAtivas, setSheetRevendedorasAtivas] = useState(false);
-  const [sheetRevendedorasInativas, setSheetRevendedorasInativas] = useState(false);
-  // Calculate date range based on filter
-  const { startDate, endDate } = useMemo(() => {
-    switch (periodFilter) {
-      case "hoje":
-        return {
-          startDate: getLocalDateString(hoje),
-          endDate: getLocalDateString(hoje),
-        };
-      case "mes":
-        return {
-          startDate: getLocalDateString(startOfMonth(hoje)),
-          endDate: getLocalDateString(endOfMonth(hoje)),
-        };
-      case "ciclo":
-        return {
-          startDate: getLocalDateString(subDays(hoje, 60)),
-          endDate: getLocalDateString(hoje),
-        };
-      case "custom":
-        return { startDate: customStart, endDate: customEnd };
-      default:
-        return {
-          startDate: getLocalDateString(startOfMonth(hoje)),
-          endDate: getLocalDateString(endOfMonth(hoje)),
-        };
-    }
-  }, [periodFilter, customStart, customEnd]);
+interface Despesa {
+  id: string;
+  descricao: string;
+  valor: number;
+  data_pagamento: string | null;
+  forma_pagamento: string | null;
+  ano_mes: string;
+}
 
-  // Fetch representatives (need to join user_roles)
-  const { data: representantes = [] } = useQuery({
-    queryKey: ["representantes-kpis"],
-    queryFn: async () => {
-      // First get user_roles that are representantes
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "representante");
-      if (rolesError) throw rolesError;
-      
-      const repIds = roles?.map(r => r.user_id) || [];
-      if (repIds.length === 0) return [];
-      
-      const { data, error } = await profilesLimited()
-        .select("id, nome, ativo")
-        .eq("ativo", true)
-        .in("id", repIds);
-      if (error) throw error;
-      return data || [];
-    },
-  });
+// ─── Fetch helpers ─────────────────────────────
+async function fetchPrestacoesPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("prestacoes_contas")
+    .select("id,cobranca_id,revendedora,total_venda,comissao_valor,valor_pago,saldo_devedor,data_execucao")
+    .gte("data_execucao", inicio)
+    .lte("data_execucao", fim);
+  if (error) throw error;
+  return (data ?? []) as Prestacao[];
+}
 
-  // BLOCO 1 - Total Cobrado no período
-  const { data: cobrancasDiarias = [], isLoading: loadingCobrancas } = useQuery({
-    queryKey: ["kpis-cobrancas-diarias", startDate, endDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cobrancas_diarias")
-        .select("*")
-        .gte("data", startDate)
-        .lte("data", endDate);
-      if (error) throw error;
-      return data || [];
-    },
-  });
+async function fetchCobrancasPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status")
+    .gte("data_agendada", inicio)
+    .lte("data_agendada", fim)
+    .eq("vigente", true);
+  if (error) throw error;
+  return (data ?? []) as Cobranca[];
+}
 
-  // Prestações de contas for ticket calculation
-  const { data: prestacoes = [] } = useQuery({
-    queryKey: ["kpis-prestacoes", startDate, endDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("prestacoes_contas")
-        .select("*")
-        .gte("criado_em", startDate)
-        .lte("criado_em", endDate);
-      if (error) throw error;
-      return data || [];
-    },
-  });
+async function fetchDespesasMes(anoMes: string) {
+  const { data, error } = await supabase
+    .from("dre_despesas")
+    .select("id,descricao,valor,data_pagamento,forma_pagamento,ano_mes")
+    .eq("ano_mes", anoMes)
+    .eq("status_pagamento", "pago");
+  if (error) throw error;
+  return (data ?? []) as Despesa[];
+}
 
-  // REMOVIDO: Query de prestacoes_contas para regime de caixa
-  // A fonte financeira oficial é EXCLUSIVAMENTE cobrancas_diarias.total_cobrado
-
-  // BLOCO 1 - Repasses ativos (notas do tipo repasse pendentes até o final do período)
-  const { data: repassesAtivos = [], isLoading: loadingRepasses } = useQuery({
-    queryKey: ["kpis-repasses-ativos", endDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cobrancas_agendadas")
-        .select("*")
-        .eq("tipo", "repasse")
-        .in("status", ["pendente", "parcial"])
-        .lte("data_agendada", endDate);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // BLOCO 1 - Valor vencido
-  const { data: cobrancasVencidas = [], isLoading: loadingVencidas } = useQuery({
-    queryKey: ["kpis-vencidas"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cobrancas_agendadas")
-        .select("*")
-        .eq("status", "pendente")
-        .lt("data_agendada", getLocalDateString(hoje));
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // BLOCO 2 - Cobranças pendentes para previsão
-  const { data: cobrancasPendentes = [] } = useQuery({
-    queryKey: ["kpis-pendentes"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cobrancas_agendadas")
-        .select("*")
-        .eq("status", "pendente")
-        .gte("data_agendada", getLocalDateString(hoje));
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // BLOCO 3 - Metas
-  const { data: metas = [] } = useQuery({
-    queryKey: ["kpis-metas", startDate],
-    queryFn: async () => {
-      const mesAno = startDate.substring(0, 7);
-      const { data, error } = await supabase
-        .from("metas_cobranca")
-        .select("*")
-        .eq("ano_mes", mesAno);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // BLOCO 4 - Kits entregues no período
-  const { data: kitsEntregues = [], isLoading: loadingKitsEntregues } = useQuery({
-    queryKey: ["kpis-kits-entregues", startDate, endDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("kits_entregues")
-        .select("*")
-        .gte("data_entrega", startDate)
-        .lte("data_entrega", endDate);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // BLOCO 4 - Kits em posse dos representantes
-  const { data: kitsEmPosse = [], isLoading: loadingKitsPosse } = useQuery({
-    queryKey: ["kpis-kits-posse"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("kits_estoque")
-        .select("*")
-        .eq("status", "com_representante");
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // BLOCO 5 - Revendedoras ativas com representante_id (para drill-down)
-  const { data: revendedorasAtivasData = [] } = useQuery({
-    queryKey: ["kpis-revendedoras-ativas-detalhado"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cobrancas_agendadas")
-        .select("revendedora, representante_id")
-        .in("status", ["pendente", "parcial"])
-        .not("revendedora", "is", null);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Derivar revendedoras ativas únicas
-  const revendedorasAtivas = useMemo(() => {
-    const unique = new Set(revendedorasAtivasData.map((c) => c.revendedora));
-    return Array.from(unique);
-  }, [revendedorasAtivasData]);
-
-  // Todas as revendedoras do histórico com representante_id (para calcular inativas)
-  const { data: todasRevendedorasData = [] } = useQuery({
-    queryKey: ["kpis-todas-revendedoras"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("prestacoes_contas")
-        .select("revendedora, representante_id")
-        .not("revendedora", "is", null);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Derivar revendedoras inativas
-  const revendedorasInativas = useMemo(() => {
-    const activeSet = new Set(revendedorasAtivas);
-    const allRevendedoras = new Set(todasRevendedorasData.map((p) => p.revendedora));
-    return Array.from(allRevendedoras).filter((r) => !activeSet.has(r));
-  }, [revendedorasAtivas, todasRevendedorasData]);
-
-  // FONTE FINANCEIRA OFICIAL: cobrancas_diarias.total_cobrado (fechamento dos representantes)
-  const totalCobrado = cobrancasDiarias.reduce(
-    (sum, c) => sum + (c.total_cobrado || 0),
-    0
-  );
-  
-  // Despesas do período (cobrancas_diarias.despesa_cobranca)
-  const totalDespesas = cobrancasDiarias.reduce(
-    (sum, c) => sum + (c.despesa_cobranca || 0),
-    0
-  );
-  
-  // RESULTADO = Total Cobrado - Despesas
-  const resultadoPeriodo = totalCobrado - totalDespesas;
-  
-  // Métricas operacionais (informativo)
-  const qtdNotas = prestacoes.length;
-  const ticketMedio = qtdNotas > 0 ? totalCobrado / qtdNotas : 0;
-  
-  const valorRepasseAtivo = repassesAtivos.reduce(
-    (sum, r) => sum + (r.valor_previsto || 0),
-    0
-  );
-  const valorVencido = cobrancasVencidas.reduce(
-    (sum, c) => sum + (c.valor_previsto || 0),
-    0
-  );
-  const qtdNotasVencidas = cobrancasVencidas.length;
-  const qtdRepassesAtivos = repassesAtivos.length;
-
-  // BLOCO 2 - Previsão
-  const previsao7dias = cobrancasPendentes
-    .filter((c) => {
-      const dataVenc = new Date(c.data_agendada);
-      return dataVenc <= addDays(hoje, 7);
-    })
-    .reduce((sum, c) => sum + (c.valor_previsto || 0), 0);
-
-  const previsao15dias = cobrancasPendentes
-    .filter((c) => {
-      const dataVenc = new Date(c.data_agendada);
-      return dataVenc <= addDays(hoje, 15);
-    })
-    .reduce((sum, c) => sum + (c.valor_previsto || 0), 0);
-
-  const previsao30dias = cobrancasPendentes
-    .filter((c) => {
-      const dataVenc = new Date(c.data_agendada);
-      return dataVenc <= addDays(hoje, 30);
-    })
-    .reduce((sum, c) => sum + (c.valor_previsto || 0), 0);
-
-  // Taxa de inadimplência
-  const valorTotalAReceber = valorVencido + cobrancasPendentes.reduce(
-    (sum, c) => sum + (c.valor_previsto || 0),
-    0
-  );
-  const taxaInadimplencia =
-    valorTotalAReceber > 0 ? (valorVencido / valorTotalAReceber) * 100 : 0;
-
-  // BLOCO 3 - Performance representantes
-  const representantesPerformance = useMemo(() => {
-    return representantes.map((rep) => {
-      const cobrancasRep = cobrancasDiarias.filter(
-        (c) => c.representante_id === rep.id
-      );
-      const totalCobradoRep = cobrancasRep.reduce(
-        (sum, c) => sum + (c.total_cobrado || 0),
-        0
-      );
-      const totalDespesas = cobrancasRep.reduce(
-        (sum, c) => sum + (c.despesa_cobranca || 0),
-        0
-      );
-      const meta = metas.find((m) => m.representante_id === rep.id);
-      const metaValor = meta?.meta_valor || 0;
-      const percentualMeta = metaValor > 0 ? (totalCobradoRep / metaValor) * 100 : 0;
-      const prestacoesRep = prestacoes.filter((p) => p.representante_id === rep.id);
-      const ticketMedioRep =
-        prestacoesRep.length > 0 ? totalCobradoRep / prestacoesRep.length : 0;
-      const eficiencia = totalDespesas > 0 ? totalCobradoRep / totalDespesas : 0;
-
-      return {
-        id: rep.id,
-        nome: rep.nome,
-        totalCobrado: totalCobradoRep,
-        metaValor,
-        percentualMeta,
-        ticketMedio: ticketMedioRep,
-        totalDespesas,
-        eficiencia,
-      };
-    });
-  }, [representantes, cobrancasDiarias, metas, prestacoes]);
-
-  // Sort representatives
-  const sortedRepresentantes = useMemo(() => {
-    return [...representantesPerformance].sort((a, b) => {
-      const multiplier = sortDirection === "asc" ? 1 : -1;
-      return (a[sortField] - b[sortField]) * multiplier;
-    });
-  }, [representantesPerformance, sortField, sortDirection]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("desc");
-    }
-  };
-
-  // BLOCO 4 - Kits
-  const kitsEntreguesQtd = kitsEntregues.length;
-  const kitsEmPosseQtd = kitsEmPosse.length;
-  const giroKits = kitsEmPosseQtd > 0 ? kitsEntreguesQtd / kitsEmPosseQtd : 0;
-
-  // BLOCO 5 - Revendedoras
-  const totalRevendedorasAtivas = revendedorasAtivas.length;
-  const totalRevendedorasInativas = revendedorasInativas.length;
-  const taxaRetencao =
-    totalRevendedorasAtivas + totalRevendedorasInativas > 0
-      ? (totalRevendedorasAtivas /
-          (totalRevendedorasAtivas + totalRevendedorasInativas)) *
-        100
-      : 0;
-
-  // ======== DADOS AGRUPADOS POR REPRESENTANTE (para drill-down) ========
-
-  // Previsão de recebimento por representante
-  const previsaoPorRepresentante = useMemo(() => {
-    const grouped: Record<string, {
-      nome: string;
-      kits: { qtd: number; valor: number };
-      repasses: { qtd: number; valor: number };
-    }> = {};
-
-    cobrancasPendentes.forEach((c) => {
-      const repId = c.representante_id;
-      if (!repId) return;
-      if (!grouped[repId]) {
-        const rep = representantes.find((r) => r.id === repId);
-        grouped[repId] = {
-          nome: rep?.nome || "Sem representante",
-          kits: { qtd: 0, valor: 0 },
-          repasses: { qtd: 0, valor: 0 },
-        };
-      }
-      if (c.tipo === "kit") {
-        grouped[repId].kits.qtd++;
-        grouped[repId].kits.valor += c.valor_previsto || 0;
-      } else {
-        grouped[repId].repasses.qtd++;
-        grouped[repId].repasses.valor += c.valor_previsto || 0;
-      }
-    });
-
-    return Object.values(grouped).sort(
-      (a, b) =>
-        b.kits.valor + b.repasses.valor - (a.kits.valor + a.repasses.valor)
+// ─── Variation chip ────────────────────────────
+function Variacao({ atual, anterior }: { atual: number; anterior: number }) {
+  if (!isFinite(atual) || !isFinite(anterior)) return null;
+  if (anterior === 0 && atual === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Minus className="h-3 w-3" /> 0%
+      </span>
     );
-  }, [cobrancasPendentes, representantes]);
-
-  const previsaoTotal = cobrancasPendentes.reduce(
-    (sum, c) => sum + (c.valor_previsto || 0),
-    0
+  }
+  const diff = atual - anterior;
+  const pct = anterior !== 0 ? (diff / Math.abs(anterior)) * 100 : 100;
+  const up = diff >= 0;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs font-medium ${
+        up ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+      }`}
+    >
+      {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+      {fmtPct(Math.abs(pct))}
+    </span>
   );
-  const previsaoTotalNotas = cobrancasPendentes.length;
+}
 
-  // Kits entregues por representante
-  const kitsEntreguesPorRep = useMemo(() => {
-    const grouped: Record<string, { nome: string; quantidade: number }> = {};
-    kitsEntregues.forEach((k) => {
-      const repId = k.representante_id;
-      if (!repId) return;
-      if (!grouped[repId]) {
-        const rep = representantes.find((r) => r.id === repId);
-        grouped[repId] = { nome: rep?.nome || "Sem representante", quantidade: 0 };
-      }
-      grouped[repId].quantidade++;
-    });
-    return Object.values(grouped).sort((a, b) => b.quantidade - a.quantidade);
-  }, [kitsEntregues, representantes]);
+// ─── KPI Card ──────────────────────────────────
+function KpiCard({
+  icon, titulo, valor, subtitulo, anterior, atual, extra, onClick, accent,
+}: {
+  icon: React.ReactNode;
+  titulo: string;
+  valor: string;
+  subtitulo?: string;
+  anterior?: number;
+  atual?: number;
+  extra?: React.ReactNode;
+  onClick?: () => void;
+  accent?: "green" | "red" | "neutral";
+}) {
+  const accentBorder =
+    accent === "green" ? "border-l-green-500" :
+    accent === "red" ? "border-l-red-500" :
+    "border-l-primary/60";
+  return (
+    <Card
+      onClick={onClick}
+      className={`border-l-4 ${accentBorder} ${onClick ? "cursor-pointer hover:shadow-md transition" : ""}`}
+    >
+      <CardContent className="p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {icon}
+            <span>{titulo}</span>
+          </div>
+          {onClick && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        </div>
+        <div className="text-2xl font-bold font-mono tabular-nums">{valor}</div>
+        <div className="flex items-center justify-between">
+          {subtitulo && <span className="text-xs text-muted-foreground">{subtitulo}</span>}
+          {atual !== undefined && anterior !== undefined && (
+            <Variacao atual={atual} anterior={anterior} />
+          )}
+        </div>
+        {extra}
+      </CardContent>
+    </Card>
+  );
+}
 
-  // Kits em posse por representante
-  const kitsPossePorRep = useMemo(() => {
-    const grouped: Record<string, { nome: string; quantidade: number }> = {};
-    kitsEmPosse.forEach((k) => {
-      const repId = k.representante_id;
-      if (!repId) return;
-      if (!grouped[repId]) {
-        const rep = representantes.find((r) => r.id === repId);
-        grouped[repId] = { nome: rep?.nome || "Sem representante", quantidade: 0 };
-      }
-      grouped[repId].quantidade++;
-    });
-    return Object.values(grouped).sort((a, b) => b.quantidade - a.quantidade);
-  }, [kitsEmPosse, representantes]);
+// ─── Gauge bar (aproveitamento) ────────────────
+function GaugeBar({ pct }: { pct: number }) {
+  const cor =
+    pct < 20 ? "bg-red-500" :
+    pct < 35 ? "bg-yellow-500" :
+    "bg-green-500";
+  const width = Math.max(0, Math.min(100, pct));
+  return (
+    <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+      <div className={`h-full ${cor} transition-all`} style={{ width: `${width}%` }} />
+    </div>
+  );
+}
 
-  // Revendedoras ativas por representante
-  const revendedorasAtivasPorRep = useMemo(() => {
-    const grouped: Record<string, Set<string>> = {};
-    revendedorasAtivasData.forEach((c) => {
-      const repId = c.representante_id;
-      if (!repId) return;
-      if (!grouped[repId]) grouped[repId] = new Set();
-      if (c.revendedora) grouped[repId].add(c.revendedora);
-    });
+// ─── Drilldown types ──────────────────────────
+type Drilldown =
+  | { tipo: "receita"; titulo: string; rows: Prestacao[] }
+  | { tipo: "aproveitamento"; titulo: string; rows: Cobranca[] }
+  | { tipo: "ticket"; titulo: string; rows: Cobranca[] }
+  | { tipo: "recuperacao"; titulo: string; rows: Prestacao[] }
+  | { tipo: "custo"; titulo: string; rows: Despesa[] }
+  | { tipo: "margem"; titulo: string; receita: number; custo: number }
+  | null;
 
-    return Object.entries(grouped)
-      .map(([repId, revendedoras]) => ({
-        nome: representantes.find((r) => r.id === repId)?.nome || "Sem representante",
-        quantidade: revendedoras.size,
-      }))
-      .sort((a, b) => b.quantidade - a.quantidade);
-  }, [revendedorasAtivasData, representantes]);
+// ─── Main ──────────────────────────────────────
+export default function RelatorioKpis() {
+  const [ano, setAno] = useState(String(anoAtual));
+  const [mes, setMes] = useState(mesAtualStr);
+  const [openFinanceiro, setOpenFinanceiro] = useState(true);
+  const [drill, setDrill] = useState<Drilldown>(null);
 
-  // Revendedoras inativas por representante
-  const revendedorasInativasPorRep = useMemo(() => {
-    // Criar sets de revendedoras ativas por representante
-    const ativasPorRep: Record<string, Set<string>> = {};
-    revendedorasAtivasData.forEach((c) => {
-      const repId = c.representante_id;
-      if (!repId) return;
-      if (!ativasPorRep[repId]) ativasPorRep[repId] = new Set();
-      if (c.revendedora) ativasPorRep[repId].add(c.revendedora);
-    });
+  const dataInicio = `${ano}-${mes}-01`;
+  const dataFim = `${ano}-${mes}-${String(ultimoDia(ano, mes)).padStart(2, "0")}`;
+  const anoMes = `${ano}-${mes}`;
+  const prev = mesAnterior(ano, mes);
+  const prevInicio = `${prev.ano}-${prev.mes}-01`;
+  const prevFim = `${prev.ano}-${prev.mes}-${String(ultimoDia(prev.ano, prev.mes)).padStart(2, "0")}`;
+  const prevAnoMes = `${prev.ano}-${prev.mes}`;
 
-    // Calcular inativas por representante
-    const inativasPorRep: Record<string, Set<string>> = {};
-    todasRevendedorasData.forEach((p) => {
-      const repId = p.representante_id;
-      if (!repId) return;
-      if (!inativasPorRep[repId]) inativasPorRep[repId] = new Set();
-      if (p.revendedora && !ativasPorRep[repId]?.has(p.revendedora)) {
-        inativasPorRep[repId].add(p.revendedora);
-      }
-    });
+  // ─── Queries período atual ───
+  const { data: prestAtual = [], isLoading: lp1 } = useQuery({
+    queryKey: ["kpi_prest", anoMes],
+    queryFn: () => fetchPrestacoesPeriodo(dataInicio, dataFim),
+  });
+  const { data: cobrAtual = [], isLoading: lc1 } = useQuery({
+    queryKey: ["kpi_cobr", anoMes],
+    queryFn: () => fetchCobrancasPeriodo(dataInicio, dataFim),
+  });
+  const { data: despAtual = [], isLoading: ld1 } = useQuery({
+    queryKey: ["kpi_desp", anoMes],
+    queryFn: () => fetchDespesasMes(anoMes),
+  });
 
-    return Object.entries(inativasPorRep)
-      .map(([repId, revendedoras]) => ({
-        nome: representantes.find((r) => r.id === repId)?.nome || "Sem representante",
-        quantidade: revendedoras.size,
-      }))
-      .filter((r) => r.quantidade > 0)
-      .sort((a, b) => b.quantidade - a.quantidade);
-  }, [todasRevendedorasData, revendedorasAtivasData, representantes]);
+  // ─── Queries período anterior ───
+  const { data: prestPrev = [] } = useQuery({
+    queryKey: ["kpi_prest", prevAnoMes],
+    queryFn: () => fetchPrestacoesPeriodo(prevInicio, prevFim),
+  });
+  const { data: cobrPrev = [] } = useQuery({
+    queryKey: ["kpi_cobr", prevAnoMes],
+    queryFn: () => fetchCobrancasPeriodo(prevInicio, prevFim),
+  });
+  const { data: despPrev = [] } = useQuery({
+    queryKey: ["kpi_desp", prevAnoMes],
+    queryFn: () => fetchDespesasMes(prevAnoMes),
+  });
 
-  // BLOCO 6 - Alertas
-  const alertas: Alerta[] = useMemo(() => {
-    const list: Alerta[] = [];
+  // ─── Cálculos ───
+  const k = useMemo(() => {
+    // 1. Receita Líquida
+    const receitaAtual = prestAtual.reduce((s, p) => s + Number(p.valor_pago || 0), 0);
+    const receitaPrev = prestPrev.reduce((s, p) => s + Number(p.valor_pago || 0), 0);
 
-    // Alerta: Representantes com alto repasse
-    // Need to get representante_id from cobranca_id relationship
-    representantesPerformance.forEach((rep) => {
-      // For now, calculate based on cobrancas_diarias repasse data
-      const cobrancasRep = cobrancasDiarias.filter(
-        (c) => c.representante_id === rep.id
-      );
-      // Estimate repasse from total - this is simplified
-      const totalRepasse = cobrancasRep.reduce(
-        (sum, c) => sum + Math.max(0, (c.total_cobrado || 0) * 0.1),
-        0
-      );
-      if (totalRepasse > 500) {
-        list.push({
-          tipo: "warning",
-          titulo: `${rep.nome} com repasse alto`,
-          descricao: formatarValor(totalRepasse) + " em repasses ativos",
-        });
-      }
-    });
+    // 2. Aproveitamento
+    const previstoAtual = cobrAtual.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
+    const pagoCobrAtual = cobrAtual.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
+    const aproveitAtual = previstoAtual > 0 ? (pagoCobrAtual / previstoAtual) * 100 : 0;
 
-    // Alerta: Alto volume de notas vencidas
-    if (qtdNotasVencidas > 10) {
-      list.push({
-        tipo: "error",
-        titulo: "Alto volume de inadimplência",
-        descricao: `${qtdNotasVencidas} notas vencidas (${formatarValor(valorVencido)})`,
-      });
-    } else if (qtdNotasVencidas > 5) {
-      list.push({
-        tipo: "warning",
-        titulo: "Notas vencidas acumulando",
-        descricao: `${qtdNotasVencidas} notas vencidas`,
-      });
-    }
+    const previstoPrev = cobrPrev.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
+    const pagoCobrPrev = cobrPrev.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
+    const aproveitPrev = previstoPrev > 0 ? (pagoCobrPrev / previstoPrev) * 100 : 0;
 
-    // Alerta: Giro de kits baixo
-    if (giroKits < 0.3 && kitsEmPosseQtd > 5) {
-      list.push({
-        tipo: "warning",
-        titulo: "Giro de kits abaixo do esperado",
-        descricao: `Giro atual: ${(giroKits * 100).toFixed(0)}%`,
-      });
-    }
+    // 3. Ticket médio
+    const ticketAtual = cobrAtual.length > 0 ? previstoAtual / cobrAtual.length : 0;
+    const ticketPrev = cobrPrev.length > 0 ? previstoPrev / cobrPrev.length : 0;
 
-    // Alerta: Taxa de inadimplência alta
-    if (taxaInadimplencia > 20) {
-      list.push({
-        tipo: "error",
-        titulo: "Taxa de inadimplência crítica",
-        descricao: `${taxaInadimplencia.toFixed(1)}% do valor a receber está vencido`,
-      });
-    }
+    // 4. Recuperação inadimplência
+    const recupRowsAtual = prestAtual.filter(p =>
+      Number(p.comissao_valor || 0) === 0 && Number(p.valor_pago || 0) > 0
+    );
+    const recupRowsPrev = prestPrev.filter(p =>
+      Number(p.comissao_valor || 0) === 0 && Number(p.valor_pago || 0) > 0
+    );
+    const recupAtual = recupRowsAtual.reduce((s, p) => s + Number(p.valor_pago || 0), 0);
+    const recupPrev = recupRowsPrev.reduce((s, p) => s + Number(p.valor_pago || 0), 0);
 
-    return list;
-  }, [
-    representantesPerformance,
-    repassesAtivos,
-    qtdNotasVencidas,
-    valorVencido,
-    giroKits,
-    kitsEmPosseQtd,
-    taxaInadimplencia,
-  ]);
+    // 5. Custo operacional
+    const custoAtual = despAtual.reduce((s, d) => s + Number(d.valor || 0), 0);
+    const custoPrev = despPrev.reduce((s, d) => s + Number(d.valor || 0), 0);
 
-  const getPeriodLabel = () => {
-    switch (periodFilter) {
-      case "hoje":
-        return "Hoje";
-      case "mes":
-        return format(hoje, "MMMM/yyyy", { locale: ptBR });
-      case "ciclo":
-        return "Últimos 60 dias";
-      case "custom":
-        return `${format(new Date(customStart), "dd/MM")} - ${format(new Date(customEnd), "dd/MM")}`;
-    }
-  };
+    // 6. Margem
+    const margemAtual = receitaAtual > 0 ? ((receitaAtual - custoAtual) / receitaAtual) * 100 : 0;
+    const margemPrev = receitaPrev > 0 ? ((receitaPrev - custoPrev) / receitaPrev) * 100 : 0;
 
-  const isLoading = loadingCobrancas || loadingRepasses || loadingVencidas;
+    return {
+      receitaAtual, receitaPrev,
+      previstoAtual, pagoCobrAtual, aproveitAtual, aproveitPrev,
+      ticketAtual, ticketPrev,
+      recupAtual, recupPrev, recupRowsAtual,
+      custoAtual, custoPrev,
+      margemAtual, margemPrev,
+    };
+  }, [prestAtual, prestPrev, cobrAtual, cobrPrev, despAtual, despPrev]);
+
+  const loading = lp1 || lc1 || ld1;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <BarChart3 className="h-7 w-7 text-primary" />
             Relatório de KPIs
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Visão executiva do negócio
+          <p className="text-sm text-muted-foreground">
+            Indicadores estratégicos do mês selecionado
           </p>
         </div>
+        <div className="flex gap-2">
+          <Select value={mes} onValueChange={setMes}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {MESES.map((nome, i) => (
+                <SelectItem key={i} value={String(i + 1).padStart(2, "0")}>{nome}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={ano} onValueChange={setAno}>
+            <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ANOS.map(a => <SelectItem key={a} value={String(a)}>{a}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-        {/* Period Filter */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={periodFilter === "hoje" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setPeriodFilter("hoje")}
-          >
-            Hoje
-          </Button>
-          <Button
-            variant={periodFilter === "mes" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setPeriodFilter("mes")}
-          >
-            Mês Atual
-          </Button>
-          <Button
-            variant={periodFilter === "ciclo" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setPeriodFilter("ciclo")}
-          >
-            Ciclo (60d)
-          </Button>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={periodFilter === "custom" ? "default" : "outline"}
-                size="sm"
-                className="gap-1"
-              >
-                <Calendar className="h-4 w-4" />
-                Personalizado
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-4" align="end">
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-muted-foreground">Início</label>
-                  <Input
-                    type="date"
-                    value={customStart}
-                    onChange={(e) => {
-                      setCustomStart(e.target.value);
-                      setPeriodFilter("custom");
-                    }}
-                    className="mt-1"
+      {/* SEÇÃO 1 — FINANCEIRO */}
+      <Collapsible open={openFinanceiro} onOpenChange={setOpenFinanceiro}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-lg">Financeiro</span>
+              </div>
+              <ChevronDown
+                className={`h-5 w-5 transition-transform ${openFinanceiro ? "rotate-180" : ""}`}
+              />
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
+            <div className="p-4 pt-0">
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-32" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <KpiCard
+                    icon={<DollarSign className="h-4 w-4" />}
+                    titulo="Receita Líquida do Mês"
+                    valor={fmt(k.receitaAtual)}
+                    subtitulo="Pago em prestações"
+                    atual={k.receitaAtual}
+                    anterior={k.receitaPrev}
+                    accent="green"
+                    onClick={() => setDrill({
+                      tipo: "receita",
+                      titulo: "Receita Líquida — Prestações pagas",
+                      rows: prestAtual.filter(p => Number(p.valor_pago || 0) > 0),
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Target className="h-4 w-4" />}
+                    titulo="Aproveitamento"
+                    valor={fmtPct(k.aproveitAtual)}
+                    subtitulo={`${fmt(k.pagoCobrAtual)} / ${fmt(k.previstoAtual)}`}
+                    atual={k.aproveitAtual}
+                    anterior={k.aproveitPrev}
+                    accent={k.aproveitAtual < 20 ? "red" : k.aproveitAtual < 35 ? "neutral" : "green"}
+                    extra={<GaugeBar pct={k.aproveitAtual} />}
+                    onClick={() => setDrill({
+                      tipo: "aproveitamento",
+                      titulo: "Aproveitamento — Cobranças do período",
+                      rows: cobrAtual,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Receipt className="h-4 w-4" />}
+                    titulo="Ticket Médio por Nota"
+                    valor={fmt(k.ticketAtual)}
+                    subtitulo={`${cobrAtual.length} nota(s)`}
+                    atual={k.ticketAtual}
+                    anterior={k.ticketPrev}
+                    accent="neutral"
+                    onClick={() => setDrill({
+                      tipo: "ticket",
+                      titulo: "Ticket Médio — Notas agendadas",
+                      rows: cobrAtual,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Repeat className="h-4 w-4" />}
+                    titulo="Recuperação de Inadimplência"
+                    valor={fmt(k.recupAtual)}
+                    subtitulo={`${k.recupRowsAtual.length} recuperação(ões)`}
+                    atual={k.recupAtual}
+                    anterior={k.recupPrev}
+                    accent="green"
+                    onClick={() => setDrill({
+                      tipo: "recuperacao",
+                      titulo: "Recuperação de Inadimplência",
+                      rows: k.recupRowsAtual,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Wallet className="h-4 w-4" />}
+                    titulo="Custo Operacional"
+                    valor={fmt(k.custoAtual)}
+                    subtitulo="Despesas pagas no mês"
+                    atual={k.custoAtual}
+                    anterior={k.custoPrev}
+                    accent="red"
+                    onClick={() => setDrill({
+                      tipo: "custo",
+                      titulo: "Custo Operacional — Despesas pagas",
+                      rows: despAtual,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Percent className="h-4 w-4" />}
+                    titulo="Margem Operacional"
+                    valor={fmtPct(k.margemAtual)}
+                    subtitulo={`${fmt(k.receitaAtual - k.custoAtual)} de resultado`}
+                    atual={k.margemAtual}
+                    anterior={k.margemPrev}
+                    accent={k.margemAtual >= 0 ? "green" : "red"}
+                    onClick={() => setDrill({
+                      tipo: "margem",
+                      titulo: "Margem Operacional — Composição",
+                      receita: k.receitaAtual,
+                      custo: k.custoAtual,
+                    })}
                   />
                 </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Fim</label>
-                  <Input
-                    type="date"
-                    value={customEnd}
-                    onChange={(e) => {
-                      setCustomEnd(e.target.value);
-                      setPeriodFilter("custom");
-                    }}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      {/* Period Badge */}
-      <Badge variant="outline" className="text-xs">
-        Período: {getPeriodLabel()}
-      </Badge>
-
-      {/* BLOCO 1 - VISÃO GERAL (FINANCEIRO) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {/* Card Total Cobrado (FONTE FINANCEIRA OFICIAL) */}
-        <Card className="border-success/30 bg-success/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-success mb-2">
-              <DollarSign className="h-4 w-4" />
-              <span className="text-xs">Total Cobrado</span>
+              )}
             </div>
-            {isLoading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <p className="text-lg sm:text-2xl font-bold text-success">
-                {formatarValor(totalCobrado)}
-              </p>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Drilldown Sheet */}
+      <Sheet open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
+          <SheetHeader className="p-4 border-b">
+            <SheetTitle>{drill?.titulo}</SheetTitle>
+            <SheetDescription>
+              Período: {MESES[Number(mes) - 1]} / {ano}
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="flex-1">
+            <div className="p-4">
+              {drill?.tipo === "receita" && <DrillPrestacoes rows={drill.rows} />}
+              {drill?.tipo === "recuperacao" && <DrillPrestacoes rows={drill.rows} />}
+              {drill?.tipo === "aproveitamento" && <DrillCobrancas rows={drill.rows} mostrarSaldo />}
+              {drill?.tipo === "ticket" && <DrillCobrancas rows={drill.rows} />}
+              {drill?.tipo === "custo" && <DrillDespesas rows={drill.rows} />}
+              {drill?.tipo === "margem" && (
+                <DrillMargem receita={drill.receita} custo={drill.custo} />
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+// ─── Drilldown components ──────────────────────
+function DrillPrestacoes({ rows }: { rows: Prestacao[] }) {
+  const total = rows.reduce((s, r) => s + Number(r.valor_pago || 0), 0);
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Data</TableHead>
+          <TableHead>Revendedora</TableHead>
+          <TableHead className="text-right">Valor Pago</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem registros</TableCell></TableRow>
+        ) : rows.map(r => (
+          <TableRow key={r.id}>
+            <TableCell className="text-xs">{fmtData(r.data_execucao)}</TableCell>
+            <TableCell className="text-sm">{r.revendedora || "—"}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{fmt(Number(r.valor_pago || 0))}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={2}>Total ({rows.length})</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{fmt(total)}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DrillCobrancas({ rows, mostrarSaldo }: { rows: Cobranca[]; mostrarSaldo?: boolean }) {
+  const totalPrev = rows.reduce((s, r) => s + Number(r.valor_previsto || 0), 0);
+  const totalPago = rows.reduce((s, r) => s + Number(r.valor_pago_acumulado || 0), 0);
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Data</TableHead>
+          <TableHead>Revendedora</TableHead>
+          <TableHead>Nota</TableHead>
+          <TableHead className="text-right">Previsto</TableHead>
+          {mostrarSaldo && <TableHead className="text-right">Pago</TableHead>}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={mostrarSaldo ? 5 : 4} className="text-center text-muted-foreground py-6">Sem registros</TableCell></TableRow>
+        ) : rows.map(r => (
+          <TableRow key={r.id}>
+            <TableCell className="text-xs">{fmtData(r.data_agendada)}</TableCell>
+            <TableCell className="text-sm">{r.revendedora || "—"}</TableCell>
+            <TableCell className="text-xs">{r.codigo_nota || "—"}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{fmt(Number(r.valor_previsto || 0))}</TableCell>
+            {mostrarSaldo && (
+              <TableCell className="text-right font-mono tabular-nums">{fmt(Number(r.valor_pago_acumulado || 0))}</TableCell>
             )}
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Soma dos fechamentos diários
-            </p>
-          </CardContent>
-        </Card>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={3}>Total ({rows.length})</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{fmt(totalPrev)}</TableCell>
+          {mostrarSaldo && <TableCell className="text-right font-mono tabular-nums">{fmt(totalPago)}</TableCell>}
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
 
-        {/* Card Ticket Médio */}
-        <Card className="border-blue-500/30 bg-blue-500/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-blue-600 mb-2">
-              <Target className="h-4 w-4" />
-              <span className="text-xs">Ticket Médio</span>
-            </div>
-            {isLoading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <p className="text-lg sm:text-2xl font-bold text-blue-600">
-                {formatarValor(ticketMedio)}
-              </p>
-            )}
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {qtdNotas} notas no período
-            </p>
-          </CardContent>
-        </Card>
+function DrillDespesas({ rows }: { rows: Despesa[] }) {
+  const total = rows.reduce((s, r) => s + Number(r.valor || 0), 0);
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Data</TableHead>
+          <TableHead>Descrição</TableHead>
+          <TableHead>Forma</TableHead>
+          <TableHead className="text-right">Valor</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Sem despesas</TableCell></TableRow>
+        ) : rows.map(r => (
+          <TableRow key={r.id}>
+            <TableCell className="text-xs">{fmtData(r.data_pagamento)}</TableCell>
+            <TableCell className="text-sm">{r.descricao}</TableCell>
+            <TableCell className="text-xs">{r.forma_pagamento || "—"}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{fmt(Number(r.valor || 0))}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={3}>Total ({rows.length})</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{fmt(total)}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
 
-        {/* Card Repasse Ativo */}
-        <Card className="border-yellow-500/30 bg-yellow-500/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-yellow-600 mb-2">
-              <Clock className="h-4 w-4" />
-              <span className="text-xs">Repasse Ativo</span>
-            </div>
-            {loadingRepasses ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <p className="text-lg sm:text-2xl font-bold text-yellow-600">
-                {formatarValor(valorRepasseAtivo)}
-              </p>
-            )}
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {qtdRepassesAtivos} repasses
-            </p>
-          </CardContent>
-        </Card>
+function DrillMargem({ receita, custo }: { receita: number; custo: number }) {
+  const resultado = receita - custo;
+  const margem = receita > 0 ? (resultado / receita) * 100 : 0;
+  return (
+    <div className="space-y-3">
+      <Row label="Receita Líquida" valor={fmt(receita)} cor="text-green-600" />
+      <Row label="(-) Custo Operacional" valor={fmt(custo)} cor="text-red-600" />
+      <div className="h-px bg-border" />
+      <Row
+        label="= Resultado"
+        valor={fmt(resultado)}
+        cor={resultado >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}
+        bold
+      />
+      <Row
+        label="Margem Operacional"
+        valor={fmtPct(margem)}
+        cor={margem >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}
+        bold
+      />
+    </div>
+  );
+}
 
-        {/* Card Valor Vencido */}
-        <Card className="border-destructive/30 bg-destructive/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-destructive mb-2">
-              <TrendingDown className="h-4 w-4" />
-              <span className="text-xs">Valor Vencido</span>
-            </div>
-            {loadingVencidas ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <p className="text-lg sm:text-2xl font-bold text-destructive">
-                {formatarValor(valorVencido)}
-              </p>
-            )}
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {qtdNotasVencidas} notas
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* BLOCO 2 - COBRANÇA & PREVISIBILIDADE */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card 
-          className="cursor-pointer hover:bg-muted/30 transition-colors group"
-          onClick={() => setSheetPrevisao(true)}
-        >
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              Previsão de Recebimento (Bruta)
-              <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-border/50">
-              <span className="text-sm text-muted-foreground">Total a vencer</span>
-              <span className="font-bold text-lg">{formatarValor(previsaoTotal)}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-border/50">
-              <span className="text-sm text-muted-foreground">Quantidade de notas</span>
-              <Badge variant="outline">{previsaoTotalNotas} notas</Badge>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Info className="h-3 w-3" />
-                Clique para ver por representante
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-500" />
-              Indicadores de Risco
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-border/50">
-              <span className="text-sm text-muted-foreground">Taxa de Inadimplência</span>
-              <Badge
-                variant={taxaInadimplencia > 20 ? "destructive" : taxaInadimplencia > 10 ? "secondary" : "outline"}
-              >
-                {taxaInadimplencia.toFixed(1)}%
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-border/50">
-              <span className="text-sm text-muted-foreground">Notas Vencidas</span>
-              <span className="font-semibold text-destructive">{qtdNotasVencidas}</span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-sm text-muted-foreground">Repasses Ativos</span>
-              <span className="font-semibold text-yellow-600">{qtdRepassesAtivos}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* BLOCO 3 - REPRESENTANTES */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            Performance dos Representantes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[140px]">Representante</TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort("totalCobrado")}
-                >
-                  <div className="flex items-center gap-1">
-                    Total Cobrado
-                    <ArrowUpDown className="h-3 w-3" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort("percentualMeta")}
-                >
-                  <div className="flex items-center gap-1">
-                    % Meta
-                    <ArrowUpDown className="h-3 w-3" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 hidden sm:table-cell"
-                  onClick={() => handleSort("ticketMedio")}
-                >
-                  <div className="flex items-center gap-1">
-                    Ticket Médio
-                    <ArrowUpDown className="h-3 w-3" />
-                  </div>
-                </TableHead>
-                <TableHead className="hidden md:table-cell">Despesas</TableHead>
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50 hidden lg:table-cell"
-                  onClick={() => handleSort("eficiencia")}
-                >
-                  <div className="flex items-center gap-1">
-                    Eficiência
-                    <ArrowUpDown className="h-3 w-3" />
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedRepresentantes.map((rep) => (
-                <TableRow key={rep.id}>
-                  <TableCell className="font-medium text-xs sm:text-sm">
-                    {rep.nome}
-                  </TableCell>
-                  <TableCell className="text-xs sm:text-sm">
-                    {formatarValor(rep.totalCobrado)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        rep.percentualMeta >= 100
-                          ? "default"
-                          : rep.percentualMeta >= 70
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className={
-                        rep.percentualMeta >= 100
-                          ? "bg-green-600"
-                          : ""
-                      }
-                    >
-                      {rep.percentualMeta.toFixed(0)}%
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell text-xs sm:text-sm">
-                    {formatarValor(rep.ticketMedio)}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-xs sm:text-sm">
-                    {formatarValor(rep.totalDespesas)}
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    <span
-                      className={
-                        rep.eficiencia > 10
-                          ? "text-green-600"
-                          : rep.eficiencia > 5
-                          ? "text-yellow-600"
-                          : "text-muted-foreground"
-                      }
-                    >
-                      {rep.eficiencia.toFixed(1)}x
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {sortedRepresentantes.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    Nenhum dado no período
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* BLOCO 4 - KITS */}
-      <div>
-        <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-          <Package className="h-4 w-4" />
-          Kits (Giro e Risco)
-        </h2>
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <Card 
-            className="cursor-pointer hover:bg-muted/30 transition-colors group"
-            onClick={() => setSheetKitsEntregues(true)}
-          >
-            <CardContent className="p-4 text-center relative">
-              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              <p className="text-xs text-muted-foreground mb-1">Entregues</p>
-              {loadingKitsEntregues ? (
-                <Skeleton className="h-8 w-12 mx-auto" />
-              ) : (
-                <p className="text-2xl font-bold text-foreground">
-                  {kitsEntreguesQtd}
-                </p>
-              )}
-              <p className="text-[10px] text-muted-foreground">no período</p>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="cursor-pointer hover:bg-muted/30 transition-colors group"
-            onClick={() => setSheetKitsPosse(true)}
-          >
-            <CardContent className="p-4 text-center relative">
-              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              <p className="text-xs text-muted-foreground mb-1">Em Posse</p>
-              {loadingKitsPosse ? (
-                <Skeleton className="h-8 w-12 mx-auto" />
-              ) : (
-                <p className="text-2xl font-bold text-foreground">
-                  {kitsEmPosseQtd}
-                </p>
-              )}
-              <p className="text-[10px] text-muted-foreground">com representantes</p>
-            </CardContent>
-          </Card>
-
-          <Card className={giroKits < 0.3 ? "border-warning/30" : ""}>
-            <CardContent className="p-4 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Giro</p>
-              <p
-                className={`text-2xl font-bold ${
-                  giroKits < 0.3 ? "text-warning" : "text-foreground"
-                }`}
-              >
-                {(giroKits * 100).toFixed(0)}%
-              </p>
-              <p className="text-[10px] text-muted-foreground">rotatividade</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* BLOCO 5 - REVENDEDORAS */}
-      <div>
-        <h2 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
-          <Target className="h-4 w-4" />
-          Revendedoras
-        </h2>
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <Card 
-            className="cursor-pointer hover:bg-muted/30 transition-colors group"
-            onClick={() => setSheetRevendedorasAtivas(true)}
-          >
-            <CardContent className="p-4 text-center relative">
-              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              <p className="text-xs text-muted-foreground mb-1">Ativas</p>
-              <p className="text-2xl font-bold text-success">
-                {totalRevendedorasAtivas}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="cursor-pointer hover:bg-muted/30 transition-colors group"
-            onClick={() => setSheetRevendedorasInativas(true)}
-          >
-            <CardContent className="p-4 text-center relative">
-              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-              <p className="text-xs text-muted-foreground mb-1">Inativas</p>
-              <p className="text-2xl font-bold text-muted-foreground">
-                {totalRevendedorasInativas}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Retenção</p>
-              <p
-                className={`text-2xl font-bold ${
-                  taxaRetencao >= 70 ? "text-success" : "text-warning"
-                }`}
-              >
-                {taxaRetencao.toFixed(0)}%
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* BLOCO 6 - ALERTAS */}
-      {alertas.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-yellow-500" />
-              Alertas Operacionais
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {alertas.map((alerta, index) => (
-              <div
-                key={index}
-                className={`flex items-start gap-3 p-3 rounded-lg ${
-                  alerta.tipo === "error"
-                    ? "bg-destructive/10 border border-destructive/20"
-                    : alerta.tipo === "warning"
-                    ? "bg-yellow-500/10 border border-yellow-500/20"
-                    : "bg-primary/10 border border-primary/20"
-                }`}
-              >
-                {alerta.tipo === "error" ? (
-                  <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                ) : alerta.tipo === "warning" ? (
-                  <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
-                ) : (
-                  <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                )}
-                <div>
-                  <p className="text-sm font-medium">{alerta.titulo}</p>
-                  <p className="text-xs text-muted-foreground">{alerta.descricao}</p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {alertas.length === 0 && (
-        <Card className="border-green-500/30 bg-green-500/5">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center">
-              <TrendingUp className="h-4 w-4 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-green-600">
-                Tudo em ordem!
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Nenhum alerta operacional no momento
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* SHEETS DE DETALHAMENTO */}
-      
-      {/* Sheet: Previsão de Recebimento por Representante */}
-      <Sheet open={sheetPrevisao} onOpenChange={setSheetPrevisao}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader className="pb-4 border-b border-border">
-            <SheetTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Previsão por Representante
-            </SheetTitle>
-            <SheetDescription>
-              Total: {formatarValor(previsaoTotal)} ({previsaoTotalNotas} notas)
-            </SheetDescription>
-          </SheetHeader>
-          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
-            <div className="space-y-3 py-4">
-              {previsaoPorRepresentante.map((rep, idx) => (
-                <div key={idx} className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-semibold text-sm">{rep.nome}</span>
-                    <span className="font-bold">
-                      {formatarValor(rep.kits.valor + rep.repasses.valor)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span className="flex items-center gap-1">
-                      <Package className="h-3 w-3" />
-                      Kits: {rep.kits.qtd}
-                    </span>
-                    <span>{formatarValor(rep.kits.valor)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Repeat className="h-3 w-3" />
-                      Repasses: {rep.repasses.qtd}
-                    </span>
-                    <span>{formatarValor(rep.repasses.valor)}</span>
-                  </div>
-                </div>
-              ))}
-              {previsaoPorRepresentante.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma previsão no período
-                </p>
-              )}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
-
-      {/* Sheet: Kits Entregues por Representante */}
-      <Sheet open={sheetKitsEntregues} onOpenChange={setSheetKitsEntregues}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader className="pb-4 border-b border-border">
-            <SheetTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
-              Kits Entregues por Representante
-            </SheetTitle>
-            <SheetDescription>
-              Total: {kitsEntreguesQtd} kits no período
-            </SheetDescription>
-          </SheetHeader>
-          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
-            <div className="space-y-2 py-4">
-              {kitsEntreguesPorRep.map((rep, idx) => (
-                <div key={idx} className="flex justify-between items-center py-3 px-4 rounded-lg bg-muted/30">
-                  <span className="font-medium text-sm">{rep.nome}</span>
-                  <Badge variant="outline">{rep.quantidade} kits</Badge>
-                </div>
-              ))}
-              {kitsEntreguesPorRep.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum kit entregue no período
-                </p>
-              )}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
-
-      {/* Sheet: Kits em Posse por Representante */}
-      <Sheet open={sheetKitsPosse} onOpenChange={setSheetKitsPosse}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader className="pb-4 border-b border-border">
-            <SheetTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
-              Kits em Posse por Representante
-            </SheetTitle>
-            <SheetDescription>
-              Total: {kitsEmPosseQtd} kits com representantes
-            </SheetDescription>
-          </SheetHeader>
-          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
-            <div className="space-y-2 py-4">
-              {kitsPossePorRep.map((rep, idx) => (
-                <div key={idx} className="flex justify-between items-center py-3 px-4 rounded-lg bg-muted/30">
-                  <span className="font-medium text-sm">{rep.nome}</span>
-                  <Badge variant="outline">{rep.quantidade} kits</Badge>
-                </div>
-              ))}
-              {kitsPossePorRep.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum kit em posse
-                </p>
-              )}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
-
-      {/* Sheet: Revendedoras Ativas por Representante */}
-      <Sheet open={sheetRevendedorasAtivas} onOpenChange={setSheetRevendedorasAtivas}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader className="pb-4 border-b border-border">
-            <SheetTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-success" />
-              Revendedoras Ativas por Representante
-            </SheetTitle>
-            <SheetDescription>
-              Total: {totalRevendedorasAtivas} revendedoras ativas
-            </SheetDescription>
-          </SheetHeader>
-          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
-            <div className="space-y-2 py-4">
-              {revendedorasAtivasPorRep.map((rep, idx) => (
-                <div key={idx} className="flex justify-between items-center py-3 px-4 rounded-lg bg-muted/30">
-                  <span className="font-medium text-sm">{rep.nome}</span>
-                  <Badge variant="success">{rep.quantidade} revend.</Badge>
-                </div>
-              ))}
-              {revendedorasAtivasPorRep.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma revendedora ativa
-                </p>
-              )}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
-
-      {/* Sheet: Revendedoras Inativas por Representante */}
-      <Sheet open={sheetRevendedorasInativas} onOpenChange={setSheetRevendedorasInativas}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader className="pb-4 border-b border-border">
-            <SheetTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-muted-foreground" />
-              Revendedoras Inativas por Representante
-            </SheetTitle>
-            <SheetDescription>
-              Total: {totalRevendedorasInativas} revendedoras inativas
-            </SheetDescription>
-          </SheetHeader>
-          <ScrollArea className="h-[calc(100vh-140px)] pr-4">
-            <div className="space-y-2 py-4">
-              {revendedorasInativasPorRep.map((rep, idx) => (
-                <div key={idx} className="flex justify-between items-center py-3 px-4 rounded-lg bg-muted/30">
-                  <span className="font-medium text-sm">{rep.nome}</span>
-                  <Badge variant="secondary">{rep.quantidade} revend.</Badge>
-                </div>
-              ))}
-              {revendedorasInativasPorRep.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhuma revendedora inativa
-                </p>
-              )}
-            </div>
-          </ScrollArea>
-        </SheetContent>
-      </Sheet>
+function Row({ label, valor, cor, bold }: { label: string; valor: string; cor: string; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between py-2 px-3 rounded bg-muted/30">
+      <span className={`text-sm ${bold ? "font-bold" : ""}`}>{label}</span>
+      <span className={`font-mono tabular-nums ${cor} ${bold ? "font-bold text-lg" : ""}`}>{valor}</span>
     </div>
   );
 }
