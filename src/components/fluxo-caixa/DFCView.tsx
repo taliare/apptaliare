@@ -27,16 +27,6 @@ import {
 import {
   BarChart,
   Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  CartesianGrid,
-} from "recharts";
-import {
-  BarChart,
-  Bar,
   LineChart,
   Line,
   XAxis,
