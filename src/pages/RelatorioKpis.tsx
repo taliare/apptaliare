@@ -516,8 +516,137 @@ export default function RelatorioKpis() {
     };
   }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual]);
 
+  // ─── Cálculos PESSOAS ───
+  const pessoas = useMemo(() => {
+    const norm = (s: string | null | undefined) =>
+      (s ?? "").trim().toUpperCase();
+
+    const nomeRep = new Map<string, string>();
+    for (const p of profilesAll) nomeRep.set(p.id, p.nome);
+
+    // 1. Ativas (distinct revendedora) no mês atual e anterior
+    const ativasSetAtual = new Set<string>();
+    for (const c of cobrAtual) {
+      const n = norm(c.revendedora);
+      if (n) ativasSetAtual.add(n);
+    }
+    const ativasSetPrev = new Set<string>();
+    for (const c of cobrPrev) {
+      const n = norm(c.revendedora);
+      if (n) ativasSetPrev.add(n);
+    }
+    const ativasAtual = ativasSetAtual.size;
+    const ativasPrev = ativasSetPrev.size;
+
+    const ativasRows = Array.from(ativasSetAtual).map(nome => {
+      // tenta achar revendedora e seu representante
+      const r = revendedoras.find(x => norm(x.nome) === nome);
+      return {
+        nome,
+        representante: r ? (nomeRep.get(r.representante_id ?? "") ?? "—") : "—",
+      };
+    }).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    // 2. Novas no mês (criado_em no período)
+    const novasAtual = revendedoras.filter(r =>
+      r.criado_em && r.criado_em >= `${dataInicio}T00:00:00` && r.criado_em <= `${dataFim}T23:59:59`
+    );
+    const novasPrev = revendedoras.filter(r =>
+      r.criado_em && r.criado_em >= `${prevInicio}T00:00:00` && r.criado_em <= `${prevFim}T23:59:59`
+    );
+
+    // 3. Perdidas = nomes em cobrPrev mas não em cobrAtual
+    const perdidasNomes = Array.from(ativasSetPrev).filter(n => !ativasSetAtual.has(n));
+    const perdidasRows = perdidasNomes.map(nome => {
+      const r = revendedoras.find(x => norm(x.nome) === nome);
+      return {
+        nome,
+        representante: r ? (nomeRep.get(r.representante_id ?? "") ?? "—") : "—",
+      };
+    }).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    // 4. Ranking de representantes (do período atual)
+    type RepStat = {
+      id: string;
+      nome: string;
+      previsto: number;
+      recebido: number;
+      aproveit: number;
+      notas: number;
+      ativasCarteira: number;
+      totalCarteira: number;
+    };
+    const repMap = new Map<string, RepStat>();
+    for (const c of cobrAtual) {
+      const rid = c.representante_id ?? "";
+      if (!rid) continue;
+      let r = repMap.get(rid);
+      if (!r) {
+        r = {
+          id: rid,
+          nome: nomeRep.get(rid) ?? "(sem nome)",
+          previsto: 0, recebido: 0, aproveit: 0, notas: 0,
+          ativasCarteira: 0, totalCarteira: 0,
+        };
+        repMap.set(rid, r);
+      }
+      r.previsto += Number(c.valor_previsto || 0);
+      r.recebido += Number(c.valor_pago_acumulado || 0);
+      r.notas += 1;
+    }
+
+    // 6. Carteira: ativas vs total por representante
+    const totalPorRep = new Map<string, number>();
+    const ativasPorRep = new Map<string, Set<string>>();
+    for (const r of revendedoras) {
+      if (!r.representante_id) continue;
+      totalPorRep.set(r.representante_id, (totalPorRep.get(r.representante_id) ?? 0) + 1);
+    }
+    for (const c of cobrAtual) {
+      const rid = c.representante_id ?? "";
+      const st = c.status ?? "";
+      if (!rid || (st !== "pendente" && st !== "parcial")) continue;
+      const nm = norm(c.revendedora);
+      if (!nm) continue;
+      if (!ativasPorRep.has(rid)) ativasPorRep.set(rid, new Set());
+      ativasPorRep.get(rid)!.add(nm);
+    }
+
+    // garante todos representantes ativos no map (mesmo sem notas no mês)
+    for (const p of profilesAll) {
+      if (!repMap.has(p.id) && (totalPorRep.get(p.id) ?? 0) > 0) {
+        repMap.set(p.id, {
+          id: p.id, nome: p.nome,
+          previsto: 0, recebido: 0, aproveit: 0, notas: 0,
+          ativasCarteira: 0, totalCarteira: 0,
+        });
+      }
+    }
+
+    const ranking: RepStat[] = [];
+    repMap.forEach(r => {
+      r.aproveit = r.previsto > 0 ? (r.recebido / r.previsto) * 100 : 0;
+      r.totalCarteira = totalPorRep.get(r.id) ?? 0;
+      r.ativasCarteira = ativasPorRep.get(r.id)?.size ?? 0;
+      ranking.push(r);
+    });
+    ranking.sort((a, b) => b.aproveit - a.aproveit);
+
+    const aproveitMedio = ranking.length > 0
+      ? ranking.reduce((s, r) => s + r.aproveit, 0) / ranking.length
+      : 0;
+
+    return {
+      ativasAtual, ativasPrev, ativasRows,
+      novasAtual, novasPrev,
+      perdidasAtual: perdidasRows.length, perdidasRows,
+      ranking, aproveitMedio, nomeRep,
+    };
+  }, [cobrAtual, cobrPrev, revendedoras, profilesAll, dataInicio, dataFim, prevInicio, prevFim]);
+
   const loading = lp1 || lc1 || ld1;
   const loadingOp = lo1 || lo2 || lo3 || lo4;
+  const loadingPe = lpe1 || lpe2 || lc1;
 
   return (
     <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
