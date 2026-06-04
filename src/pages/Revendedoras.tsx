@@ -26,6 +26,7 @@ interface Revendedora {
   id: string;
   nome: string;
   whatsapp: string | null;
+  cpf: string | null;
   representante_id: string | null;
   ativo: boolean;
   ultima_atividade: string | null;
@@ -164,11 +165,13 @@ export default function Revendedoras() {
     if (statusFiltro !== 'todos') list = list.filter((r) => r.statusInfo.key === statusFiltro);
     if (searchTerm) {
       const termo = searchTerm.toLowerCase();
+      const digitos = searchTerm.replace(/\D/g, '');
       list = list.filter(
         (r) =>
           r.nome.toLowerCase().includes(termo) ||
-          r.whatsapp?.toLowerCase().includes(termo) ||
-          r.profiles?.nome?.toLowerCase().includes(termo)
+          r.profiles?.nome?.toLowerCase().includes(termo) ||
+          (digitos && ((r.whatsapp ?? '').replace(/\D/g, '').includes(digitos) ||
+                       (r.cpf ?? '').replace(/\D/g, '').includes(digitos)))
       );
     }
     return list;
