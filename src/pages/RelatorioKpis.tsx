@@ -619,6 +619,126 @@ export default function RelatorioKpis() {
         </Card>
       </Collapsible>
 
+      {/* SEÇÃO 2 — OPERACIONAL */}
+      <Collapsible open={openOperacional} onOpenChange={setOpenOperacional}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition">
+              <div className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-lg">Operacional</span>
+              </div>
+              <ChevronDown
+                className={`h-5 w-5 transition-transform ${openOperacional ? "rotate-180" : ""}`}
+              />
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
+            <div className="p-4 pt-0">
+              {loadingOp ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-32" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <KpiCard
+                    icon={<Boxes className="h-4 w-4" />}
+                    titulo="Kits em Campo (Valor Total)"
+                    valor={fmt(op.kitsCampoValor)}
+                    subtitulo={`Capital imobilizado · ${op.cobrAbertasCount} nota(s)`}
+                    accent="neutral"
+                    onClick={() => setDrill({
+                      tipo: "op_cobrancas",
+                      titulo: "Kits em Campo — Cobranças abertas",
+                      rows: cobrAbertas,
+                      mostrarSaldo: true,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Clock className="h-4 w-4" />}
+                    titulo="Tempo Médio de Retorno"
+                    valor={`${op.tempoMedioRetorno.toFixed(0)} dias`}
+                    subtitulo={`${op.retornoRows.length} kit(s) encerrado(s)`}
+                    accent={
+                      op.tempoMedioRetorno < 45 ? "green" :
+                      op.tempoMedioRetorno <= 90 ? "neutral" : "red"
+                    }
+                    onClick={() => setDrill({
+                      tipo: "op_tempo",
+                      titulo: "Tempo de Retorno — Kits encerrados",
+                      rows: op.retornoRows,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<RotateCcw className="h-4 w-4" />}
+                    titulo="Taxa de Devolução Total"
+                    valor={fmtPct(op.taxaDevolucao)}
+                    subtitulo={`Kits que voltaram sem nenhuma venda · ${op.devolvidasEncerradas.length}/${op.encerradasTotal}`}
+                    accent={op.taxaDevolucao > 20 ? "red" : op.taxaDevolucao > 10 ? "neutral" : "green"}
+                    onClick={() => setDrill({
+                      tipo: "op_cobrancas",
+                      titulo: "Kits devolvidos totalmente no período",
+                      rows: op.devolvidasEncerradas,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<AlertTriangle className="h-4 w-4" />}
+                    titulo="Notas em Atraso"
+                    valor={String(op.atrasadas.length)}
+                    subtitulo={`0-30: ${op.atraso030.length} · 31-60: ${op.atraso3160.length} · +60: ${op.atraso60plus.length}`}
+                    accent={op.atraso60plus.length > 0 ? "red" : op.atraso3160.length > 0 ? "neutral" : "green"}
+                    onClick={() => setDrill({
+                      tipo: "op_atraso",
+                      titulo: "Notas em Atraso (snapshot atual)",
+                      rows: op.atrasadas,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Scale className="h-4 w-4" />}
+                    titulo="Notas no Jurídico"
+                    valor={String(op.juridicoCountAtual)}
+                    subtitulo={`${fmt(op.juridicoValorAtual)} encaminhado`}
+                    atual={op.juridicoCountAtual}
+                    anterior={op.juridicoCountPrev}
+                    accent={op.juridicoCountAtual > op.juridicoCountPrev ? "red" : "neutral"}
+                    onClick={() => setDrill({
+                      tipo: "op_cobrancas",
+                      titulo: "Notas encaminhadas ao Jurídico",
+                      rows: juridicoAtual,
+                      mostrarSaldo: true,
+                    })}
+                  />
+
+                  <KpiCard
+                    icon={<Hourglass className="h-4 w-4" />}
+                    titulo="Prazo Médio de Recebimento"
+                    valor={`${op.prazoMedio.toFixed(0)} dias`}
+                    subtitulo={`${op.prazoRows.length} nota(s) com pagamento`}
+                    accent={
+                      op.prazoMedio < 30 ? "green" :
+                      op.prazoMedio <= 60 ? "neutral" : "red"
+                    }
+                    onClick={() => setDrill({
+                      tipo: "op_prazo",
+                      titulo: "Prazo de Recebimento — Agendamento → 1º pagamento",
+                      rows: op.prazoRows,
+                    })}
+                  />
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+
       {/* Drilldown Sheet */}
       <Sheet open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
         <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
