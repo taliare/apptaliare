@@ -131,7 +131,7 @@ function ListagemUnificada({
   setEditandoWhatsApp: (v: string | null) => void;
   handleEditWhatsApp: (nome: string, whatsappAtual: string | null) => void;
   handleSaveWhatsApp: (revendedora_id: string | null) => void;
-  setPerfilAberto: (nome: string | null) => void;
+  setPerfilAberto: (sel: { nome: string; id: string | null }) => void;
   handleOpenReativar: (rev: RevendedoraInativa) => void;
   kitsDisponiveisLen: number;
   onNovaRevendedora: () => void;
@@ -258,7 +258,7 @@ function ListagemUnificada({
                           <a href={waUrl} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-4 w-4" /></a>
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(item.nome)}>
+                      <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto({ nome: item.nome, id: item.rev.revendedora_id })}>
                         <UserIcon className="h-3.5 w-3.5" />
                         Ver Perfil
                       </Button>
@@ -300,7 +300,7 @@ function ListagemUnificada({
                         <Phone className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto(rev.nome)}>
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => setPerfilAberto({ nome: rev.nome, id: rev.revendedora_id })}>
                       <UserIcon className="h-3.5 w-3.5" />
                       Ver Perfil
                     </Button>
@@ -824,7 +824,7 @@ export default function RevendedorasInativas() {
                         <TableCell className="text-right">{r.ciclos}</TableCell>
                         <TableCell className="text-right font-medium">{formatarValor(r.volumeTotal)}</TableCell>
                         <TableCell className="text-right">{formatarValor(r.ticketMedio)}</TableCell>
-                        <TableCell><Button size="sm" variant="ghost" onClick={() => setPerfilAberto(r.nome)}>Ver Perfil</Button></TableCell>
+                        <TableCell><Button size="sm" variant="ghost" onClick={() => setPerfilAberto({ nome: r.nome, id: null })}>Ver Perfil</Button></TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -894,7 +894,8 @@ export default function RevendedorasInativas() {
 
       {perfilAberto && (
         <PerfilRevendedoraDialog
-          nomeRevendedora={perfilAberto}
+          nomeRevendedora={perfilAberto.nome}
+          revendedoraId={perfilAberto.id}
           representantes={[]}
           onClose={() => setPerfilAberto(null)}
         />
