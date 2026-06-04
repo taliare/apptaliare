@@ -905,3 +905,116 @@ function Row({ label, valor, cor, bold }: { label: string; valor: string; cor: s
     </div>
   );
 }
+
+function DrillTempo({ rows }: { rows: { cobranca: Cobranca; dias: number }[] }) {
+  const media = rows.length > 0 ? rows.reduce((s, r) => s + r.dias, 0) / rows.length : 0;
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nota</TableHead>
+          <TableHead>Revendedora</TableHead>
+          <TableHead className="text-right">Agendada</TableHead>
+          <TableHead className="text-right">Quitação</TableHead>
+          <TableHead className="text-right">Dias</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem registros</TableCell></TableRow>
+        ) : rows.map(r => (
+          <TableRow key={r.cobranca.id}>
+            <TableCell className="text-xs">{r.cobranca.codigo_nota || "—"}</TableCell>
+            <TableCell className="text-sm">{r.cobranca.revendedora || "—"}</TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.cobranca.data_agendada)}</TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.cobranca.data_quitacao || null)}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{r.dias}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={4}>Média ({rows.length})</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{media.toFixed(1)} d</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DrillAtraso({ rows }: { rows: { cobranca: Cobranca; dias: number; bucket: string }[] }) {
+  const sorted = [...rows].sort((a, b) => b.dias - a.dias);
+  const totalValor = sorted.reduce((s, r) =>
+    s + (Number(r.cobranca.valor_previsto || 0) - Number(r.cobranca.valor_pago_acumulado || 0)), 0
+  );
+  const corBucket = (b: string) =>
+    b === "+60" ? "text-red-600 dark:text-red-400 font-semibold" :
+    b === "31-60" ? "text-yellow-600 dark:text-yellow-400" :
+    "text-muted-foreground";
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nota</TableHead>
+          <TableHead>Revendedora</TableHead>
+          <TableHead>Bucket</TableHead>
+          <TableHead className="text-right">Dias</TableHead>
+          <TableHead className="text-right">Saldo</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sorted.length === 0 ? (
+          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem notas em atraso</TableCell></TableRow>
+        ) : sorted.map(r => {
+          const saldo = Number(r.cobranca.valor_previsto || 0) - Number(r.cobranca.valor_pago_acumulado || 0);
+          return (
+            <TableRow key={r.cobranca.id}>
+              <TableCell className="text-xs">{r.cobranca.codigo_nota || "—"}</TableCell>
+              <TableCell className="text-sm">{r.cobranca.revendedora || "—"}</TableCell>
+              <TableCell className={`text-xs ${corBucket(r.bucket)}`}>{r.bucket} dias</TableCell>
+              <TableCell className="text-right font-mono tabular-nums">{r.dias}</TableCell>
+              <TableCell className="text-right font-mono tabular-nums">{fmt(saldo)}</TableCell>
+            </TableRow>
+          );
+        })}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={4}>Total ({sorted.length})</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{fmt(totalValor)}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DrillPrazo({ rows }: { rows: { cobranca: Cobranca; primeira: string; dias: number }[] }) {
+  const sorted = [...rows].sort((a, b) => b.dias - a.dias);
+  const media = sorted.length > 0 ? sorted.reduce((s, r) => s + r.dias, 0) / sorted.length : 0;
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Nota</TableHead>
+          <TableHead>Revendedora</TableHead>
+          <TableHead className="text-right">Agendada</TableHead>
+          <TableHead className="text-right">1º Pagto</TableHead>
+          <TableHead className="text-right">Dias</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sorted.length === 0 ? (
+          <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem registros</TableCell></TableRow>
+        ) : sorted.map(r => (
+          <TableRow key={r.cobranca.id}>
+            <TableCell className="text-xs">{r.cobranca.codigo_nota || "—"}</TableCell>
+            <TableCell className="text-sm">{r.cobranca.revendedora || "—"}</TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.cobranca.data_agendada)}</TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.primeira)}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{r.dias}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={4}>Média ({sorted.length})</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{media.toFixed(1)} d</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
