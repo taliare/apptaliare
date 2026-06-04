@@ -1979,11 +1979,15 @@ export type Database = {
           criado_em: string
           data_transacao: string
           descricao: string | null
+          despesa_id: string | null
           id: string
           id_externo: string | null
+          memo_ofx: string | null
+          name_ofx: string | null
           observacao: string | null
           status_conciliacao: string
           tipo: string
+          trntype: string | null
           valor: number
         }
         Insert: {
@@ -1992,11 +1996,15 @@ export type Database = {
           criado_em?: string
           data_transacao: string
           descricao?: string | null
+          despesa_id?: string | null
           id?: string
           id_externo?: string | null
+          memo_ofx?: string | null
+          name_ofx?: string | null
           observacao?: string | null
           status_conciliacao?: string
           tipo: string
+          trntype?: string | null
           valor: number
         }
         Update: {
@@ -2005,11 +2013,15 @@ export type Database = {
           criado_em?: string
           data_transacao?: string
           descricao?: string | null
+          despesa_id?: string | null
           id?: string
           id_externo?: string | null
+          memo_ofx?: string | null
+          name_ofx?: string | null
           observacao?: string | null
           status_conciliacao?: string
           tipo?: string
+          trntype?: string | null
           valor?: number
         }
         Relationships: [
@@ -2025,6 +2037,13 @@ export type Database = {
             columns: ["conta_id"]
             isOneToOne: false
             referencedRelation: "contas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_bancarias_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "dre_despesas"
             referencedColumns: ["id"]
           },
         ]

@@ -31,6 +31,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Upload, Wallet } from "lucide-react";
 import { DFCView } from "@/components/fluxo-caixa/DFCView";
+import { ConciliarView } from "@/components/fluxo-caixa/ConciliarView";
+import { aplicarRegras, invalidarCacheCategorias } from "@/lib/ofxCategorias";
 
 interface ContaBancaria {
   id: string;
@@ -40,13 +42,24 @@ interface ContaBancaria {
   saldo_inicial: number;
   ativo: boolean;
   saldo_atual?: number;
+  pendentes?: number;
+}
+
+interface TxOFX {
+  id_externo: string;
+  data_transacao: string;
+  descricao: string;
+  name_ofx: string;
+  memo_ofx: string;
+  trntype: string;
+  valor: number;
+  tipo: "credito" | "debito";
 }
 
 const BRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-function parseOFX(text: string) {
-  // Remove SGML header if present, keep body
+function parseOFX(text: string): TxOFX[] {
   const body = text.replace(/\r/g, "");
   const txRegex = /<STMTTRN>([\s\S]*?)<\/STMTTRN>/g;
   const tag = (block: string, name: string) => {
@@ -55,30 +68,28 @@ function parseOFX(text: string) {
     return m ? m[1].trim() : "";
   };
   const parseDate = (raw: string) => {
-    // YYYYMMDD or YYYYMMDDHHMMSS
     const s = raw.slice(0, 8);
     if (s.length !== 8) return null;
     return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
   };
-  const out: {
-    id_externo: string;
-    data_transacao: string;
-    descricao: string;
-    valor: number;
-    tipo: "credito" | "debito";
-  }[] = [];
+  const out: TxOFX[] = [];
   let m;
   while ((m = txRegex.exec(body)) !== null) {
     const block = m[1];
     const fitid = tag(block, "FITID");
     const dt = parseDate(tag(block, "DTPOSTED"));
     const amount = parseFloat(tag(block, "TRNAMT").replace(",", "."));
-    const memo = tag(block, "MEMO") || tag(block, "NAME") || "";
+    const name = tag(block, "NAME");
+    const memo = tag(block, "MEMO");
+    const trntype = tag(block, "TRNTYPE");
     if (!fitid || !dt || isNaN(amount)) continue;
     out.push({
       id_externo: fitid,
       data_transacao: dt,
-      descricao: memo,
+      descricao: memo || name,
+      name_ofx: name,
+      memo_ofx: memo,
+      trntype,
       valor: amount,
       tipo: amount >= 0 ? "credito" : "debito",
     });
@@ -111,22 +122,26 @@ export default function FluxoCaixa() {
       setLoading(false);
       return;
     }
-    // Calcular saldo: saldo_inicial + soma valores
     const ids = (contasData || []).map((c) => c.id);
-    let somas: Record<string, number> = {};
+    const somas: Record<string, number> = {};
+    const pendentes: Record<string, number> = {};
     if (ids.length) {
       const { data: txs } = await supabase
         .from("transacoes_bancarias")
-        .select("conta_id,valor")
+        .select("conta_id,valor,status_conciliacao")
         .in("conta_id", ids);
       (txs || []).forEach((t: any) => {
         somas[t.conta_id] = (somas[t.conta_id] || 0) + Number(t.valor);
+        if (t.status_conciliacao === "pendente") {
+          pendentes[t.conta_id] = (pendentes[t.conta_id] || 0) + 1;
+        }
       });
     }
     setContas(
       (contasData || []).map((c) => ({
         ...c,
         saldo_atual: Number(c.saldo_inicial) + (somas[c.id] || 0),
+        pendentes: pendentes[c.id] || 0,
       })),
     );
     setLoading(false);
@@ -173,13 +188,30 @@ export default function FluxoCaixa() {
         toast.error("Nenhuma transação encontrada no OFX");
         return;
       }
+      invalidarCacheCategorias();
       let importadas = 0;
       let ignoradas = 0;
-      // Insert one-by-one to detect duplicates per row
+      let autoCategorizadas = 0;
       for (const tx of transacoes) {
+        const regra = await aplicarRegras({
+          name: tx.name_ofx,
+          memo: tx.memo_ofx,
+          trntype: tx.trntype,
+          valor: tx.valor,
+        });
+        if (regra.categoria_id) autoCategorizadas++;
         const { error } = await supabase.from("transacoes_bancarias").insert({
           conta_id: contaSelecionada,
-          ...tx,
+          data_transacao: tx.data_transacao,
+          descricao: tx.descricao,
+          name_ofx: tx.name_ofx || null,
+          memo_ofx: tx.memo_ofx || null,
+          trntype: tx.trntype || null,
+          valor: tx.valor,
+          tipo: tx.tipo,
+          id_externo: tx.id_externo,
+          categoria_id: regra.categoria_id,
+          status_conciliacao: regra.status,
         });
         if (error) {
           if (error.code === "23505") ignoradas++;
@@ -192,7 +224,7 @@ export default function FluxoCaixa() {
         }
       }
       toast.success(
-        `${importadas} transações importadas, ${ignoradas} ignoradas (duplicatas)`,
+        `${importadas} importadas, ${ignoradas} duplicadas, ${autoCategorizadas} auto-categorizadas`,
       );
       loadContas();
     } catch (err: any) {
@@ -211,21 +243,21 @@ export default function FluxoCaixa() {
           Fluxo de Caixa
         </h1>
         <p className="text-muted-foreground text-sm">
-          Gerencie contas bancárias e importe extratos OFX
+          Gerencie contas bancárias e concilie transações
         </p>
       </div>
 
       <Tabs defaultValue="contas" className="w-full">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="dfc">DFC</TabsTrigger>
           <TabsTrigger value="contas">Contas</TabsTrigger>
           <TabsTrigger value="importar">Importar</TabsTrigger>
+          <TabsTrigger value="conciliar">Conciliar</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dfc" className="space-y-4">
           <DFCView />
         </TabsContent>
-
 
         <TabsContent value="contas" className="space-y-4">
           <div className="flex justify-end">
@@ -242,44 +274,52 @@ export default function FluxoCaixa() {
               {loading ? (
                 <p className="text-muted-foreground">Carregando...</p>
               ) : contas.length === 0 ? (
-                <p className="text-muted-foreground">
-                  Nenhuma conta cadastrada
-                </p>
+                <p className="text-muted-foreground">Nenhuma conta cadastrada</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Banco</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead className="text-right">
-                        Saldo Inicial
-                      </TableHead>
-                      <TableHead className="text-right">Saldo Atual</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {contas.map((c) => (
-                      <TableRow key={c.id}>
-                        <TableCell className="font-medium">{c.nome}</TableCell>
-                        <TableCell>{c.banco || "—"}</TableCell>
-                        <TableCell className="capitalize">{c.tipo}</TableCell>
-                        <TableCell className="text-right">
-                          {BRL(Number(c.saldo_inicial))}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {BRL(c.saldo_atual || 0)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={c.ativo ? "default" : "secondary"}>
-                            {c.ativo ? "Ativo" : "Inativo"}
-                          </Badge>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Banco</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="text-right">Saldo Inicial</TableHead>
+                        <TableHead className="text-right">Saldo Atual</TableHead>
+                        <TableHead>Pendentes</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {contas.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.nome}</TableCell>
+                          <TableCell>{c.banco || "—"}</TableCell>
+                          <TableCell className="capitalize">{c.tipo}</TableCell>
+                          <TableCell className="text-right">
+                            {BRL(Number(c.saldo_inicial))}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {BRL(c.saldo_atual || 0)}
+                          </TableCell>
+                          <TableCell>
+                            {c.pendentes && c.pendentes > 0 ? (
+                              <Badge variant="destructive">
+                                {c.pendentes} pendentes
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={c.ativo ? "default" : "secondary"}>
+                              {c.ativo ? "Ativo" : "Inativo"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -293,10 +333,7 @@ export default function FluxoCaixa() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Conta destino</Label>
-                <Select
-                  value={contaSelecionada}
-                  onValueChange={setContaSelecionada}
-                >
+                <Select value={contaSelecionada} onValueChange={setContaSelecionada}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma conta" />
                   </SelectTrigger>
@@ -323,17 +360,23 @@ export default function FluxoCaixa() {
                   />
                   {importando && (
                     <p className="text-sm text-muted-foreground mt-2">
-                      Processando...
+                      Processando e auto-categorizando...
                     </p>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Transações duplicadas (mesmo ID OFX para a mesma conta) são
-                  ignoradas automaticamente.
+                  As transações são auto-categorizadas pelas regras configuradas
+                  (Facebook → Marketing, Uber → Transporte, etc). Transferências
+                  internas Taliare são marcadas como ignoradas. Duplicatas são
+                  descartadas automaticamente.
                 </p>
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="conciliar" className="space-y-4">
+          <ConciliarView />
         </TabsContent>
       </Tabs>
 
