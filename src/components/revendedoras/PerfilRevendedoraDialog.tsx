@@ -317,7 +317,19 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
                         <TableHead className="text-right">Comissão (%)</TableHead>
                         <TableHead className="text-right">Valor Empresa</TableHead>
                         <TableHead className="text-right">Pago</TableHead>
-                        <TableHead className="text-right">Saldo</TableHead>
+                        <TableHead className="text-right">
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <span>Saldo</span>
+                            <button
+                              type="button"
+                              onClick={() => setSaldoVisivel((v) => !v)}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              title={saldoVisivel ? 'Ocultar saldo' : 'Mostrar saldo'}
+                            >
+                              {saldoVisivel ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </button>
+                          </div>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
