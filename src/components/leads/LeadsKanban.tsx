@@ -36,15 +36,18 @@ export function LeadsKanban({ leads, countsByStatus }: LeadsKanbanProps) {
   const [zoom, setZoom] = useState(0.8);
 
   const sensors = useSensors(
+    // Mouse/pointer: require a more deliberate drag (15px) to avoid accidental moves
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 15,
       },
     }),
+    // Touch: require a long-press (300ms) before drag activates,
+    // so horizontal scrolling between columns doesn't accidentally grab a card.
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 150,
-        tolerance: 8,
+        delay: 300,
+        tolerance: 5,
       },
     })
   );
