@@ -596,8 +596,6 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
             {bloqueioJuridico ? 'Bloqueado pelo Jurídico' : duplicidade ? 'Já cadastrada com outro' : 'Salvar'}
           </Button>
         </DialogFooter>
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
