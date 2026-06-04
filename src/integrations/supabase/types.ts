@@ -2207,6 +2207,46 @@ export type Database = {
         Args: { p_kit_id: string; p_user_id: string }
         Returns: boolean
       }
+      buscar_revendedora_match: {
+        Args: { p_nome: string; p_representante_id: string }
+        Returns: {
+          aprovado_por: string | null
+          ativo: boolean
+          atualizado_em: string | null
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
+          complemento: string | null
+          cpf: string | null
+          criado_em: string | null
+          data_aprovacao_juridico: string | null
+          data_nascimento: string | null
+          data_solicitacao_juridico: string | null
+          email: string | null
+          estado: string | null
+          estado_civil: string | null
+          foto_url: string | null
+          genero: string | null
+          id: string
+          logradouro: string | null
+          motivo_juridico: string | null
+          nome: string
+          numero: string | null
+          observacoes: string | null
+          representante_id: string | null
+          rg: string | null
+          status_juridico: string | null
+          telefone_alternativo: string | null
+          ultima_atividade: string | null
+          whatsapp: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "revendedoras"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       delete_lead_with_history: { Args: { p_lead_id: string }; Returns: Json }
       entregar_kit_para_revendedora: {
         Args: {

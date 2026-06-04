@@ -1,56 +1,48 @@
-## Causa raiz
+## Diagnóstico
 
-A tabela `revendedoras` **não tem política RLS de UPDATE para representantes**. As únicas políticas hoje são:
-- `INSERT` para representantes (`representante_id = auth.uid()`)
-- `SELECT` para representantes (suas revendedoras)
-- `ALL` apenas para admin
+O salvamento no banco está funcionando para o Representante 1: encontrei registros atualizados e trilha de auditoria às 15:50. O problema que faz parecer que “não salvou” é de vínculo por nome:
 
-Como o código faz `supabase.from('revendedoras').update(payload).eq('id', id)` **sem `.select()`**, o PostgREST responde 204 (sucesso) mesmo quando 0 linhas foram afetadas pela RLS. Resultado: o toast "Revendedora atualizada" aparece, o dialog fecha, **mas nada foi gravado**. Os representantes percebem isso de forma intermitente — só notam quando reabrem o perfil e veem dados antigos. (Para revendedoras editadas pelo admin tudo salva normalmente, daí "algumas sim, outras não".)
+- A listagem e o modal procuram o cadastro usando o texto da cobrança/prestação (`revendedora`).
+- Quando o representante edita o cadastro e o nome é normalizado/alterado para maiúsculas ou nome completo, o cadastro atualizado deixa de bater exatamente com o nome antigo da cobrança/prestação.
+- Resultado: o banco salva, mas a tela abre/mostra outro registro antigo ou um cadastro “limpo”.
+- Também há cadastros duplicados por variação de nome, exemplo: `Ana Rafaela Sabino de Souza` e `ANA RAFAELA SABINO DE SOUZA`.
+- O trigger de auditoria foi criado na migration, mas não está ativo no banco; vou recriá-lo de forma idempotente.
 
-## Plano
+## Plano de correção
 
-### 1. Migration — destravar UPDATE e criar trilha de auditoria
+1. **Banco de dados**
+   - Criar/atualizar uma função segura para normalizar nomes de revendedoras.
+   - Criar uma função RPC para buscar o cadastro correto da revendedora por:
+     - `representante_id`
+     - `nome` exato ou nome normalizado
+     - fallback por similaridade quando houver variação simples de maiúsculas/acentos
+     - preferindo o cadastro mais recentemente atualizado e com dados preenchidos.
+   - Recriar os triggers de auditoria de `revendedoras` para garantir histórico e `atualizado_em`.
+   - Opcionalmente consolidar duplicados óbvios do Representante 1 quando o nome normalizado for igual, mantendo o registro mais completo/recente.
 
-- **Política `UPDATE` em `revendedoras`** para o dono (`representante_id = auth.uid()`), com `WITH CHECK` igual ao `USING` para impedir transferir a revendedora para outro representante.
-- Mesma política para `revendedoras_referencias` (verificar; se faltar, criar análoga via `EXISTS` no parent).
-- Nova tabela `public.revendedoras_audit`:
-  - `revendedora_id`, `user_id`, `acao` (`criou` | `editou`), `campos_alterados jsonb` (diff campo → {antes, depois}), `criado_em`.
-  - GRANTs para `authenticated`/`service_role`.
-  - RLS: SELECT permitido ao representante dono da revendedora e ao admin; INSERT só via trigger (sem policy de insert para usuários).
-- Trigger `AFTER INSERT OR UPDATE` em `revendedoras` (SECURITY DEFINER) que grava no audit:
-  - No `INSERT`: registra `criou` com `auth.uid()`.
-  - No `UPDATE`: monta diff dos campos relevantes (nome, cpf, rg, endereço completo, contatos, observações, foto_url, status_juridico) e só insere se houver mudança real.
-- Garantir `atualizado_em = now()` via trigger para não depender do cliente.
+2. **Tela `RevendedorasInativas`**
+   - Trocar os joins por nome exato para usar chave normalizada.
+   - Quando abrir “Ver Perfil”, passar também o `revendedora_id` quando já existir, evitando depender só do nome.
+   - Atualizar os invalidates após salvar para recarregar listagem, perfil e histórico.
 
-### 2. Hook — histórico de edições
+3. **Modal `PerfilRevendedoraDialog`**
+   - Aceitar `revendedoraId` opcional.
+   - Buscar o cadastro pelo ID quando disponível.
+   - Quando só houver nome, usar a nova função de busca robusta, em vez de `.eq('nome')`/`.ilike()` frágil.
+   - Após editar e salvar, manter o modal apontado para o cadastro salvo.
 
-Novo `useRevendedoraHistorico(revendedoraId)` em `src/hooks/`:
-- Query em `revendedoras_audit` ordenada desc, faz join com `profiles_limited` para mostrar quem editou.
+4. **Formulário `RevendedoraFormDialog`**
+   - Manter a checagem `.select('id')` no update.
+   - Depois de salvar, invalidar todas as queries relacionadas à revendedora/listagem.
+   - Se o nome foi alterado, garantir que o modal continue usando o ID correto.
 
-### 3. `RevendedoraFormDialog.tsx`
+5. **Correção paralela do erro do Maps**
+   - Remover o fallback proibido `window.top.location.href` que gera `SecurityError` no preview.
+   - Usar apenas abertura segura em nova aba/janela e mostrar aviso se o navegador bloquear.
 
-- Adicionar `.select('id').single()` ao `UPDATE` para que falhas de RLS retornem erro real (defesa em profundidade).
-- Remover envio manual de `atualizado_em` (passa a ser do trigger).
-- Adicionar uma nova seção colapsável **"Histórico de edições"** no final do formulário (só quando `revendedoraId`):
-  - Lista `criado_em` (primeira linha "Cadastrada em … por …") + cada edição com data/hora e usuário.
-  - Limite inicial 10, "ver mais" expande.
+## Validação
 
-### 4. `PerfilRevendedoraDialog.tsx`
-
-- Garantir que todos os campos do cadastro são exibidos em uma nova seção "Dados cadastrais" — quando vazios, mostrar `—` (campos limpos) ao invés de esconder.
-- Manter botão lápis (`Edit2`) já existente.
-- Adicionar duas linhas no header:
-  - **Cadastrada em:** `revendedoraInfo.criado_em` formatada.
-  - **Última edição:** `revendedoraInfo.atualizado_em` + nome do último editor (via última linha do audit).
-- Para revendedoras **sem registro** em `revendedoras` (apenas com cobranças antigas pelo nome), o dialog hoje já mostra o botão "Editar" que abre o form com `initialNome`. Manter esse comportamento; campos limpos aparecem naturalmente.
-
-### 5. Validação pós-deploy
-
-- Logar como representante, editar endereço de uma revendedora existente, recarregar e confirmar persistência.
-- Conferir que o audit gerou linha com diff.
-- Confirmar que a tentativa de editar revendedora de outro representante continua sendo bloqueada.
-
-## Fora de escopo
-
-- Não vou tocar em `RevendedoraFormDialog` para mudar layout das seções existentes além de inserir o bloco de histórico.
-- Sem backfill de auditoria para edições passadas (não há como reconstruir diffs antigos).
+- Confirmar no banco que o cadastro alterado pelo Representante 1 aparece como atualizado.
+- Confirmar que o modal “Ver Perfil” mostra o cadastro preenchido mesmo quando a cobrança/prestação tem o nome antigo.
+- Confirmar que o histórico de edição aparece após nova alteração.
+- Confirmar que clicar em “Ver localização” não gera mais erro de navegação bloqueada.
