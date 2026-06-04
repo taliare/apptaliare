@@ -1457,3 +1457,62 @@ function DrillPrazo({ rows }: { rows: { cobranca: Cobranca; primeira: string; di
     </Table>
   );
 }
+
+function DrillRevendedoras({ rows }: { rows: { nome: string; representante: string }[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Revendedora</TableHead>
+          <TableHead>Representante</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-6">Nenhuma revendedora.</TableCell></TableRow>
+        ) : rows.map((r, i) => (
+          <TableRow key={`${r.nome}-${i}`}>
+            <TableCell className="text-sm font-medium">{r.nome}</TableCell>
+            <TableCell className="text-sm text-muted-foreground">{r.representante}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={2}>Total: {rows.length}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DrillNovasRevendedoras({
+  rows, nomeRep,
+}: { rows: RevendedoraRow[]; nomeRep: Map<string, string> }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Revendedora</TableHead>
+          <TableHead>Representante</TableHead>
+          <TableHead className="text-right">Cadastrada em</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Nenhuma nova revendedora.</TableCell></TableRow>
+        ) : rows.map(r => (
+          <TableRow key={r.id}>
+            <TableCell className="text-sm font-medium">{r.nome}</TableCell>
+            <TableCell className="text-sm text-muted-foreground">
+              {nomeRep.get(r.representante_id ?? "") ?? "—"}
+            </TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.criado_em)}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={3}>Total: {rows.length}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
