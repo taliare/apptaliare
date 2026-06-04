@@ -303,8 +303,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
                         onClick={() => {
                           const win = window.open(mapsUrl, '_blank', 'noopener,noreferrer');
                           if (!win) {
-                            // Fallback caso o popup seja bloqueado dentro do iframe do preview
-                            window.top!.location.href = mapsUrl;
+                            toast.error('Permita pop-ups deste site para abrir o Google Maps.');
                           }
                         }}
                       >
