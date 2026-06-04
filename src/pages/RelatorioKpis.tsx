@@ -20,8 +20,13 @@ import {
   TrendingUp, TrendingDown, Minus, DollarSign, Target,
   Receipt, Repeat, Wallet, Percent, ChevronDown, ChevronRight,
   BarChart3, Boxes, Clock, RotateCcw, AlertTriangle, Scale, Hourglass,
-  Activity,
+  Activity, Users, UserPlus, UserMinus, Trophy, BarChartHorizontal, Briefcase,
 } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, ReferenceLine, Tooltip as RTooltip,
+  ResponsiveContainer, Cell,
+} from "recharts";
+import { Progress } from "@/components/ui/progress";
 
 // ─── Helpers ───────────────────────────────────
 const fmt = (v: number) =>
@@ -76,6 +81,7 @@ interface Cobranca {
   status: string | null;
   data_quitacao?: string | null;
   data_encaminhado_juridico?: string | null;
+  representante_id?: string | null;
 }
 
 interface Despesa {
@@ -101,7 +107,7 @@ async function fetchPrestacoesPeriodo(inicio: string, fim: string) {
 async function fetchCobrancasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
     .gte("data_agendada", inicio)
     .lte("data_agendada", fim)
     .eq("vigente", true);
@@ -113,7 +119,7 @@ async function fetchCobrancasPeriodo(inicio: string, fim: string) {
 async function fetchQuitadasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
     .eq("status", "pago")
     .gte("data_quitacao", inicio)
     .lte("data_quitacao", fim)
@@ -126,7 +132,7 @@ async function fetchQuitadasPeriodo(inicio: string, fim: string) {
 async function fetchCobrancasAbertas() {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
     .in("status", ["pendente", "parcial"])
     .eq("vigente", true);
   if (error) throw error;
@@ -137,7 +143,7 @@ async function fetchCobrancasAbertas() {
 async function fetchJuridicoPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
     .not("data_encaminhado_juridico", "is", null)
     .gte("data_encaminhado_juridico", `${inicio}T00:00:00`)
     .lte("data_encaminhado_juridico", `${fim}T23:59:59`);
@@ -166,6 +172,39 @@ async function fetchDespesasMes(anoMes: string) {
   if (error) throw error;
   return (data ?? []) as Despesa[];
 }
+
+// ─── PESSOAS fetchers ──────────────────────────
+interface RevendedoraRow {
+  id: string;
+  nome: string;
+  representante_id: string | null;
+  criado_em: string | null;
+}
+interface ProfileRow {
+  id: string;
+  nome: string;
+}
+
+async function fetchRevendedorasTodas() {
+  const { data, error } = await supabase
+    .from("revendedoras")
+    .select("id,nome,representante_id,criado_em");
+  if (error) throw error;
+  return (data ?? []) as RevendedoraRow[];
+}
+
+async function fetchProfilesTodos() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,nome")
+    .eq("ativo", true);
+  if (error) throw error;
+  return (data ?? []) as ProfileRow[];
+}
+
+// Cobranças do mês anterior ao anterior (para perdidasPrev = comparativo)
+// já temos cobrPrev no escopo principal; pessoas usa cobrAtual+cobrPrev existentes.
+
 
 // ─── Variation chip ────────────────────────────
 function Variacao({ atual, anterior }: { atual: number; anterior: number }) {
@@ -262,6 +301,9 @@ type Drilldown =
   | { tipo: "op_tempo"; titulo: string; rows: { cobranca: Cobranca; dias: number }[] }
   | { tipo: "op_atraso"; titulo: string; rows: { cobranca: Cobranca; dias: number; bucket: string }[] }
   | { tipo: "op_prazo"; titulo: string; rows: { cobranca: Cobranca; primeira: string; dias: number }[] }
+  | { tipo: "pe_revendedoras"; titulo: string; rows: { nome: string; representante: string }[] }
+  | { tipo: "pe_novas"; titulo: string; rows: RevendedoraRow[]; nomeRep: Map<string, string> }
+  | { tipo: "pe_rep_notas"; titulo: string; rows: Cobranca[] }
   | null;
 
 // ─── Main ──────────────────────────────────────
@@ -270,6 +312,7 @@ export default function RelatorioKpis() {
   const [mes, setMes] = useState(mesAtualStr);
   const [openFinanceiro, setOpenFinanceiro] = useState(true);
   const [openOperacional, setOpenOperacional] = useState(true);
+  const [openPessoas, setOpenPessoas] = useState(true);
   const [drill, setDrill] = useState<Drilldown>(null);
 
   const dataInicio = `${ano}-${mes}-01`;
@@ -329,6 +372,17 @@ export default function RelatorioKpis() {
     queryKey: ["kpi_op_devol", anoMes],
     queryFn: () => fetchDevolucoesTotaisPeriodo(dataInicio, dataFim),
   });
+
+  // ─── Queries PESSOAS ───
+  const { data: revendedoras = [], isLoading: lpe1 } = useQuery({
+    queryKey: ["kpi_pe_revendedoras"],
+    queryFn: fetchRevendedorasTodas,
+  });
+  const { data: profilesAll = [], isLoading: lpe2 } = useQuery({
+    queryKey: ["kpi_pe_profiles"],
+    queryFn: fetchProfilesTodos,
+  });
+
 
   // ─── Cálculos ───
   const k = useMemo(() => {
@@ -462,8 +516,137 @@ export default function RelatorioKpis() {
     };
   }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual]);
 
+  // ─── Cálculos PESSOAS ───
+  const pessoas = useMemo(() => {
+    const norm = (s: string | null | undefined) =>
+      (s ?? "").trim().toUpperCase();
+
+    const nomeRep = new Map<string, string>();
+    for (const p of profilesAll) nomeRep.set(p.id, p.nome);
+
+    // 1. Ativas (distinct revendedora) no mês atual e anterior
+    const ativasSetAtual = new Set<string>();
+    for (const c of cobrAtual) {
+      const n = norm(c.revendedora);
+      if (n) ativasSetAtual.add(n);
+    }
+    const ativasSetPrev = new Set<string>();
+    for (const c of cobrPrev) {
+      const n = norm(c.revendedora);
+      if (n) ativasSetPrev.add(n);
+    }
+    const ativasAtual = ativasSetAtual.size;
+    const ativasPrev = ativasSetPrev.size;
+
+    const ativasRows = Array.from(ativasSetAtual).map(nome => {
+      // tenta achar revendedora e seu representante
+      const r = revendedoras.find(x => norm(x.nome) === nome);
+      return {
+        nome,
+        representante: r ? (nomeRep.get(r.representante_id ?? "") ?? "—") : "—",
+      };
+    }).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    // 2. Novas no mês (criado_em no período)
+    const novasAtual = revendedoras.filter(r =>
+      r.criado_em && r.criado_em >= `${dataInicio}T00:00:00` && r.criado_em <= `${dataFim}T23:59:59`
+    );
+    const novasPrev = revendedoras.filter(r =>
+      r.criado_em && r.criado_em >= `${prevInicio}T00:00:00` && r.criado_em <= `${prevFim}T23:59:59`
+    );
+
+    // 3. Perdidas = nomes em cobrPrev mas não em cobrAtual
+    const perdidasNomes = Array.from(ativasSetPrev).filter(n => !ativasSetAtual.has(n));
+    const perdidasRows = perdidasNomes.map(nome => {
+      const r = revendedoras.find(x => norm(x.nome) === nome);
+      return {
+        nome,
+        representante: r ? (nomeRep.get(r.representante_id ?? "") ?? "—") : "—",
+      };
+    }).sort((a, b) => a.nome.localeCompare(b.nome));
+
+    // 4. Ranking de representantes (do período atual)
+    type RepStat = {
+      id: string;
+      nome: string;
+      previsto: number;
+      recebido: number;
+      aproveit: number;
+      notas: number;
+      ativasCarteira: number;
+      totalCarteira: number;
+    };
+    const repMap = new Map<string, RepStat>();
+    for (const c of cobrAtual) {
+      const rid = c.representante_id ?? "";
+      if (!rid) continue;
+      let r = repMap.get(rid);
+      if (!r) {
+        r = {
+          id: rid,
+          nome: nomeRep.get(rid) ?? "(sem nome)",
+          previsto: 0, recebido: 0, aproveit: 0, notas: 0,
+          ativasCarteira: 0, totalCarteira: 0,
+        };
+        repMap.set(rid, r);
+      }
+      r.previsto += Number(c.valor_previsto || 0);
+      r.recebido += Number(c.valor_pago_acumulado || 0);
+      r.notas += 1;
+    }
+
+    // 6. Carteira: ativas vs total por representante
+    const totalPorRep = new Map<string, number>();
+    const ativasPorRep = new Map<string, Set<string>>();
+    for (const r of revendedoras) {
+      if (!r.representante_id) continue;
+      totalPorRep.set(r.representante_id, (totalPorRep.get(r.representante_id) ?? 0) + 1);
+    }
+    for (const c of cobrAtual) {
+      const rid = c.representante_id ?? "";
+      const st = c.status ?? "";
+      if (!rid || (st !== "pendente" && st !== "parcial")) continue;
+      const nm = norm(c.revendedora);
+      if (!nm) continue;
+      if (!ativasPorRep.has(rid)) ativasPorRep.set(rid, new Set());
+      ativasPorRep.get(rid)!.add(nm);
+    }
+
+    // garante todos representantes ativos no map (mesmo sem notas no mês)
+    for (const p of profilesAll) {
+      if (!repMap.has(p.id) && (totalPorRep.get(p.id) ?? 0) > 0) {
+        repMap.set(p.id, {
+          id: p.id, nome: p.nome,
+          previsto: 0, recebido: 0, aproveit: 0, notas: 0,
+          ativasCarteira: 0, totalCarteira: 0,
+        });
+      }
+    }
+
+    const ranking: RepStat[] = [];
+    repMap.forEach(r => {
+      r.aproveit = r.previsto > 0 ? (r.recebido / r.previsto) * 100 : 0;
+      r.totalCarteira = totalPorRep.get(r.id) ?? 0;
+      r.ativasCarteira = ativasPorRep.get(r.id)?.size ?? 0;
+      ranking.push(r);
+    });
+    ranking.sort((a, b) => b.aproveit - a.aproveit);
+
+    const aproveitMedio = ranking.length > 0
+      ? ranking.reduce((s, r) => s + r.aproveit, 0) / ranking.length
+      : 0;
+
+    return {
+      ativasAtual, ativasPrev, ativasRows,
+      novasAtual, novasPrev,
+      perdidasAtual: perdidasRows.length, perdidasRows,
+      ranking, aproveitMedio, nomeRep,
+    };
+  }, [cobrAtual, cobrPrev, revendedoras, profilesAll, dataInicio, dataFim, prevInicio, prevFim]);
+
   const loading = lp1 || lc1 || ld1;
   const loadingOp = lo1 || lo2 || lo3 || lo4;
+  const loadingPe = lpe1 || lpe2 || lc1;
 
   return (
     <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
@@ -738,8 +921,261 @@ export default function RelatorioKpis() {
         </Card>
       </Collapsible>
 
+      {/* SEÇÃO 3 — PESSOAS */}
+      <Collapsible open={openPessoas} onOpenChange={setOpenPessoas}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-lg">Pessoas</span>
+              </div>
+              <ChevronDown
+                className={`h-5 w-5 transition-transform ${openPessoas ? "rotate-180" : ""}`}
+              />
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
+            <div className="p-4 pt-0 space-y-4">
+              {loadingPe ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-32" />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* Cards 1, 2, 3 */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <KpiCard
+                      icon={<Users className="h-4 w-4" />}
+                      titulo="Revendedoras Ativas no Mês"
+                      valor={String(pessoas.ativasAtual)}
+                      subtitulo="Revendedoras distintas com nota no período"
+                      atual={pessoas.ativasAtual}
+                      anterior={pessoas.ativasPrev}
+                      accent={pessoas.ativasAtual >= pessoas.ativasPrev ? "green" : "red"}
+                      onClick={() => setDrill({
+                        tipo: "pe_revendedoras",
+                        titulo: "Revendedoras Ativas no Mês",
+                        rows: pessoas.ativasRows,
+                      })}
+                    />
+
+                    <KpiCard
+                      icon={<UserPlus className="h-4 w-4" />}
+                      titulo="Novas Revendedoras"
+                      valor={String(pessoas.novasAtual.length)}
+                      subtitulo="Cadastradas no período"
+                      atual={pessoas.novasAtual.length}
+                      anterior={pessoas.novasPrev.length}
+                      accent={pessoas.novasAtual.length >= pessoas.novasPrev.length ? "green" : "red"}
+                      onClick={() => setDrill({
+                        tipo: "pe_novas",
+                        titulo: "Novas Revendedoras no período",
+                        rows: pessoas.novasAtual,
+                        nomeRep: pessoas.nomeRep,
+                      })}
+                    />
+
+                    <KpiCard
+                      icon={<UserMinus className="h-4 w-4" />}
+                      titulo="Revendedoras Perdidas"
+                      valor={String(pessoas.perdidasAtual)}
+                      subtitulo="Tinham nota no mês anterior, não têm neste"
+                      accent={pessoas.perdidasAtual === 0 ? "green" : pessoas.perdidasAtual > 10 ? "red" : "neutral"}
+                      onClick={() => setDrill({
+                        tipo: "pe_revendedoras",
+                        titulo: "Revendedoras Perdidas no período",
+                        rows: pessoas.perdidasRows,
+                      })}
+                    />
+                  </div>
+
+                  {/* Card 4 — Ranking de Representantes */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Trophy className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Ranking de Representantes</span>
+                      </div>
+                      {pessoas.ranking.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          Sem dados de representantes no período.
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Representante</TableHead>
+                                <TableHead className="text-right">Previsto</TableHead>
+                                <TableHead className="text-right">Recebido</TableHead>
+                                <TableHead className="text-right">Aprov. %</TableHead>
+                                <TableHead className="text-right">Notas</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {pessoas.ranking.map((r, i) => {
+                                const isBest = i === 0 && pessoas.ranking.length > 1;
+                                const isWorst = i === pessoas.ranking.length - 1 && pessoas.ranking.length > 1;
+                                const rowClass =
+                                  isBest ? "bg-green-500/10" :
+                                  isWorst ? "bg-red-500/10" : "";
+                                return (
+                                  <TableRow key={r.id} className={rowClass}>
+                                    <TableCell className="font-medium">{r.nome}</TableCell>
+                                    <TableCell className="text-right font-mono tabular-nums">{fmt(r.previsto)}</TableCell>
+                                    <TableCell className="text-right font-mono tabular-nums">{fmt(r.recebido)}</TableCell>
+                                    <TableCell className={`text-right font-mono tabular-nums ${
+                                      r.aproveit >= 35 ? "text-green-600 dark:text-green-400" :
+                                      r.aproveit < 20 ? "text-red-600 dark:text-red-400" :
+                                      "text-foreground"
+                                    }`}>{fmtPct(r.aproveit)}</TableCell>
+                                    <TableCell className="text-right font-mono tabular-nums">{r.notas}</TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 5 — Gráfico Aproveitamento por Representante */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChartHorizontal className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Aproveitamento por Representante</span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          Média geral: <span className="font-mono">{fmtPct(pessoas.aproveitMedio)}</span>
+                        </span>
+                      </div>
+                      {pessoas.ranking.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          Sem dados para o gráfico.
+                        </p>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={Math.max(180, pessoas.ranking.length * 36)}>
+                          <BarChart
+                            data={pessoas.ranking}
+                            layout="vertical"
+                            margin={{ top: 8, right: 24, left: 12, bottom: 8 }}
+                          >
+                            <XAxis
+                              type="number"
+                              domain={[0, Math.max(100, Math.ceil((pessoas.aproveitMedio || 0) * 1.5))]}
+                              tickFormatter={(v) => `${v}%`}
+                              stroke="hsl(var(--muted-foreground))"
+                              fontSize={11}
+                            />
+                            <YAxis
+                              type="category"
+                              dataKey="nome"
+                              width={120}
+                              stroke="hsl(var(--muted-foreground))"
+                              fontSize={11}
+                            />
+                            <RTooltip
+                              contentStyle={{
+                                background: "hsl(var(--popover))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: 6,
+                                fontSize: 12,
+                              }}
+                              formatter={(v: number) => [fmtPct(v), "Aproveitamento"]}
+                            />
+                            <ReferenceLine
+                              x={pessoas.aproveitMedio}
+                              stroke="hsl(var(--primary))"
+                              strokeDasharray="4 4"
+                              label={{
+                                value: "Média",
+                                fill: "hsl(var(--primary))",
+                                fontSize: 10,
+                                position: "top",
+                              }}
+                            />
+                            <Bar
+                              dataKey="aproveit"
+                              radius={[0, 4, 4, 0]}
+                              cursor="pointer"
+                              onClick={(d: any) => {
+                                const rid = d?.id;
+                                if (!rid) return;
+                                const rows = cobrAtual.filter(c => c.representante_id === rid);
+                                setDrill({
+                                  tipo: "pe_rep_notas",
+                                  titulo: `Notas do período — ${d.nome}`,
+                                  rows,
+                                });
+                              }}
+                            >
+                              {pessoas.ranking.map((r, i) => (
+                                <Cell
+                                  key={r.id}
+                                  fill={
+                                    r.aproveit >= 35 ? "hsl(142 71% 45%)" :
+                                    r.aproveit >= 20 ? "hsl(45 93% 47%)" :
+                                    "hsl(0 84% 60%)"
+                                  }
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 6 — Carteira Ativa vs Total */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Briefcase className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Carteira Ativa vs Total</span>
+                      </div>
+                      {pessoas.ranking.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          Sem dados de carteira.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {[...pessoas.ranking]
+                            .sort((a, b) => b.totalCarteira - a.totalCarteira)
+                            .map(r => {
+                              const pct = r.totalCarteira > 0
+                                ? (r.ativasCarteira / r.totalCarteira) * 100
+                                : 0;
+                              return (
+                                <div key={r.id} className="space-y-1">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="font-medium">{r.nome}</span>
+                                    <span className="font-mono tabular-nums text-muted-foreground">
+                                      {r.ativasCarteira} / {r.totalCarteira}
+                                      <span className="ml-2">({fmtPct(pct)})</span>
+                                    </span>
+                                  </div>
+                                  <Progress value={pct} className="h-2" />
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Drilldown Sheet */}
+
       <Sheet open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
         <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
           <SheetHeader className="p-4 border-b">
@@ -764,6 +1200,9 @@ export default function RelatorioKpis() {
               {drill?.tipo === "op_tempo" && <DrillTempo rows={drill.rows} />}
               {drill?.tipo === "op_atraso" && <DrillAtraso rows={drill.rows} />}
               {drill?.tipo === "op_prazo" && <DrillPrazo rows={drill.rows} />}
+              {drill?.tipo === "pe_revendedoras" && <DrillRevendedoras rows={drill.rows} />}
+              {drill?.tipo === "pe_novas" && <DrillNovasRevendedoras rows={drill.rows} nomeRep={drill.nomeRep} />}
+              {drill?.tipo === "pe_rep_notas" && <DrillCobrancas rows={drill.rows} mostrarSaldo />}
             </div>
           </ScrollArea>
         </SheetContent>
@@ -1018,3 +1457,62 @@ function DrillPrazo({ rows }: { rows: { cobranca: Cobranca; primeira: string; di
     </Table>
   );
 }
+
+function DrillRevendedoras({ rows }: { rows: { nome: string; representante: string }[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Revendedora</TableHead>
+          <TableHead>Representante</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground py-6">Nenhuma revendedora.</TableCell></TableRow>
+        ) : rows.map((r, i) => (
+          <TableRow key={`${r.nome}-${i}`}>
+            <TableCell className="text-sm font-medium">{r.nome}</TableCell>
+            <TableCell className="text-sm text-muted-foreground">{r.representante}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={2}>Total: {rows.length}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+function DrillNovasRevendedoras({
+  rows, nomeRep,
+}: { rows: RevendedoraRow[]; nomeRep: Map<string, string> }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Revendedora</TableHead>
+          <TableHead>Representante</TableHead>
+          <TableHead className="text-right">Cadastrada em</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.length === 0 ? (
+          <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Nenhuma nova revendedora.</TableCell></TableRow>
+        ) : rows.map(r => (
+          <TableRow key={r.id}>
+            <TableCell className="text-sm font-medium">{r.nome}</TableCell>
+            <TableCell className="text-sm text-muted-foreground">
+              {nomeRep.get(r.representante_id ?? "") ?? "—"}
+            </TableCell>
+            <TableCell className="text-right text-xs">{fmtData(r.criado_em)}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell colSpan={3}>Total: {rows.length}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
