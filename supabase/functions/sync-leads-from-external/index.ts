@@ -6,6 +6,26 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const PAGE_SIZE = 1000;
+
+async function fetchAllPages<T>(buildQuery: (from: number, to: number) => Promise<{ data: T[] | null; error: { message: string } | null }>) {
+  const all: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    all.push(...data);
+
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return all;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -87,55 +107,64 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 1. Buscar todos os leads do Supabase externo
-    const { data: externalLeads, error: externalError } = await externalClient
-      .from("leads_revendedoras")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (externalError) {
+    // 1. Buscar todos os leads do Supabase externo com paginação
+    let externalLeads = [];
+    try {
+      externalLeads = await fetchAllPages((from, to) =>
+        externalClient
+          .from("leads_revendedoras")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, to)
+      );
+    } catch (externalError) {
       console.error("Erro ao buscar leads externos:", externalError);
+      const message = externalError instanceof Error ? externalError.message : String(externalError);
       return new Response(
-        JSON.stringify({ error: "Erro ao buscar leads do site", details: externalError.message }),
+        JSON.stringify({ error: "Erro ao buscar leads do site", details: message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!externalLeads || externalLeads.length === 0) {
+    if (externalLeads.length === 0) {
       return new Response(
         JSON.stringify({ synced: 0, message: "Nenhum lead encontrado no site externo" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 2. Buscar IDs já sincronizados no banco interno
-    const [existingResult, deletedResult] = await Promise.all([
-      internalClient
-        .from("leads_revendedoras")
-        .select("external_id")
-        .not("external_id", "is", null),
-      internalClient
-        .from("leads_external_deletados")
-        .select("external_id"),
-    ]);
-
-    if (existingResult.error) {
-      console.error("Erro ao buscar leads internos:", existingResult.error);
+    // 2. Buscar IDs já sincronizados/deletados com paginação
+    let existingData = [];
+    let deletedData = [];
+    try {
+      [existingData, deletedData] = await Promise.all([
+        fetchAllPages((from, to) =>
+          internalClient
+            .from("leads_revendedoras")
+            .select("external_id")
+            .not("external_id", "is", null)
+            .range(from, to)
+        ),
+        fetchAllPages((from, to) =>
+          internalClient
+            .from("leads_external_deletados")
+            .select("external_id")
+            .range(from, to)
+        ),
+      ]);
+    } catch (existingError) {
+      console.error("Erro ao buscar leads internos/deletados:", existingError);
+      const message = existingError instanceof Error ? existingError.message : String(existingError);
       return new Response(
-        JSON.stringify({ error: "Erro ao verificar leads existentes", details: existingResult.error.message }),
+        JSON.stringify({ error: "Erro ao verificar leads existentes", details: message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (deletedResult.error) {
-      console.error("Erro ao buscar leads deletados:", deletedResult.error);
-      // Não bloquear a sync, apenas logar o erro
-    }
-
     // Unir IDs existentes + IDs deletados intencionalmente
     const existingIds = new Set([
-      ...(existingResult.data?.map((l) => l.external_id) || []),
-      ...(deletedResult.data?.map((l) => l.external_id) || []),
+      ...existingData.map((l) => l.external_id),
+      ...deletedData.map((l) => l.external_id),
     ]);
 
     // 3. Filtrar apenas leads novos (não sincronizados)

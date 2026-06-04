@@ -6,10 +6,11 @@ import { LeadRevendedora, KanbanColumnConfig, COLUMN_COLORS } from "./types";
 interface KanbanColumnProps {
   column: KanbanColumnConfig;
   leads: LeadRevendedora[];
+  count?: number;
   onLeadClick: (lead: LeadRevendedora) => void;
 }
 
-export function KanbanColumn({ column, leads, onLeadClick }: KanbanColumnProps) {
+export function KanbanColumn({ column, leads, count, onLeadClick }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
@@ -28,7 +29,7 @@ export function KanbanColumn({ column, leads, onLeadClick }: KanbanColumnProps) 
         <div className="flex items-center justify-between">
           <h3 className="font-medium text-sm">{column.label}</h3>
           <Badge variant="secondary" className="text-xs">
-            {leads.length}
+            {count ?? leads.length}
           </Badge>
         </div>
       </div>

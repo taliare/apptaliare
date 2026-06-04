@@ -33,7 +33,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { LeadsKanban } from "@/components/leads/LeadsKanban";
 import { ImportLeadDialog } from "@/components/leads/ImportLeadDialog";
 import { BulkImportLeadsDialog } from "@/components/leads/BulkImportLeadsDialog";
-import { LeadRevendedora, KANBAN_COLUMNS } from "@/components/leads/types";
+import { LeadCountsByStatus, LeadRevendedora, KANBAN_COLUMNS } from "@/components/leads/types";
 import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -108,6 +108,48 @@ export default function LeadsRevendedoras() {
     },
   });
 
+  const { data: exactCounts } = useQuery({
+    queryKey: ["leads-revendedoras", "counts", statusFiltro, origemFiltro, responsavelFiltro, busca, dataInicio, dataFim],
+    queryFn: async () => {
+      const counts: LeadCountsByStatus = {};
+      const termoBusca = busca.trim();
+
+      await Promise.all(
+        KANBAN_COLUMNS.map(async (col) => {
+          if (statusFiltro !== "todos" && statusFiltro !== col.id) {
+            counts[col.id] = 0;
+            return;
+          }
+
+          let query = supabase
+            .from("leads_revendedoras")
+            .select("id", { count: "exact", head: true })
+            .eq("status", col.id);
+
+          if (origemFiltro !== "todos") query = query.eq("origem", origemFiltro);
+          if (responsavelFiltro !== "todos") {
+            query = responsavelFiltro === "sem_responsavel"
+              ? query.is("responsavel_id", null)
+              : query.eq("responsavel_id", responsavelFiltro);
+          }
+          if (dataInicio) query = query.gte("created_at", `${dataInicio}T00:00:00`);
+          if (dataFim) query = query.lte("created_at", `${dataFim}T23:59:59.999`);
+          if (termoBusca) {
+            query = query.or(
+              `nome.ilike.%${termoBusca}%,whatsapp.ilike.%${termoBusca}%,cidade.ilike.%${termoBusca}%,instagram.ilike.%${termoBusca}%,responsavel_nome.ilike.%${termoBusca}%`
+            );
+          }
+
+          const { count, error } = await query;
+          if (error) throw error;
+          counts[col.id] = count ?? 0;
+        })
+      );
+
+      return counts;
+    },
+  });
+
   // Query para buscar responsáveis (profiles)
   const { data: responsaveis = [] } = useQuery({
     queryKey: ["responsaveis-leads"],
@@ -171,8 +213,10 @@ export default function LeadsRevendedoras() {
 
 
   // Contadores
-  const totalLeads = leads.length;
-  const totalNovos = leads.filter((l) => l.status === "leads_novos").length;
+  const totalLeads = exactCounts
+    ? KANBAN_COLUMNS.reduce((total, col) => total + (exactCounts[col.id] ?? 0), 0)
+    : leads.length;
+  const totalNovos = exactCounts?.leads_novos ?? leads.filter((l) => l.status === "leads_novos").length;
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -398,7 +442,7 @@ export default function LeadsRevendedoras() {
           Carregando...
         </div>
       ) : (
-        <LeadsKanban leads={leadsFiltrados} />
+        <LeadsKanban leads={leadsFiltrados} countsByStatus={exactCounts} />
       )}
 
       {/* Dialog de Importação */}
