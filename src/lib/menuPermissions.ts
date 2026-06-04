@@ -19,6 +19,7 @@ export const ASSIGNABLE_MENUS = [
   { key: "dre_resumo", label: "Resumo DRE", route: "/dre-resumo" },
   { key: "dre_despesas", label: "Despesas", route: "/dre-despesas" },
   { key: "dre_categorias", label: "Categorias DRE", route: "/dre-categorias" },
+  { key: "fluxo_caixa", label: "Fluxo de Caixa", route: "/fluxo-caixa" },
   // RELATÓRIOS
   { key: "relatorio_kpis", label: "Relatório KPIs", route: "/relatorio-kpis" },
   { key: "analise_comercial", label: "Análise Comercial", route: "/analise-comercial" },
