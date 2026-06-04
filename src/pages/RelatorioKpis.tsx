@@ -1389,7 +1389,187 @@ export default function RelatorioKpis() {
         </Card>
       </Collapsible>
 
+      {/* SEÇÃO 4 — CRESCIMENTO */}
+      <Collapsible open={openCrescimento} onOpenChange={setOpenCrescimento}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-lg">Crescimento</span>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform ${openCrescimento ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-4 pt-0 space-y-4">
+              {loadingCr ? (
+                <div className="grid grid-cols-1 gap-3">
+                  <Skeleton className="h-64" />
+                  <Skeleton className="h-64" />
+                  <Skeleton className="h-24" />
+                </div>
+              ) : (
+                <>
+                  {/* Card 1 — Comparativo Mensal */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <LineChartIcon className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Comparativo Mensal (últimos 6 meses)</span>
+                      </div>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <LineChart data={crescimento.data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                          <YAxis
+                            yAxisId="money"
+                            stroke="hsl(var(--muted-foreground))"
+                            fontSize={11}
+                            tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                          />
+                          <YAxis
+                            yAxisId="count"
+                            orientation="right"
+                            stroke="hsl(var(--muted-foreground))"
+                            fontSize={11}
+                          />
+                          <RTooltip
+                            contentStyle={{
+                              background: "hsl(var(--popover))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: 6,
+                              fontSize: 12,
+                            }}
+                            formatter={(v: number, name: string) =>
+                              name === "Novas Revendedoras" ? [v, name] : [fmt(v), name]
+                            }
+                          />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          <Line yAxisId="money" type="monotone" dataKey="receita" name="Receita Líquida"
+                            stroke="hsl(142 71% 45%)" strokeWidth={2} dot={{ r: 3 }} />
+                          <Line yAxisId="money" type="monotone" dataKey="kitsCampo" name="Kits em Campo"
+                            stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                          <Line yAxisId="count" type="monotone" dataKey="novas" name="Novas Revendedoras"
+                            stroke="hsl(45 93% 47%)" strokeWidth={2} dot={{ r: 3 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 2 — Tendência de Aproveitamento */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChart3 className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Tendência de Aproveitamento</span>
+                        <span className={`ml-auto inline-flex items-center gap-1 text-xs font-medium ${
+                          crescimento.slope >= 0
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-red-600 dark:text-red-400"
+                        }`}>
+                          {crescimento.slope >= 0
+                            ? <TrendingUp className="h-3 w-3" />
+                            : <TrendingDown className="h-3 w-3" />}
+                          {crescimento.slope >= 0 ? "Tendência de alta" : "Tendência de queda"}
+                        </span>
+                      </div>
+                      <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={crescimento.aproveitChart} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                          <YAxis
+                            stroke="hsl(var(--muted-foreground))"
+                            fontSize={11}
+                            tickFormatter={(v) => `${v}%`}
+                          />
+                          <RTooltip
+                            contentStyle={{
+                              background: "hsl(var(--popover))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: 6,
+                              fontSize: 12,
+                            }}
+                            formatter={(v: number, name: string) => [fmtPct(v), name]}
+                          />
+                          <Legend wrapperStyle={{ fontSize: 11 }} />
+                          <Bar dataKey="aproveit" name="Aproveitamento %" radius={[4, 4, 0, 0]}>
+                            {crescimento.aproveitChart.map((d, i) => (
+                              <Cell
+                                key={i}
+                                fill={
+                                  d.aproveit >= 35 ? "hsl(142 71% 45%)" :
+                                  d.aproveit >= 20 ? "hsl(45 93% 47%)" :
+                                  "hsl(0 84% 60%)"
+                                }
+                              />
+                            ))}
+                          </Bar>
+                          <Line type="monotone" dataKey="ma" name="Média móvel (3m)"
+                            stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 3 — LTV Médio */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <KpiCard
+                      icon={<Heart className="h-4 w-4" />}
+                      titulo="LTV Médio da Revendedora"
+                      valor={fmt(crescimento.ltvMedio)}
+                      subtitulo={`Valor médio gerado por revendedora ao longo do tempo · base: ${ltv?.revendedorasCount ?? 0}`}
+                      accent="green"
+                    />
+                    <KpiCard
+                      icon={<DollarSign className="h-4 w-4" />}
+                      titulo="Receita Total Histórica"
+                      valor={fmt(ltv?.receitaTotal ?? 0)}
+                      subtitulo="Soma de todas as prestações pagas registradas"
+                      accent="neutral"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* SEÇÃO 5 — ALERTAS OPERACIONAIS */}
+      <Collapsible open={openAlertas} onOpenChange={setOpenAlertas}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-lg">Alertas Operacionais</span>
+              </div>
+              <ChevronDown className={`h-5 w-5 transition-transform ${openAlertas ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="p-4 pt-0">
+              {loadingAl ? (
+                <Skeleton className="h-48" />
+              ) : (
+                <AlertasList
+                  vencidas30={alertas.vencidas30}
+                  campo90={alertas.campo90}
+                  repsSem7d={alertas.repsSem7d}
+                  repBaixo={alertas.repBaixo}
+                  revAcumulo={alertas.revAcumulo}
+                  onDrill={setDrill}
+                />
+              )}
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
       {/* Drilldown Sheet */}
+
+
 
       <Sheet open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
         <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
