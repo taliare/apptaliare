@@ -159,6 +159,12 @@ export function AnimatedRoutes() {
             <DreCategorias />
           </PermissionRoute>
         } />
+        <Route path="/fluxo-caixa" element={
+          <PermissionRoute menuKey="fluxo_caixa">
+            <FluxoCaixa />
+          </PermissionRoute>
+        } />
+        
         
         {/* Análise Comercial route */}
         <Route path="/analise-comercial" element={
