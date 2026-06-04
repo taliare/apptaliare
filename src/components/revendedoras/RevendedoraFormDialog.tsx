@@ -393,6 +393,16 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+          {duplicidade && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm">
+              <p className="font-semibold">⚠️ Revendedora já cadastrada</p>
+              <p className="mt-1">
+                Esta revendedora já está cadastrada com o representante <strong>{duplicidade.representante_nome}</strong>
+                {' '}({duplicidade.motivo === 'cpf' ? 'CPF igual' : duplicidade.motivo === 'whatsapp' ? 'WhatsApp igual' : 'nome igual'}).
+                Solicite a transferência ao administrador.
+              </p>
+            </div>
+          )}
           {/* DADOS PESSOAIS */}
           <Card>
             <CardContent className="pt-6 space-y-4">
