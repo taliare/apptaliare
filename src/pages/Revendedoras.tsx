@@ -6,7 +6,9 @@ import { Dialog } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Search, Upload, Plus, MessageCircle, MapPin, User as UserIcon } from 'lucide-react';
+import { Users, Search, Upload, Plus, MessageCircle, MapPin, User as UserIcon, Filter, X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 import RankingRevendedoras from '@/components/revendedoras/RankingRevendedoras';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -216,10 +218,10 @@ export default function Revendedoras() {
               </Button>
             </div>
 
-            {/* Filtros: busca + representante */}
+            {/* Busca + botão Filtrar */}
             <Card>
-              <CardContent className="py-4 space-y-3">
-                <div className="flex flex-col md:flex-row gap-3">
+              <CardContent className="py-4">
+                <div className="flex gap-2">
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -229,44 +231,87 @@ export default function Revendedoras() {
                       className="pl-10"
                     />
                   </div>
-                  <Select value={representanteFiltro} onValueChange={setRepresentanteFiltro}>
-                    <SelectTrigger className="w-full md:w-[200px]">
-                      <SelectValue placeholder="Representante" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos representantes</SelectItem>
-                      {representantes.map((rep) => (
-                        <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Chips de status */}
-                <div className="flex flex-wrap gap-2">
-                  {statusChips.map((chip) => {
-                    const active = statusFiltro === chip.value;
-                    const count = chip.value === 'todos'
-                      ? revendedorasComStatus.length
-                      : (contagens[chip.value as RevendedoraStatusKey] ?? 0);
-                    return (
-                      <button
-                        key={chip.value}
-                        type="button"
-                        onClick={() => setStatusFiltro(chip.value)}
-                        className={cn(
-                          'px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
-                          active
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                            : 'bg-background text-foreground border-border hover:bg-accent'
-                        )}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={(statusFiltro !== 'todos' || representanteFiltro !== 'todos') ? 'default' : 'outline'}
+                        className="gap-2 relative"
                       >
-                        {chip.emoji && <span className="mr-1">{chip.emoji}</span>}
-                        {chip.label}
-                        <span className={cn('ml-1.5 opacity-70', active && 'opacity-90')}>({count})</span>
-                      </button>
-                    );
-                  })}
+                        <Filter className="h-4 w-4" />
+                        <span className="hidden sm:inline">Filtrar</span>
+                        {(statusFiltro !== 'todos' ? 1 : 0) + (representanteFiltro !== 'todos' ? 1 : 0) > 0 && (
+                          <Badge
+                            variant="secondary"
+                            className="ml-1 h-5 min-w-5 px-1.5 rounded-full text-[10px] bg-background text-foreground"
+                          >
+                            {(statusFiltro !== 'todos' ? 1 : 0) + (representanteFiltro !== 'todos' ? 1 : 0)}
+                          </Badge>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-[320px] max-h-[80vh] overflow-y-auto">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold">Filtros</p>
+                          {(statusFiltro !== 'todos' || representanteFiltro !== 'todos') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => { setStatusFiltro('todos'); setRepresentanteFiltro('todos'); }}
+                            >
+                              <X className="h-3 w-3" />
+                              Limpar
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground font-medium">Representante</p>
+                          <Select value={representanteFiltro} onValueChange={setRepresentanteFiltro}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Representante" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="todos">Todos representantes</SelectItem>
+                              {representantes.map((rep) => (
+                                <SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground font-medium">Status</p>
+                          <div className="flex flex-wrap gap-2">
+                            {statusChips.map((chip) => {
+                              const active = statusFiltro === chip.value;
+                              const count = chip.value === 'todos'
+                                ? revendedorasComStatus.length
+                                : (contagens[chip.value as RevendedoraStatusKey] ?? 0);
+                              return (
+                                <button
+                                  key={chip.value}
+                                  type="button"
+                                  onClick={() => setStatusFiltro(chip.value)}
+                                  className={cn(
+                                    'px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
+                                    active
+                                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                      : 'bg-background text-foreground border-border hover:bg-accent'
+                                  )}
+                                >
+                                  {chip.emoji && <span className="mr-1">{chip.emoji}</span>}
+                                  {chip.label}
+                                  <span className={cn('ml-1 opacity-70', active && 'opacity-90')}>({count})</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </CardContent>
             </Card>
