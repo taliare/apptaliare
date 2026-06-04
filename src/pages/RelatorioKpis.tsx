@@ -377,7 +377,93 @@ export default function RelatorioKpis() {
     };
   }, [prestAtual, prestPrev, cobrAtual, cobrPrev, despAtual, despPrev]);
 
+  // ─── Cálculos OPERACIONAL ───
+  const op = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+
+    const diffDias = (a: string, b: string) => {
+      const d1 = new Date(a + "T12:00:00").getTime();
+      const d2 = new Date(b + "T12:00:00").getTime();
+      return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
+    };
+
+    // 1. Kits em campo
+    const kitsCampoValor = cobrAbertas.reduce((s, c) =>
+      s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
+    );
+
+    // 2. Tempo médio de retorno (status=pago, data_quitacao no período)
+    const retornoRows = cobrQuitadas
+      .filter(c => c.data_quitacao && c.data_agendada)
+      .map(c => ({ cobranca: c, dias: diffDias(c.data_quitacao!, c.data_agendada) }))
+      .filter(r => r.dias >= 0);
+    const tempoMedioRetorno = retornoRows.length > 0
+      ? retornoRows.reduce((s, r) => s + r.dias, 0) / retornoRows.length
+      : 0;
+
+    // 3. Taxa de devolução total
+    const cobrIdsDevolucao = new Set(devolucoesAtual.map(d => d.cobranca_id).filter(Boolean));
+    const encerradasIds = new Set(cobrQuitadas.map(c => c.id));
+    const devolvidasEncerradas = cobrQuitadas.filter(c => cobrIdsDevolucao.has(c.id));
+    const taxaDevolucao = encerradasIds.size > 0
+      ? (devolvidasEncerradas.length / encerradasIds.size) * 100
+      : 0;
+
+    // 4. Notas em atraso (snapshot agora)
+    const atrasadas = cobrAbertas
+      .filter(c => c.data_agendada < hojeStr)
+      .map(c => {
+        const dias = diffDias(hojeStr, c.data_agendada);
+        let bucket = "0-30";
+        if (dias > 60) bucket = "+60";
+        else if (dias > 30) bucket = "31-60";
+        return { cobranca: c, dias, bucket };
+      });
+    const atraso030 = atrasadas.filter(a => a.bucket === "0-30");
+    const atraso3160 = atrasadas.filter(a => a.bucket === "31-60");
+    const atraso60plus = atrasadas.filter(a => a.bucket === "+60");
+
+    // 5. Notas no jurídico
+    const juridicoCountAtual = juridicoAtual.length;
+    const juridicoValorAtual = juridicoAtual.reduce((s, c) =>
+      s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
+    );
+    const juridicoCountPrev = juridicoPrev.length;
+
+    // 6. Prazo médio recebimento (cobranças do período com prestação)
+    const primeiraPorCobranca = new Map<string, string>();
+    for (const p of prestAtual) {
+      if (!p.cobranca_id || Number(p.valor_pago || 0) <= 0) continue;
+      const cur = primeiraPorCobranca.get(p.cobranca_id);
+      if (!cur || p.data_execucao < cur) {
+        primeiraPorCobranca.set(p.cobranca_id, p.data_execucao);
+      }
+    }
+    const prazoRows: { cobranca: Cobranca; primeira: string; dias: number }[] = [];
+    for (const c of cobrAtual) {
+      const primeira = primeiraPorCobranca.get(c.id);
+      if (!primeira) continue;
+      const dias = diffDias(primeira, c.data_agendada);
+      prazoRows.push({ cobranca: c, primeira, dias });
+    }
+    const prazoMedio = prazoRows.length > 0
+      ? prazoRows.reduce((s, r) => s + r.dias, 0) / prazoRows.length
+      : 0;
+
+    return {
+      kitsCampoValor, cobrAbertasCount: cobrAbertas.length,
+      tempoMedioRetorno, retornoRows,
+      taxaDevolucao, devolvidasEncerradas, encerradasTotal: encerradasIds.size,
+      atrasadas, atraso030, atraso3160, atraso60plus,
+      juridicoCountAtual, juridicoValorAtual, juridicoCountPrev,
+      prazoMedio, prazoRows,
+    };
+  }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual]);
+
   const loading = lp1 || lc1 || ld1;
+  const loadingOp = lo1 || lo2 || lo3 || lo4;
 
   return (
     <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
