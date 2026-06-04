@@ -37,6 +37,7 @@ import ApuracaoKits from '@/pages/ApuracaoKits';
 import CatalogoProdutos from '@/pages/CatalogoProdutos';
 import MontarKit from '@/pages/MontarKit';
 import ConfiguracaoPDF from '@/pages/ConfiguracaoPDF';
+import FluxoCaixa from '@/pages/FluxoCaixa';
 
 export function AnimatedRoutes() {
   const location = useLocation();
