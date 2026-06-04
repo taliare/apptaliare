@@ -20,8 +20,13 @@ import {
   TrendingUp, TrendingDown, Minus, DollarSign, Target,
   Receipt, Repeat, Wallet, Percent, ChevronDown, ChevronRight,
   BarChart3, Boxes, Clock, RotateCcw, AlertTriangle, Scale, Hourglass,
-  Activity,
+  Activity, Users, UserPlus, UserMinus, Trophy, BarChartHorizontal, Briefcase,
 } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, ReferenceLine, Tooltip as RTooltip,
+  ResponsiveContainer, Cell,
+} from "recharts";
+import { Progress } from "@/components/ui/progress";
 
 // ─── Helpers ───────────────────────────────────
 const fmt = (v: number) =>
