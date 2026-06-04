@@ -19,7 +19,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import { CategorizarDialog } from "./CategorizarDialog";
+import { NovaTransacaoDialog } from "./NovaTransacaoDialog";
 
 interface Conta {
   id: string;
@@ -57,6 +59,7 @@ export function ConciliarView() {
   const [loading, setLoading] = useState(false);
   const [editando, setEditando] = useState<Transacao | null>(null);
   const [open, setOpen] = useState(false);
+  const [novaOpen, setNovaOpen] = useState(false);
 
   useEffect(() => {
     supabase
@@ -154,7 +157,11 @@ export function ConciliarView() {
           </SelectContent>
         </Select>
 
-        <div className="sm:ml-auto text-sm text-muted-foreground">
+        <Button size="sm" onClick={() => setNovaOpen(true)} className="sm:ml-auto">
+          <Plus className="h-4 w-4 mr-1" /> Nova Transação Manual
+        </Button>
+
+        <div className="text-sm text-muted-foreground">
           {transacoes.length} {transacoes.length === 1 ? "transação" : "transações"}
           {" · "}
           <span className="text-green-600">{BRL(totais.entradas)}</span>
@@ -270,6 +277,14 @@ export function ConciliarView() {
         open={open}
         onOpenChange={setOpen}
         onSaved={carregar}
+      />
+
+      <NovaTransacaoDialog
+        open={novaOpen}
+        onOpenChange={setNovaOpen}
+        onSaved={carregar}
+        contas={contas}
+        contaPadrao={contaSel}
       />
     </div>
   );

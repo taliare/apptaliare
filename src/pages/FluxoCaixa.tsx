@@ -111,8 +111,26 @@ export default function FluxoCaixa() {
   const [importando, setImportando] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const ensureCaixaFisico = async () => {
+    const { data: existente } = await supabase
+      .from("contas_bancarias")
+      .select("id")
+      .eq("nome", "Caixa Físico")
+      .maybeSingle();
+    if (!existente) {
+      await supabase.from("contas_bancarias").insert({
+        nome: "Caixa Físico",
+        banco: "Caixa",
+        tipo: "caixa",
+        saldo_inicial: 0,
+        ativo: true,
+      });
+    }
+  };
+
   const loadContas = async () => {
     setLoading(true);
+    await ensureCaixaFisico();
     const { data: contasData, error } = await supabase
       .from("contas_bancarias")
       .select("*")
@@ -339,13 +357,18 @@ export default function FluxoCaixa() {
                     <SelectValue placeholder="Selecione uma conta" />
                   </SelectTrigger>
                   <SelectContent>
-                    {contas.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nome} {c.banco ? `(${c.banco})` : ""}
-                      </SelectItem>
-                    ))}
+                    {contas
+                      .filter((c) => c.tipo !== "caixa")
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nome} {c.banco ? `(${c.banco})` : ""}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Contas do tipo "Caixa" não aceitam OFX — use lançamento manual.
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -416,6 +439,7 @@ export default function FluxoCaixa() {
                   <SelectItem value="corrente">Conta Corrente</SelectItem>
                   <SelectItem value="poupanca">Poupança</SelectItem>
                   <SelectItem value="pagamento">Conta Pagamento</SelectItem>
+                  <SelectItem value="caixa">Caixa Físico</SelectItem>
                 </SelectContent>
               </Select>
             </div>
