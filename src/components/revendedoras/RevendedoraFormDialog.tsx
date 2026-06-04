@@ -397,7 +397,7 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
     },
     onError: (err: any) => {
       if (err?.code === '23505') {
-        toast.error('Já existe uma revendedora com este nome');
+        toast.error(err?.message ?? 'Já existe um cadastro com dados iguais');
       } else {
         toast.error(err?.message ?? 'Erro ao salvar');
       }
