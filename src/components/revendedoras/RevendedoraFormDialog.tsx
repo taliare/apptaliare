@@ -591,9 +591,11 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
 
         <DialogFooter className="pt-2">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || bloqueioJuridico || checandoBloqueio}>
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || bloqueioJuridico || checandoBloqueio || !!duplicidade}>
             {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            {bloqueioJuridico ? 'Bloqueado pelo Jurídico' : 'Salvar'}
+            {bloqueioJuridico ? 'Bloqueado pelo Jurídico' : duplicidade ? 'Já cadastrada com outro' : 'Salvar'}
+          </Button>
+        </DialogFooter>
           </Button>
         </DialogFooter>
       </DialogContent>
