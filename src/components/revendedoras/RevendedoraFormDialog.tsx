@@ -537,6 +537,8 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={3} />
             </CardContent>
           </Card>
+
+          {revendedoraId && <HistoricoEdicoes revendedoraId={revendedoraId} />}
         </div>
 
         <DialogFooter className="pt-2">
