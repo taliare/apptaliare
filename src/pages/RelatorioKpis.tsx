@@ -780,9 +780,88 @@ export default function RelatorioKpis() {
     };
   }, [cobrAtual, cobrPrev, revendedoras, profilesAll, dataInicio, dataFim, prevInicio, prevFim]);
 
+  // ─── Cálculos CRESCIMENTO ───
+  const crescimento = useMemo(() => {
+    const data = trend6 ?? [];
+    // tendência de aproveitamento (slope)
+    let slope = 0;
+    if (data.length >= 2) {
+      const xs = data.map((_, i) => i);
+      const ys = data.map(d => d.aproveit);
+      const n = data.length;
+      const mX = xs.reduce((a, b) => a + b, 0) / n;
+      const mY = ys.reduce((a, b) => a + b, 0) / n;
+      const num = xs.reduce((s, x, i) => s + (x - mX) * (ys[i] - mY), 0);
+      const den = xs.reduce((s, x) => s + (x - mX) ** 2, 0);
+      slope = den > 0 ? num / den : 0;
+    }
+    // média móvel 3 períodos
+    const aproveitChart = data.map((d, i) => {
+      const slice = data.slice(Math.max(0, i - 2), i + 1);
+      const ma = slice.reduce((s, x) => s + x.aproveit, 0) / slice.length;
+      return { label: d.label, aproveit: d.aproveit, ma };
+    });
+    // LTV
+    const ltvMedio = ltv && ltv.revendedorasCount > 0
+      ? ltv.receitaTotal / ltv.revendedorasCount
+      : 0;
+    return { data, slope, aproveitChart, ltvMedio };
+  }, [trend6, ltv]);
+
+  // ─── Cálculos ALERTAS ───
+  const alertas = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const f = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const hojeStr = f(hoje);
+    const lim30 = new Date(hoje); lim30.setDate(lim30.getDate() - 30);
+    const lim90 = new Date(hoje); lim90.setDate(lim90.getDate() - 90);
+    const lim30Str = f(lim30);
+    const lim90Str = f(lim90);
+
+    // 1. Vencidas > 30 dias
+    const vencidas30 = cobrAbertas.filter(c => c.data_agendada < lim30Str);
+    // 3. Kits em campo > 90 dias
+    const campo90 = cobrAbertas.filter(c => c.data_agendada < lim90Str);
+
+    // 2. Representantes sem cobrança nos últimos 7 dias
+    const repsSem7d: { nome: string; detalhe: string }[] = [];
+    for (const p of profilesAll) {
+      if (!repsAtivos7d.has(p.id)) {
+        repsSem7d.push({ nome: p.nome, detalhe: "Sem cobrança nos últimos 7 dias" });
+      }
+    }
+
+    // 4. Aproveitamento < 20% no mês atual (por representante)
+    const repBaixo: { nome: string; detalhe: string }[] = pessoas.ranking
+      .filter(r => r.previsto > 0 && r.aproveit < 20)
+      .map(r => ({ nome: r.nome, detalhe: `Aproveitamento ${fmtPct(r.aproveit)}` }));
+
+    // 5. Revendedoras com 2+ notas em aberto
+    const porRev = new Map<string, { qtd: number; saldo: number }>();
+    for (const c of cobrAbertas) {
+      const nome = String(c.revendedora || "").trim().toUpperCase();
+      if (!nome) continue;
+      const cur = porRev.get(nome) ?? { qtd: 0, saldo: 0 };
+      cur.qtd += 1;
+      cur.saldo += Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0);
+      porRev.set(nome, cur);
+    }
+    const revAcumulo = Array.from(porRev.entries())
+      .filter(([, v]) => v.qtd >= 2)
+      .map(([nome, v]) => ({ nome, qtd: v.qtd, saldo: v.saldo }))
+      .sort((a, b) => b.qtd - a.qtd);
+
+    return { vencidas30, campo90, repsSem7d, repBaixo, revAcumulo };
+  }, [cobrAbertas, profilesAll, repsAtivos7d, pessoas.ranking]);
+
   const loading = lp1 || lc1 || ld1;
   const loadingOp = lo1 || lo2 || lo3 || lo4;
   const loadingPe = lpe1 || lpe2 || lc1;
+  const loadingCr = lcr1 || lcr2;
+  const loadingAl = lal1 || lo1 || lpe2;
+
 
   return (
     <div className="container max-w-7xl mx-auto p-4 md:p-6 space-y-6">
