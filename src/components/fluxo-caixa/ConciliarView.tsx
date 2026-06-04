@@ -157,7 +157,11 @@ export function ConciliarView() {
           </SelectContent>
         </Select>
 
-        <div className="sm:ml-auto text-sm text-muted-foreground">
+        <Button size="sm" onClick={() => setNovaOpen(true)} className="sm:ml-auto">
+          <Plus className="h-4 w-4 mr-1" /> Nova Transação Manual
+        </Button>
+
+        <div className="text-sm text-muted-foreground">
           {transacoes.length} {transacoes.length === 1 ? "transação" : "transações"}
           {" · "}
           <span className="text-green-600">{BRL(totais.entradas)}</span>
