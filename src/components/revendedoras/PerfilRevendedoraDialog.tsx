@@ -217,9 +217,9 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="text-xl">Perfil — {nomeRevendedora}</DialogTitle>
+          <DialogTitle className="text-base sm:text-xl pr-8 break-words">Perfil — {nomeRevendedora}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
