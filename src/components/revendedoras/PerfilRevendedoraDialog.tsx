@@ -102,7 +102,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
       const { data, error } = await supabase
         .from('cobrancas_agendadas')
         .select('status, data_agendada')
-        .eq('revendedora', nomeRevendedora.trim().toUpperCase());
+        .ilike('revendedora', nomeRevendedora.trim());
       if (error) throw error;
       return data ?? [];
     },
