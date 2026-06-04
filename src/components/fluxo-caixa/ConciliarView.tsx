@@ -278,6 +278,14 @@ export function ConciliarView() {
         onOpenChange={setOpen}
         onSaved={carregar}
       />
+
+      <NovaTransacaoDialog
+        open={novaOpen}
+        onOpenChange={setNovaOpen}
+        onSaved={carregar}
+        contas={contas}
+        contaPadrao={contaSel}
+      />
     </div>
   );
 }
