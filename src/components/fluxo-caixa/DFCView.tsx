@@ -35,10 +35,23 @@ import {
   CartesianGrid,
 } from "recharts";
 import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  CartesianGrid,
+} from "recharts";
+import {
   TrendingUp,
   TrendingDown,
   Wallet,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 
 const fmt = (v: number) =>
