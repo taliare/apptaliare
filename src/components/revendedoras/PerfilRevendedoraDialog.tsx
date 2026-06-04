@@ -33,21 +33,32 @@ interface Props {
   onClose: () => void;
 }
 
+const PALAVRAS_IGNORADAS = new Set(['DE', 'DA', 'DO', 'DAS', 'DOS', 'E']);
+
 const normalizarNome = (value: string) =>
   value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[.,;:'"]/g, ' ')
     .trim()
     .toUpperCase()
     .split(/\s+/)
     .filter(Boolean);
 
 const nomesCompativeis = (origem: string, candidato: string) => {
-  const origemTokens = normalizarNome(origem);
-  const candidatoTokens = normalizarNome(candidato);
+  const origemTokens = normalizarNome(origem).filter((t) => !PALAVRAS_IGNORADAS.has(t));
+  const candidatoTokens = normalizarNome(candidato).filter((t) => !PALAVRAS_IGNORADAS.has(t));
   if (!origemTokens.length || !candidatoTokens.length) return false;
+  // todo token da origem precisa achar correspondente no candidato:
+  // - igual; ou
+  // - prefixo (cobre "M." -> "MARINHO" e "MARINH" -> "MARINHO")
   return origemTokens.every((token) =>
-    candidatoTokens.some((cand) => cand === token || (token.length === 1 && cand.startsWith(token)))
+    candidatoTokens.some(
+      (cand) =>
+        cand === token ||
+        (token.length >= 1 && cand.startsWith(token)) ||
+        (cand.length >= 1 && token.startsWith(cand))
+    )
   );
 };
 
@@ -345,7 +356,21 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
                       </Button>
                     );
                   })()}
-                  <Button size="sm" variant="ghost" onClick={() => setEditOpen(true)} className="gap-1 h-7">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      if (!revendedoraInfo?.id) {
+                        toast.error(
+                          'Esta revendedora ainda não possui um cadastro centralizado. Abra "Nova Revendedora" para cadastrá-la com os dados completos.'
+                        );
+                        return;
+                      }
+                      setEditOpen(true);
+                    }}
+                    className="gap-1 h-7"
+                    disabled={!revendedoraInfo?.id}
+                  >
                     <Edit2 className="h-3.5 w-3.5" /> Editar
                   </Button>
                 </div>
@@ -464,12 +489,19 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
           </Card>
         </div>
 
-        <RevendedoraFormDialog
-          open={editOpen}
-          onClose={() => setEditOpen(false)}
-          revendedoraId={revendedoraInfo?.id ?? null}
-          initialNome={revendedoraInfo?.id ? undefined : nomeRevendedora}
-        />
+        {editOpen && revendedoraInfo?.id && (
+          <RevendedoraFormDialog
+            open={editOpen}
+            onClose={() => setEditOpen(false)}
+            revendedoraId={revendedoraInfo.id}
+            onSaved={() => {
+              qc.invalidateQueries({ queryKey: ['revendedora-info'] });
+              qc.invalidateQueries({ queryKey: ['revendedoras-admin'] });
+              qc.invalidateQueries({ queryKey: ['minhas-revendedoras-ativas'] });
+              qc.invalidateQueries({ queryKey: ['revendedoras-inativas'] });
+            }}
+          />
+        )}
 
 
         <AlertDialog open={solicJuridicoOpen} onOpenChange={setSolicJuridicoOpen}>
