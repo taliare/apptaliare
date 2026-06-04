@@ -541,13 +541,13 @@ export default function RevendedorasInativas() {
 
   // Perfil prestações
   const { data: prestacoesPerfil = [] } = useQuery({
-    queryKey: ['perfil-revendedora-prestacoes', user?.id, perfilAberto],
+    queryKey: ['perfil-revendedora-prestacoes', user?.id, perfilAberto?.nome],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('prestacoes_contas')
         .select('cobranca_id, revendedora, total_venda, comissao_percentual, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao')
         .eq('representante_id', user!.id)
-        .eq('revendedora', perfilAberto!)
+        .eq('revendedora', perfilAberto!.nome)
         .order('data_execucao', { ascending: false });
       if (error) throw error;
       return data || [];
