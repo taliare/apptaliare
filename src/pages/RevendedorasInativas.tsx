@@ -83,14 +83,22 @@ const nivelBadgeVariant = (cor: string) => {
 
 function RevendedoraAvatar({ path, nome }: { path: string | null; nome: string }) {
   const url = useFotoUrl(path);
+  const [open, setOpen] = useState(false);
   const initials = nome.split(' ').slice(0, 2).map((n) => n[0]?.toUpperCase() ?? '').join('');
   return (
-    <Avatar className="h-10 w-10">
-      {url && <AvatarImage src={url} alt={nome} />}
-      <AvatarFallback className="text-xs">{initials || '?'}</AvatarFallback>
-    </Avatar>
+    <>
+      <Avatar
+        className={`h-10 w-10 ${url ? 'cursor-zoom-in' : ''}`}
+        onClick={(e) => { if (url) { e.stopPropagation(); setOpen(true); } }}
+      >
+        {url && <AvatarImage src={url} alt={nome} />}
+        <AvatarFallback className="text-xs">{initials || '?'}</AvatarFallback>
+      </Avatar>
+      <FotoLightbox open={open} url={url} nome={nome} onClose={() => setOpen(false)} />
+    </>
   );
 }
+
 
 type StatusChipKey =
   | 'todas'
