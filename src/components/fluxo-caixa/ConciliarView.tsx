@@ -59,6 +59,7 @@ export function ConciliarView() {
   const [loading, setLoading] = useState(false);
   const [editando, setEditando] = useState<Transacao | null>(null);
   const [open, setOpen] = useState(false);
+  const [novaOpen, setNovaOpen] = useState(false);
 
   useEffect(() => {
     supabase
