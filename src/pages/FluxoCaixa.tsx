@@ -30,6 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Upload, Wallet } from "lucide-react";
+import { DFCView } from "@/components/fluxo-caixa/DFCView";
 
 interface ContaBancaria {
   id: string;
