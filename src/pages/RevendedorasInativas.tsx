@@ -374,9 +374,8 @@ export default function RevendedorasInativas() {
         const { data: cadastros } = await supabase
           .from('revendedoras')
           .select('id, nome, whatsapp, ativo, foto_url, status_juridico, cep, logradouro, numero, bairro, cidade, estado')
-          .eq('representante_id', user!.id)
-          .in('nome', nomes);
-        cadastroMap = new Map(cadastros?.map(c => [c.nome.toUpperCase(), c]) || []);
+          .eq('representante_id', user!.id);
+        cadastroMap = new Map(cadastros?.map(c => [c.nome.trim().toUpperCase(), c]) || []);
       }
 
       // Buscar prestações APENAS das cobranças ativas
@@ -403,7 +402,7 @@ export default function RevendedorasInativas() {
           ? Math.max(0, c.valor_previsto - (c.valor_pago_acumulado || 0) - (c.valor_adiantado || 0))
           : 0;
         if (!map.has(nome)) {
-          const cadastro = cadastroMap.get(nome.toUpperCase());
+          const cadastro = cadastroMap.get(nome.trim().toUpperCase());
           map.set(nome, {
             nome,
             whatsapp: cadastro?.whatsapp || null,
@@ -491,14 +490,15 @@ export default function RevendedorasInativas() {
         const { data: cadastros } = await supabase
           .from('revendedoras')
           .select('id, nome, whatsapp, foto_url')
-          .eq('representante_id', user!.id)
-          .in('nome', nomesInativas);
-        cadastroMap = new Map(cadastros?.map((c: any) => [c.nome, { id: c.id, whatsapp: c.whatsapp, foto_url: c.foto_url }]) || []);
+          .eq('representante_id', user!.id);
+        cadastroMap = new Map(
+          cadastros?.map((c: any) => [c.nome.trim().toUpperCase(), { id: c.id, whatsapp: c.whatsapp, foto_url: c.foto_url }]) || []
+        );
       }
 
       const inativas: RevendedoraInativa[] = nomesInativas.map((nome) => {
         const info = ultimaPrestacaoPorRevendedora.get(nome)!;
-        const cad = cadastroMap.get(nome);
+        const cad = cadastroMap.get(nome.trim().toUpperCase());
         return {
           nome,
           ultimaVendaData: info.data,
