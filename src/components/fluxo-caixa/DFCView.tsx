@@ -115,6 +115,43 @@ export function DFCView() {
     },
   });
 
+  // CONTAS bancárias (para saldo total + chart de saldo acumulado)
+  const { data: contas = [] } = useQuery({
+    queryKey: ["dfc-contas"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("contas_bancarias")
+        .select("id, nome, saldo_inicial, ativo")
+        .eq("ativo", true);
+      return data || [];
+    },
+  });
+
+  // TRANSAÇÕES bancárias (todas até fim do período, para saldo acumulado por conta)
+  const { data: transacoesBanco = [] } = useQuery({
+    queryKey: ["dfc-transacoes-banco", fimPeriodo],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("transacoes_bancarias")
+        .select("conta_id, data_transacao, valor, tipo, status_conciliacao")
+        .lte("data_transacao", fimPeriodo)
+        .neq("status_conciliacao", "ignorado");
+      return data || [];
+    },
+  });
+
+  // Créditos do período (para detectar divergências com prestações)
+  const creditosPeriodo = useMemo(
+    () =>
+      (transacoesBanco as any[]).filter(
+        (t) =>
+          t.tipo === "credito" &&
+          t.data_transacao >= inicioPeriodo &&
+          t.data_transacao <= fimPeriodo,
+      ),
+    [transacoesBanco, inicioPeriodo, fimPeriodo],
+  );
+
   // Perfis para nomes de representantes
   const repIds = useMemo(
     () => Array.from(new Set(prestacoes.map((p) => p.representante_id).filter(Boolean))),
