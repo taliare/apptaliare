@@ -1200,6 +1200,9 @@ export default function RelatorioKpis() {
               {drill?.tipo === "op_tempo" && <DrillTempo rows={drill.rows} />}
               {drill?.tipo === "op_atraso" && <DrillAtraso rows={drill.rows} />}
               {drill?.tipo === "op_prazo" && <DrillPrazo rows={drill.rows} />}
+              {drill?.tipo === "pe_revendedoras" && <DrillRevendedoras rows={drill.rows} />}
+              {drill?.tipo === "pe_novas" && <DrillNovasRevendedoras rows={drill.rows} nomeRep={drill.nomeRep} />}
+              {drill?.tipo === "pe_rep_notas" && <DrillCobrancas rows={drill.rows} mostrarSaldo />}
             </div>
           </ScrollArea>
         </SheetContent>
