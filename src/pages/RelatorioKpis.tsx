@@ -101,12 +101,60 @@ async function fetchPrestacoesPeriodo(inicio: string, fim: string) {
 async function fetchCobrancasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
     .gte("data_agendada", inicio)
     .lte("data_agendada", fim)
     .eq("vigente", true);
   if (error) throw error;
   return (data ?? []) as Cobranca[];
+}
+
+// Cobranças quitadas (status=pago) com data_quitacao no período
+async function fetchQuitadasPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .eq("status", "pago")
+    .gte("data_quitacao", inicio)
+    .lte("data_quitacao", fim)
+    .eq("vigente", true);
+  if (error) throw error;
+  return (data ?? []) as Cobranca[];
+}
+
+// Snapshot: todas pendentes/parciais vigentes (kits em campo)
+async function fetchCobrancasAbertas() {
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .in("status", ["pendente", "parcial"])
+    .eq("vigente", true);
+  if (error) throw error;
+  return (data ?? []) as Cobranca[];
+}
+
+// Cobranças no jurídico com data_encaminhado_juridico no período
+async function fetchJuridicoPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico")
+    .not("data_encaminhado_juridico", "is", null)
+    .gte("data_encaminhado_juridico", `${inicio}T00:00:00`)
+    .lte("data_encaminhado_juridico", `${fim}T23:59:59`);
+  if (error) throw error;
+  return (data ?? []) as Cobranca[];
+}
+
+// Notas com devolveu_tudo no período (para taxa devolução total)
+async function fetchDevolucoesTotaisPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("notas_promissorias")
+    .select("id,cobranca_id,codigo_nota,data,valor_total")
+    .eq("devolveu_tudo", true)
+    .gte("data", inicio)
+    .lte("data", fim);
+  if (error) throw error;
+  return (data ?? []) as { id: string; cobranca_id: string | null; codigo_nota: string; data: string; valor_total: number }[];
 }
 
 async function fetchDespesasMes(anoMes: string) {
