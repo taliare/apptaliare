@@ -27,11 +27,12 @@ import { toast } from 'sonner';
 
 interface Props {
   nomeRevendedora: string;
+  revendedoraId?: string | null;
   representantes: { id: string; nome: string }[];
   onClose: () => void;
 }
 
-export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClose }: Props) {
+export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, representantes, onClose }: Props) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [editOpen, setEditOpen] = useState(false);
@@ -69,26 +70,27 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
   }, [prestacoesBruto]);
 
   const { data: revendedoraInfo } = useQuery({
-    queryKey: ['revendedora-info', nomeRevendedora],
+    queryKey: ['revendedora-info', revendedoraId ?? nomeRevendedora],
     queryFn: async () => {
-      const nomeNorm = nomeRevendedora.trim().toUpperCase();
-      // Tenta match exato normalizado (UPPER+TRIM, como o registro centralizado salva)
-      const { data: exato, error: e1 } = await supabase
-        .from('revendedoras')
-        .select('*')
-        .eq('nome', nomeNorm)
-        .maybeSingle();
-      if (e1 && e1.code !== 'PGRST116') throw e1;
-      if (exato) return exato;
-      // Fallback: busca case-insensitive (cadastros antigos podem ter casing diferente)
-      const { data: ilike, error: e2 } = await supabase
-        .from('revendedoras')
-        .select('*')
-        .ilike('nome', nomeRevendedora.trim())
-        .limit(1)
-        .maybeSingle();
-      if (e2 && e2.code !== 'PGRST116') throw e2;
-      return ilike ?? null;
+      // 1) Prefere busca por ID quando a tela já o conhece
+      if (revendedoraId) {
+        const { data, error } = await supabase
+          .from('revendedoras')
+          .select('*')
+          .eq('id', revendedoraId)
+          .maybeSingle();
+        if (error && (error as any).code !== 'PGRST116') throw error;
+        if (data) return data;
+      }
+      // 2) RPC tolerante a variações (UPPER/TRIM/unaccent + prefixo)
+      const { data: rpcData, error: rpcErr } = await (supabase as any).rpc('buscar_revendedora_match', {
+        p_representante_id: null,
+        p_nome: nomeRevendedora,
+      });
+      if (!rpcErr && rpcData) {
+        return Array.isArray(rpcData) ? (rpcData[0] ?? null) : rpcData;
+      }
+      return null;
     },
   });
 
@@ -301,8 +303,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
                         onClick={() => {
                           const win = window.open(mapsUrl, '_blank', 'noopener,noreferrer');
                           if (!win) {
-                            // Fallback caso o popup seja bloqueado dentro do iframe do preview
-                            window.top!.location.href = mapsUrl;
+                            toast.error('Permita pop-ups deste site para abrir o Google Maps.');
                           }
                         }}
                       >
