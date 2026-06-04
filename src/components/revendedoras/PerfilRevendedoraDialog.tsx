@@ -291,21 +291,22 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
                     ].filter(Boolean);
                     if (parts.length === 0) return null;
                     const query = encodeURIComponent(parts.join(', ') + ', Brasil');
+                    const mapsUrl = `https://www.google.com/maps?q=${query}`;
                     return (
                       <Button
                         size="sm"
                         variant="ghost"
-                        asChild
                         className="gap-1 h-7"
                         title="Abrir no Google Maps"
+                        onClick={() => {
+                          const win = window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+                          if (!win) {
+                            // Fallback caso o popup seja bloqueado dentro do iframe do preview
+                            window.top!.location.href = mapsUrl;
+                          }
+                        }}
                       >
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${query}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <MapPin className="h-3.5 w-3.5" /> Ver localização
-                        </a>
+                        <MapPin className="h-3.5 w-3.5" /> Ver localização
                       </Button>
                     );
                   })()}
