@@ -36,6 +36,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
   const [editOpen, setEditOpen] = useState(false);
   const [solicJuridicoOpen, setSolicJuridicoOpen] = useState(false);
   const [motivoJuridico, setMotivoJuridico] = useState('');
+  const [saldoVisivel, setSaldoVisivel] = useState(false);
 
   const { data: prestacoesBruto = [], isLoading } = useQuery({
     queryKey: ['perfil-revendedora', nomeRevendedora],
