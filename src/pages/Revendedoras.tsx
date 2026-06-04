@@ -26,6 +26,7 @@ interface Revendedora {
   id: string;
   nome: string;
   whatsapp: string | null;
+  cpf: string | null;
   representante_id: string | null;
   ativo: boolean;
   ultima_atividade: string | null;
