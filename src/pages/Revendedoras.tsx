@@ -17,6 +17,7 @@ import { ImportWhatsAppDialog } from '@/components/revendedoras/ImportWhatsAppDi
 import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 import { StatusRevendedoraBadge } from '@/components/revendedoras/StatusRevendedoraBadge';
 import { PerfilRevendedoraDialog } from '@/components/revendedoras/PerfilRevendedoraDialog';
+import { FotoLightbox } from '@/components/revendedoras/FotoLightbox';
 import { calcularStatusRevendedora, type RevendedoraStatusKey } from '@/lib/revendedoraStatus';
 import { useFotoUrl } from '@/hooks/useFotoUrl';
 import { formatarValor, cn } from '@/lib/utils';
