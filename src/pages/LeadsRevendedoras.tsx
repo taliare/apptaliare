@@ -33,7 +33,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { LeadsKanban } from "@/components/leads/LeadsKanban";
 import { ImportLeadDialog } from "@/components/leads/ImportLeadDialog";
 import { BulkImportLeadsDialog } from "@/components/leads/BulkImportLeadsDialog";
-import { LeadRevendedora, KANBAN_COLUMNS } from "@/components/leads/types";
+import { LeadCountsByStatus, LeadRevendedora, KANBAN_COLUMNS } from "@/components/leads/types";
 import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +105,48 @@ export default function LeadsRevendedoras() {
       }
 
       return all;
+    },
+  });
+
+  const { data: exactCounts } = useQuery({
+    queryKey: ["leads-revendedoras-counts", statusFiltro, origemFiltro, responsavelFiltro, busca, dataInicio, dataFim],
+    queryFn: async () => {
+      const counts: LeadCountsByStatus = {};
+      const termoBusca = busca.trim();
+
+      await Promise.all(
+        KANBAN_COLUMNS.map(async (col) => {
+          if (statusFiltro !== "todos" && statusFiltro !== col.id) {
+            counts[col.id] = 0;
+            return;
+          }
+
+          let query = supabase
+            .from("leads_revendedoras")
+            .select("id", { count: "exact", head: true })
+            .eq("status", col.id);
+
+          if (origemFiltro !== "todos") query = query.eq("origem", origemFiltro);
+          if (responsavelFiltro !== "todos") {
+            query = responsavelFiltro === "sem_responsavel"
+              ? query.is("responsavel_id", null)
+              : query.eq("responsavel_id", responsavelFiltro);
+          }
+          if (dataInicio) query = query.gte("created_at", `${dataInicio}T00:00:00`);
+          if (dataFim) query = query.lte("created_at", `${dataFim}T23:59:59.999`);
+          if (termoBusca) {
+            query = query.or(
+              `nome.ilike.%${termoBusca}%,whatsapp.ilike.%${termoBusca}%,cidade.ilike.%${termoBusca}%,instagram.ilike.%${termoBusca}%,responsavel_nome.ilike.%${termoBusca}%`
+            );
+          }
+
+          const { count, error } = await query;
+          if (error) throw error;
+          counts[col.id] = count ?? 0;
+        })
+      );
+
+      return counts;
     },
   });
 
