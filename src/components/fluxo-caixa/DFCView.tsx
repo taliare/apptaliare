@@ -412,7 +412,18 @@ export function DFCView() {
       </Card>
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className={`border-l-4 ${saldoTotal >= 0 ? "border-l-blue-500" : "border-l-red-500"}`}>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs">
+              <Wallet className="h-4 w-4 text-blue-500" /> Saldo Total (Contas)
+            </div>
+            <div className={`text-2xl font-bold mt-1 ${saldoTotal >= 0 ? "text-blue-600" : "text-red-600"}`}>
+              {fmt(saldoTotal)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">{contas.length} conta(s)</div>
+          </CardContent>
+        </Card>
         <Card className="border-l-4 border-l-green-500">
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs">
@@ -440,6 +451,7 @@ export function DFCView() {
           </CardContent>
         </Card>
       </div>
+
 
       {/* Gráfico */}
       <Card>
