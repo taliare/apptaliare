@@ -500,6 +500,25 @@ export default function RelatorioKpis() {
     queryFn: fetchProfilesTodos,
   });
 
+  // ─── Queries CRESCIMENTO ───
+  const meses6 = useMemo(() => buildLastMeses(ano, mes, 6), [ano, mes]);
+  const { data: trend6 = [], isLoading: lcr1 } = useQuery({
+    queryKey: ["kpi_trend6", anoMes],
+    queryFn: async () => Promise.all(meses6.map(m => fetchMesTrend(m))),
+  });
+  const { data: ltv, isLoading: lcr2 } = useQuery({
+    queryKey: ["kpi_ltv"],
+    queryFn: fetchLTV,
+  });
+
+  // ─── Queries ALERTAS ───
+  const { data: repsAtivos7d = new Set<string>(), isLoading: lal1 } = useQuery({
+    queryKey: ["kpi_al_reps7d"],
+    queryFn: fetchRepsComCobrancaUltimos7Dias,
+  });
+
+
+
 
   // ─── Cálculos ───
   const k = useMemo(() => {
