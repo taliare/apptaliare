@@ -21,12 +21,14 @@ import {
   Receipt, Repeat, Wallet, Percent, ChevronDown, ChevronRight,
   BarChart3, Boxes, Clock, RotateCcw, AlertTriangle, Scale, Hourglass,
   Activity, Users, UserPlus, UserMinus, Trophy, BarChartHorizontal, Briefcase,
+  LineChart as LineChartIcon, Sparkles, Bell, UserX, Heart,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, ReferenceLine, Tooltip as RTooltip,
-  ResponsiveContainer, Cell,
+  ResponsiveContainer, Cell, LineChart, Line, Legend, CartesianGrid,
 } from "recharts";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 // ─── Helpers ───────────────────────────────────
 const fmt = (v: number) =>
