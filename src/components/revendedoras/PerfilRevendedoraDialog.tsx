@@ -203,6 +203,16 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
     !revendedoraInfo.status_juridico &&
     !isAdmin;
 
+  const { data: historico = [] } = useRevendedoraHistorico(revendedoraInfo?.id);
+  const ultimaEdicao = historico.find((h) => h.acao === 'editou') ?? null;
+  const cadastro = historico.find((h) => h.acao === 'criou') ?? null;
+
+  const fmtField = (v: any) => (v === null || v === undefined || v === '' ? '—' : String(v));
+  const fmtDateTime = (iso?: string | null) =>
+    iso ? format(new Date(iso), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : '—';
+
+
+
   return (
     <Dialog open onOpenChange={() => onClose()}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
