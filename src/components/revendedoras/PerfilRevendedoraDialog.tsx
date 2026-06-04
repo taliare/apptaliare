@@ -17,7 +17,7 @@ import { formatarValor } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { calcularNivel } from './RankingRevendedoras';
-import { Trophy, TrendingUp, Hash, Award, Edit2, Gavel, ShieldCheck, ShieldX } from 'lucide-react';
+import { Trophy, TrendingUp, Hash, Award, Edit2, Gavel, ShieldCheck, ShieldX, Eye, EyeOff } from 'lucide-react';
 import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
 import { StatusRevendedoraBadge } from './StatusRevendedoraBadge';
 import { useFotoUrl } from '@/hooks/useFotoUrl';
