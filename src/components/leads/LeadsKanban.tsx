@@ -36,15 +36,18 @@ export function LeadsKanban({ leads, countsByStatus }: LeadsKanbanProps) {
   const [zoom, setZoom] = useState(0.8);
 
   const sensors = useSensors(
+    // Mouse/pointer: require a more deliberate drag (15px) to avoid accidental moves
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 15,
       },
     }),
+    // Touch: require a long-press (300ms) before drag activates,
+    // so horizontal scrolling between columns doesn't accidentally grab a card.
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 150,
-        tolerance: 8,
+        delay: 300,
+        tolerance: 5,
       },
     })
   );
@@ -108,10 +111,30 @@ export function LeadsKanban({ leads, countsByStatus }: LeadsKanbanProps) {
 
       if (historyError) throw historyError;
     },
+    onMutate: async ({ leadId, newStatus }) => {
+      // Optimistic update: move the card immediately in the UI
+      await queryClient.cancelQueries({ queryKey: ["leads-revendedoras"] });
+      const previous = queryClient.getQueriesData({ queryKey: ["leads-revendedoras"] });
+      queryClient.setQueriesData<LeadRevendedora[]>(
+        { queryKey: ["leads-revendedoras"] },
+        (old) =>
+          old?.map((l) =>
+            l.id === leadId
+              ? { ...l, status: newStatus, status_updated_at: new Date().toISOString() }
+              : l
+          )
+      );
+      return { previous };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads-revendedoras"] });
+      queryClient.invalidateQueries({ queryKey: ["leads-counts"] });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _vars, context) => {
+      // Rollback optimistic update
+      if (context?.previous) {
+        context.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      }
       toast({
         title: "Erro ao mover lead",
         description: error.message,
