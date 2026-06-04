@@ -83,14 +83,28 @@ export default function LeadsRevendedoras() {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads-revendedoras"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leads_revendedoras")
-        .select("*")
-        .order("status_updated_at", { ascending: false })
-        .range(0, 9999);
+      const PAGE_SIZE = 1000;
+      const all: LeadRevendedora[] = [];
+      let from = 0;
 
-      if (error) throw error;
-      return data as LeadRevendedora[];
+      // Pagina em lotes de 1000 até esgotar (contorna o limite padrão do Supabase)
+      while (true) {
+        const { data, error } = await supabase
+          .from("leads_revendedoras")
+          .select("*")
+          .order("status_updated_at", { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        all.push(...(data as LeadRevendedora[]));
+
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      return all;
     },
   });
 
