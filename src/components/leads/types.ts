@@ -33,6 +33,7 @@ export interface LeadRevendedora {
   possui_veiculo: string | null;
   expectativa_venda: string | null;
   objetivo_financeiro_outro: string | null;
+  status_updated_at?: string | null;
 }
 
 export interface LeadStatusHistorico {
@@ -51,6 +52,8 @@ export interface KanbanColumnConfig {
   color: string;
   final?: boolean;
 }
+
+export type LeadCountsByStatus = Record<string, number>;
 
 export const KANBAN_COLUMNS: KanbanColumnConfig[] = [
   { id: 'leads_novos', label: 'Leads Novos', color: 'blue' },
