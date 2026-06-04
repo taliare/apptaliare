@@ -428,6 +428,8 @@ export default function RelatorioKpis() {
   const [openFinanceiro, setOpenFinanceiro] = useState(true);
   const [openOperacional, setOpenOperacional] = useState(true);
   const [openPessoas, setOpenPessoas] = useState(true);
+  const [openCrescimento, setOpenCrescimento] = useState(true);
+  const [openAlertas, setOpenAlertas] = useState(true);
   const [drill, setDrill] = useState<Drilldown>(null);
 
   const dataInicio = `${ano}-${mes}-01`;
