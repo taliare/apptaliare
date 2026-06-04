@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CalendarIcon, Search, Package, Phone, Trophy, Users, X, MessageCircle, User as UserIcon, Filter, Plus } from 'lucide-react';
 import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 import { PerfilRevendedoraDialog } from '@/components/revendedoras/PerfilRevendedoraDialog';
+import { FotoLightbox } from '@/components/revendedoras/FotoLightbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatusRevendedoraBadge } from '@/components/revendedoras/StatusRevendedoraBadge';
 import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
