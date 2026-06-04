@@ -131,7 +131,9 @@ export default function FluxoCaixa() {
         .select("conta_id,valor,status_conciliacao")
         .in("conta_id", ids);
       (txs || []).forEach((t: any) => {
-        somas[t.conta_id] = (somas[t.conta_id] || 0) + Number(t.valor);
+        if (t.status_conciliacao !== "ignorado") {
+          somas[t.conta_id] = (somas[t.conta_id] || 0) + Number(t.valor);
+        }
         if (t.status_conciliacao === "pendente") {
           pendentes[t.conta_id] = (pendentes[t.conta_id] || 0) + 1;
         }
