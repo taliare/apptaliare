@@ -173,6 +173,39 @@ async function fetchDespesasMes(anoMes: string) {
   return (data ?? []) as Despesa[];
 }
 
+// ─── PESSOAS fetchers ──────────────────────────
+interface RevendedoraRow {
+  id: string;
+  nome: string;
+  representante_id: string | null;
+  criado_em: string | null;
+}
+interface ProfileRow {
+  id: string;
+  nome: string;
+}
+
+async function fetchRevendedorasTodas() {
+  const { data, error } = await supabase
+    .from("revendedoras")
+    .select("id,nome,representante_id,criado_em");
+  if (error) throw error;
+  return (data ?? []) as RevendedoraRow[];
+}
+
+async function fetchProfilesTodos() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,nome")
+    .eq("ativo", true);
+  if (error) throw error;
+  return (data ?? []) as ProfileRow[];
+}
+
+// Cobranças do mês anterior ao anterior (para perdidasPrev = comparativo)
+// já temos cobrPrev no escopo principal; pessoas usa cobrAtual+cobrPrev existentes.
+
+
 // ─── Variation chip ────────────────────────────
 function Variacao({ atual, anterior }: { atual: number; anterior: number }) {
   if (!isFinite(atual) || !isFinite(anterior)) return null;
