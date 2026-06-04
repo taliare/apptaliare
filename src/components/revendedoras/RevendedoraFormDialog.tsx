@@ -407,8 +407,8 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
                   <Label>Nome Completo *</Label>
                   <Input
                     value={nome}
-                    onChange={(e) => { setNome(e.target.value); if (bloqueioJuridico) setBloqueioJuridico(false); }}
-                    onBlur={(e) => verificarBloqueio(e.target.value, cpf)}
+                    onChange={(e) => { setNome(e.target.value); if (bloqueioJuridico) setBloqueioJuridico(false); if (duplicidade) setDuplicidade(null); }}
+                    onBlur={(e) => { verificarBloqueio(e.target.value, cpf); verificarDuplicidade(e.target.value, cpf, whatsapp); }}
                   />
                   {bloqueioJuridico && (
                     <p className="mt-1 text-xs text-red-600 font-medium">
@@ -420,8 +420,8 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
                   <Label>CPF *</Label>
                   <Input
                     value={cpf}
-                    onChange={(e) => { setCpf(maskCpf(e.target.value)); if (bloqueioJuridico) setBloqueioJuridico(false); }}
-                    onBlur={(e) => verificarBloqueio(nome, e.target.value)}
+                    onChange={(e) => { setCpf(maskCpf(e.target.value)); if (bloqueioJuridico) setBloqueioJuridico(false); if (duplicidade) setDuplicidade(null); }}
+                    onBlur={(e) => { verificarBloqueio(nome, e.target.value); verificarDuplicidade(nome, e.target.value, whatsapp); }}
                     placeholder="000.000.000-00"
                   />
                 </div>
