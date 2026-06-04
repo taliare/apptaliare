@@ -308,6 +308,28 @@ export default function RelatorioKpis() {
     queryFn: () => fetchDespesasMes(prevAnoMes),
   });
 
+  // ─── Queries OPERACIONAL ───
+  const { data: cobrAbertas = [], isLoading: lo1 } = useQuery({
+    queryKey: ["kpi_op_abertas"],
+    queryFn: fetchCobrancasAbertas,
+  });
+  const { data: cobrQuitadas = [], isLoading: lo2 } = useQuery({
+    queryKey: ["kpi_op_quitadas", anoMes],
+    queryFn: () => fetchQuitadasPeriodo(dataInicio, dataFim),
+  });
+  const { data: juridicoAtual = [], isLoading: lo3 } = useQuery({
+    queryKey: ["kpi_op_juridico", anoMes],
+    queryFn: () => fetchJuridicoPeriodo(dataInicio, dataFim),
+  });
+  const { data: juridicoPrev = [] } = useQuery({
+    queryKey: ["kpi_op_juridico", prevAnoMes],
+    queryFn: () => fetchJuridicoPeriodo(prevInicio, prevFim),
+  });
+  const { data: devolucoesAtual = [], isLoading: lo4 } = useQuery({
+    queryKey: ["kpi_op_devol", anoMes],
+    queryFn: () => fetchDevolucoesTotaisPeriodo(dataInicio, dataFim),
+  });
+
   // ─── Cálculos ───
   const k = useMemo(() => {
     // 1. Receita Líquida
