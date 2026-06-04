@@ -30,6 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Upload, Wallet } from "lucide-react";
+import { DFCView } from "@/components/fluxo-caixa/DFCView";
 
 interface ContaBancaria {
   id: string;
@@ -216,9 +217,15 @@ export default function FluxoCaixa() {
 
       <Tabs defaultValue="contas" className="w-full">
         <TabsList>
+          <TabsTrigger value="dfc">DFC</TabsTrigger>
           <TabsTrigger value="contas">Contas</TabsTrigger>
           <TabsTrigger value="importar">Importar</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dfc" className="space-y-4">
+          <DFCView />
+        </TabsContent>
+
 
         <TabsContent value="contas" className="space-y-4">
           <div className="flex justify-end">
