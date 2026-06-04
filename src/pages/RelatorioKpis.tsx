@@ -1598,6 +1598,9 @@ export default function RelatorioKpis() {
               {drill?.tipo === "pe_revendedoras" && <DrillRevendedoras rows={drill.rows} />}
               {drill?.tipo === "pe_novas" && <DrillNovasRevendedoras rows={drill.rows} nomeRep={drill.nomeRep} />}
               {drill?.tipo === "pe_rep_notas" && <DrillCobrancas rows={drill.rows} mostrarSaldo />}
+              {drill?.tipo === "al_cobrancas" && <DrillCobrancas rows={drill.rows} mostrarSaldo />}
+              {drill?.tipo === "al_reps" && <DrillRepsAlerta rows={drill.rows} />}
+              {drill?.tipo === "al_revendedoras" && <DrillRevendedorasAcumulo rows={drill.rows} />}
             </div>
           </ScrollArea>
         </SheetContent>
