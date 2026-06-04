@@ -373,6 +373,17 @@ export default function RelatorioKpis() {
     queryFn: () => fetchDevolucoesTotaisPeriodo(dataInicio, dataFim),
   });
 
+  // ─── Queries PESSOAS ───
+  const { data: revendedoras = [], isLoading: lpe1 } = useQuery({
+    queryKey: ["kpi_pe_revendedoras"],
+    queryFn: fetchRevendedorasTodas,
+  });
+  const { data: profilesAll = [], isLoading: lpe2 } = useQuery({
+    queryKey: ["kpi_pe_profiles"],
+    queryFn: fetchProfilesTodos,
+  });
+
+
   // ─── Cálculos ───
   const k = useMemo(() => {
     // 1. Receita Líquida
