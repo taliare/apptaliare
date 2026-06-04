@@ -279,14 +279,20 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
         telefone_alternativo: telAlt.replace(/\D/g, '') || null,
         email: email.trim() || null,
         observacoes: observacoes.trim() || null,
-        atualizado_em: new Date().toISOString(),
       };
 
       let id = revendedoraId ?? null;
 
       if (id) {
-        const { error } = await supabase.from('revendedoras').update(payload).eq('id', id);
+        const { data, error } = await supabase
+          .from('revendedoras')
+          .update(payload)
+          .eq('id', id)
+          .select('id');
         if (error) throw error;
+        if (!data || data.length === 0) {
+          throw new Error('Sem permissão para atualizar esta revendedora (verifique se ela pertence a você).');
+        }
       } else {
         payload.representante_id = user?.id;
         payload.ativo = true;
