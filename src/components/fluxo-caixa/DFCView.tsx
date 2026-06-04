@@ -381,6 +381,152 @@ export function DFCView() {
       }));
   }, [prestacoes, creditosPeriodo, perfis]);
 
+  // ============ PROJEÇÃO 30 DIAS ============
+  const hoje = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  const hoje30 = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  // Últimos 3 meses (anos_mes) para histórico
+  const ultimos3MesesAnoMes = useMemo(() => {
+    const out: string[] = [];
+    const d = new Date();
+    d.setDate(1);
+    for (let i = 1; i <= 3; i++) {
+      const ref = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      out.push(`${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`);
+    }
+    return out;
+  }, []);
+  const inicio3M = useMemo(() => `${ultimos3MesesAnoMes[2]}-01`, [ultimos3MesesAnoMes]);
+  const fim3M = useMemo(() => {
+    const [y, m] = ultimos3MesesAnoMes[0].split("-").map(Number);
+    const dn = new Date(y, m, 0).getDate();
+    return `${ultimos3MesesAnoMes[0]}-${String(dn).padStart(2, "0")}`;
+  }, [ultimos3MesesAnoMes]);
+
+  // Cobranças a vencer nos próximos 30 dias
+  const { data: cobrancasProj = [] } = useQuery({
+    queryKey: ["dfc-proj-cobrancas", hoje, hoje30],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cobrancas_agendadas")
+        .select("id, data_agendada, valor_previsto, valor_pago_acumulado, valor_adiantado, status")
+        .gte("data_agendada", hoje)
+        .lte("data_agendada", hoje30)
+        .in("status", ["pendente", "parcial"])
+        .eq("vigente", true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Histórico: cobranças agendadas nos últimos 3 meses (valor_previsto)
+  const { data: cobrancasHist = [] } = useQuery({
+    queryKey: ["dfc-proj-hist-cobrancas", inicio3M, fim3M],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cobrancas_agendadas")
+        .select("valor_previsto, valor_pago_acumulado, valor_adiantado")
+        .gte("data_agendada", inicio3M)
+        .lte("data_agendada", fim3M)
+        .eq("vigente", true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Despesas pagas nos últimos 3 meses (para média)
+  const { data: despesasHist = [] } = useQuery({
+    queryKey: ["dfc-proj-hist-despesas", ultimos3MesesAnoMes.join(",")],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dre_despesas")
+        .select("valor, ano_mes")
+        .in("ano_mes", ultimos3MesesAnoMes)
+        .eq("status_pagamento", "pago");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Taxa histórica de adimplência
+  const taxaAdimplencia = useMemo(() => {
+    const previsto = cobrancasHist.reduce(
+      (s: number, c: any) => s + Number(c.valor_previsto || 0),
+      0,
+    );
+    const recebido = cobrancasHist.reduce(
+      (s: number, c: any) =>
+        s + Number(c.valor_pago_acumulado || 0) + Number(c.valor_adiantado || 0),
+      0,
+    );
+    if (previsto <= 0) return 1;
+    return Math.min(1, recebido / previsto);
+  }, [cobrancasHist]);
+
+  // Despesas fixas médias (últimos 3 meses)
+  const despesasFixasMedia = useMemo(() => {
+    const total = despesasHist.reduce((s: number, d: any) => s + Number(d.valor || 0), 0);
+    return total / 3;
+  }, [despesasHist]);
+
+  // Projeção agrupada por semana (semanas de 7 dias a partir de hoje)
+  const projecaoSemanas = useMemo(() => {
+    const semanas = [0, 1, 2, 3].map((i) => ({
+      semana: `Sem ${i + 1}`,
+      previsto: 0,
+      realista: 0,
+    }));
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    cobrancasProj.forEach((c: any) => {
+      const aReceber =
+        Number(c.valor_previsto || 0) -
+        Number(c.valor_pago_acumulado || 0) -
+        Number(c.valor_adiantado || 0);
+      if (aReceber <= 0 || !c.data_agendada) return;
+      const [y, mo, dd] = c.data_agendada.split("-").map(Number);
+      const dt = new Date(y, mo - 1, dd);
+      const diff = Math.floor((dt.getTime() - base.getTime()) / 86400000);
+      const idx = Math.min(3, Math.max(0, Math.floor(diff / 7)));
+      semanas[idx].previsto += aReceber;
+      semanas[idx].realista += aReceber * taxaAdimplencia;
+    });
+    return semanas.map((s) => ({
+      ...s,
+      previsto: Number(s.previsto.toFixed(2)),
+      realista: Number(s.realista.toFixed(2)),
+    }));
+  }, [cobrancasProj, taxaAdimplencia]);
+
+  const totalPrevisto30 = useMemo(
+    () => projecaoSemanas.reduce((s, w) => s + w.previsto, 0),
+    [projecaoSemanas],
+  );
+  const totalRealista30 = useMemo(
+    () => projecaoSemanas.reduce((s, w) => s + w.realista, 0),
+    [projecaoSemanas],
+  );
+  const saldoProjetado = saldoTotal + totalRealista30 - despesasFixasMedia;
+  const semaforo: "verde" | "amarelo" | "vermelho" =
+    saldoProjetado < 0
+      ? "vermelho"
+      : saldoProjetado > despesasFixasMedia
+        ? "verde"
+        : "amarelo";
+  const semaforoCfg = {
+    verde: { cls: "border-l-green-500 bg-green-500/5", text: "text-green-600", label: "Saudável" },
+    amarelo: { cls: "border-l-amber-500 bg-amber-500/5", text: "text-amber-600", label: "Atenção" },
+    vermelho: { cls: "border-l-red-500 bg-red-500/5", text: "text-red-600", label: "Crítico" },
+  }[semaforo];
+
+
+
 
 
   return (
