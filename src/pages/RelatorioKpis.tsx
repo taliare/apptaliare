@@ -74,6 +74,8 @@ interface Cobranca {
   valor_pago_acumulado: number | null;
   data_agendada: string;
   status: string | null;
+  data_quitacao?: string | null;
+  data_encaminhado_juridico?: string | null;
 }
 
 interface Despesa {
