@@ -117,12 +117,14 @@ export function LeadsKanban({ leads, countsByStatus }: LeadsKanbanProps) {
       const previous = queryClient.getQueriesData({ queryKey: ["leads-revendedoras"] });
       queryClient.setQueriesData<LeadRevendedora[]>(
         { queryKey: ["leads-revendedoras"] },
-        (old) =>
-          old?.map((l) =>
+        (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((l) =>
             l.id === leadId
               ? { ...l, status: newStatus, status_updated_at: new Date().toISOString() }
               : l
-          )
+          );
+        }
       );
       return { previous };
     },
