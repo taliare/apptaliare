@@ -921,8 +921,261 @@ export default function RelatorioKpis() {
         </Card>
       </Collapsible>
 
+      {/* SEÇÃO 3 — PESSOAS */}
+      <Collapsible open={openPessoas} onOpenChange={setOpenPessoas}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <button className="w-full flex items-center justify-between p-4 hover:bg-muted/40 transition">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                <span className="font-semibold text-lg">Pessoas</span>
+              </div>
+              <ChevronDown
+                className={`h-5 w-5 transition-transform ${openPessoas ? "rotate-180" : ""}`}
+              />
+            </button>
+          </CollapsibleTrigger>
+
+          <CollapsibleContent>
+            <div className="p-4 pt-0 space-y-4">
+              {loadingPe ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-32" />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* Cards 1, 2, 3 */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <KpiCard
+                      icon={<Users className="h-4 w-4" />}
+                      titulo="Revendedoras Ativas no Mês"
+                      valor={String(pessoas.ativasAtual)}
+                      subtitulo="Revendedoras distintas com nota no período"
+                      atual={pessoas.ativasAtual}
+                      anterior={pessoas.ativasPrev}
+                      accent={pessoas.ativasAtual >= pessoas.ativasPrev ? "green" : "red"}
+                      onClick={() => setDrill({
+                        tipo: "pe_revendedoras",
+                        titulo: "Revendedoras Ativas no Mês",
+                        rows: pessoas.ativasRows,
+                      })}
+                    />
+
+                    <KpiCard
+                      icon={<UserPlus className="h-4 w-4" />}
+                      titulo="Novas Revendedoras"
+                      valor={String(pessoas.novasAtual.length)}
+                      subtitulo="Cadastradas no período"
+                      atual={pessoas.novasAtual.length}
+                      anterior={pessoas.novasPrev.length}
+                      accent={pessoas.novasAtual.length >= pessoas.novasPrev.length ? "green" : "red"}
+                      onClick={() => setDrill({
+                        tipo: "pe_novas",
+                        titulo: "Novas Revendedoras no período",
+                        rows: pessoas.novasAtual,
+                        nomeRep: pessoas.nomeRep,
+                      })}
+                    />
+
+                    <KpiCard
+                      icon={<UserMinus className="h-4 w-4" />}
+                      titulo="Revendedoras Perdidas"
+                      valor={String(pessoas.perdidasAtual)}
+                      subtitulo="Tinham nota no mês anterior, não têm neste"
+                      accent={pessoas.perdidasAtual === 0 ? "green" : pessoas.perdidasAtual > 10 ? "red" : "neutral"}
+                      onClick={() => setDrill({
+                        tipo: "pe_revendedoras",
+                        titulo: "Revendedoras Perdidas no período",
+                        rows: pessoas.perdidasRows,
+                      })}
+                    />
+                  </div>
+
+                  {/* Card 4 — Ranking de Representantes */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Trophy className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Ranking de Representantes</span>
+                      </div>
+                      {pessoas.ranking.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          Sem dados de representantes no período.
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Representante</TableHead>
+                                <TableHead className="text-right">Previsto</TableHead>
+                                <TableHead className="text-right">Recebido</TableHead>
+                                <TableHead className="text-right">Aprov. %</TableHead>
+                                <TableHead className="text-right">Notas</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {pessoas.ranking.map((r, i) => {
+                                const isBest = i === 0 && pessoas.ranking.length > 1;
+                                const isWorst = i === pessoas.ranking.length - 1 && pessoas.ranking.length > 1;
+                                const rowClass =
+                                  isBest ? "bg-green-500/10" :
+                                  isWorst ? "bg-red-500/10" : "";
+                                return (
+                                  <TableRow key={r.id} className={rowClass}>
+                                    <TableCell className="font-medium">{r.nome}</TableCell>
+                                    <TableCell className="text-right font-mono tabular-nums">{fmt(r.previsto)}</TableCell>
+                                    <TableCell className="text-right font-mono tabular-nums">{fmt(r.recebido)}</TableCell>
+                                    <TableCell className={`text-right font-mono tabular-nums ${
+                                      r.aproveit >= 35 ? "text-green-600 dark:text-green-400" :
+                                      r.aproveit < 20 ? "text-red-600 dark:text-red-400" :
+                                      "text-foreground"
+                                    }`}>{fmtPct(r.aproveit)}</TableCell>
+                                    <TableCell className="text-right font-mono tabular-nums">{r.notas}</TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 5 — Gráfico Aproveitamento por Representante */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChartHorizontal className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Aproveitamento por Representante</span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          Média geral: <span className="font-mono">{fmtPct(pessoas.aproveitMedio)}</span>
+                        </span>
+                      </div>
+                      {pessoas.ranking.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          Sem dados para o gráfico.
+                        </p>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={Math.max(180, pessoas.ranking.length * 36)}>
+                          <BarChart
+                            data={pessoas.ranking}
+                            layout="vertical"
+                            margin={{ top: 8, right: 24, left: 12, bottom: 8 }}
+                          >
+                            <XAxis
+                              type="number"
+                              domain={[0, Math.max(100, Math.ceil((pessoas.aproveitMedio || 0) * 1.5))]}
+                              tickFormatter={(v) => `${v}%`}
+                              stroke="hsl(var(--muted-foreground))"
+                              fontSize={11}
+                            />
+                            <YAxis
+                              type="category"
+                              dataKey="nome"
+                              width={120}
+                              stroke="hsl(var(--muted-foreground))"
+                              fontSize={11}
+                            />
+                            <RTooltip
+                              contentStyle={{
+                                background: "hsl(var(--popover))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: 6,
+                                fontSize: 12,
+                              }}
+                              formatter={(v: number) => [fmtPct(v), "Aproveitamento"]}
+                            />
+                            <ReferenceLine
+                              x={pessoas.aproveitMedio}
+                              stroke="hsl(var(--primary))"
+                              strokeDasharray="4 4"
+                              label={{
+                                value: "Média",
+                                fill: "hsl(var(--primary))",
+                                fontSize: 10,
+                                position: "top",
+                              }}
+                            />
+                            <Bar
+                              dataKey="aproveit"
+                              radius={[0, 4, 4, 0]}
+                              cursor="pointer"
+                              onClick={(d: any) => {
+                                const rid = d?.id;
+                                if (!rid) return;
+                                const rows = cobrAtual.filter(c => c.representante_id === rid);
+                                setDrill({
+                                  tipo: "pe_rep_notas",
+                                  titulo: `Notas do período — ${d.nome}`,
+                                  rows,
+                                });
+                              }}
+                            >
+                              {pessoas.ranking.map((r, i) => (
+                                <Cell
+                                  key={r.id}
+                                  fill={
+                                    r.aproveit >= 35 ? "hsl(142 71% 45%)" :
+                                    r.aproveit >= 20 ? "hsl(45 93% 47%)" :
+                                    "hsl(0 84% 60%)"
+                                  }
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Card 6 — Carteira Ativa vs Total */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Briefcase className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Carteira Ativa vs Total</span>
+                      </div>
+                      {pessoas.ranking.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          Sem dados de carteira.
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {[...pessoas.ranking]
+                            .sort((a, b) => b.totalCarteira - a.totalCarteira)
+                            .map(r => {
+                              const pct = r.totalCarteira > 0
+                                ? (r.ativasCarteira / r.totalCarteira) * 100
+                                : 0;
+                              return (
+                                <div key={r.id} className="space-y-1">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="font-medium">{r.nome}</span>
+                                    <span className="font-mono tabular-nums text-muted-foreground">
+                                      {r.ativasCarteira} / {r.totalCarteira}
+                                      <span className="ml-2">({fmtPct(pct)})</span>
+                                    </span>
+                                  </div>
+                                  <Progress value={pct} className="h-2" />
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Drilldown Sheet */}
+
       <Sheet open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
         <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
           <SheetHeader className="p-4 border-b">
