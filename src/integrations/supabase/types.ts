@@ -1937,6 +1937,41 @@ export type Database = {
         }
         Relationships: []
       }
+      revendedoras_audit: {
+        Row: {
+          acao: string
+          campos_alterados: Json
+          criado_em: string
+          id: string
+          revendedora_id: string
+          user_id: string | null
+        }
+        Insert: {
+          acao: string
+          campos_alterados?: Json
+          criado_em?: string
+          id?: string
+          revendedora_id: string
+          user_id?: string | null
+        }
+        Update: {
+          acao?: string
+          campos_alterados?: Json
+          criado_em?: string
+          id?: string
+          revendedora_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revendedoras_audit_revendedora_id_fkey"
+            columns: ["revendedora_id"]
+            isOneToOne: false
+            referencedRelation: "revendedoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revendedoras_referencias: {
         Row: {
           criado_em: string | null
