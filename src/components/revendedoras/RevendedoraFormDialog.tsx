@@ -14,6 +14,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { FotoCapture } from './FotoCapture';
 import { uploadRevendedoraFoto } from '@/lib/revendedoraFoto';
+import { useRevendedoraHistorico } from '@/hooks/useRevendedoraHistorico';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface Referencia {
   id?: string;
