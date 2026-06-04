@@ -24,6 +24,7 @@ import { useFotoUrl } from '@/hooks/useFotoUrl';
 import { RevendedoraFormDialog } from './RevendedoraFormDialog';
 import { useRevendedoraHistorico } from '@/hooks/useRevendedoraHistorico';
 import { toast } from 'sonner';
+import { FotoLightbox } from './FotoLightbox';
 
 interface Props {
   nomeRevendedora: string;
@@ -39,6 +40,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
   const [solicJuridicoOpen, setSolicJuridicoOpen] = useState(false);
   const [motivoJuridico, setMotivoJuridico] = useState('');
   const [saldoVisivel, setSaldoVisivel] = useState(false);
+  const [fotoExpandida, setFotoExpandida] = useState(false);
 
   const { data: prestacoesBruto = [], isLoading } = useQuery({
     queryKey: ['perfil-revendedora', nomeRevendedora],
@@ -223,9 +225,13 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
         </DialogHeader>
 
         <div className="space-y-4">
+          <FotoLightbox open={fotoExpandida} url={fotoUrl} nome={nomeRevendedora} onClose={() => setFotoExpandida(false)} />
           {/* Header com foto + status */}
           <div className="flex flex-wrap items-center gap-4">
-            <Avatar className="h-16 w-16 border-2 border-primary/30">
+            <Avatar
+              className={`h-16 w-16 border-2 border-primary/30 ${fotoUrl ? 'cursor-zoom-in' : ''}`}
+              onClick={() => { if (fotoUrl) setFotoExpandida(true); }}
+            >
               {fotoUrl && <AvatarImage src={fotoUrl} alt={nomeRevendedora} />}
               <AvatarFallback>{initials || '?'}</AvatarFallback>
             </Avatar>

@@ -17,6 +17,7 @@ import { ImportWhatsAppDialog } from '@/components/revendedoras/ImportWhatsAppDi
 import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 import { StatusRevendedoraBadge } from '@/components/revendedoras/StatusRevendedoraBadge';
 import { PerfilRevendedoraDialog } from '@/components/revendedoras/PerfilRevendedoraDialog';
+import { FotoLightbox } from '@/components/revendedoras/FotoLightbox';
 import { calcularStatusRevendedora, type RevendedoraStatusKey } from '@/lib/revendedoraStatus';
 import { useFotoUrl } from '@/hooks/useFotoUrl';
 import { formatarValor, cn } from '@/lib/utils';
@@ -46,15 +47,23 @@ interface Profile {
 
 function RevendedoraAvatar({ path, nome, size = 'sm' }: { path: string | null; nome: string; size?: 'sm' | 'md' }) {
   const url = useFotoUrl(path);
+  const [open, setOpen] = useState(false);
   const initials = nome.split(' ').slice(0, 2).map((n) => n[0]?.toUpperCase() ?? '').join('');
   const cls = size === 'md' ? 'h-11 w-11' : 'h-9 w-9';
   return (
-    <Avatar className={cls}>
-      {url && <AvatarImage src={url} alt={nome} />}
-      <AvatarFallback className="text-xs">{initials || '?'}</AvatarFallback>
-    </Avatar>
+    <>
+      <Avatar
+        className={`${cls} ${url ? 'cursor-zoom-in' : ''}`}
+        onClick={(e) => { if (url) { e.stopPropagation(); setOpen(true); } }}
+      >
+        {url && <AvatarImage src={url} alt={nome} />}
+        <AvatarFallback className="text-xs">{initials || '?'}</AvatarFallback>
+      </Avatar>
+      <FotoLightbox open={open} url={url} nome={nome} onClose={() => setOpen(false)} />
+    </>
   );
 }
+
 
 function buildMapsUrl(r: Revendedora): string | null {
   if (!r.cep && !r.logradouro) return null;
