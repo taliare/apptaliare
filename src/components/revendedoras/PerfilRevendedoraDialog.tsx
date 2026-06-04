@@ -316,19 +316,19 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-                <div><span className="text-muted-foreground">CPF:</span> {fmtField(revendedoraInfo?.cpf)}</div>
-                <div><span className="text-muted-foreground">RG:</span> {fmtField(revendedoraInfo?.rg)}</div>
-                <div><span className="text-muted-foreground">Nascimento:</span> {fmtField(revendedoraInfo?.data_nascimento)}</div>
-                <div><span className="text-muted-foreground">Gênero:</span> {fmtField(revendedoraInfo?.genero)}</div>
-                <div><span className="text-muted-foreground">Estado civil:</span> {fmtField(revendedoraInfo?.estado_civil)}</div>
-                <div><span className="text-muted-foreground">Email:</span> {fmtField(revendedoraInfo?.email)}</div>
-                <div><span className="text-muted-foreground">WhatsApp:</span> {fmtField(revendedoraInfo?.whatsapp)}</div>
-                <div><span className="text-muted-foreground">Tel. alternativo:</span> {fmtField(revendedoraInfo?.telefone_alternativo)}</div>
-                <div><span className="text-muted-foreground">CEP:</span> {fmtField(revendedoraInfo?.cep)}</div>
-                <div className="md:col-span-2"><span className="text-muted-foreground">Endereço:</span> {fmtField([revendedoraInfo?.logradouro, revendedoraInfo?.numero, revendedoraInfo?.complemento].filter(Boolean).join(', ') || null)}</div>
-                <div><span className="text-muted-foreground">Bairro:</span> {fmtField(revendedoraInfo?.bairro)}</div>
-                <div><span className="text-muted-foreground">Cidade/UF:</span> {fmtField([revendedoraInfo?.cidade, revendedoraInfo?.estado].filter(Boolean).join('/') || null)}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm break-words">
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">CPF:</span> {fmtField(revendedoraInfo?.cpf)}</div>
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">RG:</span> {fmtField(revendedoraInfo?.rg)}</div>
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">Nascimento:</span> {fmtField(revendedoraInfo?.data_nascimento)}</div>
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">Gênero:</span> {fmtField(revendedoraInfo?.genero)}</div>
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">Estado civil:</span> {fmtField(revendedoraInfo?.estado_civil)}</div>
+                <div className="min-w-0 break-all"><span className="text-muted-foreground">Email:</span> {fmtField(revendedoraInfo?.email)}</div>
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">WhatsApp:</span> {fmtField(revendedoraInfo?.whatsapp)}</div>
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">Tel. alternativo:</span> {fmtField(revendedoraInfo?.telefone_alternativo)}</div>
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">CEP:</span> {fmtField(revendedoraInfo?.cep)}</div>
+                <div className="min-w-0 break-words sm:col-span-2 md:col-span-2"><span className="text-muted-foreground">Endereço:</span> {fmtField([revendedoraInfo?.logradouro, revendedoraInfo?.numero, revendedoraInfo?.complemento].filter(Boolean).join(', ') || null)}</div>
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">Bairro:</span> {fmtField(revendedoraInfo?.bairro)}</div>
+                <div className="min-w-0 break-words"><span className="text-muted-foreground">Cidade/UF:</span> {fmtField([revendedoraInfo?.cidade, revendedoraInfo?.estado].filter(Boolean).join('/') || null)}</div>
               </div>
               <div className="border-t pt-2 mt-2 grid grid-cols-1 md:grid-cols-2 gap-1 text-xs text-muted-foreground">
                 <div>
