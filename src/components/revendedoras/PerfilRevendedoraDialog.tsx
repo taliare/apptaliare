@@ -340,7 +340,9 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, representantes, onClo
                           <TableCell className="text-right">{p.comissao_percentual}%</TableCell>
                           <TableCell className="text-right">{formatarValor(Number(p.valor_devido_empresa))}</TableCell>
                           <TableCell className="text-right">{formatarValor(Number(p.valor_pago))}</TableCell>
-                          <TableCell className="text-right">{formatarValor(Number(p.saldo_devedor) || 0)}</TableCell>
+                          <TableCell className="text-right">
+                            {saldoVisivel ? formatarValor(Number(p.saldo_devedor) || 0) : '••••'}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
