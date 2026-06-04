@@ -2247,6 +2247,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      checar_duplicidade_revendedora: {
+        Args: {
+          p_cpf: string
+          p_ignorar_id?: string
+          p_nome: string
+          p_representante_id: string
+          p_whatsapp: string
+        }
+        Returns: Json
+      }
       delete_lead_with_history: { Args: { p_lead_id: string }; Returns: Json }
       entregar_kit_para_revendedora: {
         Args: {
