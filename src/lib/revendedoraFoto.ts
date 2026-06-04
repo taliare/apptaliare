@@ -7,7 +7,12 @@ export async function uploadRevendedoraFoto(
   file: Blob,
   revendedoraId: string | null | undefined
 ): Promise<string> {
-  const folder = revendedoraId || `novo-${crypto.randomUUID()}`;
+  let folder = revendedoraId ?? '';
+  if (!folder) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado para upload de foto.');
+    folder = `novo-${user.id}-${crypto.randomUUID()}`;
+  }
   const ext = file.type.includes('webp') ? 'webp' : file.type.includes('png') ? 'png' : 'jpg';
   const path = `${folder}/${Date.now()}.${ext}`;
 
