@@ -381,6 +381,152 @@ export function DFCView() {
       }));
   }, [prestacoes, creditosPeriodo, perfis]);
 
+  // ============ PROJEÇÃO 30 DIAS ============
+  const hoje = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  const hoje30 = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  // Últimos 3 meses (anos_mes) para histórico
+  const ultimos3MesesAnoMes = useMemo(() => {
+    const out: string[] = [];
+    const d = new Date();
+    d.setDate(1);
+    for (let i = 1; i <= 3; i++) {
+      const ref = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      out.push(`${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, "0")}`);
+    }
+    return out;
+  }, []);
+  const inicio3M = useMemo(() => `${ultimos3MesesAnoMes[2]}-01`, [ultimos3MesesAnoMes]);
+  const fim3M = useMemo(() => {
+    const [y, m] = ultimos3MesesAnoMes[0].split("-").map(Number);
+    const dn = new Date(y, m, 0).getDate();
+    return `${ultimos3MesesAnoMes[0]}-${String(dn).padStart(2, "0")}`;
+  }, [ultimos3MesesAnoMes]);
+
+  // Cobranças a vencer nos próximos 30 dias
+  const { data: cobrancasProj = [] } = useQuery({
+    queryKey: ["dfc-proj-cobrancas", hoje, hoje30],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cobrancas_agendadas")
+        .select("id, data_agendada, valor_previsto, valor_pago_acumulado, valor_adiantado, status")
+        .gte("data_agendada", hoje)
+        .lte("data_agendada", hoje30)
+        .in("status", ["pendente", "parcial"])
+        .eq("vigente", true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Histórico: cobranças agendadas nos últimos 3 meses (valor_previsto)
+  const { data: cobrancasHist = [] } = useQuery({
+    queryKey: ["dfc-proj-hist-cobrancas", inicio3M, fim3M],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cobrancas_agendadas")
+        .select("valor_previsto, valor_pago_acumulado, valor_adiantado")
+        .gte("data_agendada", inicio3M)
+        .lte("data_agendada", fim3M)
+        .eq("vigente", true);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Despesas pagas nos últimos 3 meses (para média)
+  const { data: despesasHist = [] } = useQuery({
+    queryKey: ["dfc-proj-hist-despesas", ultimos3MesesAnoMes.join(",")],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("dre_despesas")
+        .select("valor, ano_mes")
+        .in("ano_mes", ultimos3MesesAnoMes)
+        .eq("status_pagamento", "pago");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Taxa histórica de adimplência
+  const taxaAdimplencia = useMemo(() => {
+    const previsto = cobrancasHist.reduce(
+      (s: number, c: any) => s + Number(c.valor_previsto || 0),
+      0,
+    );
+    const recebido = cobrancasHist.reduce(
+      (s: number, c: any) =>
+        s + Number(c.valor_pago_acumulado || 0) + Number(c.valor_adiantado || 0),
+      0,
+    );
+    if (previsto <= 0) return 1;
+    return Math.min(1, recebido / previsto);
+  }, [cobrancasHist]);
+
+  // Despesas fixas médias (últimos 3 meses)
+  const despesasFixasMedia = useMemo(() => {
+    const total = despesasHist.reduce((s: number, d: any) => s + Number(d.valor || 0), 0);
+    return total / 3;
+  }, [despesasHist]);
+
+  // Projeção agrupada por semana (semanas de 7 dias a partir de hoje)
+  const projecaoSemanas = useMemo(() => {
+    const semanas = [0, 1, 2, 3].map((i) => ({
+      semana: `Sem ${i + 1}`,
+      previsto: 0,
+      realista: 0,
+    }));
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    cobrancasProj.forEach((c: any) => {
+      const aReceber =
+        Number(c.valor_previsto || 0) -
+        Number(c.valor_pago_acumulado || 0) -
+        Number(c.valor_adiantado || 0);
+      if (aReceber <= 0 || !c.data_agendada) return;
+      const [y, mo, dd] = c.data_agendada.split("-").map(Number);
+      const dt = new Date(y, mo - 1, dd);
+      const diff = Math.floor((dt.getTime() - base.getTime()) / 86400000);
+      const idx = Math.min(3, Math.max(0, Math.floor(diff / 7)));
+      semanas[idx].previsto += aReceber;
+      semanas[idx].realista += aReceber * taxaAdimplencia;
+    });
+    return semanas.map((s) => ({
+      ...s,
+      previsto: Number(s.previsto.toFixed(2)),
+      realista: Number(s.realista.toFixed(2)),
+    }));
+  }, [cobrancasProj, taxaAdimplencia]);
+
+  const totalPrevisto30 = useMemo(
+    () => projecaoSemanas.reduce((s, w) => s + w.previsto, 0),
+    [projecaoSemanas],
+  );
+  const totalRealista30 = useMemo(
+    () => projecaoSemanas.reduce((s, w) => s + w.realista, 0),
+    [projecaoSemanas],
+  );
+  const saldoProjetado = saldoTotal + totalRealista30 - despesasFixasMedia;
+  const semaforo: "verde" | "amarelo" | "vermelho" =
+    saldoProjetado < 0
+      ? "vermelho"
+      : saldoProjetado > despesasFixasMedia
+        ? "verde"
+        : "amarelo";
+  const semaforoCfg = {
+    verde: { cls: "border-l-green-500 bg-green-500/5", text: "text-green-600", label: "Saudável" },
+    amarelo: { cls: "border-l-amber-500 bg-amber-500/5", text: "text-amber-600", label: "Atenção" },
+    vermelho: { cls: "border-l-red-500 bg-red-500/5", text: "text-red-600", label: "Crítico" },
+  }[semaforo];
+
+
+
 
 
   return (
@@ -505,6 +651,74 @@ export function DFCView() {
           </CardContent>
         </Card>
       )}
+
+      {/* Projeção 30 dias */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between gap-2 flex-wrap">
+            <span>Projeção — Próximos 30 dias</span>
+            <span className="text-xs font-normal text-muted-foreground">
+              Taxa histórica: <strong>{(taxaAdimplencia * 100).toFixed(1)}%</strong>
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Card className="border-l-4 border-l-blue-500">
+              <CardContent className="pt-4">
+                <div className="text-xs text-muted-foreground">Total Previsto (30d)</div>
+                <div className="text-xl font-bold text-blue-600 mt-1">{fmt(totalPrevisto30)}</div>
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-l-emerald-500">
+              <CardContent className="pt-4">
+                <div className="text-xs text-muted-foreground">Total Realista (30d)</div>
+                <div className="text-xl font-bold text-emerald-600 mt-1">{fmt(totalRealista30)}</div>
+              </CardContent>
+            </Card>
+            <Card className="border-l-4 border-l-red-400">
+              <CardContent className="pt-4">
+                <div className="text-xs text-muted-foreground">Despesas Fixas (média 3m)</div>
+                <div className="text-xl font-bold text-red-500 mt-1">{fmt(despesasFixasMedia)}</div>
+              </CardContent>
+            </Card>
+            <Card className={`border-l-4 ${semaforoCfg.cls}`}>
+              <CardContent className="pt-4">
+                <div className="text-xs text-muted-foreground flex items-center justify-between">
+                  <span>Saldo Projetado</span>
+                  <span className={`text-[10px] font-semibold uppercase ${semaforoCfg.text}`}>
+                    {semaforoCfg.label}
+                  </span>
+                </div>
+                <div className={`text-xl font-bold mt-1 ${semaforoCfg.text}`}>
+                  {fmt(saldoProjetado)}
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  Saldo atual + realista − despesas fixas
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={projecaoSemanas}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis dataKey="semana" />
+              <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+              <Tooltip formatter={(v: number) => fmt(v)} />
+              <Legend />
+              <Bar dataKey="previsto" name="Previsto" fill="hsl(210 90% 55%)" />
+              <Bar dataKey="realista" name="Realista" fill="hsl(160 70% 45%)" />
+            </BarChart>
+          </ResponsiveContainer>
+
+          {cobrancasProj.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Nenhuma cobrança agendada nos próximos 30 dias.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Divergências */}
       <Card className={divergencias.length > 0 ? "border-amber-500/40" : ""}>
