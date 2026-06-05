@@ -214,10 +214,11 @@ export function ModalReceberCobranca({
       });
       
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Erro completo ao registrar devolução total:', error);
       toast({
         title: "Erro",
-        description: "Erro ao registrar devolução total.",
+        description: error?.message || "Erro ao registrar pagamento. Tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -306,10 +307,11 @@ export function ModalReceberCobranca({
         });
         
         onOpenChange(false);
-      } catch (error) {
+      } catch (error: any) {
+        console.error('Erro completo ao registrar pagamento:', error);
         toast({
           title: "Erro",
-          description: "Erro ao registrar pagamento.",
+          description: error?.message || "Erro ao registrar pagamento. Tente novamente.",
           variant: "destructive"
         });
       } finally {
@@ -357,10 +359,11 @@ export function ModalReceberCobranca({
       
       
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Erro completo ao registrar pagamento:', error);
       toast({
         title: "Erro",
-        description: "Erro ao registrar pagamento.",
+        description: error?.message || "Erro ao registrar pagamento. Tente novamente.",
         variant: "destructive"
       });
     } finally {
