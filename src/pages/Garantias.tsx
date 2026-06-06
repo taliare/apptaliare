@@ -163,18 +163,20 @@ export default function Garantias() {
     });
   };
 
-  // Buscar garantias via edge function
-  const { data: dadosGarantias, isLoading: isLoadingGarantias, error: errorGarantias } = useQuery({
-    queryKey: ['garantias-admin'],
+  // Buscar garantias via edge function (admin ou representante)
+  const { data: dadosGarantias, isLoading: isLoadingGarantias, error: errorGarantias, ...rawGarantiasQuery } = useQuery({
+    queryKey: ['garantias-page', isAdmin ? 'admin' : 'rep'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('get-garantias-admin');
-      
+      const fnName = isAdmin ? 'get-garantias-admin' : 'get-garantias-representante';
+      const { data, error } = await supabase.functions.invoke(fnName);
+
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       const garantiasData = data?.garantias || [];
       const clientesData = data?.clientes || [];
       const revendedorasData = data?.revendedoras || [];
+      const totalVinculadas = data?.totalVinculadas ?? null;
 
       // Criar mapa de clientes
       const clientesMap: Record<string, ClienteGarantia> = {};
@@ -251,12 +253,17 @@ export default function Garantias() {
         revGroup.clientes.sort((a, b) => (a.cliente.nome || '').localeCompare(b.cliente.nome || ''));
       }
 
-      return Array.from(agrupamentoPorRevendedora.values()).sort((a, b) => 
+      const grupos = Array.from(agrupamentoPorRevendedora.values()).sort((a, b) =>
         (a.revendedora.nome || '').localeCompare(b.revendedora.nome || '')
       );
+
+      return { grupos, totalVinculadas };
     },
     retry: 1,
   });
+
+  const gruposGarantias = dadosGarantias?.grupos;
+  const totalVinculadasRep = dadosGarantias?.totalVinculadas;
 
   // Buscar revendedoras do banco externo
   const { data: revendedorasExternas = [], isLoading: isLoadingRevendedoras, refetch: refetchRevendedoras } = useQuery({
