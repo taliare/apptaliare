@@ -383,9 +383,9 @@ export default function Garantias() {
     },
   });
   const revendedorasFiltradas = useMemo(() => {
-    if (!dadosGarantias?.length) return [];
+    if (!gruposGarantias?.length) return [];
 
-    return dadosGarantias
+    return gruposGarantias
       .filter(revGroup => revGroup && revGroup.clientes)
       .map(revGroup => {
         const clientesFiltrados = (revGroup.clientes || [])
@@ -435,7 +435,7 @@ export default function Garantias() {
         return { ...revGroup, clientes: clientesFiltrados, totalGarantias, garantiasAtivas };
       })
       .filter(r => r.clientes.length > 0);
-  }, [dadosGarantias, filtroStatus, dateRange, searchTerm]);
+  }, [gruposGarantias, filtroStatus, dateRange, searchTerm]);
 
   // Filtrar revendedoras na aba de gerenciamento
   const revendedorasListaFiltrada = useMemo(() => {
@@ -450,10 +450,10 @@ export default function Garantias() {
   }, [revendedorasExternas, searchRevendedora]);
 
   // Contadores
-  const totalGarantias = dadosGarantias?.reduce((acc, r) => acc + r.totalGarantias, 0) || 0;
-  const totalAtivas = dadosGarantias?.reduce((acc, r) => acc + r.garantiasAtivas, 0) || 0;
+  const totalGarantias = gruposGarantias?.reduce((acc, r) => acc + r.totalGarantias, 0) || 0;
+  const totalAtivas = gruposGarantias?.reduce((acc, r) => acc + r.garantiasAtivas, 0) || 0;
   const totalExpiradas = totalGarantias - totalAtivas;
-  const totalRevendedoras = dadosGarantias?.length || 0;
+  const totalRevendedoras = gruposGarantias?.length || 0;
   const totalGarantiasFiltradas = revendedorasFiltradas.reduce((acc, r) => acc + r.totalGarantias, 0);
 
   const limparFiltros = () => {
