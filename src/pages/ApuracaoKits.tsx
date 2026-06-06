@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Search, ScanBarcode, X, Plus, ArrowLeft, CheckCircle, AlertTriangle } from "lucide-react";
+import { Search, ScanBarcode, X, Plus, ArrowLeft, CheckCircle, AlertTriangle, Lock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ConfigurarPin } from "@/components/admin/ConfigurarPin";
 
 interface PecaDevolvida {
   id: string;
