@@ -107,6 +107,7 @@ export function AppSidebar() {
       label: "GESTÃO",
       items: [
         { title: "Minhas Revendedoras", url: "/revendedoras-inativas", icon: Users },
+        { title: "Garantias", url: "/garantias", icon: Shield },
         { title: "Histórico de Ações", url: "/historico-acoes", icon: ClipboardList },
       ],
     },

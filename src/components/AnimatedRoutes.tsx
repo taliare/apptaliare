@@ -138,9 +138,9 @@ export function AnimatedRoutes() {
           </PermissionRoute>
         } />
         <Route path="/garantias" element={
-          <PermissionRoute menuKey="garantias">
+          <ProtectedRoute>
             <Garantias />
-          </PermissionRoute>
+          </ProtectedRoute>
         } />
         
         {/* DRE routes */}
