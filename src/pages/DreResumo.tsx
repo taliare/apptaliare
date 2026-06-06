@@ -380,7 +380,8 @@ export default function DreResumo() {
     if (drilldown === "descontos") {
       const descontosPorRep: Record<string, { revendedora: string; totalVenda: number; comissao: number; valorDevido: number; desconto: number }> = {};
       for (const p of vendasDoMes) {
-        const desconto = Number(p.total_venda) - Number(p.comissao_valor) - Number(p.valor_devido_empresa);
+        const valorAdiantado = Number((p as any).cobrancas_agendadas?.valor_adiantado || 0);
+        const desconto = Number(p.total_venda) - Number(p.comissao_valor) - valorAdiantado - Number(p.valor_devido_empresa);
         if (desconto <= 0) continue;
         if (!descontosPorRep[p.cobranca_id]) {
           descontosPorRep[p.cobranca_id] = {
