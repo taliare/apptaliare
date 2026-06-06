@@ -232,7 +232,7 @@ export default function DreResumo() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("prestacoes_contas")
-        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em")
+        .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em, cobrancas_agendadas!prestacoes_contas_cobranca_id_fkey(valor_adiantado)")
         .lt("data_execucao", dataInicio)
         .gt("saldo_devedor", 0)
         .gt("comissao_valor", 0)
