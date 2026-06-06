@@ -549,7 +549,7 @@ export default function DashboardAdmin() {
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
             <div className="text-base md:text-2xl font-display font-bold truncate">{mv(totalHoje)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">Toque para detalhes</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">Somente dias finalizados</p>
           </CardContent>
         </Card>
 
