@@ -295,7 +295,8 @@ export default function DreResumo() {
   const faturamentoBruto = vendasDoMes.reduce((s, v) => s + Number(v.total_venda), 0);
   const totalComissoes = vendasDoMes.reduce((s, v) => s + Number(v.comissao_valor), 0);
   const totalDevido = vendasDoMes.reduce((s, v) => s + Number(v.valor_devido_empresa), 0);
-  const ajustes = Math.max(0, (faturamentoBruto - totalComissoes) - totalDevido);
+  const totalAdiantado = vendasDoMes.reduce((s, v) => s + Number((v as any).cobrancas_agendadas?.valor_adiantado || 0), 0);
+  const ajustes = Math.max(0, (faturamentoBruto - totalComissoes) - totalAdiantado - totalDevido);
   const inadimplencia = inadimplenciaNota;
   const receitaLiquidaTotal = receitaLiquida + recuperacao;
 
