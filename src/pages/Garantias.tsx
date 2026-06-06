@@ -592,17 +592,36 @@ export default function Garantias() {
         </div>
       </div>
 
+      {/* Banner informativo para representante sem vínculos */}
+      {!isAdmin && totalVinculadasRep === 0 && (
+        <Card className="border-warning/40 bg-warning/5">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium">Nenhuma revendedora vinculada ainda.</p>
+                <p className="text-muted-foreground mt-1">
+                  Peça ao administrador para vincular suas revendedoras na aba "Vincular Contas".
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={cn("grid w-full", isAdmin ? "max-w-2xl grid-cols-3" : "max-w-md grid-cols-2")}>
+        <TabsList className={cn("grid w-full", isAdmin ? "max-w-2xl grid-cols-3" : "max-w-xs grid-cols-1")}>
           <TabsTrigger value="garantias" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Garantias
           </TabsTrigger>
-          <TabsTrigger value="revendedoras" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Revendedoras
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="revendedoras" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Revendedoras
+            </TabsTrigger>
+          )}
           {isAdmin && (
             <TabsTrigger value="vincular" className="flex items-center gap-2">
               <Link2 className="h-4 w-4" />
