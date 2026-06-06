@@ -578,7 +578,7 @@ export default function ApuracaoKits() {
                       setPinErro("");
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && !pinVerificando && temPin !== false && pinInput.length === 6) {
+                      if (e.key === "Enter" && !pinVerificando && pinInput.length === 6) {
                         e.preventDefault();
                         confirmarPin();
                       }
