@@ -191,8 +191,29 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para cobranças de hoje (prestacoes_contas)
-  const { data: cobrancasHoje = [] } = useQuery({
+  // Query para despesas de hoje + status de finalização (cobrancas_diarias)
+  const { data: despesasHojeRaw = [] } = useQuery({
+    queryKey: ['despesas-hoje-admin', hoje],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cobrancas_diarias')
+        .select('representante_id, despesa_cobranca, finalizado')
+        .eq('data', hoje);
+
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 30000,
+  });
+
+  // Apenas representantes que finalizaram o dia entram no totalizador
+  const repsFinalizadosHoje = new Set(
+    despesasHojeRaw.filter((d: any) => d.finalizado).map((d: any) => d.representante_id)
+  );
+  const despesasHoje = despesasHojeRaw.filter((d: any) => d.finalizado);
+
+  // Query para cobranças de hoje (prestacoes_contas) — filtradas por reps finalizados
+  const { data: cobrancasHojeAll = [] } = useQuery({
     queryKey: ['cobrancas-hoje-admin', hoje],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -203,21 +224,12 @@ export default function DashboardAdmin() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 30000,
   });
 
-  // Query para despesas de hoje (cobrancas_diarias)
-  const { data: despesasHoje = [] } = useQuery({
-    queryKey: ['despesas-hoje-admin', hoje],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cobrancas_diarias')
-        .select('representante_id, despesa_cobranca')
-        .eq('data', hoje);
-
-      if (error) throw error;
-      return data;
-    },
-  });
+  const cobrancasHoje = cobrancasHojeAll.filter((c: any) =>
+    repsFinalizadosHoje.has(c.representante_id)
+  );
 
   // Query para kits do período
   const { data: kitsData } = useQuery({
@@ -537,7 +549,7 @@ export default function DashboardAdmin() {
           </CardHeader>
           <CardContent className="p-3 md:p-4 pt-0">
             <div className="text-base md:text-2xl font-display font-bold truncate">{mv(totalHoje)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">Toque para detalhes</p>
+            <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">Somente dias finalizados</p>
           </CardContent>
         </Card>
 
