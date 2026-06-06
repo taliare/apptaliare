@@ -493,7 +493,20 @@ export default function ApuracaoKits() {
                     Cancelar
                   </Button>
                   <Button
-                    onClick={() => quickApurarMutation.mutate()}
+                    onClick={async () => {
+                      setPinErro("");
+                      setPinInput("");
+                      // Buscar status do PIN antes de abrir o dialog
+                      if (user) {
+                        const { data } = await supabase
+                          .from("profiles")
+                          .select("pin_apuracao")
+                          .eq("id", user.id)
+                          .maybeSingle();
+                        setTemPin(!!(data as any)?.pin_apuracao);
+                      }
+                      setPinDialogOpen(true);
+                    }}
                     disabled={quickApurarMutation.isPending || quickTotalVendidoNum < 0}
                   >
                     {quickApurarMutation.isPending ? "Confirmando..." : "Confirmar Apuração"}
