@@ -47,6 +47,28 @@ export default function ApuracaoKits() {
   const [pinVerificando, setPinVerificando] = useState(false);
   const [temPin, setTemPin] = useState<boolean | null>(null);
 
+  const confirmarPin = async () => {
+    setPinVerificando(true);
+    setPinErro("");
+    try {
+      const { data: ok, error } = await supabase.rpc("verificar_pin_apuracao", { p_pin: pinInput });
+      if (error) throw error;
+      if (ok) {
+        setPinDialogOpen(false);
+        setPinInput("");
+        quickApurarMutation.mutate();
+      } else {
+        setPinErro("PIN incorreto");
+        setPinInput("");
+      }
+    } catch (err: any) {
+      setPinErro(err?.message || "Erro ao verificar PIN");
+    } finally {
+      setPinVerificando(false);
+    }
+  };
+
+
   useEffect(() => {
     if (quickApurarNota) {
       const vk = Number((quickApurarNota as any).valor_kit_original || quickApurarNota.valor_previsto || 0);
