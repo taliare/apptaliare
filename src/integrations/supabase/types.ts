@@ -1866,6 +1866,7 @@ export type Database = {
           nome: string
           numero: string | null
           observacoes: string | null
+          perfil_garantia_id: string | null
           representante_id: string | null
           rg: string | null
           status_juridico: string | null
@@ -1897,6 +1898,7 @@ export type Database = {
           nome: string
           numero?: string | null
           observacoes?: string | null
+          perfil_garantia_id?: string | null
           representante_id?: string | null
           rg?: string | null
           status_juridico?: string | null
@@ -1928,6 +1930,7 @@ export type Database = {
           nome?: string
           numero?: string | null
           observacoes?: string | null
+          perfil_garantia_id?: string | null
           representante_id?: string | null
           rg?: string | null
           status_juridico?: string | null
@@ -2233,6 +2236,7 @@ export type Database = {
           nome: string
           numero: string | null
           observacoes: string | null
+          perfil_garantia_id: string | null
           representante_id: string | null
           rg: string | null
           status_juridico: string | null
