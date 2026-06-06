@@ -274,6 +274,7 @@ export default function Garantias() {
       if (data?.error) throw new Error(data.error);
       return data?.revendedoras || [];
     },
+    enabled: isAdmin,
   });
 
   // Mutation para atualizar nome
