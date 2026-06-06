@@ -38,9 +38,28 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(EXTERNAL_URL, EXTERNAL_SERVICE_KEY);
 
-    const { data: garantias, error: garantiasError } = await supabaseAdmin
-      .from('garantias').select('*').order('data_compra', { ascending: false });
-    if (garantiasError) {
+    const fetchAllRows = async (table: string, selectCols: string, orderCol: string, ascending: boolean) => {
+      const allRows: any[] = [];
+      const PAGE_SIZE = 1000;
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabaseAdmin
+          .from(table)
+          .select(selectCols)
+          .order(orderCol, { ascending })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        if (data && data.length > 0) allRows.push(...data);
+        if (!data || data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      return allRows;
+    };
+
+    let garantias: any[];
+    try {
+      garantias = await fetchAllRows('garantias', '*', 'data_compra', false);
+    } catch (garantiasError: any) {
       return new Response(JSON.stringify({ error: garantiasError.message }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -57,10 +76,10 @@ Deno.serve(async (req) => {
       return results;
     };
 
-    const clienteIds = [...new Set((garantias || []).map(g => g.cliente_id).filter(Boolean))];
+    const clienteIds = [...new Set((garantias || []).map((g: any) => g.cliente_id).filter(Boolean))];
     const clientes = clienteIds.length > 0 ? await fetchInBatches('clientes_garantia', clienteIds, '*') : [];
 
-    const revendedoraIds = [...new Set((garantias || []).map(g => g.revendedora_id).filter(Boolean))];
+    const revendedoraIds = [...new Set((garantias || []).map((g: any) => g.revendedora_id).filter(Boolean))];
     const revendedoras = revendedoraIds.length > 0 ? await fetchInBatches('profiles', revendedoraIds, 'id, nome') : [];
 
     return new Response(JSON.stringify({
