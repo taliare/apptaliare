@@ -320,6 +320,8 @@ export default function ApuracaoKits() {
           </p>
         </div>
 
+        {isAdmin && <ConfigurarPin />}
+
         {/* Seção: Kits para Apurar */}
         <Card>
           <CardHeader className="pb-2">
