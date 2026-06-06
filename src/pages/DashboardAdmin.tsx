@@ -191,8 +191,29 @@ export default function DashboardAdmin() {
     },
   });
 
-  // Query para cobranças de hoje (prestacoes_contas)
-  const { data: cobrancasHoje = [] } = useQuery({
+  // Query para despesas de hoje + status de finalização (cobrancas_diarias)
+  const { data: despesasHojeRaw = [] } = useQuery({
+    queryKey: ['despesas-hoje-admin', hoje],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('cobrancas_diarias')
+        .select('representante_id, despesa_cobranca, finalizado')
+        .eq('data', hoje);
+
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 30000,
+  });
+
+  // Apenas representantes que finalizaram o dia entram no totalizador
+  const repsFinalizadosHoje = new Set(
+    despesasHojeRaw.filter((d: any) => d.finalizado).map((d: any) => d.representante_id)
+  );
+  const despesasHoje = despesasHojeRaw.filter((d: any) => d.finalizado);
+
+  // Query para cobranças de hoje (prestacoes_contas) — filtradas por reps finalizados
+  const { data: cobrancasHojeAll = [] } = useQuery({
     queryKey: ['cobrancas-hoje-admin', hoje],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -203,21 +224,12 @@ export default function DashboardAdmin() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 30000,
   });
 
-  // Query para despesas de hoje (cobrancas_diarias)
-  const { data: despesasHoje = [] } = useQuery({
-    queryKey: ['despesas-hoje-admin', hoje],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cobrancas_diarias')
-        .select('representante_id, despesa_cobranca')
-        .eq('data', hoje);
-
-      if (error) throw error;
-      return data;
-    },
-  });
+  const cobrancasHoje = cobrancasHojeAll.filter((c: any) =>
+    repsFinalizadosHoje.has(c.representante_id)
+  );
 
   // Query para kits do período
   const { data: kitsData } = useQuery({
