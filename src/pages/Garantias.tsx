@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Calendar as CalendarIcon, Shield, Filter, User, Package, FileText, Clock, Search, Phone, Users, ChevronDown, Edit, Key, Eye, Copy, RefreshCw, Power, Trash2, AlertTriangle } from 'lucide-react';
+import { Calendar as CalendarIcon, Shield, Filter, User, Package, FileText, Clock, Search, Phone, Users, ChevronDown, Edit, Key, Eye, Copy, RefreshCw, Power, Trash2, AlertTriangle, Link2 } from 'lucide-react';
+import { PainelVinculacao } from '@/components/garantias/PainelVinculacao';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -586,7 +587,7 @@ export default function Garantias() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className={cn("grid w-full", isAdmin ? "max-w-2xl grid-cols-3" : "max-w-md grid-cols-2")}>
           <TabsTrigger value="garantias" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Garantias
@@ -595,6 +596,12 @@ export default function Garantias() {
             <Users className="h-4 w-4" />
             Revendedoras
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="vincular" className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Vincular Contas
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Tab: Garantias */}
@@ -1026,6 +1033,12 @@ export default function Garantias() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="vincular" className="space-y-6">
+            <PainelVinculacao />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Modal: Editar Nome */}
