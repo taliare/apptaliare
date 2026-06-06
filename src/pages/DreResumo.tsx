@@ -234,11 +234,16 @@ export default function DreResumo() {
         .from("prestacoes_contas")
         .select("id, cobranca_id, revendedora, total_venda, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em, cobrancas_agendadas!prestacoes_contas_cobranca_id_fkey(valor_adiantado)")
         .lt("data_execucao", dataInicio)
-        .gt("saldo_devedor", 0)
         .gt("comissao_valor", 0)
-        .order("data_execucao");
+        .order("criado_em", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Prestacao[];
+      const latestPorCobranca: Record<string, any> = {};
+      for (const p of (data ?? [])) {
+        if (!latestPorCobranca[p.cobranca_id]) {
+          latestPorCobranca[p.cobranca_id] = p;
+        }
+      }
+      return Object.values(latestPorCobranca).filter((p: any) => Number(p.saldo_devedor) > 0) as Prestacao[];
     },
   });
 
