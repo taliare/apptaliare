@@ -16,7 +16,7 @@ async function requireAdmin(req: Request) {
   if (error || !user) return { ok: false, status: 401, error: 'Token inválido' };
   const { data: isAdmin } = await supabaseAuth.rpc('has_role', { _user_id: user.id, _role: 'admin' });
   if (!isAdmin) return { ok: false, status: 403, error: 'Acesso negado: apenas administradores' };
-  return { ok: true as const, supabaseAuth };
+  return { ok: true as const };
 }
 
 Deno.serve(async (req) => {
@@ -28,17 +28,47 @@ Deno.serve(async (req) => {
       status: auth.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-    const EXTERNAL_URL = Deno.env.get('EXTERNAL_SUPABASE_URL');
-    const EXTERNAL_SERVICE_KEY = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY');
-    if (!EXTERNAL_URL || !EXTERNAL_SERVICE_KEY) {
-      return new Response(JSON.stringify({ error: 'Configuração incompleta.' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const { revendedoraId, perfilGarantiaId } = await req.json();
+
+    if (!revendedoraId || typeof revendedoraId !== 'string') {
+      return new Response(JSON.stringify({ error: 'revendedoraId é obrigatório' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const supabaseExternal = createClient(EXTERNAL_URL, EXTERNAL_SERVICE_KEY);
-    const { data: revendedoras, error } = await supabaseExternal
-      .from('profiles').select('id, nome, email, ativo').order('nome', { ascending: true });
+    if (perfilGarantiaId !== null && typeof perfilGarantiaId !== 'string') {
+      return new Response(JSON.stringify({ error: 'perfilGarantiaId deve ser string ou null' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Se vinculando, garante que não existe outro registro com o mesmo perfil_garantia_id
+    if (perfilGarantiaId) {
+      const { data: existente } = await supabaseAdmin
+        .from('revendedoras')
+        .select('id')
+        .eq('perfil_garantia_id', perfilGarantiaId)
+        .neq('id', revendedoraId)
+        .maybeSingle();
+
+      if (existente) {
+        // Limpa o vínculo anterior antes de aplicar o novo
+        await supabaseAdmin
+          .from('revendedoras')
+          .update({ perfil_garantia_id: null })
+          .eq('id', existente.id);
+      }
+    }
+
+    const { error } = await supabaseAdmin
+      .from('revendedoras')
+      .update({ perfil_garantia_id: perfilGarantiaId })
+      .eq('id', revendedoraId);
 
     if (error) {
       return new Response(JSON.stringify({ error: error.message }), {
@@ -46,27 +76,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Buscar vínculos já existentes no banco INTERNO
-    const supabaseInternal = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    const { data: vinculadosData } = await supabaseInternal
-      .from('revendedoras')
-      .select('perfil_garantia_id')
-      .not('perfil_garantia_id', 'is', null);
-
-    const vinculados = (vinculadosData || [])
-      .map((r: any) => r.perfil_garantia_id)
-      .filter(Boolean);
-
-    return new Response(JSON.stringify({
-      revendedoras: revendedoras || [],
-      total: revendedoras?.length || 0,
-      vinculados,
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error('[get-revendedoras-external]', error);
+    console.error('[link-revendedora-garantia]', error);
     return new Response(JSON.stringify({ error: 'Erro interno do servidor' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
