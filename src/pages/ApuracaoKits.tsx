@@ -384,7 +384,13 @@ export default function ApuracaoKits() {
                             </div>
                             <div className="flex items-center gap-3 mt-0.5">
                               <span className="text-xs font-semibold text-foreground">R$ {fmt(Number((nota as any).valor_kit_original || nota.valor_previsto))}</span>
-                              <span className="text-xs text-muted-foreground">{nota.data_agendada}</span>
+                              <span className="text-xs text-muted-foreground">{(() => {
+                                const dataExecucao = (nota as any).prestacoes_contas?.[0]?.data_execucao;
+                                const dataBase = dataExecucao || nota.data_agendada;
+                                if (!dataBase) return '—';
+                                const [y, m, d] = dataBase.split('-');
+                                return `${d}/${m}/${y}`;
+                              })()}</span>
                               <span className="text-xs text-amber-600 font-medium">
                                 Devolvido: R$ {fmt((() => {
                                   const vk = Number((nota as any).valor_kit_original || nota.valor_previsto);
