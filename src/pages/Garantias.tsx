@@ -163,18 +163,20 @@ export default function Garantias() {
     });
   };
 
-  // Buscar garantias via edge function
-  const { data: dadosGarantias, isLoading: isLoadingGarantias, error: errorGarantias } = useQuery({
-    queryKey: ['garantias-admin'],
+  // Buscar garantias via edge function (admin ou representante)
+  const { data: dadosGarantias, isLoading: isLoadingGarantias, error: errorGarantias, ...rawGarantiasQuery } = useQuery({
+    queryKey: ['garantias-page', isAdmin ? 'admin' : 'rep'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('get-garantias-admin');
-      
+      const fnName = isAdmin ? 'get-garantias-admin' : 'get-garantias-representante';
+      const { data, error } = await supabase.functions.invoke(fnName);
+
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
       const garantiasData = data?.garantias || [];
       const clientesData = data?.clientes || [];
       const revendedorasData = data?.revendedoras || [];
+      const totalVinculadas = data?.totalVinculadas ?? null;
 
       // Criar mapa de clientes
       const clientesMap: Record<string, ClienteGarantia> = {};
@@ -251,12 +253,17 @@ export default function Garantias() {
         revGroup.clientes.sort((a, b) => (a.cliente.nome || '').localeCompare(b.cliente.nome || ''));
       }
 
-      return Array.from(agrupamentoPorRevendedora.values()).sort((a, b) => 
+      const grupos = Array.from(agrupamentoPorRevendedora.values()).sort((a, b) =>
         (a.revendedora.nome || '').localeCompare(b.revendedora.nome || '')
       );
+
+      return { grupos, totalVinculadas };
     },
     retry: 1,
   });
+
+  const gruposGarantias = dadosGarantias?.grupos;
+  const totalVinculadasRep = dadosGarantias?.totalVinculadas;
 
   // Buscar revendedoras do banco externo
   const { data: revendedorasExternas = [], isLoading: isLoadingRevendedoras, refetch: refetchRevendedoras } = useQuery({
@@ -267,6 +274,7 @@ export default function Garantias() {
       if (data?.error) throw new Error(data.error);
       return data?.revendedoras || [];
     },
+    enabled: isAdmin,
   });
 
   // Mutation para atualizar nome
@@ -376,9 +384,9 @@ export default function Garantias() {
     },
   });
   const revendedorasFiltradas = useMemo(() => {
-    if (!dadosGarantias?.length) return [];
+    if (!gruposGarantias?.length) return [];
 
-    return dadosGarantias
+    return gruposGarantias
       .filter(revGroup => revGroup && revGroup.clientes)
       .map(revGroup => {
         const clientesFiltrados = (revGroup.clientes || [])
@@ -428,7 +436,7 @@ export default function Garantias() {
         return { ...revGroup, clientes: clientesFiltrados, totalGarantias, garantiasAtivas };
       })
       .filter(r => r.clientes.length > 0);
-  }, [dadosGarantias, filtroStatus, dateRange, searchTerm]);
+  }, [gruposGarantias, filtroStatus, dateRange, searchTerm]);
 
   // Filtrar revendedoras na aba de gerenciamento
   const revendedorasListaFiltrada = useMemo(() => {
@@ -443,10 +451,10 @@ export default function Garantias() {
   }, [revendedorasExternas, searchRevendedora]);
 
   // Contadores
-  const totalGarantias = dadosGarantias?.reduce((acc, r) => acc + r.totalGarantias, 0) || 0;
-  const totalAtivas = dadosGarantias?.reduce((acc, r) => acc + r.garantiasAtivas, 0) || 0;
+  const totalGarantias = gruposGarantias?.reduce((acc, r) => acc + r.totalGarantias, 0) || 0;
+  const totalAtivas = gruposGarantias?.reduce((acc, r) => acc + r.garantiasAtivas, 0) || 0;
   const totalExpiradas = totalGarantias - totalAtivas;
-  const totalRevendedoras = dadosGarantias?.length || 0;
+  const totalRevendedoras = gruposGarantias?.length || 0;
   const totalGarantiasFiltradas = revendedorasFiltradas.reduce((acc, r) => acc + r.totalGarantias, 0);
 
   const limparFiltros = () => {
@@ -585,17 +593,36 @@ export default function Garantias() {
         </div>
       </div>
 
+      {/* Banner informativo para representante sem vínculos */}
+      {!isAdmin && totalVinculadasRep === 0 && (
+        <Card className="border-warning/40 bg-warning/5">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium">Nenhuma revendedora vinculada ainda.</p>
+                <p className="text-muted-foreground mt-1">
+                  Peça ao administrador para vincular suas revendedoras na aba "Vincular Contas".
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={cn("grid w-full", isAdmin ? "max-w-2xl grid-cols-3" : "max-w-md grid-cols-2")}>
+        <TabsList className={cn("grid w-full", isAdmin ? "max-w-2xl grid-cols-3" : "max-w-xs grid-cols-1")}>
           <TabsTrigger value="garantias" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
             Garantias
           </TabsTrigger>
-          <TabsTrigger value="revendedoras" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Revendedoras
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="revendedoras" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Revendedoras
+            </TabsTrigger>
+          )}
           {isAdmin && (
             <TabsTrigger value="vincular" className="flex items-center gap-2">
               <Link2 className="h-4 w-4" />
@@ -903,7 +930,8 @@ export default function Garantias() {
           )}
         </TabsContent>
 
-        {/* Tab: Revendedoras */}
+        {/* Tab: Revendedoras (admin only) */}
+        {isAdmin && (
         <TabsContent value="revendedoras" className="space-y-6">
           <Card>
             <CardHeader>
@@ -1033,6 +1061,8 @@ export default function Garantias() {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
+
 
         {isAdmin && (
           <TabsContent value="vincular" className="space-y-6">
