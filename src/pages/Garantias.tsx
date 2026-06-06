@@ -930,7 +930,8 @@ export default function Garantias() {
           )}
         </TabsContent>
 
-        {/* Tab: Revendedoras */}
+        {/* Tab: Revendedoras (admin only) */}
+        {isAdmin && (
         <TabsContent value="revendedoras" className="space-y-6">
           <Card>
             <CardHeader>
@@ -1060,6 +1061,8 @@ export default function Garantias() {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
+
 
         {isAdmin && (
           <TabsContent value="vincular" className="space-y-6">
