@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Search, ScanBarcode, X, Plus, ArrowLeft, CheckCircle, AlertTriangle } from "lucide-react";
+import { Search, ScanBarcode, X, Plus, ArrowLeft, CheckCircle, AlertTriangle, Lock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ConfigurarPin } from "@/components/admin/ConfigurarPin";
 
 interface PecaDevolvida {
   id: string;
@@ -30,13 +31,21 @@ function getComissaoFaixa(valorVendido: number) {
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
 export default function ApuracaoKits() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
   const [etapa, setEtapa] = useState<"busca" | "bipagem" | "confirmado">("busca");
 
   // Modal de apuração rápida (sem bipagem)
   const [quickApurarNota, setQuickApurarNota] = useState<any>(null);
   const [quickTotalVendido, setQuickTotalVendido] = useState<string>("");
+
+  // PIN de segurança
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinErro, setPinErro] = useState("");
+  const [pinVerificando, setPinVerificando] = useState(false);
+  const [temPin, setTemPin] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (quickApurarNota) {
@@ -311,6 +320,8 @@ export default function ApuracaoKits() {
           </p>
         </div>
 
+        {isAdmin && <ConfigurarPin />}
+
         {/* Seção: Kits para Apurar */}
         <Card>
           <CardHeader className="pb-2">
@@ -484,7 +495,20 @@ export default function ApuracaoKits() {
                     Cancelar
                   </Button>
                   <Button
-                    onClick={() => quickApurarMutation.mutate()}
+                    onClick={async () => {
+                      setPinErro("");
+                      setPinInput("");
+                      // Buscar status do PIN antes de abrir o dialog
+                      if (user) {
+                        const { data } = await supabase
+                          .from("profiles")
+                          .select("pin_apuracao")
+                          .eq("id", user.id)
+                          .maybeSingle();
+                        setTemPin(!!(data as any)?.pin_apuracao);
+                      }
+                      setPinDialogOpen(true);
+                    }}
                     disabled={quickApurarMutation.isPending || quickTotalVendidoNum < 0}
                   >
                     {quickApurarMutation.isPending ? "Confirmando..." : "Confirmar Apuração"}
@@ -492,6 +516,89 @@ export default function ApuracaoKits() {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de Verificação de PIN */}
+        <Dialog
+          open={pinDialogOpen}
+          onOpenChange={(o) => {
+            setPinDialogOpen(o);
+            if (!o) {
+              setPinInput("");
+              setPinErro("");
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-primary" />
+                PIN de Segurança
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {temPin === false ? (
+                <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md p-3">
+                  Você ainda não definiu um PIN. Configure-o acima antes de usar a apuração rápida.
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">Digite seu PIN de 6 dígitos para confirmar</p>
+                  <Input
+                    autoFocus
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={pinInput}
+                    onChange={(e) => {
+                      setPinInput(e.target.value.replace(/\D/g, ""));
+                      setPinErro("");
+                    }}
+                    placeholder="••••••"
+                    className="text-center text-2xl tracking-[0.5em] font-mono"
+                  />
+                  {pinErro && <p className="text-sm text-destructive">{pinErro}</p>}
+                </>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setPinDialogOpen(false);
+                    setPinInput("");
+                    setPinErro("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  disabled={pinVerificando || temPin === false || pinInput.length !== 6}
+                  onClick={async () => {
+                    setPinVerificando(true);
+                    setPinErro("");
+                    try {
+                      const { data: ok, error } = await supabase.rpc("verificar_pin_apuracao", { p_pin: pinInput });
+                      if (error) throw error;
+                      if (ok) {
+                        setPinDialogOpen(false);
+                        setPinInput("");
+                        quickApurarMutation.mutate();
+                      } else {
+                        setPinErro("PIN incorreto");
+                        setPinInput("");
+                      }
+                    } catch (err: any) {
+                      setPinErro(err?.message || "Erro ao verificar PIN");
+                    } finally {
+                      setPinVerificando(false);
+                    }
+                  }}
+                >
+                  {pinVerificando ? "Verificando..." : "Confirmar"}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

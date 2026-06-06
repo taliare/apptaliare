@@ -1739,6 +1739,7 @@ export type Database = {
           idioma: string | null
           nome: string
           permissoes_customizadas: boolean
+          pin_apuracao: string | null
           tema: string | null
           whatsapp: string | null
         }
@@ -1755,6 +1756,7 @@ export type Database = {
           idioma?: string | null
           nome: string
           permissoes_customizadas?: boolean
+          pin_apuracao?: string | null
           tema?: string | null
           whatsapp?: string | null
         }
@@ -1771,6 +1773,7 @@ export type Database = {
           idioma?: string | null
           nome?: string
           permissoes_customizadas?: boolean
+          pin_apuracao?: string | null
           tema?: string | null
           whatsapp?: string | null
         }
@@ -2261,6 +2264,7 @@ export type Database = {
         }
         Returns: Json
       }
+      definir_pin_apuracao: { Args: { p_pin: string }; Returns: undefined }
       delete_lead_with_history: { Args: { p_lead_id: string }; Returns: Json }
       entregar_kit_para_revendedora: {
         Args: {
@@ -2379,6 +2383,7 @@ export type Database = {
           blocked: boolean
         }[]
       }
+      verificar_pin_apuracao: { Args: { p_pin: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "representante" | "producao" | "equipe_interna"
