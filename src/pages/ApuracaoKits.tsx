@@ -31,13 +31,21 @@ function getComissaoFaixa(valorVendido: number) {
 const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
 
 export default function ApuracaoKits() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
   const queryClient = useQueryClient();
   const [etapa, setEtapa] = useState<"busca" | "bipagem" | "confirmado">("busca");
 
   // Modal de apuração rápida (sem bipagem)
   const [quickApurarNota, setQuickApurarNota] = useState<any>(null);
   const [quickTotalVendido, setQuickTotalVendido] = useState<string>("");
+
+  // PIN de segurança
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinErro, setPinErro] = useState("");
+  const [pinVerificando, setPinVerificando] = useState(false);
+  const [temPin, setTemPin] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (quickApurarNota) {
