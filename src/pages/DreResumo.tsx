@@ -639,6 +639,12 @@ export default function DreResumo() {
               ))}
             </SelectContent>
           </Select>
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-2">
+              <FileText className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+          )}
         </div>
       </div>
 
