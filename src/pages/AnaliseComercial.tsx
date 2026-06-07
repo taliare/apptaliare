@@ -373,22 +373,30 @@ export default function AnaliseComercial() {
   const alertas = useMemo<Alerta[]>(() => {
     const lista: Alerta[] = [];
 
-    // 🔴 Reps com inadimplência > 20%
-    if (representantes && prestacoesMes && cobrancasAbertas) {
+    // 🔴 Reps com inadimplência (vencido) > 20% da carteira ativa
+    if (representantes && cobrancasAbertas && cobrancasVigentes) {
       representantes.forEach(rep => {
-        const fat = prestacoesMes
-          .filter((p: any) => p.representante_id === rep.id)
-          .reduce((s: number, p: any) => s + Number(p.total_venda || 0), 0);
-        const inad = cobrancasAbertas
+        const carteira = cobrancasVigentes
           .filter(c => c.representante_id === rep.id)
-          .reduce((s, c) => s + Math.max(0, Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0);
-        const pct = fat > 0 ? (inad / fat) * 100 : 0;
-        if (pct > 20 && fat > 0) {
+          .reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
+        const vencido = cobrancasAbertas
+          .filter(c => c.representante_id === rep.id)
+          .reduce(
+            (s, c) => s + Math.max(
+              0,
+              Number(c.valor_previsto || 0)
+                - Number(c.valor_pago_acumulado || 0)
+                - Number((c as any).valor_adiantado || 0)
+            ),
+            0
+          );
+        const pct = carteira > 0 ? (vencido / carteira) * 100 : 0;
+        if (pct > 20 && carteira > 0) {
           lista.push({
             cor: "vermelho",
             icone: <AlertCircle className="h-4 w-4" />,
             titulo: `${rep.nome}: inadimplência ${pct.toFixed(1)}%`,
-            descricao: `${formatarValor(inad)} em aberto sobre ${formatarValor(fat)} faturados no mês`,
+            descricao: `${formatarValor(vencido)} vencidos sobre carteira ativa de ${formatarValor(carteira)}`,
           });
         }
       });
