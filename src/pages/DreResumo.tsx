@@ -168,6 +168,8 @@ type DrilldownTipo =
   | null;
 
 export default function DreResumo() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
   const [ano, setAno] = useState(String(anoAtual));
   const [mes, setMes] = useState(mesAtualStr);
   const [drilldown, setDrilldown] = useState<DrilldownTipo>(null);
