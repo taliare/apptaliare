@@ -12,7 +12,7 @@ import Usuarios from '@/pages/Usuarios';
 import Metas from '@/pages/Metas';
 import GerenciarAgenda from '@/pages/GerenciarAgenda';
 import ImportarCobrancas from '@/pages/ImportarCobrancas';
-import Relatorios from '@/pages/Relatorios';
+
 import RelatorioKpis from '@/pages/RelatorioKpis';
 import Producao from '@/pages/Producao';
 import ProducaoDiaria from '@/pages/ProducaoDiaria';
@@ -100,11 +100,6 @@ export function AnimatedRoutes() {
         <Route path="/importar-cobrancas" element={
           <PermissionRoute menuKey="importar_cobrancas">
             <ImportarCobrancas />
-          </PermissionRoute>
-        } />
-        <Route path="/relatorios" element={
-          <PermissionRoute menuKey="relatorios">
-            <Relatorios />
           </PermissionRoute>
         } />
         <Route path="/relatorio-kpis" element={

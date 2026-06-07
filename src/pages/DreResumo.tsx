@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -166,6 +168,8 @@ type DrilldownTipo =
   | null;
 
 export default function DreResumo() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
   const [ano, setAno] = useState(String(anoAtual));
   const [mes, setMes] = useState(mesAtualStr);
   const [drilldown, setDrilldown] = useState<DrilldownTipo>(null);
@@ -523,6 +527,88 @@ export default function DreResumo() {
   })();
 
   // ─────────────────────────────────────────────
+  // Exportar PDF
+  // ─────────────────────────────────────────────
+  const handleExportPdf = () => {
+    const mesNome = MESES[Number(mes) - 1];
+    const escapeHtml = (s: string) =>
+      s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+    const dataGeracao = new Date().toLocaleString("pt-BR");
+
+    const linhas: string[] = [];
+    linhas.push(`<tr><td>Faturamento Bruto</td><td class="r pos">${fmt(faturamentoBruto)}</td></tr>`);
+    linhas.push(`<tr><td>(-) Comissões das Revendedoras</td><td class="r neg">(${fmt(totalComissoes)})</td></tr>`);
+    linhas.push(`<tr><td>(-) Descontos / Abatimentos</td><td class="r neg">(${fmt(ajustes)})</td></tr>`);
+    linhas.push(`<tr><td>(-) Inadimplência do Mês</td><td class="r warn">(${fmt(inadimplencia)})</td></tr>`);
+    if (recuperacao > 0) {
+      linhas.push(`<tr><td>(+) Recuperação de Inadimplência</td><td class="r pos">${fmt(recuperacao)}</td></tr>`);
+    }
+    linhas.push(`<tr class="sub"><td>(=) Receita Líquida</td><td class="r">${fmt(receitaLiquidaTotal)}</td></tr>`);
+
+    const despLinhas = categoriasComDespesas
+      .map(c => `<tr><td>(-) ${escapeHtml(c.nome)}</td><td class="r neg">(${fmt(totaisPorCategoria[c.id] ?? 0)})</td></tr>`)
+      .join("");
+
+    const corResultado = resultado >= 0 ? "pos" : "neg";
+
+    const html = `
+      <!DOCTYPE html><html><head><meta charset="utf-8"/>
+      <title>DRE — ${mesNome} de ${ano}</title>
+      <style>
+        @page { size: A4; margin: 18mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #111; margin: 0; padding: 16px; }
+        h1 { margin: 0 0 4px; font-size: 22px; }
+        .meta { color: #666; font-size: 12px; margin-bottom: 18px; }
+        h2 { font-size: 14px; margin: 18px 0 6px; padding-bottom: 4px; border-bottom: 1px solid #ccc; text-transform: uppercase; letter-spacing: 0.5px; color: #444; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+        td.r { text-align: right; font-family: 'Courier New', monospace; white-space: nowrap; }
+        tr.sub td { background: #f5f5f5; font-weight: bold; }
+        tr.result td { background: #f0f0f0; font-weight: bold; font-size: 15px; padding: 12px 10px; }
+        .pos { color: #117a3a; }
+        .neg { color: #b91c1c; }
+        .warn { color: #c2660b; }
+        .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #ccc; font-size: 11px; color: #888; text-align: center; }
+        @media print { body { padding: 0; } }
+      </style></head><body>
+        <h1>DRE — ${mesNome} de ${ano}</h1>
+        <div class="meta">Demonstração do Resultado do Exercício · Gerado em ${escapeHtml(dataGeracao)}</div>
+
+        <h2>Receitas</h2>
+        <table>${linhas.join("")}</table>
+
+        <h2>Despesas</h2>
+        <table>
+          ${despLinhas || `<tr><td colspan="2" style="color:#888;text-align:center;">Nenhuma despesa paga registrada.</td></tr>`}
+          <tr class="sub"><td>(=) Total Despesas</td><td class="r">(${fmt(totalDespesas)})</td></tr>
+        </table>
+
+        <h2>Resultado</h2>
+        <table>
+          <tr class="result"><td>(=) ${resultado >= 0 ? "Lucro do Período" : "Prejuízo do Período"}</td><td class="r ${corResultado}">${fmt(Math.abs(resultado))}</td></tr>
+        </table>
+
+        ${totalEmAbertoAnterior > 0 ? `
+          <h2>Saldo em Aberto — Meses Anteriores</h2>
+          <table>
+            <tr><td>Total em aberto de meses anteriores</td><td class="r warn">${fmt(totalEmAbertoAnterior)}</td></tr>
+          </table>
+        ` : ""}
+
+        <div class="footer">Taliare Semijoias — Confidencial</div>
+      </body></html>
+    `;
+
+    const w = window.open("", "_blank");
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => w.print(), 300);
+    }
+  };
+
+  // ─────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────
   return (
@@ -553,6 +639,12 @@ export default function DreResumo() {
               ))}
             </SelectContent>
           </Select>
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-2">
+              <FileText className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+          )}
         </div>
       </div>
 
