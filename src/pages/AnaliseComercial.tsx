@@ -338,7 +338,7 @@ export default function AnaliseComercial() {
       cobrancasAbertas.forEach(c => {
         const repId = c.representante_id;
         if (!repId) return;
-        const saldo = Math.max(0, Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0));
+        const saldo = Math.max(0, Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0) - Number((c as any).valor_adiantado || 0));
         inadPorRepMes[repId] = (inadPorRepMes[repId] || 0) + saldo;
       });
     }
