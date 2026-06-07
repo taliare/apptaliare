@@ -856,8 +856,8 @@ export default function GerenciarAgenda() {
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
-                                  {(cobranca.valor_pago_acumulado || 0) > 0 
-                                    ? formatarValor(cobranca.valor_pago_acumulado || 0) 
+                                  {((cobranca.valor_pago_acumulado || 0) + (cobranca.valor_adiantado || 0)) > 0 
+                                    ? formatarValor((cobranca.valor_pago_acumulado || 0) + (cobranca.valor_adiantado || 0)) 
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
