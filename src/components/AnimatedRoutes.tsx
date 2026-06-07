@@ -12,7 +12,7 @@ import Usuarios from '@/pages/Usuarios';
 import Metas from '@/pages/Metas';
 import GerenciarAgenda from '@/pages/GerenciarAgenda';
 import ImportarCobrancas from '@/pages/ImportarCobrancas';
-import Relatorios from '@/pages/Relatorios';
+
 import RelatorioKpis from '@/pages/RelatorioKpis';
 import Producao from '@/pages/Producao';
 import ProducaoDiaria from '@/pages/ProducaoDiaria';
