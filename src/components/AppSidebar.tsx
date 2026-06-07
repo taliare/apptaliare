@@ -176,7 +176,7 @@ export function AppSidebar() {
       label: "RELATÓRIOS",
       items: [
         { title: "Relatório KPIs", url: "/relatorio-kpis", icon: BarChart3 },
-        { title: "Análise Comercial", url: "/analise-comercial", icon: LineChart },
+        { title: "Análise de Desempenho", url: "/analise-comercial", icon: LineChart },
         { title: "Auditoria Geral", url: "/auditoria-geral", icon: ClipboardList },
         { title: "Importar Cobranças", url: "/importar-cobrancas", icon: Upload },
         { title: "Relatórios", url: "/relatorios", icon: FileText },
