@@ -226,24 +226,29 @@ export default function AnaliseComercial() {
       .sort((a, b) => b.pct - a.pct);
   }, [representantes, cobrancasVigentes]);
 
-  // Inadimplência por representante
+  // Inadimplência por representante — apenas valores VENCIDOS
   const inadimplenciaPorRep = useMemo(() => {
     if (!representantes || !cobrancasAbertas || !cobrancasVigentes) return [];
     return representantes
       .map(rep => {
-        const abertas = cobrancasAbertas.filter(c => c.representante_id === rep.id);
-        const emAberto = abertas.reduce(
-          (s, c) => s + Math.max(0, Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)),
+        const vencidas = cobrancasAbertas.filter(c => c.representante_id === rep.id);
+        const vencido = vencidas.reduce(
+          (s, c) => s + Math.max(
+            0,
+            Number(c.valor_previsto || 0)
+              - Number(c.valor_pago_acumulado || 0)
+              - Number((c as any).valor_adiantado || 0)
+          ),
           0
         );
         const carteira = cobrancasVigentes
           .filter(c => c.representante_id === rep.id)
           .reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
-        const pct = carteira > 0 ? (emAberto / carteira) * 100 : 0;
-        return { id: rep.id, nome: rep.nome, emAberto, carteira, pct };
+        const pct = carteira > 0 ? (vencido / carteira) * 100 : 0;
+        return { id: rep.id, nome: rep.nome, vencido, carteira, pct };
       })
-      .filter(r => r.emAberto > 0)
-      .sort((a, b) => b.emAberto - a.emAberto);
+      .filter(r => r.vencido > 0)
+      .sort((a, b) => b.vencido - a.vencido);
   }, [representantes, cobrancasAbertas, cobrancasVigentes]);
 
   // Top performers do mês (revendedoras)
