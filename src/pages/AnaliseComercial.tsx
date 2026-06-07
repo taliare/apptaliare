@@ -167,15 +167,16 @@ export default function AnaliseComercial() {
     },
   });
 
-  // Cobranças em aberto (pendente/parcial) – inadimplência
+  // Cobranças VENCIDAS (data_agendada < hoje) em aberto – inadimplência real
   const { data: cobrancasAbertas, isLoading: loadingAb } = useQuery({
-    queryKey: ["desempenho-cobrancas-abertas"],
+    queryKey: ["desempenho-cobrancas-vencidas", hojeStr],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cobrancas_agendadas")
-        .select("id, representante_id, valor_previsto, valor_pago_acumulado, status, data_agendada, revendedora, tipo")
+        .select("id, representante_id, valor_previsto, valor_pago_acumulado, valor_adiantado, status, data_agendada, revendedora, tipo")
         .eq("vigente", true)
-        .in("status", ["pendente", "parcial"]);
+        .in("status", ["pendente", "parcial"])
+        .lt("data_agendada", hojeStr);
       if (error) throw error;
       return data || [];
     },
@@ -225,24 +226,29 @@ export default function AnaliseComercial() {
       .sort((a, b) => b.pct - a.pct);
   }, [representantes, cobrancasVigentes]);
 
-  // Inadimplência por representante
+  // Inadimplência por representante — apenas valores VENCIDOS
   const inadimplenciaPorRep = useMemo(() => {
     if (!representantes || !cobrancasAbertas || !cobrancasVigentes) return [];
     return representantes
       .map(rep => {
-        const abertas = cobrancasAbertas.filter(c => c.representante_id === rep.id);
-        const emAberto = abertas.reduce(
-          (s, c) => s + Math.max(0, Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)),
+        const vencidas = cobrancasAbertas.filter(c => c.representante_id === rep.id);
+        const vencido = vencidas.reduce(
+          (s, c) => s + Math.max(
+            0,
+            Number(c.valor_previsto || 0)
+              - Number(c.valor_pago_acumulado || 0)
+              - Number((c as any).valor_adiantado || 0)
+          ),
           0
         );
         const carteira = cobrancasVigentes
           .filter(c => c.representante_id === rep.id)
           .reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
-        const pct = carteira > 0 ? (emAberto / carteira) * 100 : 0;
-        return { id: rep.id, nome: rep.nome, emAberto, carteira, pct };
+        const pct = carteira > 0 ? (vencido / carteira) * 100 : 0;
+        return { id: rep.id, nome: rep.nome, vencido, carteira, pct };
       })
-      .filter(r => r.emAberto > 0)
-      .sort((a, b) => b.emAberto - a.emAberto);
+      .filter(r => r.vencido > 0)
+      .sort((a, b) => b.vencido - a.vencido);
   }, [representantes, cobrancasAbertas, cobrancasVigentes]);
 
   // Top performers do mês (revendedoras)
@@ -332,7 +338,7 @@ export default function AnaliseComercial() {
       cobrancasAbertas.forEach(c => {
         const repId = c.representante_id;
         if (!repId) return;
-        const saldo = Math.max(0, Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0));
+        const saldo = Math.max(0, Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0) - Number((c as any).valor_adiantado || 0));
         inadPorRepMes[repId] = (inadPorRepMes[repId] || 0) + saldo;
       });
     }
@@ -367,22 +373,30 @@ export default function AnaliseComercial() {
   const alertas = useMemo<Alerta[]>(() => {
     const lista: Alerta[] = [];
 
-    // 🔴 Reps com inadimplência > 20%
-    if (representantes && prestacoesMes && cobrancasAbertas) {
+    // 🔴 Reps com inadimplência (vencido) > 20% da carteira ativa
+    if (representantes && cobrancasAbertas && cobrancasVigentes) {
       representantes.forEach(rep => {
-        const fat = prestacoesMes
-          .filter((p: any) => p.representante_id === rep.id)
-          .reduce((s: number, p: any) => s + Number(p.total_venda || 0), 0);
-        const inad = cobrancasAbertas
+        const carteira = cobrancasVigentes
           .filter(c => c.representante_id === rep.id)
-          .reduce((s, c) => s + Math.max(0, Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0);
-        const pct = fat > 0 ? (inad / fat) * 100 : 0;
-        if (pct > 20 && fat > 0) {
+          .reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
+        const vencido = cobrancasAbertas
+          .filter(c => c.representante_id === rep.id)
+          .reduce(
+            (s, c) => s + Math.max(
+              0,
+              Number(c.valor_previsto || 0)
+                - Number(c.valor_pago_acumulado || 0)
+                - Number((c as any).valor_adiantado || 0)
+            ),
+            0
+          );
+        const pct = carteira > 0 ? (vencido / carteira) * 100 : 0;
+        if (pct > 20 && carteira > 0) {
           lista.push({
             cor: "vermelho",
             icone: <AlertCircle className="h-4 w-4" />,
             titulo: `${rep.nome}: inadimplência ${pct.toFixed(1)}%`,
-            descricao: `${formatarValor(inad)} em aberto sobre ${formatarValor(fat)} faturados no mês`,
+            descricao: `${formatarValor(vencido)} vencidos sobre carteira ativa de ${formatarValor(carteira)}`,
           });
         }
       });
@@ -584,15 +598,15 @@ export default function AnaliseComercial() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs">Representante</TableHead>
-                        <TableHead className="text-xs text-right">Em Aberto</TableHead>
-                        <TableHead className="text-xs text-right">% Carteira</TableHead>
+                        <TableHead className="text-xs text-right">Valor Vencido</TableHead>
+                        <TableHead className="text-xs text-right">% da Carteira Ativa</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {inadimplenciaPorRep.map(r => (
                         <TableRow key={r.id}>
                           <TableCell className="text-sm font-medium">{r.nome}</TableCell>
-                          <TableCell className="text-sm text-right text-destructive">{formatarValor(r.emAberto)}</TableCell>
+                          <TableCell className="text-sm text-right text-destructive">{formatarValor(r.vencido)}</TableCell>
                           <TableCell className="text-sm text-right">
                             <Badge variant={r.pct > 20 ? "destructive" : r.pct > 10 ? "warning" : "outline"} className="text-[10px]">
                               {r.pct.toFixed(1)}%
