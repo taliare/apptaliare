@@ -102,11 +102,6 @@ export function AnimatedRoutes() {
             <ImportarCobrancas />
           </PermissionRoute>
         } />
-        <Route path="/relatorios" element={
-          <PermissionRoute menuKey="relatorios">
-            <Relatorios />
-          </PermissionRoute>
-        } />
         <Route path="/relatorio-kpis" element={
           <PermissionRoute menuKey="relatorio_kpis">
             <RelatorioKpis />
