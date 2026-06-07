@@ -167,15 +167,16 @@ export default function AnaliseComercial() {
     },
   });
 
-  // Cobranças em aberto (pendente/parcial) – inadimplência
+  // Cobranças VENCIDAS (data_agendada < hoje) em aberto – inadimplência real
   const { data: cobrancasAbertas, isLoading: loadingAb } = useQuery({
-    queryKey: ["desempenho-cobrancas-abertas"],
+    queryKey: ["desempenho-cobrancas-vencidas", hojeStr],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cobrancas_agendadas")
-        .select("id, representante_id, valor_previsto, valor_pago_acumulado, status, data_agendada, revendedora, tipo")
+        .select("id, representante_id, valor_previsto, valor_pago_acumulado, valor_adiantado, status, data_agendada, revendedora, tipo")
         .eq("vigente", true)
-        .in("status", ["pendente", "parcial"]);
+        .in("status", ["pendente", "parcial"])
+        .lt("data_agendada", hojeStr);
       if (error) throw error;
       return data || [];
     },
