@@ -598,15 +598,15 @@ export default function AnaliseComercial() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-xs">Representante</TableHead>
-                        <TableHead className="text-xs text-right">Em Aberto</TableHead>
-                        <TableHead className="text-xs text-right">% Carteira</TableHead>
+                        <TableHead className="text-xs text-right">Valor Vencido</TableHead>
+                        <TableHead className="text-xs text-right">% da Carteira Ativa</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {inadimplenciaPorRep.map(r => (
                         <TableRow key={r.id}>
                           <TableCell className="text-sm font-medium">{r.nome}</TableCell>
-                          <TableCell className="text-sm text-right text-destructive">{formatarValor(r.emAberto)}</TableCell>
+                          <TableCell className="text-sm text-right text-destructive">{formatarValor(r.vencido)}</TableCell>
                           <TableCell className="text-sm text-right">
                             <Badge variant={r.pct > 20 ? "destructive" : r.pct > 10 ? "warning" : "outline"} className="text-[10px]">
                               {r.pct.toFixed(1)}%
