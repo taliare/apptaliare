@@ -1324,8 +1324,13 @@ export default function GerenciarAgenda() {
                     <h3 className="text-sm font-semibold text-foreground">Resumo Financeiro</h3>
                     {(() => {
                       const valorAdiantado = Number(detailCobranca.valor_adiantado || 0);
-                      const totalRecebido = Number(detailCobranca.valor_pago_acumulado || 0) + valorAdiantado;
-                      const saldoRestante = Math.max(0, Number(detailCobranca.valor_previsto || 0) - Number(detailCobranca.valor_pago_acumulado || 0) - valorAdiantado);
+                      const pagoAcumulado = Number(detailCobranca.valor_pago_acumulado || 0);
+                      const isPago = detailCobranca.status === 'pago';
+                      const pagoBase = pagoAcumulado > 0
+                        ? pagoAcumulado
+                        : (isPago ? Number(detailCobranca.valor_previsto || 0) : 0);
+                      const totalRecebido = pagoBase + valorAdiantado;
+                      const saldoRestante = Math.max(0, Number(detailCobranca.valor_previsto || 0) - pagoBase - valorAdiantado);
 
                       return (
                     <div className="grid grid-cols-2 gap-2 text-sm">

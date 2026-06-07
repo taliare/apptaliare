@@ -1281,7 +1281,13 @@ export default function Cobranca() {
                         ? Number(detailPrestacao.valor_pago || 0)
                         : null;
                       const pagoAcumulado = Number(detailCobranca.valor_pago_acumulado || 0);
-                      const pagoBase = pagoHistorico > 0 ? pagoHistorico : (pagoAcumulado > 0 ? pagoAcumulado : (pagoPrestacao ?? 0));
+                      const isPago = (detailCobranca as any).status === 'pago';
+                      const fallbackPago = isPago ? Number(detailCobranca.valor_previsto || 0) : 0;
+                      const pagoBase = pagoHistorico > 0
+                        ? pagoHistorico
+                        : (pagoAcumulado > 0
+                            ? pagoAcumulado
+                            : (pagoPrestacao && pagoPrestacao > 0 ? pagoPrestacao : fallbackPago));
                       const totalRecebido = pagoBase + adiantado;
 
                       const baseDevida = detailPrestacao
