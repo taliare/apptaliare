@@ -87,17 +87,16 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Verificar role admin
+      // Verificar role admin OU equipe_interna
       const { data: roleData } = await internalClient
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", "admin")
-        .single();
+        .in("role", ["admin", "equipe_interna"]);
 
-      if (!roleData) {
+      if (!roleData || roleData.length === 0) {
         return new Response(
-          JSON.stringify({ error: "Apenas administradores podem sincronizar leads" }),
+          JSON.stringify({ error: "Apenas administradores ou equipe interna podem sincronizar leads" }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
