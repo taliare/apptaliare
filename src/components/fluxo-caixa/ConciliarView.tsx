@@ -237,10 +237,10 @@ export function ConciliarView() {
                           {t.status_conciliacao !== "conciliado" && (
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant={t.categoria?.nome ? "default" : "outline"}
                               onClick={() => abrirCategorizar(t)}
                             >
-                              Categorizar
+                              {t.categoria?.nome ? "Confirmar" : "Categorizar"}
                             </Button>
                           )}
                           {t.status_conciliacao === "pendente" && (
