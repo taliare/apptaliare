@@ -363,6 +363,7 @@ export default function Cobranca() {
           forma_pagamento: formaPagamentoKIT,
           data_execucao: dataNota,
           codigo_nota_referencia: codigoNota,
+          valor_devolvido: dados.valor_devolvido || 0,
         });
       if (prestacaoError) throw prestacaoError;
     }
