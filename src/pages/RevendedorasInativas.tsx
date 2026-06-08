@@ -554,10 +554,10 @@ export default function RevendedorasInativas() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('prestacoes_contas')
-        .select('cobranca_id, revendedora, total_venda, comissao_percentual, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao')
+        .select('cobranca_id, revendedora, total_venda, comissao_percentual, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em')
         .eq('representante_id', user!.id)
         .eq('revendedora', perfilAberto!.nome)
-        .order('data_execucao', { ascending: false });
+        .order('criado_em', { ascending: false });
       if (error) throw error;
       return data || [];
     },
