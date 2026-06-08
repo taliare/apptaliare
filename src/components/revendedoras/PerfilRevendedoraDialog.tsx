@@ -78,7 +78,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
         .from('prestacoes_contas')
         .select('*')
         .eq('revendedora', nomeRevendedora)
-        .order('data_execucao', { ascending: false });
+        .order('criado_em', { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -87,10 +87,10 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
   const prestacoes = useMemo(() => {
     if (!prestacoesBruto) return [];
     const porCobranca = new Map<string, any>();
+    // prestacoesBruto já vem ordenado por criado_em DESC; mantém o registro MAIS RECENTE por cobrança
     for (const p of prestacoesBruto) {
       if (!p.cobranca_id) continue;
-      const existente = porCobranca.get(p.cobranca_id);
-      if (!existente || Number(p.total_venda) > Number(existente.total_venda)) {
+      if (!porCobranca.has(p.cobranca_id)) {
         porCobranca.set(p.cobranca_id, p);
       }
     }
