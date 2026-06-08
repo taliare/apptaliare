@@ -180,6 +180,7 @@ export default function Cobranca() {
     pagamentos: Array<{ forma: any; valor: number }>;
     tipo: 'completo' | 'devolucao';
     dataNota: string;
+    valor_devolvido?: number;
   }) => {
     const cobrancaLocal = cobrancas.find(c => c.id === cobrancaId);
     const { data: freshCobranca, error: freshError } = await supabase
@@ -216,6 +217,7 @@ export default function Cobranca() {
         forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : (dados.pagamentos[0]?.forma || 'dinheiro'),
         data_execucao: dataNota,
         codigo_nota_referencia: codigoNotaGerado,
+        valor_devolvido: dados.valor_devolvido || 0,
       });
     if (prestacaoError) throw prestacaoError;
 
@@ -301,6 +303,7 @@ export default function Cobranca() {
     valor_repasse: number;
     data_repasse: Date;
     dataNota: string;
+    valor_devolvido?: number;
   }) => {
     const cobrancaLocal = cobrancas.find(c => c.id === cobrancaId);
     const { data: freshCobranca, error: freshError } = await supabase
@@ -360,6 +363,7 @@ export default function Cobranca() {
           forma_pagamento: formaPagamentoKIT,
           data_execucao: dataNota,
           codigo_nota_referencia: codigoNota,
+          valor_devolvido: dados.valor_devolvido || 0,
         });
       if (prestacaoError) throw prestacaoError;
     }
