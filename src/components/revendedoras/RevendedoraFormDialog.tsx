@@ -300,11 +300,27 @@ export function RevendedoraFormDialog({ open, onClose, revendedoraId, initialNom
         throw new Error(parsed.error.errors[0].message);
       }
 
+      const cpfLimpo = cpf.replace(/\D/g, '');
+
+      // Verificar duplicidade de CPF antes do insert (apenas no cadastro)
+      if (!revendedoraId && cpfLimpo) {
+        const { data: existente, error: dupErr } = await supabase
+          .from('revendedoras')
+          .select('id')
+          .eq('cpf', cpfLimpo)
+          .limit(1)
+          .maybeSingle();
+        if (dupErr) throw dupErr;
+        if (existente) {
+          throw new Error('Já existe uma revendedora cadastrada com este CPF.');
+        }
+      }
+
       // Bloqueio jurídico: verifica se nome ou CPF estão na lista de bloqueados
       if (!revendedoraId) {
         const { data: bloqueio, error: bloqErr } = await supabase.rpc('verificar_bloqueio_juridico', {
           p_nome: nome.trim(),
-          p_cpf: cpf.replace(/\D/g, '') || null,
+          p_cpf: cpfLimpo || null,
         });
         if (bloqErr) throw bloqErr;
         const isBlocked = Array.isArray(bloqueio) ? bloqueio[0]?.blocked : (bloqueio as any)?.blocked;
