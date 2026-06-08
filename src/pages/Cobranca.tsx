@@ -180,6 +180,7 @@ export default function Cobranca() {
     pagamentos: Array<{ forma: any; valor: number }>;
     tipo: 'completo' | 'devolucao';
     dataNota: string;
+    valor_devolvido?: number;
   }) => {
     const cobrancaLocal = cobrancas.find(c => c.id === cobrancaId);
     const { data: freshCobranca, error: freshError } = await supabase
