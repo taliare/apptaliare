@@ -303,6 +303,7 @@ export default function Cobranca() {
     valor_repasse: number;
     data_repasse: Date;
     dataNota: string;
+    valor_devolvido?: number;
   }) => {
     const cobrancaLocal = cobrancas.find(c => c.id === cobrancaId);
     const { data: freshCobranca, error: freshError } = await supabase
