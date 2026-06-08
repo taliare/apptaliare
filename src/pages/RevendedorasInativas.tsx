@@ -634,14 +634,14 @@ export default function RevendedorasInativas() {
     return rankingAgrupado.filter(r => r.nome.toLowerCase().includes(t));
   }, [rankingAgrupado, searchTerm]);
 
-  // Perfil deduplicado
+  // Perfil deduplicado — mantém a prestação MAIS RECENTE (criado_em DESC) por cobrança,
+  // garantindo o saldo_devedor correto após múltiplos pagamentos.
   const prestacoesPerfilDedup = useMemo(() => {
     if (!prestacoesPerfil) return [];
     const porCobranca = new Map<string, any>();
     for (const p of prestacoesPerfil) {
       if (!p.cobranca_id) continue;
-      const existente = porCobranca.get(p.cobranca_id);
-      if (!existente || p.total_venda > existente.total_venda) {
+      if (!porCobranca.has(p.cobranca_id)) {
         porCobranca.set(p.cobranca_id, p);
       }
     }
