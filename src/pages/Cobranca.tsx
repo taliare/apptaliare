@@ -217,6 +217,7 @@ export default function Cobranca() {
         forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : (dados.pagamentos[0]?.forma || 'dinheiro'),
         data_execucao: dataNota,
         codigo_nota_referencia: codigoNotaGerado,
+        valor_devolvido: dados.valor_devolvido || 0,
       });
     if (prestacaoError) throw prestacaoError;
 
