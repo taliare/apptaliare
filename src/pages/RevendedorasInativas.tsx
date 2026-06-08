@@ -554,10 +554,10 @@ export default function RevendedorasInativas() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('prestacoes_contas')
-        .select('cobranca_id, revendedora, total_venda, comissao_percentual, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao')
+        .select('cobranca_id, revendedora, total_venda, comissao_percentual, comissao_valor, valor_devido_empresa, valor_pago, saldo_devedor, data_execucao, criado_em')
         .eq('representante_id', user!.id)
         .eq('revendedora', perfilAberto!.nome)
-        .order('data_execucao', { ascending: false });
+        .order('criado_em', { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -634,14 +634,14 @@ export default function RevendedorasInativas() {
     return rankingAgrupado.filter(r => r.nome.toLowerCase().includes(t));
   }, [rankingAgrupado, searchTerm]);
 
-  // Perfil deduplicado
+  // Perfil deduplicado — mantém a prestação MAIS RECENTE (criado_em DESC) por cobrança,
+  // garantindo o saldo_devedor correto após múltiplos pagamentos.
   const prestacoesPerfilDedup = useMemo(() => {
     if (!prestacoesPerfil) return [];
     const porCobranca = new Map<string, any>();
     for (const p of prestacoesPerfil) {
       if (!p.cobranca_id) continue;
-      const existente = porCobranca.get(p.cobranca_id);
-      if (!existente || p.total_venda > existente.total_venda) {
+      if (!porCobranca.has(p.cobranca_id)) {
         porCobranca.set(p.cobranca_id, p);
       }
     }
