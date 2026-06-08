@@ -414,8 +414,9 @@ export default function GerenciarAgenda() {
       // Buscar prestação de contas
       const { data: pc } = await supabase
         .from('prestacoes_contas')
-        .select('*')
-        .eq('cobranca_id', cobranca.id);
+        .select('*, valor_devolvido')
+        .eq('cobranca_id', cobranca.id)
+        .order('criado_em', { ascending: false });
 
       // Buscar notas promissórias
       const { data: notas } = await supabase
@@ -429,7 +430,8 @@ export default function GerenciarAgenda() {
         .eq('cobranca_id', cobranca.id)
         .order('data_pagamento', { ascending: true });
 
-      setDetailPrestacao(pc && pc.length > 0 ? pc[0] : null);
+      const totalDevolvido = (pc || []).reduce((acc: number, r: any) => acc + Number(r.valor_devolvido || 0), 0);
+      setDetailPrestacao(pc && pc.length > 0 ? { ...pc[0], valor_devolvido: totalDevolvido } : null);
       setDetailNotas(notas || []);
       setDetailPagamentosHistorico(pagamentosHistorico || []);
     } catch (err) {
