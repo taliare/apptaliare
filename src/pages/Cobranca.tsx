@@ -190,84 +190,59 @@ export default function Cobranca() {
       .maybeSingle();
     if (freshError) throw freshError;
     const cobranca = (freshCobranca as Cobranca | null) || cobrancaLocal;
-    const { data: historicoAtual, error: historicoError } = await supabase
+
+    const { data: historicoAtual } = await supabase
       .from('pagamentos_historico')
       .select('valor')
       .eq('cobranca_id', cobrancaId);
-    if (historicoError) throw historicoError;
     const acumuladoAtual = Math.max(
       Number((cobranca as any)?.valor_pago_acumulado || 0),
-      (historicoAtual || []).reduce((total, pagamento) => total + Number(pagamento.valor || 0), 0)
+      (historicoAtual || []).reduce((t, p) => t + Number(p.valor || 0), 0)
     );
+
     const dataNota = dados.dataNota;
     const codigoNotaGerado = cobranca?.codigo_nota || `AUTO-${Date.now()}`;
-
-    const { error: prestacaoError } = await supabase
-      .from('prestacoes_contas')
-      .insert({
-        cobranca_id: cobrancaId,
-        representante_id: userId!,
-        revendedora: cobranca?.revendedora || '',
-        total_venda: dados.valor_venda,
-        comissao_percentual: dados.comissao_percentual,
-        comissao_valor: dados.comissao_valor,
-        valor_devido_empresa: dados.valor_devido_empresa,
-        valor_pago: dados.valor_devido_empresa,
-        saldo_devedor: 0,
-        forma_pagamento: dados.tipo === 'devolucao' ? 'dinheiro' : (dados.pagamentos[0]?.forma || 'dinheiro'),
-        data_execucao: dataNota,
-        codigo_nota_referencia: codigoNotaGerado,
-        valor_devolvido: dados.valor_devolvido || 0,
-      });
-    if (prestacaoError) throw prestacaoError;
-
-    const { data: cobAtualSnap } = await supabase
-      .from('cobrancas_agendadas')
-      .select('status')
-      .eq('id', cobrancaId)
-      .maybeSingle();
-
-    const { error: notaError } = await supabase
-      .from('notas_promissorias')
-      .insert({
-        representante_id: userId!,
-        codigo_nota: codigoNotaGerado,
-        cobranca_id: cobrancaId,
-        data: dataNota,
-        valor_total: dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
-        forma_pagamento_1: dados.tipo === 'devolucao' ? 'dinheiro' : dados.pagamentos[0]?.forma || 'dinheiro',
-        valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : dados.pagamentos[0]?.valor || 0,
-        forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-        valor_pagamento_2: dados.pagamentos[1]?.valor || null,
-        devolveu_tudo: dados.tipo === 'devolucao',
-        status_no_pagamento: cobAtualSnap?.status ?? null,
-      });
-    if (notaError) throw notaError;
-
     const valorAdiantado = cobranca?.valor_adiantado || 0;
-    const novoAcumulado = acumuladoAtual + dados.valor_devido_empresa;
 
-    const updateData: any = { valor_pago_acumulado: novoAcumulado };
-    let valorPrevistoEfetivo = cobranca?.valor_previsto || 0;
-
+    // Determinar novo valor_previsto (preservando lógica original)
+    let novoValorPrevisto: number | null = null;
     if (dados.tipo === 'devolucao') {
-      updateData.valor_previsto = 0;
-      valorPrevistoEfetivo = 0;
+      novoValorPrevisto = 0;
     } else if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
-      updateData.valor_previsto = dados.valor_devido_empresa + valorAdiantado;
-      valorPrevistoEfetivo = dados.valor_devido_empresa + valorAdiantado;
+      novoValorPrevisto = dados.valor_devido_empresa + valorAdiantado;
     }
 
-    // Bug fix: status baseado no saldo_devedor da prestação (0 = pago).
-    // Em pagamento completo, saldo_devedor é sempre 0, então status = 'pago'.
-    updateData.status = 'pago' as any;
-    updateData.data_quitacao = dataNota;
+    const formaPagamento = dados.tipo === 'devolucao'
+      ? 'dinheiro'
+      : (dados.pagamentos[0]?.forma || 'dinheiro');
 
-    const { error: updateError } = await supabase
-      .from('cobrancas_agendadas')
-      .update(updateData)
-      .eq('id', cobrancaId);
-    if (updateError) throw updateError;
+    const { error: rpcError } = await supabase.rpc('registrar_pagamento_cobranca', {
+      p_cobranca_id: cobrancaId,
+      p_representante_id: userId!,
+      p_revendedora: cobranca?.revendedora || '',
+      p_total_venda: dados.valor_venda,
+      p_comissao_percentual: dados.comissao_percentual,
+      p_comissao_valor: dados.comissao_valor,
+      p_valor_devido_empresa: dados.valor_devido_empresa,
+      p_valor_pago_prestacao: dados.valor_devido_empresa,
+      p_saldo_devedor: 0,
+      p_forma_pagamento: formaPagamento,
+      p_data_execucao: dataNota,
+      p_codigo_nota_ref: codigoNotaGerado,
+      p_valor_nota: dados.tipo === 'devolucao' ? 0 : dados.valor_devido_empresa,
+      p_forma_pagamento_1: formaPagamento,
+      p_valor_pagamento_1: dados.tipo === 'devolucao' ? 0 : (dados.pagamentos[0]?.valor || 0),
+      p_forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+      p_valor_pagamento_2: dados.pagamentos[1]?.valor ?? null,
+      p_devolveu_tudo: dados.tipo === 'devolucao',
+      p_status_no_pagamento: (cobranca as any)?.status ?? null,
+      p_novo_valor_previsto: novoValorPrevisto,
+      p_novo_status: 'pago',
+      p_data_quitacao: dataNota,
+      p_data_agendada: null,
+      p_valor_devolvido: dados.valor_devolvido || 0,
+    } as any);
+    if (rpcError) throw rpcError;
 
     await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
     await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
@@ -314,82 +289,87 @@ export default function Cobranca() {
       .maybeSingle();
     if (freshError) throw freshError;
     const cobranca = (freshCobranca as Cobranca | null) || cobrancaLocal;
-    const { data: historicoAtual, error: historicoError } = await supabase
+
+    const { data: historicoAtual } = await supabase
       .from('pagamentos_historico')
       .select('valor')
       .eq('cobranca_id', cobrancaId);
-    if (historicoError) throw historicoError;
     const acumuladoAtual = Math.max(
       Number((cobranca as any)?.valor_pago_acumulado || 0),
-      (historicoAtual || []).reduce((total, pagamento) => total + Number(pagamento.valor || 0), 0)
+      (historicoAtual || []).reduce((t, p) => t + Number(p.valor || 0), 0)
     );
+
     const dataNota = dados.dataNota;
     const codigoNota = cobranca?.codigo_nota || `AUTO-${Date.now()}`;
-
-    const { data: cobAtualSnap } = await supabase
-      .from('cobrancas_agendadas')
-      .select('status')
-      .eq('id', cobrancaId)
-      .maybeSingle();
-
-    const notaData: any = {
-      representante_id: userId!,
-      codigo_nota: codigoNota,
-      cobranca_id: cobrancaId,
-      data: dataNota,
-      valor_total: dados.valor_recebido,
-      forma_pagamento_1: dados.pagamentos[0]?.forma || 'dinheiro',
-      valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
-      forma_pagamento_2: dados.pagamentos[1]?.forma || null,
-      valor_pagamento_2: dados.pagamentos[1]?.valor || null,
-      status_no_pagamento: cobAtualSnap?.status ?? null,
-    };
-    const { error: notaError } = await supabase.from('notas_promissorias').insert(notaData);
-    if (notaError) throw notaError;
-
-    if (cobranca?.tipo?.toLowerCase() !== 'repasse') {
-      const formaPagamentoKIT = dados.pagamentos[0]?.forma || 'dinheiro';
-      const { error: prestacaoError } = await supabase
-        .from('prestacoes_contas')
-        .insert({
-          cobranca_id: cobrancaId,
-          representante_id: userId!,
-          revendedora: cobranca?.revendedora || '',
-          total_venda: dados.valor_venda,
-          comissao_percentual: dados.comissao_percentual,
-          comissao_valor: dados.comissao_valor,
-          valor_devido_empresa: dados.valor_devido_empresa,
-          valor_pago: dados.valor_recebido,
-          saldo_devedor: dados.valor_repasse,
-          forma_pagamento: formaPagamentoKIT,
-          data_execucao: dataNota,
-          codigo_nota_referencia: codigoNota,
-          valor_devolvido: dados.valor_devolvido || 0,
-        });
-      if (prestacaoError) throw prestacaoError;
-    }
-
+    const isRepasse = cobranca?.tipo?.toLowerCase() === 'repasse';
     const valorAdiantado = cobranca?.valor_adiantado || 0;
-    let valorPrevistoEfetivo = cobranca?.valor_previsto || 0;
-    const updateData: any = { valor_pago_acumulado: acumuladoAtual + dados.valor_recebido };
-
-    if (acumuladoAtual === 0 && cobranca?.tipo?.toLowerCase() !== 'repasse') {
-      valorPrevistoEfetivo = dados.valor_devido_empresa + valorAdiantado;
-      updateData.valor_previsto = valorPrevistoEfetivo;
-    }
-    updateData.data_agendada = format(dados.data_repasse, 'yyyy-MM-dd');
-
-    // Bug fix: status determinado pelo saldo_devedor da prestação (valor_repasse).
-    // saldo_devedor = 0 → 'pago'; saldo_devedor > 0 → 'parcial'.
     const novoStatus = (dados.valor_repasse ?? 0) <= 0 ? 'pago' : 'parcial';
-    updateData.status = novoStatus;
-    if (novoStatus === 'pago') updateData.data_quitacao = dataNota;
+    const dataQuitacao = novoStatus === 'pago' ? dataNota : null;
+    const dataAgendada = format(dados.data_repasse, 'yyyy-MM-dd');
+    const formaPagamento = dados.pagamentos[0]?.forma || 'dinheiro';
 
-    const { error: updateError } = await supabase
-      .from('cobrancas_agendadas')
-      .update(updateData)
-      .eq('id', cobrancaId);
-    if (updateError) throw updateError;
+    let novoValorPrevisto: number | null = null;
+    if (acumuladoAtual === 0 && !isRepasse) {
+      novoValorPrevisto = dados.valor_devido_empresa + valorAdiantado;
+    }
+
+    if (isRepasse) {
+      // Repasse: não gera prestação. Mantém insert direto de nota + update.
+      const { error: notaError } = await supabase.from('notas_promissorias').insert({
+        representante_id: userId!,
+        codigo_nota: codigoNota,
+        cobranca_id: cobrancaId,
+        data: dataNota,
+        valor_total: dados.valor_recebido,
+        forma_pagamento_1: formaPagamento,
+        valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
+        forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+        valor_pagamento_2: dados.pagamentos[1]?.valor ?? null,
+        status_no_pagamento: (cobranca as any)?.status ?? null,
+      });
+      if (notaError) throw notaError;
+
+      const updateData: any = {
+        valor_pago_acumulado: acumuladoAtual + dados.valor_recebido,
+        data_agendada: dataAgendada,
+        status: novoStatus,
+      };
+      if (novoStatus === 'pago') updateData.data_quitacao = dataNota;
+
+      const { error: updateError } = await supabase
+        .from('cobrancas_agendadas')
+        .update(updateData)
+        .eq('id', cobrancaId);
+      if (updateError) throw updateError;
+    } else {
+      const { error: rpcError } = await supabase.rpc('registrar_pagamento_cobranca', {
+        p_cobranca_id: cobrancaId,
+        p_representante_id: userId!,
+        p_revendedora: cobranca?.revendedora || '',
+        p_total_venda: dados.valor_venda,
+        p_comissao_percentual: dados.comissao_percentual,
+        p_comissao_valor: dados.comissao_valor,
+        p_valor_devido_empresa: dados.valor_devido_empresa,
+        p_valor_pago_prestacao: dados.valor_recebido,
+        p_saldo_devedor: dados.valor_repasse,
+        p_forma_pagamento: formaPagamento,
+        p_data_execucao: dataNota,
+        p_codigo_nota_ref: codigoNota,
+        p_valor_nota: dados.valor_recebido,
+        p_forma_pagamento_1: formaPagamento,
+        p_valor_pagamento_1: dados.pagamentos[0]?.valor || 0,
+        p_forma_pagamento_2: dados.pagamentos[1]?.forma || null,
+        p_valor_pagamento_2: dados.pagamentos[1]?.valor ?? null,
+        p_devolveu_tudo: false,
+        p_status_no_pagamento: (cobranca as any)?.status ?? null,
+        p_novo_valor_previsto: novoValorPrevisto,
+        p_novo_status: novoStatus,
+        p_data_quitacao: dataQuitacao,
+        p_data_agendada: dataAgendada,
+        p_valor_devolvido: dados.valor_devolvido || 0,
+      } as any);
+      if (rpcError) throw rpcError;
+    }
 
     await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
     await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
