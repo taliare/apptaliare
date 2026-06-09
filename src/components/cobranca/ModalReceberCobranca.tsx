@@ -13,6 +13,7 @@ import { cn, formatarValor, formatarInputMoeda, parseInputMoeda } from '@/lib/ut
 import { useToast } from '@/hooks/use-toast';
 import { registrarLog } from '@/lib/logOperacional';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 type FormaPagamento = 'pix' | 'dinheiro' | 'cartao' | 'transferencia';
 
