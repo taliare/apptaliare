@@ -1383,7 +1383,19 @@ export default function GerenciarAgenda() {
                             valorClass: 'text-red-600',
                           });
                         }
-                      } else if (totalVenda === 0 && devidoEmp > 0) {
+                      } else if (totalVenda === 0 && valorPago > 0) {
+                        // Pagamento avulso (nota sem venda, só pagamento)
+                        eventos.push({
+                          key: `pg-${p.id}`,
+                          data: p.data_execucao || p.criado_em,
+                          tipo: 'pagamento',
+                          titulo: 'Pagamento',
+                          subtitulo: p.forma_pagamento || '',
+                          valor: valorPago,
+                          valorClass: 'text-green-700',
+                          codigo: p.codigo_nota_referencia || undefined,
+                        });
+                      } else if (totalVenda === 0 && valorPago === 0 && devidoEmp > 0) {
                         eventos.push({
                           key: `desc-${p.id}`,
                           data: p.data_execucao || p.criado_em,
