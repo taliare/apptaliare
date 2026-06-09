@@ -179,11 +179,10 @@ export default function KitsEntregues() {
         if (result) {
           const cod = result.getText();
           setCodigoLido(cod);
-          supabase
-            .from('produtos_catalogo')
+          (supabase as any)
+            .from('produtos_catalogo_publico')
             .select('descricao, preco_varejo')
             .eq('codigo_barras', cod)
-            .eq('ativo', true)
             .maybeSingle()
             .then(({ data }) => {
               if (data) {
