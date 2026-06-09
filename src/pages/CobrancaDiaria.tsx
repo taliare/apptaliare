@@ -1014,13 +1014,14 @@ export default function CobrancaDiaria() {
     updateDataCobranca.status = (cobranca.status === 'pago' || saldoAberto <= 0 ? 'pago' : 'parcial') as any;
     updateDataCobranca.data_quitacao = saldoAberto <= 0 ? dados.dataNota : null;
 
+    const isContinuacao = acumuladoAtual > 0;
     const { error: rpcError } = await supabase.rpc('registrar_pagamento_cobranca', {
       p_cobranca_id:          cobranca.id,
       p_representante_id:     user.id,
       p_revendedora:          cobranca.revendedora || '',
-      p_total_venda:          dados.valor_venda,
-      p_comissao_percentual:  dados.comissao_percentual,
-      p_comissao_valor:       dados.comissao_valor,
+      p_total_venda:          isContinuacao ? 0 : dados.valor_venda,
+      p_comissao_percentual:  isContinuacao ? 0 : dados.comissao_percentual,
+      p_comissao_valor:       isContinuacao ? 0 : dados.comissao_valor,
       p_valor_devido_empresa: dados.valor_devido_empresa,
       p_valor_pago_prestacao: dados.valor_devido_empresa,
       p_saldo_devedor:        0,
@@ -1123,13 +1124,14 @@ export default function CobrancaDiaria() {
 
     if (!isRepasse) {
       // KIT: usa RPC unificada (prestação + nota + update cobrança)
+      const isContinuacao = acumuladoAtual > 0;
       const { error: rpcError } = await supabase.rpc('registrar_pagamento_cobranca', {
         p_cobranca_id:          cobranca.id,
         p_representante_id:     user.id,
         p_revendedora:          cobranca.revendedora || '',
-        p_total_venda:          dados.valor_venda,
-        p_comissao_percentual:  dados.comissao_percentual,
-        p_comissao_valor:       dados.comissao_valor,
+        p_total_venda:          isContinuacao ? 0 : dados.valor_venda,
+        p_comissao_percentual:  isContinuacao ? 0 : dados.comissao_percentual,
+        p_comissao_valor:       isContinuacao ? 0 : dados.comissao_valor,
         p_valor_devido_empresa: dados.valor_devido_empresa,
         p_valor_pago_prestacao: dados.valor_recebido,
         p_saldo_devedor:        dados.valor_repasse,

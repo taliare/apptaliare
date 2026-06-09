@@ -216,13 +216,14 @@ export default function Cobranca() {
       ? 'dinheiro'
       : (dados.pagamentos[0]?.forma || 'dinheiro');
 
+    const isContinuacao = acumuladoAtual > 0;
     const { error: rpcError } = await supabase.rpc('registrar_pagamento_cobranca', {
       p_cobranca_id: cobrancaId,
       p_representante_id: userId!,
       p_revendedora: cobranca?.revendedora || '',
-      p_total_venda: dados.valor_venda,
-      p_comissao_percentual: dados.comissao_percentual,
-      p_comissao_valor: dados.comissao_valor,
+      p_total_venda: isContinuacao ? 0 : dados.valor_venda,
+      p_comissao_percentual: isContinuacao ? 0 : dados.comissao_percentual,
+      p_comissao_valor: isContinuacao ? 0 : dados.comissao_valor,
       p_valor_devido_empresa: dados.valor_devido_empresa,
       p_valor_pago_prestacao: dados.valor_devido_empresa,
       p_saldo_devedor: 0,
@@ -342,13 +343,14 @@ export default function Cobranca() {
         .eq('id', cobrancaId);
       if (updateError) throw updateError;
     } else {
+      const isContinuacao = acumuladoAtual > 0;
       const { error: rpcError } = await supabase.rpc('registrar_pagamento_cobranca', {
         p_cobranca_id: cobrancaId,
         p_representante_id: userId!,
         p_revendedora: cobranca?.revendedora || '',
-        p_total_venda: dados.valor_venda,
-        p_comissao_percentual: dados.comissao_percentual,
-        p_comissao_valor: dados.comissao_valor,
+        p_total_venda: isContinuacao ? 0 : dados.valor_venda,
+        p_comissao_percentual: isContinuacao ? 0 : dados.comissao_percentual,
+        p_comissao_valor: isContinuacao ? 0 : dados.comissao_valor,
         p_valor_devido_empresa: dados.valor_devido_empresa,
         p_valor_pago_prestacao: dados.valor_recebido,
         p_saldo_devedor: dados.valor_repasse,
