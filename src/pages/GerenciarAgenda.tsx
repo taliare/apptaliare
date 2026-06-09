@@ -1318,77 +1318,159 @@ export default function GerenciarAgenda() {
                     </div>
                   )}
 
-                  {/* Histórico de pagamentos */}
-                  {detailNotas.length > 0 && (
-                    <div className="border border-border rounded-lg p-4 space-y-2">
-                      <h3 className="text-sm font-semibold text-foreground">Histórico de Pagamentos</h3>
-                      <div className="divide-y divide-border">
-                        {detailNotas.map((nota: any) => (
-                          <div key={nota.id} className="flex flex-col py-2 text-sm">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <span className="font-mono text-xs text-muted-foreground mr-2">{nota.codigo_nota}</span>
-                                <span>{formatDateBR(nota.data)}</span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="capitalize text-xs text-muted-foreground">{nota.forma_pagamento_1}</span>
-                                <span className="font-semibold">{formatarValor(nota.valor_pagamento_1)}</span>
-                              </div>
-                            </div>
-                            {nota.forma_pagamento_2 && nota.valor_pagamento_2 && (
-                              <div className="flex items-center justify-between mt-1 pl-2">
-                                <span className="text-xs text-muted-foreground">+ segundo pagamento</span>
-                                <div className="flex items-center gap-3">
-                                  <span className="capitalize text-xs text-muted-foreground">{nota.forma_pagamento_2}</span>
-                                  <span className="font-semibold">{formatarValor(nota.valor_pagamento_2)}</span>
+                  {/* Histórico de Pagamentos — timeline unificada */}
+                  {(() => {
+                    type Evento = {
+                      key: string;
+                      data: string; // YYYY-MM-DD
+                      tipo: 'adiantamento' | 'pagamento' | 'desconto' | 'ajuste' | 'nota';
+                      titulo: string;
+                      subtitulo?: string;
+                      valor: number;
+                      valorClass: string;
+                      codigo?: string;
+                    };
+                    const eventos: Evento[] = [];
+
+                    const adiantado = Number(detailCobranca.valor_adiantado || 0);
+                    if (adiantado > 0) {
+                      const notaAdt = (detailNotas || []).find((n: any) => (n.codigo_nota || '').startsWith('ADT'));
+                      eventos.push({
+                        key: `adt-${detailCobranca.id}`,
+                        data: notaAdt?.data || (detailCobranca as any).data_entrega_kit || (detailCobranca as any).criado_em || detailCobranca.data_agendada,
+                        tipo: 'adiantamento',
+                        titulo: 'Adiantamento',
+                        subtitulo: notaAdt?.forma_pagamento_1 || 'entrada',
+                        valor: adiantado,
+                        valorClass: 'text-green-700',
+                        codigo: notaAdt?.codigo_nota || 'ADT',
+                      });
+                    }
+
+                    (detailPrestacoes || []).forEach((p: any) => {
+                      const totalVenda = Number(p.total_venda || 0);
+                      const valorPago = Number(p.valor_pago || 0);
+                      const devidoEmp = Number(p.valor_devido_empresa || 0);
+                      if (totalVenda > 0 && valorPago > 0) {
+                        eventos.push({
+                          key: `pg-${p.id}`,
+                          data: p.data_execucao || p.criado_em,
+                          tipo: 'pagamento',
+                          titulo: 'Pagamento',
+                          subtitulo: p.forma_pagamento || '',
+                          valor: valorPago,
+                          valorClass: 'text-green-700',
+                          codigo: p.codigo_nota_referencia || undefined,
+                        });
+                      } else if (totalVenda === 0 && devidoEmp > 0) {
+                        eventos.push({
+                          key: `desc-${p.id}`,
+                          data: p.data_execucao || p.criado_em,
+                          tipo: 'desconto',
+                          titulo: 'Desconto aplicado',
+                          subtitulo: p.codigo_nota_referencia || 'ajuste',
+                          valor: devidoEmp,
+                          valorClass: 'text-red-600',
+                          codigo: p.codigo_nota_referencia || undefined,
+                        });
+                      }
+                    });
+
+                    // Notas (AJUSTE- e demais não cobertas por prestações)
+                    (detailNotas || []).forEach((nota: any) => {
+                      const codigo = nota.codigo_nota || '';
+                      if (codigo.startsWith('ADT')) return; // já tratado
+                      if (codigo.startsWith('AJUSTE')) {
+                        eventos.push({
+                          key: `aj-${nota.id}`,
+                          data: nota.data,
+                          tipo: 'ajuste',
+                          titulo: 'Ajuste administrativo',
+                          subtitulo: nota.forma_pagamento_1 || '',
+                          valor: Number(nota.valor_pagamento_1 || 0),
+                          valorClass: 'text-amber-700',
+                          codigo,
+                        });
+                      }
+                    });
+
+                    eventos.sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+
+                    if (eventos.length === 0) return null;
+
+                    return (
+                      <div className="border border-border rounded-lg p-4 space-y-2">
+                        <h3 className="text-sm font-semibold text-foreground">Histórico de Pagamentos</h3>
+                        <div className="divide-y divide-border">
+                          {eventos.map((e) => (
+                            <div key={e.key} className="flex items-center justify-between py-2 text-sm">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  {e.codigo && (
+                                    <span className="font-mono text-xs text-muted-foreground">{e.codigo}</span>
+                                  )}
+                                  <span className="text-xs text-muted-foreground">{formatDateBR(e.data)}</span>
+                                </div>
+                                <div className="font-medium">
+                                  {e.titulo}
+                                  {e.subtitulo && (
+                                    <span className="text-xs text-muted-foreground font-normal capitalize ml-1">· {e.subtitulo}</span>
+                                  )}
                                 </div>
                               </div>
-                            )}
-                          </div>
-                        ))}
+                              <span className={`font-semibold ${e.valorClass}`}>
+                                {e.tipo === 'desconto' ? '−' : ''}{formatarValor(e.valor)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
-                  {/* Resumo financeiro */}
+                  {/* Resumo financeiro — 4 campos */}
                   <div className="border border-border rounded-lg p-4 space-y-2 bg-muted/30">
                     <h3 className="text-sm font-semibold text-foreground">Resumo Financeiro</h3>
                     {(() => {
-                      const valorAdiantado = Number(detailCobranca.valor_adiantado || 0);
-                      const pagoAcumulado = Number(detailCobranca.valor_pago_acumulado || 0);
-                      const isPago = detailCobranca.status === 'pago';
-                      const saldoDevedor = detailPrestacao?.saldo_devedor;
-                      const valorDevidoEmpresa = Number(detailPrestacao?.valor_devido_empresa ?? 0);
-                      const pagoBase = pagoAcumulado > 0
-                        ? pagoAcumulado
-                        : (isPago ? Number(detailCobranca.valor_previsto || 0) : 0);
-                      // Se saldo quitado, Total Recebido = Valor Devido à Empresa (cobre adiantado + pagamento + desconto)
-                      const totalRecebido = (saldoDevedor !== null && saldoDevedor !== undefined && Number(saldoDevedor) === 0 && valorDevidoEmpresa > 0)
-                        ? valorDevidoEmpresa
-                        : pagoBase;
-                      const saldoRestante = Math.max(0, Number(detailCobranca.valor_previsto || 0) - pagoBase - valorAdiantado);
+                      const adiantado = Number(detailCobranca.valor_adiantado || 0);
+                      const valorDevido = Number(detailPrestacao?.valor_devido_empresa ?? 0);
+                      const pagamentosReais = (detailPrestacoes || [])
+                        .filter((p: any) => Number(p.total_venda || 0) > 0)
+                        .reduce((acc: number, p: any) => acc + Number(p.valor_pago || 0), 0);
+                      const descontoPrest = (detailPrestacoes || [])
+                        .filter((p: any) => Number(p.total_venda || 0) === 0 && Number(p.valor_devido_empresa || 0) > 0)
+                        .reduce((acc: number, p: any) => acc + Number(p.valor_devido_empresa || 0), 0);
+                      const desconto = descontoPrest;
+                      const totalRecebido = adiantado + pagamentosReais;
+                      const saldoRestante = Math.max(0, valorDevido - desconto - totalRecebido);
 
                       return (
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Total Recebido</span>
-                        <p className="font-semibold text-green-700">
-                          {formatarValor(totalRecebido)}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Saldo Restante</span>
-                        <p className="font-semibold">
-                          {detailCobranca.status === 'pago'
-                            ? formatarValor(0)
-                            : formatarValor(saldoRestante)
-                          }
-                        </p>
-                      </div>
-                    </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Valor Devido</span>
+                            <p className="font-semibold">{formatarValor(valorDevido)}</p>
+                          </div>
+                          {desconto > 0 && (
+                            <div>
+                              <span className="text-muted-foreground">Desconto</span>
+                              <p className="font-semibold text-red-600">−{formatarValor(desconto)}</p>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-muted-foreground">Total Recebido</span>
+                            <p className="font-semibold text-green-700">{formatarValor(totalRecebido)}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Saldo Restante</span>
+                            <p className="font-semibold">
+                              {detailCobranca.status === 'pago' ? formatarValor(0) : formatarValor(saldoRestante)}
+                            </p>
+                          </div>
+                        </div>
                       );
                     })()}
                   </div>
+
 
                   {/* Aplicar Desconto / Quitar */}
                   {detailCobranca.status !== 'pago' && (
