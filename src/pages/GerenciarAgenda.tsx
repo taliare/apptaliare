@@ -859,9 +859,12 @@ export default function GerenciarAgenda() {
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
-                                  {((cobranca.valor_pago_acumulado || 0) + (cobranca.valor_adiantado || 0)) > 0 
-                                    ? formatarValor((cobranca.valor_pago_acumulado || 0) + (cobranca.valor_adiantado || 0)) 
-                                    : '-'}
+                                  {(() => {
+                                    const pagoAcum = cobranca.valor_pago_acumulado || 0;
+                                    if (pagoAcum > 0) return formatarValor(pagoAcum);
+                                    if (cobranca.status === 'pago') return formatarValor(cobranca.valor_previsto || 0);
+                                    return '-';
+                                  })()}
                                 </TableCell>
                                 <TableCell>
                                   {(() => {
