@@ -1457,6 +1457,7 @@ export default function GerenciarAgenda() {
                       const descontoImplicito = Math.max(0, descontoImplicitoBruto - adiantado);
                       const desconto = descontoExplicito + descontoImplicito;
                       const totalRecebido = adiantado + pagamentosReais;
+                      const acrescimo = Math.max(0, totalRecebido - (valorDevido - desconto));
                       const saldoRestante = Math.max(0, valorDevido - desconto - totalRecebido);
 
                       return (
@@ -1469,6 +1470,12 @@ export default function GerenciarAgenda() {
                             <span className="text-muted-foreground">Desconto</span>
                             <p className={`font-semibold ${desconto > 0 ? 'text-red-600' : ''}`}>
                               {desconto > 0 ? '−' : ''}{formatarValor(desconto)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Acréscimo</span>
+                            <p className={`font-semibold ${acrescimo > 0 ? 'text-green-700' : ''}`}>
+                              {acrescimo > 0 ? '+' : ''}{formatarValor(acrescimo)}
                             </p>
                           </div>
                           <div>
