@@ -323,7 +323,7 @@ export function ModalReceberCobranca({
           valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
         });
         
-        const saldoAbertoAtual = cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0);
+        const saldoAbertoAtual = saldoAberto;
         const novoSaldo = saldoAbertoAtual - valorEfetivoReceber;
         toast({
           title: "Sucesso",
