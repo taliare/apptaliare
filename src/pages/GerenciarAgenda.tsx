@@ -431,7 +431,8 @@ export default function GerenciarAgenda() {
         .order('data_pagamento', { ascending: true });
 
       const totalDevolvido = (pc || []).reduce((acc: number, r: any) => acc + Number(r.valor_devolvido || 0), 0);
-      setDetailPrestacao(pc && pc.length > 0 ? { ...pc[0], valor_devolvido: totalDevolvido } : null);
+      const totalDevidoEmpresa = (pc || []).reduce((acc: number, r: any) => acc + Number(r.valor_devido_empresa || 0), 0);
+      setDetailPrestacao(pc && pc.length > 0 ? { ...pc[0], valor_devolvido: totalDevolvido, valor_devido_empresa: totalDevidoEmpresa } : null);
       setDetailNotas(notas || []);
       setDetailPagamentosHistorico(pagamentosHistorico || []);
     } catch (err) {
@@ -1279,7 +1280,7 @@ export default function GerenciarAgenda() {
                         </div>
                         <div>
                           <span className="text-muted-foreground">Valor Devido à Empresa</span>
-                          <p className="font-semibold">{formatarValor(detailCobranca?.valor_previsto ?? 0)}</p>
+                          <p className="font-semibold">{formatarValor(detailPrestacao?.valor_devido_empresa ?? 0)}</p>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Valor Devolvido</span>
@@ -1331,7 +1332,7 @@ export default function GerenciarAgenda() {
                       const pagoBase = pagoAcumulado > 0
                         ? pagoAcumulado
                         : (isPago ? Number(detailCobranca.valor_previsto || 0) : 0);
-                      const totalRecebido = pagoBase + valorAdiantado;
+                      const totalRecebido = pagoBase;
                       const saldoRestante = Math.max(0, Number(detailCobranca.valor_previsto || 0) - pagoBase - valorAdiantado);
 
                       return (
