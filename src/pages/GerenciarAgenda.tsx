@@ -1350,18 +1350,35 @@ export default function GerenciarAgenda() {
                     (detailPrestacoes || []).forEach((p: any) => {
                       const totalVenda = Number(p.total_venda || 0);
                       const valorPago = Number(p.valor_pago || 0);
+                      const comissao = Number(p.comissao_valor || 0);
                       const devidoEmp = Number(p.valor_devido_empresa || 0);
-                      if (totalVenda > 0 && valorPago > 0) {
-                        eventos.push({
-                          key: `pg-${p.id}`,
-                          data: p.data_execucao || p.criado_em,
-                          tipo: 'pagamento',
-                          titulo: 'Pagamento',
-                          subtitulo: p.forma_pagamento || '',
-                          valor: valorPago,
-                          valorClass: 'text-green-700',
-                          codigo: p.codigo_nota_referencia || undefined,
-                        });
+                      if (totalVenda > 0) {
+                        if (valorPago > 0) {
+                          eventos.push({
+                            key: `pg-${p.id}`,
+                            data: p.data_execucao || p.criado_em,
+                            tipo: 'pagamento',
+                            titulo: 'Pagamento',
+                            subtitulo: p.forma_pagamento || '',
+                            valor: valorPago,
+                            valorClass: 'text-green-700',
+                            codigo: p.codigo_nota_referencia || undefined,
+                          });
+                        }
+                        // Desconto implícito embutido na prestação real
+                        const bruto = Math.max(0, totalVenda - comissao);
+                        const implicito = bruto - devidoEmp;
+                        if (implicito > 0.01) {
+                          eventos.push({
+                            key: `desc-impl-${p.id}`,
+                            data: p.data_execucao || p.criado_em,
+                            tipo: 'desconto',
+                            titulo: 'Desconto aplicado',
+                            subtitulo: 'embutido na prestação',
+                            valor: implicito,
+                            valorClass: 'text-red-600',
+                          });
+                        }
                       } else if (totalVenda === 0 && devidoEmp > 0) {
                         eventos.push({
                           key: `desc-${p.id}`,
@@ -1375,6 +1392,7 @@ export default function GerenciarAgenda() {
                         });
                       }
                     });
+
 
                     // Notas (AJUSTE- e demais não cobertas por prestações)
                     (detailNotas || []).forEach((nota: any) => {
