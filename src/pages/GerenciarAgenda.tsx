@@ -399,6 +399,7 @@ export default function GerenciarAgenda() {
     setDetailPrestacao(null);
     setDetailNotas([]);
     setDetailPagamentosHistorico([]);
+    setDetailPrestacoes([]);
 
     try {
       // Re-fetch cobrança para garantir status atualizado direto do banco
