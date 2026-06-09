@@ -1351,10 +1351,15 @@ export default function GerenciarAgenda() {
                       const valorAdiantado = Number(detailCobranca.valor_adiantado || 0);
                       const pagoAcumulado = Number(detailCobranca.valor_pago_acumulado || 0);
                       const isPago = detailCobranca.status === 'pago';
+                      const saldoDevedor = detailPrestacao?.saldo_devedor;
+                      const valorDevidoEmpresa = Number(detailPrestacao?.valor_devido_empresa ?? 0);
                       const pagoBase = pagoAcumulado > 0
                         ? pagoAcumulado
                         : (isPago ? Number(detailCobranca.valor_previsto || 0) : 0);
-                      const totalRecebido = pagoBase;
+                      // Se saldo quitado, Total Recebido = Valor Devido à Empresa (cobre adiantado + pagamento + desconto)
+                      const totalRecebido = (saldoDevedor !== null && saldoDevedor !== undefined && Number(saldoDevedor) === 0 && valorDevidoEmpresa > 0)
+                        ? valorDevidoEmpresa
+                        : pagoBase;
                       const saldoRestante = Math.max(0, Number(detailCobranca.valor_previsto || 0) - pagoBase - valorAdiantado);
 
                       return (
