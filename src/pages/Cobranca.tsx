@@ -379,9 +379,9 @@ export default function Cobranca() {
     }
     updateData.data_agendada = format(dados.data_repasse, 'yyyy-MM-dd');
 
-    const novoAcumulado = acumuladoAtual + dados.valor_recebido;
-    const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
-    const novoStatus = saldoAberto <= 0 ? 'pago' : 'parcial';
+    // Bug fix: status determinado pelo saldo_devedor da prestação (valor_repasse).
+    // saldo_devedor = 0 → 'pago'; saldo_devedor > 0 → 'parcial'.
+    const novoStatus = (dados.valor_repasse ?? 0) <= 0 ? 'pago' : 'parcial';
     updateData.status = novoStatus;
     if (novoStatus === 'pago') updateData.data_quitacao = dataNota;
 
