@@ -58,6 +58,7 @@ export default function GerenciarAgenda() {
   const [detailPrestacao, setDetailPrestacao] = useState<any>(null);
   const [detailNotas, setDetailNotas] = useState<any[]>([]);
   const [detailPagamentosHistorico, setDetailPagamentosHistorico] = useState<any[]>([]);
+  const [detailPrestacoes, setDetailPrestacoes] = useState<any[]>([]);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
