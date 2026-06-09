@@ -13,6 +13,7 @@ import { cn, formatarValor, formatarInputMoeda, parseInputMoeda } from '@/lib/ut
 import { useToast } from '@/hooks/use-toast';
 import { registrarLog } from '@/lib/logOperacional';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 type FormaPagamento = 'pix' | 'dinheiro' | 'cartao' | 'transferencia';
 
@@ -76,7 +77,11 @@ export function ModalReceberCobranca({
   
   // Modo subsequente: nota já tem pagamentos anteriores (não pedir valor da venda/comissão novamente)
   const isSubsequente = valor_pago_acumulado > 0 || cobranca.status === 'parcial' || isRepasse;
-  const saldoAberto = Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0));
+
+  // Saldo da última prestação (autoritativo quando existe — considera devoluções)
+  const [saldoPrestacao, setSaldoPrestacao] = useState<number | null>(null);
+  const saldoCalculado = Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0));
+  const saldoAberto = saldoPrestacao !== null ? Math.max(0, saldoPrestacao) : saldoCalculado;
   
   // Para KIT: valor da venda (precisa preencher)
   // Para REPASSE: usa valor_previsto
@@ -104,6 +109,27 @@ export function ModalReceberCobranca({
   const [dataProximaCobranca, setDataProximaCobranca] = useState<Date>();
   
   const [loading, setLoading] = useState(false);
+
+  // Busca saldo_devedor da prestação mais recente da nota (autoritativo)
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setSaldoPrestacao(null);
+    (async () => {
+      const { data, error } = await supabase
+        .from('prestacoes_contas')
+        .select('saldo_devedor')
+        .eq('cobranca_id', cobranca.id)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!error && data && data.saldo_devedor !== null && data.saldo_devedor !== undefined) {
+        setSaldoPrestacao(Number(data.saldo_devedor));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, cobranca.id]);
 
   // Inicializa valores quando abre o modal
   useEffect(() => {
@@ -297,7 +323,7 @@ export function ModalReceberCobranca({
           valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
         });
         
-        const saldoAbertoAtual = cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0);
+        const saldoAbertoAtual = saldoAberto;
         const novoSaldo = saldoAbertoAtual - valorEfetivoReceber;
         toast({
           title: "Sucesso",
@@ -408,7 +434,7 @@ export function ModalReceberCobranca({
               )}
               <div className="flex justify-between text-blue-700 dark:text-blue-300 font-bold border-t border-blue-200 dark:border-blue-700 pt-1">
                 <span>Saldo em aberto:</span>
-                <span>{formatarValor(Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0)))}</span>
+                <span>{formatarValor(saldoAberto)}</span>
               </div>
             </div>
           )}
