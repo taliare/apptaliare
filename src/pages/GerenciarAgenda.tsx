@@ -1399,23 +1399,8 @@ export default function GerenciarAgenda() {
 
 
 
-                    // Notas (AJUSTE- e demais não cobertas por prestações)
-                    (detailNotas || []).forEach((nota: any) => {
-                      const codigo = nota.codigo_nota || '';
-                      if (codigo.startsWith('ADT')) return; // já tratado
-                      if (codigo.startsWith('AJUSTE')) {
-                        eventos.push({
-                          key: `aj-${nota.id}`,
-                          data: nota.data,
-                          tipo: 'ajuste',
-                          titulo: 'Ajuste administrativo',
-                          subtitulo: nota.forma_pagamento_1 || '',
-                          valor: Number(nota.valor_pagamento_1 || 0),
-                          valorClass: 'text-amber-700',
-                          codigo,
-                        });
-                      }
-                    });
+                    // Notas AJUSTE-/ADT já estão cobertas (ADT = adiantamento; AJUSTE = prestação total_venda=0 → desconto)
+
 
                     eventos.sort((a, b) => (a.data || '').localeCompare(b.data || ''));
 
