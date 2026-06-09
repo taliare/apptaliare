@@ -633,6 +633,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "kit_adicionais_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos_catalogo_publico"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "kit_adicionais_itens_representante_id_fkey"
             columns: ["representante_id"]
             isOneToOne: false
@@ -872,6 +879,13 @@ export type Database = {
             columns: ["produto_id"]
             isOneToOne: false
             referencedRelation: "produtos_catalogo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kits_montagem_itens_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos_catalogo_publico"
             referencedColumns: ["id"]
           },
         ]
@@ -2154,6 +2168,57 @@ export type Database = {
       }
     }
     Views: {
+      produtos_catalogo_publico: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          categoria: string | null
+          codigo_barras: string | null
+          cor: string | null
+          criado_em: string | null
+          descricao: string | null
+          foto_url: string | null
+          fotos_adicionais: string[] | null
+          id: string | null
+          preco_varejo: number | null
+          referencia: string | null
+          subcategoria: string | null
+          tamanho: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          categoria?: string | null
+          codigo_barras?: string | null
+          cor?: string | null
+          criado_em?: string | null
+          descricao?: string | null
+          foto_url?: string | null
+          fotos_adicionais?: string[] | null
+          id?: string | null
+          preco_varejo?: number | null
+          referencia?: string | null
+          subcategoria?: string | null
+          tamanho?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          categoria?: string | null
+          codigo_barras?: string | null
+          cor?: string | null
+          criado_em?: string | null
+          descricao?: string | null
+          foto_url?: string | null
+          fotos_adicionais?: string[] | null
+          id?: string | null
+          preco_varejo?: number | null
+          referencia?: string | null
+          subcategoria?: string | null
+          tamanho?: string | null
+        }
+        Relationships: []
+      }
       profiles_limited: {
         Row: {
           ativo: boolean | null
