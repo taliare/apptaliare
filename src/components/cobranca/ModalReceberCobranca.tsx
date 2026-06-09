@@ -434,7 +434,7 @@ export function ModalReceberCobranca({
               )}
               <div className="flex justify-between text-blue-700 dark:text-blue-300 font-bold border-t border-blue-200 dark:border-blue-700 pt-1">
                 <span>Saldo em aberto:</span>
-                <span>{formatarValor(Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0)))}</span>
+                <span>{formatarValor(saldoAberto)}</span>
               </div>
             </div>
           )}
