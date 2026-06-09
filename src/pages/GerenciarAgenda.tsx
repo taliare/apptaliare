@@ -431,7 +431,8 @@ export default function GerenciarAgenda() {
         .order('data_pagamento', { ascending: true });
 
       const totalDevolvido = (pc || []).reduce((acc: number, r: any) => acc + Number(r.valor_devolvido || 0), 0);
-      setDetailPrestacao(pc && pc.length > 0 ? { ...pc[0], valor_devolvido: totalDevolvido } : null);
+      const totalDevidoEmpresa = (pc || []).reduce((acc: number, r: any) => acc + Number(r.valor_devido_empresa || 0), 0);
+      setDetailPrestacao(pc && pc.length > 0 ? { ...pc[0], valor_devolvido: totalDevolvido, valor_devido_empresa: totalDevidoEmpresa } : null);
       setDetailNotas(notas || []);
       setDetailPagamentosHistorico(pagamentosHistorico || []);
     } catch (err) {
