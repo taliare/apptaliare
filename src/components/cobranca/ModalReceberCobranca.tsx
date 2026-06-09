@@ -77,7 +77,11 @@ export function ModalReceberCobranca({
   
   // Modo subsequente: nota já tem pagamentos anteriores (não pedir valor da venda/comissão novamente)
   const isSubsequente = valor_pago_acumulado > 0 || cobranca.status === 'parcial' || isRepasse;
-  const saldoAberto = Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0));
+
+  // Saldo da última prestação (autoritativo quando existe — considera devoluções)
+  const [saldoPrestacao, setSaldoPrestacao] = useState<number | null>(null);
+  const saldoCalculado = Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0));
+  const saldoAberto = saldoPrestacao !== null ? Math.max(0, saldoPrestacao) : saldoCalculado;
   
   // Para KIT: valor da venda (precisa preencher)
   // Para REPASSE: usa valor_previsto
