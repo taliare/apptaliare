@@ -945,12 +945,15 @@ export default function Cobranca() {
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
-                                  {(() => {
-                                    const pagoAcum = cobranca.valor_pago_acumulado || 0;
-                                    if (pagoAcum > 0) return formatarValor(pagoAcum);
-                                    if (cobranca.status === 'pago') return formatarValor(cobranca.valor_previsto || 0);
-                                    return '-';
-                                  })()}
+                                   {(() => {
+                                     const pagoAcum = cobranca.valor_pago_acumulado || 0;
+                                     const adiantado = cobranca.valor_adiantado || 0;
+                                     const previsto = cobranca.valor_previsto || 0;
+                                     if (cobranca.status === 'pago' && pagoAcum === 0) return formatarValor(previsto);
+                                     const pago = Math.min(pagoAcum + adiantado, previsto);
+                                     if (pago > 0) return formatarValor(pago);
+                                     return '-';
+                                   })()}
                                 </TableCell>
                                 <TableCell>
                                   {(() => {
