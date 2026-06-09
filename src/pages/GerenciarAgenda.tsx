@@ -1280,7 +1280,7 @@ export default function GerenciarAgenda() {
                         </div>
                         <div>
                           <span className="text-muted-foreground">Valor Devido à Empresa</span>
-                          <p className="font-semibold">{formatarValor(detailCobranca?.valor_previsto ?? 0)}</p>
+                          <p className="font-semibold">{formatarValor(detailPrestacao?.valor_devido_empresa ?? 0)}</p>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Valor Devolvido</span>
