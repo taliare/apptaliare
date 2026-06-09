@@ -258,9 +258,10 @@ export default function Cobranca() {
       valorPrevistoEfetivo = dados.valor_devido_empresa + valorAdiantado;
     }
 
-    const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
-    updateData.status = (saldoAberto <= 0 ? 'pago' : 'parcial') as any;
-    updateData.data_quitacao = saldoAberto <= 0 ? dataNota : null;
+    // Bug fix: status baseado no saldo_devedor da prestação (0 = pago).
+    // Em pagamento completo, saldo_devedor é sempre 0, então status = 'pago'.
+    updateData.status = 'pago' as any;
+    updateData.data_quitacao = dataNota;
 
     const { error: updateError } = await supabase
       .from('cobrancas_agendadas')
@@ -378,9 +379,9 @@ export default function Cobranca() {
     }
     updateData.data_agendada = format(dados.data_repasse, 'yyyy-MM-dd');
 
-    const novoAcumulado = acumuladoAtual + dados.valor_recebido;
-    const saldoAberto = valorPrevistoEfetivo - novoAcumulado - valorAdiantado;
-    const novoStatus = saldoAberto <= 0 ? 'pago' : 'parcial';
+    // Bug fix: status determinado pelo saldo_devedor da prestação (valor_repasse).
+    // saldo_devedor = 0 → 'pago'; saldo_devedor > 0 → 'parcial'.
+    const novoStatus = (dados.valor_repasse ?? 0) <= 0 ? 'pago' : 'parcial';
     updateData.status = novoStatus;
     if (novoStatus === 'pago') updateData.data_quitacao = dataNota;
 
