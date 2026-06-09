@@ -110,6 +110,27 @@ export function ModalReceberCobranca({
   
   const [loading, setLoading] = useState(false);
 
+  // Busca saldo_devedor da prestação mais recente da nota (autoritativo)
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setSaldoPrestacao(null);
+    (async () => {
+      const { data, error } = await supabase
+        .from('prestacoes_contas')
+        .select('saldo_devedor')
+        .eq('cobranca_id', cobranca.id)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!error && data && data.saldo_devedor !== null && data.saldo_devedor !== undefined) {
+        setSaldoPrestacao(Number(data.saldo_devedor));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, cobranca.id]);
+
   // Inicializa valores quando abre o modal
   useEffect(() => {
     if (open) {
