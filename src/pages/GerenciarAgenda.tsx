@@ -431,8 +431,27 @@ export default function GerenciarAgenda() {
         .order('data_pagamento', { ascending: true });
 
       const totalDevolvido = (pc || []).reduce((acc: number, r: any) => acc + Number(r.valor_devolvido || 0), 0);
-      const totalDevidoEmpresa = (pc || []).reduce((acc: number, r: any) => acc + Number(r.valor_devido_empresa || 0), 0);
-      setDetailPrestacao(pc && pc.length > 0 ? { ...pc[0], valor_devolvido: totalDevolvido, valor_devido_empresa: totalDevidoEmpresa } : null);
+      // Prestação "real" (com venda) — ignora registros de ajuste (total_venda = 0)
+      const prestacaoReal = (pc || []).find((r: any) => Number(r.total_venda || 0) > 0) || (pc && pc[0]);
+      // Saldo devedor vem da prestação mais recente (pc[0])
+      const saldoDevedorAtual = pc && pc.length > 0 ? Number(pc[0].saldo_devedor || 0) : null;
+      const totalVendaReal = prestacaoReal ? Number(prestacaoReal.total_venda || 0) : 0;
+      const comissaoValorReal = prestacaoReal ? Number(prestacaoReal.comissao_valor || 0) : 0;
+      // Valor devido à empresa = total_venda - comissao_valor (não usar coluna do banco que já desconta adiantado)
+      const valorDevidoEmpresaCalc = Math.max(0, totalVendaReal - comissaoValorReal);
+      setDetailPrestacao(
+        pc && pc.length > 0
+          ? {
+              ...pc[0],
+              total_venda: totalVendaReal,
+              comissao_percentual: prestacaoReal?.comissao_percentual ?? pc[0].comissao_percentual,
+              comissao_valor: comissaoValorReal,
+              valor_devolvido: totalDevolvido,
+              valor_devido_empresa: valorDevidoEmpresaCalc,
+              saldo_devedor: saldoDevedorAtual,
+            }
+          : null
+      );
       setDetailNotas(notas || []);
       setDetailPagamentosHistorico(pagamentosHistorico || []);
     } catch (err) {
