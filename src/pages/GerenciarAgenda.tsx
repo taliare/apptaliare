@@ -1332,7 +1332,7 @@ export default function GerenciarAgenda() {
                       const pagoBase = pagoAcumulado > 0
                         ? pagoAcumulado
                         : (isPago ? Number(detailCobranca.valor_previsto || 0) : 0);
-                      const totalRecebido = pagoBase + valorAdiantado;
+                      const totalRecebido = pagoBase;
                       const saldoRestante = Math.max(0, Number(detailCobranca.valor_previsto || 0) - pagoBase - valorAdiantado);
 
                       return (
