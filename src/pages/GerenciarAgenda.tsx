@@ -431,14 +431,25 @@ export default function GerenciarAgenda() {
         .order('data_pagamento', { ascending: true });
 
       const totalDevolvido = (pc || []).reduce((acc: number, r: any) => acc + Number(r.valor_devolvido || 0), 0);
-      // Prestação "real" (com venda) — ignora registros de ajuste (total_venda = 0)
-      const prestacaoReal = (pc || []).find((r: any) => Number(r.total_venda || 0) > 0) || (pc && pc[0]);
+      // Prestações "reais" (com venda) — ignora registros de ajuste (total_venda = 0)
+      const prestacoesReais = (pc || []).filter((r: any) => Number(r.total_venda || 0) > 0);
+      const prestacaoReal = prestacoesReais[0] || (pc && pc[0]);
       // Saldo devedor vem da prestação mais recente (pc[0])
       const saldoDevedorAtual = pc && pc.length > 0 ? Number(pc[0].saldo_devedor || 0) : null;
-      const totalVendaReal = prestacaoReal ? Number(prestacaoReal.total_venda || 0) : 0;
-      const comissaoValorReal = prestacaoReal ? Number(prestacaoReal.comissao_valor || 0) : 0;
-      // Valor devido à empresa = total_venda - comissao_valor (não usar coluna do banco que já desconta adiantado)
-      const valorDevidoEmpresaCalc = Math.max(0, totalVendaReal - comissaoValorReal);
+      const totalVendaReal = prestacoesReais.reduce((acc: number, r: any) => acc + Number(r.total_venda || 0), 0) || (prestacaoReal ? Number(prestacaoReal.total_venda || 0) : 0);
+      const comissaoValorReal = prestacoesReais.reduce((acc: number, r: any) => acc + Number(r.comissao_valor || 0), 0) || (prestacaoReal ? Number(prestacaoReal.comissao_valor || 0) : 0);
+      // Valor devido à empresa: usar valor_devido_empresa armazenado (já reflete descontos)
+      const storedDevidoSum = prestacoesReais.reduce((acc: number, r: any) => acc + Number(r.valor_devido_empresa || 0), 0);
+      const adiantadoCobranca = Number((cobranca as any).valor_adiantado || 0);
+      const brutoCalc = Math.max(0, totalVendaReal - comissaoValorReal);
+      // Exceção: se valor_devido_empresa já descontou o adiantado, somar de volta para mostrar bruto
+      let valorDevidoEmpresaCalc = storedDevidoSum;
+      if (adiantadoCobranca > 0 && Math.abs(storedDevidoSum + adiantadoCobranca - brutoCalc) < 0.02) {
+        valorDevidoEmpresaCalc = storedDevidoSum + adiantadoCobranca;
+      }
+      if (prestacoesReais.length === 0) {
+        valorDevidoEmpresaCalc = brutoCalc;
+      }
       setDetailPrestacao(
         pc && pc.length > 0
           ? {
