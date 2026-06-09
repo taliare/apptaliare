@@ -1347,6 +1347,7 @@ export default function GerenciarAgenda() {
                       });
                     }
 
+                    let adtRemanescente = adiantado;
                     (detailPrestacoes || []).forEach((p: any) => {
                       const totalVenda = Number(p.total_venda || 0);
                       const valorPago = Number(p.valor_pago || 0);
@@ -1365,9 +1366,12 @@ export default function GerenciarAgenda() {
                             codigo: p.codigo_nota_referencia || undefined,
                           });
                         }
-                        // Desconto implícito embutido na prestação real
+                        // Desconto implícito: (total_venda - comissao) - valor_devido_empresa - valor_adiantado
                         const bruto = Math.max(0, totalVenda - comissao);
-                        const implicito = bruto - devidoEmp;
+                        const diff = Math.max(0, bruto - devidoEmp);
+                        const adtAplicado = Math.min(adtRemanescente, diff);
+                        const implicito = diff - adtAplicado;
+                        adtRemanescente -= adtAplicado;
                         if (implicito > 0.01) {
                           eventos.push({
                             key: `desc-impl-${p.id}`,
@@ -1392,6 +1396,7 @@ export default function GerenciarAgenda() {
                         });
                       }
                     });
+
 
 
                     // Notas (AJUSTE- e demais não cobertas por prestações)
@@ -1457,12 +1462,14 @@ export default function GerenciarAgenda() {
                       const descontoExplicito = (detailPrestacoes || [])
                         .filter((p: any) => Number(p.total_venda || 0) === 0 && Number(p.valor_devido_empresa || 0) > 0)
                         .reduce((acc: number, p: any) => acc + Number(p.valor_devido_empresa || 0), 0);
-                      const descontoImplicito = prestReais.reduce((acc: number, p: any) => {
+                      const descontoImplicitoBruto = prestReais.reduce((acc: number, p: any) => {
                         const bruto = Math.max(0, Number(p.total_venda || 0) - Number(p.comissao_valor || 0));
                         const stored = Number(p.valor_devido_empresa || 0);
                         const diff = bruto - stored;
-                        return acc + (diff > 0.01 ? diff : 0);
+                        return acc + (diff > 0 ? diff : 0);
                       }, 0);
+                      // valor_adiantado já reduz valor_devido_empresa em muitos casos — não é desconto
+                      const descontoImplicito = Math.max(0, descontoImplicitoBruto - adiantado);
                       const desconto = descontoExplicito + descontoImplicito;
                       const totalRecebido = adiantado + pagamentosReais;
                       const saldoRestante = Math.max(0, valorDevido - desconto - totalRecebido);
