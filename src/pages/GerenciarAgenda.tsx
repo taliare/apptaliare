@@ -1347,6 +1347,7 @@ export default function GerenciarAgenda() {
                       });
                     }
 
+                    let adtRemanescente = adiantado;
                     (detailPrestacoes || []).forEach((p: any) => {
                       const totalVenda = Number(p.total_venda || 0);
                       const valorPago = Number(p.valor_pago || 0);
@@ -1365,9 +1366,12 @@ export default function GerenciarAgenda() {
                             codigo: p.codigo_nota_referencia || undefined,
                           });
                         }
-                        // Desconto implícito embutido na prestação real
+                        // Desconto implícito: (total_venda - comissao) - valor_devido_empresa - valor_adiantado
                         const bruto = Math.max(0, totalVenda - comissao);
-                        const implicito = bruto - devidoEmp;
+                        const diff = Math.max(0, bruto - devidoEmp);
+                        const adtAplicado = Math.min(adtRemanescente, diff);
+                        const implicito = diff - adtAplicado;
+                        adtRemanescente -= adtAplicado;
                         if (implicito > 0.01) {
                           eventos.push({
                             key: `desc-impl-${p.id}`,
@@ -1392,6 +1396,7 @@ export default function GerenciarAgenda() {
                         });
                       }
                     });
+
 
 
                     // Notas (AJUSTE- e demais não cobertas por prestações)
