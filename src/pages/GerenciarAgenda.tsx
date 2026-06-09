@@ -1383,7 +1383,19 @@ export default function GerenciarAgenda() {
                             valorClass: 'text-red-600',
                           });
                         }
-                      } else if (totalVenda === 0 && devidoEmp > 0) {
+                      } else if (totalVenda === 0 && valorPago > 0) {
+                        // Pagamento avulso (nota sem venda, só pagamento)
+                        eventos.push({
+                          key: `pg-${p.id}`,
+                          data: p.data_execucao || p.criado_em,
+                          tipo: 'pagamento',
+                          titulo: 'Pagamento',
+                          subtitulo: p.forma_pagamento || '',
+                          valor: valorPago,
+                          valorClass: 'text-green-700',
+                          codigo: p.codigo_nota_referencia || undefined,
+                        });
+                      } else if (totalVenda === 0 && valorPago === 0 && devidoEmp > 0) {
                         eventos.push({
                           key: `desc-${p.id}`,
                           data: p.data_execucao || p.criado_em,
@@ -1443,9 +1455,15 @@ export default function GerenciarAgenda() {
                       const adiantado = Number(detailCobranca.valor_adiantado || 0);
                       const valorDevido = Number(detailPrestacao?.valor_devido_empresa ?? 0);
                       const prestReais = (detailPrestacoes || []).filter((p: any) => Number(p.total_venda || 0) > 0);
-                      const pagamentosReais = prestReais.reduce((acc: number, p: any) => acc + Number(p.valor_pago || 0), 0);
+                      const pagamentosReais = (detailPrestacoes || []).reduce((acc: number, p: any) => {
+                        const tv = Number(p.total_venda || 0);
+                        const vp = Number(p.valor_pago || 0);
+                        // Conta pagamento quando há venda OU quando é nota só de pagamento (tv=0 e vp>0)
+                        if (tv > 0 || vp > 0) return acc + vp;
+                        return acc;
+                      }, 0);
                       const descontoExplicito = (detailPrestacoes || [])
-                        .filter((p: any) => Number(p.total_venda || 0) === 0 && Number(p.valor_devido_empresa || 0) > 0)
+                        .filter((p: any) => Number(p.total_venda || 0) === 0 && Number(p.valor_pago || 0) === 0 && Number(p.valor_devido_empresa || 0) > 0)
                         .reduce((acc: number, p: any) => acc + Number(p.valor_devido_empresa || 0), 0);
                       const descontoImplicitoBruto = prestReais.reduce((acc: number, p: any) => {
                         const bruto = Math.max(0, Number(p.total_venda || 0) - Number(p.comissao_valor || 0));
