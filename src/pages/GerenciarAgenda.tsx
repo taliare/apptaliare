@@ -1452,13 +1452,18 @@ export default function GerenciarAgenda() {
                     {(() => {
                       const adiantado = Number(detailCobranca.valor_adiantado || 0);
                       const valorDevido = Number(detailPrestacao?.valor_devido_empresa ?? 0);
-                      const pagamentosReais = (detailPrestacoes || [])
-                        .filter((p: any) => Number(p.total_venda || 0) > 0)
-                        .reduce((acc: number, p: any) => acc + Number(p.valor_pago || 0), 0);
-                      const descontoPrest = (detailPrestacoes || [])
+                      const prestReais = (detailPrestacoes || []).filter((p: any) => Number(p.total_venda || 0) > 0);
+                      const pagamentosReais = prestReais.reduce((acc: number, p: any) => acc + Number(p.valor_pago || 0), 0);
+                      const descontoExplicito = (detailPrestacoes || [])
                         .filter((p: any) => Number(p.total_venda || 0) === 0 && Number(p.valor_devido_empresa || 0) > 0)
                         .reduce((acc: number, p: any) => acc + Number(p.valor_devido_empresa || 0), 0);
-                      const desconto = descontoPrest;
+                      const descontoImplicito = prestReais.reduce((acc: number, p: any) => {
+                        const bruto = Math.max(0, Number(p.total_venda || 0) - Number(p.comissao_valor || 0));
+                        const stored = Number(p.valor_devido_empresa || 0);
+                        const diff = bruto - stored;
+                        return acc + (diff > 0.01 ? diff : 0);
+                      }, 0);
+                      const desconto = descontoExplicito + descontoImplicito;
                       const totalRecebido = adiantado + pagamentosReais;
                       const saldoRestante = Math.max(0, valorDevido - desconto - totalRecebido);
 
@@ -1468,12 +1473,12 @@ export default function GerenciarAgenda() {
                             <span className="text-muted-foreground">Valor Devido</span>
                             <p className="font-semibold">{formatarValor(valorDevido)}</p>
                           </div>
-                          {desconto > 0 && (
-                            <div>
-                              <span className="text-muted-foreground">Desconto</span>
-                              <p className="font-semibold text-red-600">−{formatarValor(desconto)}</p>
-                            </div>
-                          )}
+                          <div>
+                            <span className="text-muted-foreground">Desconto</span>
+                            <p className={`font-semibold ${desconto > 0 ? 'text-red-600' : ''}`}>
+                              {desconto > 0 ? '−' : ''}{formatarValor(desconto)}
+                            </p>
+                          </div>
                           <div>
                             <span className="text-muted-foreground">Total Recebido</span>
                             <p className="font-semibold text-green-700">{formatarValor(totalRecebido)}</p>
@@ -1487,6 +1492,7 @@ export default function GerenciarAgenda() {
                         </div>
                       );
                     })()}
+
                   </div>
 
 
