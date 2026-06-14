@@ -822,19 +822,53 @@ export default function CobrancaDiaria() {
         observacoes: observacoesDia.trim() || null,
       };
 
-      if (cobrancaDiaria?.id) {
+      let fechamentoId = cobrancaDiaria?.id;
+      if (fechamentoId) {
         const { error } = await supabase
           .from('cobrancas_diarias')
           .update(cobrancaData)
-          .eq('id', cobrancaDiaria.id);
+          .eq('id', fechamentoId);
         
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from('cobrancas_diarias')
-          .insert(cobrancaData);
+          .insert(cobrancaData)
+          .select('id')
+          .single();
         
         if (error) throw error;
+        fechamentoId = inserted!.id;
+      }
+
+      // Sincronizar despesas_fechamento
+      const despesasValidas = despesasFechamento.filter(
+        (d) => d.descricao.trim() && parseValorFormatado(d.valor) > 0
+      );
+      const idsAtuais = new Set(despesasValidas.filter((d) => d.id).map((d) => d.id));
+      const idsRemovidos = despesasExistentes
+        .filter((d: any) => !d.conciliado && !idsAtuais.has(d.id))
+        .map((d: any) => d.id);
+      if (idsRemovidos.length > 0) {
+        await supabase.from('despesas_fechamento' as any).delete().in('id', idsRemovidos);
+      }
+      for (const d of despesasValidas) {
+        const valor = parseValorFormatado(d.valor);
+        if (d.id) {
+          if (!d.conciliado) {
+            await supabase
+              .from('despesas_fechamento' as any)
+              .update({ descricao: d.descricao.trim(), valor })
+              .eq('id', d.id);
+          }
+        } else {
+          await supabase.from('despesas_fechamento' as any).insert({
+            fechamento_id: fechamentoId,
+            representante_id: user!.id,
+            descricao: d.descricao.trim(),
+            valor,
+          });
+        }
       }
     },
   onSuccess: async () => {
