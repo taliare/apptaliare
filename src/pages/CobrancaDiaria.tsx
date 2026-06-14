@@ -98,6 +98,7 @@ export default function CobrancaDiaria() {
   // Form states for Cobrança Diária
   const [despesaCobranca, setDespesaCobranca] = useState('');
   const [observacoesDia, setObservacoesDia] = useState('');
+  const [despesasFechamento, setDespesasFechamento] = useState<Array<{ id?: string; descricao: string; valor: string; conciliado?: boolean }>>([]);
 
   // Função para formatar valor monetário durante digitação
   const formatarValorInput = (valor: string): string => {
