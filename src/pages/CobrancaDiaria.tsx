@@ -223,6 +223,37 @@ export default function CobrancaDiaria() {
     }
   }, [cobrancaDiaria]);
 
+  // Carregar despesas de fechamento existentes
+  const { data: despesasExistentes = [] } = useQuery({
+    queryKey: ['despesas-fechamento', cobrancaDiaria?.id],
+    queryFn: async () => {
+      if (!cobrancaDiaria?.id) return [];
+      const { data, error } = await supabase
+        .from('despesas_fechamento' as any)
+        .select('*')
+        .eq('fechamento_id', cobrancaDiaria.id)
+        .order('criado_em', { ascending: true });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+    enabled: !!cobrancaDiaria?.id,
+  });
+
+  useEffect(() => {
+    if (despesasExistentes.length > 0) {
+      setDespesasFechamento(
+        despesasExistentes.map((d: any) => ({
+          id: d.id,
+          descricao: d.descricao,
+          valor: (Number(d.valor) * 100).toFixed(0).padStart(3, '0').replace(/(\d+)(\d{2})$/, '$1.$2'),
+          conciliado: d.conciliado,
+        }))
+      );
+    } else {
+      setDespesasFechamento([]);
+    }
+  }, [despesasExistentes]);
+
   // Query for histórico de fechamentos
   const { data: historico = [] } = useQuery({
     queryKey: ['historico-cobrancas', user?.id],
