@@ -920,6 +920,7 @@ export default function CobrancaDiaria() {
 
       queryClient.invalidateQueries({ queryKey: ['cobranca-diaria'] });
       queryClient.invalidateQueries({ queryKey: ['historico-cobrancas'] });
+      queryClient.invalidateQueries({ queryKey: ['despesas-fechamento'] });
       toast.success('Dia finalizado com sucesso!');
     },
     onError: (error) => {
