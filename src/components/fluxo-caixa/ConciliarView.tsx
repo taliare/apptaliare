@@ -349,6 +349,7 @@ export function ConciliarView() {
         contas={contas}
         contaPadrao={contaSel}
       />
-    </div>
+    </Tabs>
   );
 }
+
