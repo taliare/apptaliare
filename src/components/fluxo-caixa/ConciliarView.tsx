@@ -120,6 +120,55 @@ export function ConciliarView() {
     setOpen(true);
   };
 
+  const confirmarDireto = async (tx: Transacao) => {
+    if (!tx.categoria_id) {
+      abrirCategorizar(tx);
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from("transacoes_bancarias")
+        .update({ status_conciliacao: "conciliado" })
+        .eq("id", tx.id);
+      if (error) throw error;
+
+      if (tx.tipo === "debito" && !tx.despesa_id) {
+        const memo = (tx.memo_ofx || "").toLowerCase();
+        let forma = "Outro";
+        if (memo.includes("enviado") || memo.includes("pix")) forma = "Pix";
+        else if (memo.includes("cart") || memo.includes("compra")) forma = "Cartão";
+
+        const { data: despesa, error: errDesp } = await supabase
+          .from("dre_despesas")
+          .insert({
+            descricao: tx.name_ofx || tx.descricao || "Transação bancária",
+            valor: Math.abs(Number(tx.valor)),
+            categoria_id: tx.categoria_id,
+            data_pagamento: tx.data_transacao,
+            ano_mes: tx.data_transacao.slice(0, 7),
+            status_pagamento: "pago",
+            forma_pagamento: forma,
+            observacao: tx.observacao || null,
+            ocorrencia: "unica",
+          })
+          .select("id")
+          .single();
+        if (errDesp) throw errDesp;
+        if (despesa) {
+          await supabase
+            .from("transacoes_bancarias")
+            .update({ despesa_id: despesa.id })
+            .eq("id", tx.id);
+        }
+      }
+
+      toast.success("Transação conciliada");
+      carregar();
+    } catch (e: any) {
+      toast.error("Erro: " + e.message);
+    }
+  };
+
   const totais = useMemo(() => {
     const c = { entradas: 0, saidas: 0 };
     transacoes.forEach((t) => {
@@ -238,7 +287,7 @@ export function ConciliarView() {
                             <Button
                               size="sm"
                               variant={t.categoria?.nome ? "default" : "outline"}
-                              onClick={() => abrirCategorizar(t)}
+                              onClick={() => (t.categoria_id ? confirmarDireto(t) : abrirCategorizar(t))}
                             >
                               {t.categoria?.nome ? "Confirmar" : "Categorizar"}
                             </Button>
