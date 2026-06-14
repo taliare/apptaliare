@@ -181,8 +181,17 @@ export function ConciliarView() {
   }, [transacoes]);
 
   return (
-    <div className="space-y-4">
+    <Tabs defaultValue="extrato" className="w-full">
+      <TabsList>
+        <TabsTrigger value="extrato">Extrato Bancário</TabsTrigger>
+        <TabsTrigger value="despesas-rep">Despesas dos Representantes</TabsTrigger>
+      </TabsList>
+      <TabsContent value="despesas-rep" className="mt-4">
+        <DespesasRepresentantesView />
+      </TabsContent>
+      <TabsContent value="extrato" className="mt-4 space-y-4">
       <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+
         <Select value={contaSel} onValueChange={setContaSel}>
           <SelectTrigger className="w-full sm:w-64">
             <SelectValue placeholder="Selecione uma conta" />
