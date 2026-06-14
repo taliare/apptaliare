@@ -1583,6 +1583,97 @@ export default function CobrancaDiaria() {
         </div>
       </div>
 
+      {/* Despesas do Fechamento */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 bg-muted/40 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-sm">Despesas do Fechamento</span>
+          </div>
+          {!isBlocked && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setDespesasFechamento((prev) => [...prev, { descricao: '', valor: '' }])
+              }
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
+            </Button>
+          )}
+        </div>
+        <div className="px-4 py-3 space-y-2">
+          {despesasFechamento.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              Nenhuma despesa lançada
+            </p>
+          ) : (
+            despesasFechamento.map((d, idx) => (
+              <div key={d.id ?? `new-${idx}`} className="flex items-start gap-2">
+                <Input
+                  placeholder="Descrição (ex: Vale Josinaldo)"
+                  value={d.descricao}
+                  disabled={isBlocked || d.conciliado}
+                  onChange={(e) =>
+                    setDespesasFechamento((prev) =>
+                      prev.map((x, i) => (i === idx ? { ...x, descricao: e.target.value } : x))
+                    )
+                  }
+                  className="flex-1 text-sm"
+                  maxLength={120}
+                />
+                <div className="relative w-28 shrink-0">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    type="text"
+                    placeholder="0,00"
+                    value={d.valor}
+                    disabled={isBlocked || d.conciliado}
+                    onChange={(e) =>
+                      handleValorChange(e.target.value, (v) =>
+                        setDespesasFechamento((prev) =>
+                          prev.map((x, i) => (i === idx ? { ...x, valor: v } : x))
+                        )
+                      )
+                    }
+                    className="pl-7 text-sm"
+                  />
+                </div>
+                {!isBlocked && !d.conciliado && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() =>
+                      setDespesasFechamento((prev) => prev.filter((_, i) => i !== idx))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
+                {d.conciliado && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Conciliada
+                  </Badge>
+                )}
+              </div>
+            ))
+          )}
+          {despesasFechamento.length > 0 && (
+            <div className="flex justify-between pt-2 border-t text-sm">
+              <span className="text-muted-foreground">Total despesas</span>
+              <span className="font-semibold">
+                {formatarValor(
+                  despesasFechamento.reduce((acc, d) => acc + parseValorFormatado(d.valor), 0)
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+
       {/* Etapa 4 — Observações */}
       {!isBlocked && (
         <div className="rounded-xl border border-border overflow-hidden">
