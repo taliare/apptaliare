@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { CategorizarDialog } from "./CategorizarDialog";
 import { NovaTransacaoDialog } from "./NovaTransacaoDialog";
+import { DespesasRepresentantesView } from "./DespesasRepresentantesView";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Conta {
   id: string;
