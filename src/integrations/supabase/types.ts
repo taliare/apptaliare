@@ -358,6 +358,64 @@ export type Database = {
         }
         Relationships: []
       }
+      despesas_fechamento: {
+        Row: {
+          categoria_id: string | null
+          conciliado: boolean
+          criado_em: string
+          descricao: string
+          despesa_id: string | null
+          fechamento_id: string
+          id: string
+          representante_id: string
+          valor: number
+        }
+        Insert: {
+          categoria_id?: string | null
+          conciliado?: boolean
+          criado_em?: string
+          descricao: string
+          despesa_id?: string | null
+          fechamento_id: string
+          id?: string
+          representante_id: string
+          valor: number
+        }
+        Update: {
+          categoria_id?: string | null
+          conciliado?: boolean
+          criado_em?: string
+          descricao?: string
+          despesa_id?: string | null
+          fechamento_id?: string
+          id?: string
+          representante_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_fechamento_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "dre_categorias_despesas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_fechamento_despesa_id_fkey"
+            columns: ["despesa_id"]
+            isOneToOne: false
+            referencedRelation: "dre_despesas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_fechamento_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "cobrancas_diarias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dre_categorias_despesas: {
         Row: {
           ativo: boolean | null

@@ -98,6 +98,7 @@ export default function CobrancaDiaria() {
   // Form states for Cobrança Diária
   const [despesaCobranca, setDespesaCobranca] = useState('');
   const [observacoesDia, setObservacoesDia] = useState('');
+  const [despesasFechamento, setDespesasFechamento] = useState<Array<{ id?: string; descricao: string; valor: string; conciliado?: boolean }>>([]);
 
   // Função para formatar valor monetário durante digitação
   const formatarValorInput = (valor: string): string => {
@@ -221,6 +222,37 @@ export default function CobrancaDiaria() {
       setObservacoesDia('');
     }
   }, [cobrancaDiaria]);
+
+  // Carregar despesas de fechamento existentes
+  const { data: despesasExistentes = [] } = useQuery({
+    queryKey: ['despesas-fechamento', cobrancaDiaria?.id],
+    queryFn: async () => {
+      if (!cobrancaDiaria?.id) return [];
+      const { data, error } = await supabase
+        .from('despesas_fechamento' as any)
+        .select('*')
+        .eq('fechamento_id', cobrancaDiaria.id)
+        .order('criado_em', { ascending: true });
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+    enabled: !!cobrancaDiaria?.id,
+  });
+
+  useEffect(() => {
+    if (despesasExistentes.length > 0) {
+      setDespesasFechamento(
+        despesasExistentes.map((d: any) => ({
+          id: d.id,
+          descricao: d.descricao,
+          valor: (Number(d.valor) * 100).toFixed(0).padStart(3, '0').replace(/(\d+)(\d{2})$/, '$1.$2'),
+          conciliado: d.conciliado,
+        }))
+      );
+    } else {
+      setDespesasFechamento([]);
+    }
+  }, [despesasExistentes]);
 
   // Query for histórico de fechamentos
   const { data: historico = [] } = useQuery({
@@ -790,19 +822,53 @@ export default function CobrancaDiaria() {
         observacoes: observacoesDia.trim() || null,
       };
 
-      if (cobrancaDiaria?.id) {
+      let fechamentoId = cobrancaDiaria?.id;
+      if (fechamentoId) {
         const { error } = await supabase
           .from('cobrancas_diarias')
           .update(cobrancaData)
-          .eq('id', cobrancaDiaria.id);
+          .eq('id', fechamentoId);
         
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from('cobrancas_diarias')
-          .insert(cobrancaData);
+          .insert(cobrancaData)
+          .select('id')
+          .single();
         
         if (error) throw error;
+        fechamentoId = inserted!.id;
+      }
+
+      // Sincronizar despesas_fechamento
+      const despesasValidas = despesasFechamento.filter(
+        (d) => d.descricao.trim() && parseValorFormatado(d.valor) > 0
+      );
+      const idsAtuais = new Set(despesasValidas.filter((d) => d.id).map((d) => d.id));
+      const idsRemovidos = despesasExistentes
+        .filter((d: any) => !d.conciliado && !idsAtuais.has(d.id))
+        .map((d: any) => d.id);
+      if (idsRemovidos.length > 0) {
+        await supabase.from('despesas_fechamento' as any).delete().in('id', idsRemovidos);
+      }
+      for (const d of despesasValidas) {
+        const valor = parseValorFormatado(d.valor);
+        if (d.id) {
+          if (!d.conciliado) {
+            await supabase
+              .from('despesas_fechamento' as any)
+              .update({ descricao: d.descricao.trim(), valor })
+              .eq('id', d.id);
+          }
+        } else {
+          await supabase.from('despesas_fechamento' as any).insert({
+            fechamento_id: fechamentoId,
+            representante_id: user!.id,
+            descricao: d.descricao.trim(),
+            valor,
+          });
+        }
       }
     },
   onSuccess: async () => {
@@ -854,6 +920,7 @@ export default function CobrancaDiaria() {
 
       queryClient.invalidateQueries({ queryKey: ['cobranca-diaria'] });
       queryClient.invalidateQueries({ queryKey: ['historico-cobrancas'] });
+      queryClient.invalidateQueries({ queryKey: ['despesas-fechamento'] });
       toast.success('Dia finalizado com sucesso!');
     },
     onError: (error) => {
@@ -1515,6 +1582,97 @@ export default function CobrancaDiaria() {
           </div>
         </div>
       </div>
+
+      {/* Despesas do Fechamento */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 bg-muted/40 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-sm">Despesas do Fechamento</span>
+          </div>
+          {!isBlocked && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                setDespesasFechamento((prev) => [...prev, { descricao: '', valor: '' }])
+              }
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar
+            </Button>
+          )}
+        </div>
+        <div className="px-4 py-3 space-y-2">
+          {despesasFechamento.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              Nenhuma despesa lançada
+            </p>
+          ) : (
+            despesasFechamento.map((d, idx) => (
+              <div key={d.id ?? `new-${idx}`} className="flex items-start gap-2">
+                <Input
+                  placeholder="Descrição (ex: Vale Josinaldo)"
+                  value={d.descricao}
+                  disabled={isBlocked || d.conciliado}
+                  onChange={(e) =>
+                    setDespesasFechamento((prev) =>
+                      prev.map((x, i) => (i === idx ? { ...x, descricao: e.target.value } : x))
+                    )
+                  }
+                  className="flex-1 text-sm"
+                  maxLength={120}
+                />
+                <div className="relative w-28 shrink-0">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    R$
+                  </span>
+                  <Input
+                    type="text"
+                    placeholder="0,00"
+                    value={d.valor}
+                    disabled={isBlocked || d.conciliado}
+                    onChange={(e) =>
+                      handleValorChange(e.target.value, (v) =>
+                        setDespesasFechamento((prev) =>
+                          prev.map((x, i) => (i === idx ? { ...x, valor: v } : x))
+                        )
+                      )
+                    }
+                    className="pl-7 text-sm"
+                  />
+                </div>
+                {!isBlocked && !d.conciliado && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() =>
+                      setDespesasFechamento((prev) => prev.filter((_, i) => i !== idx))
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                )}
+                {d.conciliado && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Conciliada
+                  </Badge>
+                )}
+              </div>
+            ))
+          )}
+          {despesasFechamento.length > 0 && (
+            <div className="flex justify-between pt-2 border-t text-sm">
+              <span className="text-muted-foreground">Total despesas</span>
+              <span className="font-semibold">
+                {formatarValor(
+                  despesasFechamento.reduce((acc, d) => acc + parseValorFormatado(d.valor), 0)
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
 
       {/* Etapa 4 — Observações */}
       {!isBlocked && (
