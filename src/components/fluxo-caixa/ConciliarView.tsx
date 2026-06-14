@@ -331,6 +331,9 @@ export function ConciliarView() {
           )}
         </CardContent>
       </Card>
+      </TabsContent>
+
+
 
       <CategorizarDialog
         transacao={editando}
