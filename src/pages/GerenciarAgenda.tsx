@@ -1263,7 +1263,7 @@ export default function GerenciarAgenda() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Valor Original do Kit</span>
-                  <p className="font-semibold">{formatarValor(detailCobranca.valor_kit_original || detailCobranca.valor_previsto)}</p>
+                  <p className="font-semibold">{formatarValor(detailCobranca.valor_kit_original ?? detailCobranca.valor_previsto)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Status</span>
