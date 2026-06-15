@@ -339,7 +339,7 @@ export default function GerenciarAgenda() {
   // Mutation para estornar baixa
   const estornoMutation = useMutation({
     mutationFn: async (cobranca: Cobranca) => {
-      const valorOriginal = cobranca.valor_kit_original ?? cobranca.valor_previsto;
+      const valorOriginal = cobranca.valor_kit_original && cobranca.valor_kit_original > 0 ? cobranca.valor_kit_original : cobranca.valor_previsto;
       // 1. Reseta status via RPC (bypassa trigger)
       const { error } = await supabase.rpc('admin_estornar_baixa', {
         p_id: cobranca.id,
