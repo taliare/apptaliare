@@ -250,7 +250,7 @@ export default function CobrancaDiaria() {
         }))
       );
     } else {
-      setDespesasFechamento([]);
+      setDespesasFechamento((prev) => (prev.length === 0 ? prev : []));
     }
   }, [despesasExistentes]);
 
