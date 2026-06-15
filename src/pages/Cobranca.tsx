@@ -1161,10 +1161,10 @@ export default function Cobranca() {
                   <span className="text-muted-foreground">Data Vencimento</span>
                   <p className="font-medium">{formatDateBR(detailCobranca.data_agendada)}</p>
                 </div>
-                <div>
+                 <div>
                   <span className="text-muted-foreground">Valor Original do Kit</span>
                   <p className="font-semibold">
-                    {formatarValor(detailCobranca.valor_kit_original || detailCobranca.valor_previsto)}
+                    {formatarValor(detailCobranca.valor_kit_original ?? detailCobranca.valor_previsto)}
                   </p>
                 </div>
                 <div>
