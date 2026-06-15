@@ -799,9 +799,9 @@ export default function Cobranca() {
                         {notasGrupo.map(cobranca => {
                           const smart = getSmartStatus(cobranca);
                           const status = cobranca.status;
-                          const isAtivo = ['pendente', 'parcial'].includes(status as string);
-                          const valorKit = cobranca.valor_kit_original || cobranca.valor_previsto;
-                          const pago = cobranca.valor_pago_acumulado || 0;
+                           const isAtivo = ['pendente', 'parcial'].includes(status as string);
+                           const valorKit = cobranca.valor_kit_original ?? cobranca.valor_previsto;
+                           const pago = cobranca.valor_pago_acumulado || 0;
                           let saldoLabel: React.ReactNode;
                           if (status === 'pago') {
                             saldoLabel = formatarValor(0);
