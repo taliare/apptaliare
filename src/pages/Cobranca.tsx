@@ -1164,7 +1164,7 @@ export default function Cobranca() {
                  <div>
                   <span className="text-muted-foreground">Valor Original do Kit</span>
                   <p className="font-semibold">
-                    {formatarValor(detailCobranca.valor_kit_original ?? detailCobranca.valor_previsto)}
+                    {formatarValor(detailCobranca.valor_kit_original && detailCobranca.valor_kit_original > 0 ? detailCobranca.valor_kit_original : detailCobranca.valor_previsto)}
                   </p>
                 </div>
                 <div>
