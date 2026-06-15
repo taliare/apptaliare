@@ -799,9 +799,9 @@ export default function Cobranca() {
                         {notasGrupo.map(cobranca => {
                           const smart = getSmartStatus(cobranca);
                           const status = cobranca.status;
-                          const isAtivo = ['pendente', 'parcial'].includes(status as string);
-                          const valorKit = cobranca.valor_kit_original || cobranca.valor_previsto;
-                          const pago = cobranca.valor_pago_acumulado || 0;
+                           const isAtivo = ['pendente', 'parcial'].includes(status as string);
+                           const valorKit = cobranca.valor_kit_original ?? cobranca.valor_previsto;
+                           const pago = cobranca.valor_pago_acumulado || 0;
                           let saldoLabel: React.ReactNode;
                           if (status === 'pago') {
                             saldoLabel = formatarValor(0);
@@ -943,7 +943,7 @@ export default function Cobranca() {
                                 </TableCell>
                                 <TableCell>
                                   {cobranca.status === 'pendente'
-                                    ? formatarValor(cobranca.valor_kit_original || cobranca.valor_previsto)
+                                    ? formatarValor(cobranca.valor_kit_original ?? cobranca.valor_previsto)
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
@@ -1161,10 +1161,10 @@ export default function Cobranca() {
                   <span className="text-muted-foreground">Data Vencimento</span>
                   <p className="font-medium">{formatDateBR(detailCobranca.data_agendada)}</p>
                 </div>
-                <div>
+                 <div>
                   <span className="text-muted-foreground">Valor Original do Kit</span>
                   <p className="font-semibold">
-                    {formatarValor(detailCobranca.valor_kit_original || detailCobranca.valor_previsto)}
+                    {formatarValor(detailCobranca.valor_kit_original ?? detailCobranca.valor_previsto)}
                   </p>
                 </div>
                 <div>
