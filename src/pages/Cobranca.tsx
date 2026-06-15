@@ -943,7 +943,7 @@ export default function Cobranca() {
                                 </TableCell>
                                 <TableCell>
                                   {cobranca.status === 'pendente'
-                                    ? formatarValor(cobranca.valor_kit_original ?? cobranca.valor_previsto)
+                                    ? formatarValor(cobranca.valor_kit_original && cobranca.valor_kit_original > 0 ? cobranca.valor_kit_original : cobranca.valor_previsto)
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
