@@ -800,7 +800,7 @@ export default function Cobranca() {
                           const smart = getSmartStatus(cobranca);
                           const status = cobranca.status;
                            const isAtivo = ['pendente', 'parcial'].includes(status as string);
-                           const valorKit = cobranca.valor_kit_original ?? cobranca.valor_previsto;
+                           const valorKit = cobranca.valor_kit_original && cobranca.valor_kit_original > 0 ? cobranca.valor_kit_original : cobranca.valor_previsto;
                            const pago = cobranca.valor_pago_acumulado || 0;
                           let saldoLabel: React.ReactNode;
                           if (status === 'pago') {
