@@ -800,7 +800,7 @@ export default function Cobranca() {
                           const smart = getSmartStatus(cobranca);
                           const status = cobranca.status;
                            const isAtivo = ['pendente', 'parcial'].includes(status as string);
-                           const valorKit = cobranca.valor_kit_original ?? cobranca.valor_previsto;
+                           const valorKit = cobranca.valor_kit_original && cobranca.valor_kit_original > 0 ? cobranca.valor_kit_original : cobranca.valor_previsto;
                            const pago = cobranca.valor_pago_acumulado || 0;
                           let saldoLabel: React.ReactNode;
                           if (status === 'pago') {
@@ -943,7 +943,7 @@ export default function Cobranca() {
                                 </TableCell>
                                 <TableCell>
                                   {cobranca.status === 'pendente'
-                                    ? formatarValor(cobranca.valor_kit_original ?? cobranca.valor_previsto)
+                                    ? formatarValor(cobranca.valor_kit_original && cobranca.valor_kit_original > 0 ? cobranca.valor_kit_original : cobranca.valor_previsto)
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
@@ -1164,7 +1164,7 @@ export default function Cobranca() {
                  <div>
                   <span className="text-muted-foreground">Valor Original do Kit</span>
                   <p className="font-semibold">
-                    {formatarValor(detailCobranca.valor_kit_original ?? detailCobranca.valor_previsto)}
+                    {formatarValor(detailCobranca.valor_kit_original && detailCobranca.valor_kit_original > 0 ? detailCobranca.valor_kit_original : detailCobranca.valor_previsto)}
                   </p>
                 </div>
                 <div>

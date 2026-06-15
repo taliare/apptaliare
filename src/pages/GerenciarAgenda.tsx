@@ -339,7 +339,7 @@ export default function GerenciarAgenda() {
   // Mutation para estornar baixa
   const estornoMutation = useMutation({
     mutationFn: async (cobranca: Cobranca) => {
-      const valorOriginal = cobranca.valor_kit_original ?? cobranca.valor_previsto;
+      const valorOriginal = cobranca.valor_kit_original && cobranca.valor_kit_original > 0 ? cobranca.valor_kit_original : cobranca.valor_previsto;
       // 1. Reseta status via RPC (bypassa trigger)
       const { error } = await supabase.rpc('admin_estornar_baixa', {
         p_id: cobranca.id,
@@ -877,7 +877,7 @@ export default function GerenciarAgenda() {
                                 </TableCell>
                                 <TableCell>
                                   {cobranca.status === 'pendente'
-                                    ? formatarValor(cobranca.valor_kit_original ?? cobranca.valor_previsto)
+                                    ? formatarValor(cobranca.valor_kit_original && cobranca.valor_kit_original > 0 ? cobranca.valor_kit_original : cobranca.valor_previsto)
                                     : '-'}
                                 </TableCell>
                                 <TableCell>
@@ -1263,7 +1263,7 @@ export default function GerenciarAgenda() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Valor Original do Kit</span>
-                  <p className="font-semibold">{formatarValor(detailCobranca.valor_kit_original ?? detailCobranca.valor_previsto)}</p>
+                  <p className="font-semibold">{formatarValor(detailCobranca.valor_kit_original && detailCobranca.valor_kit_original > 0 ? detailCobranca.valor_kit_original : detailCobranca.valor_previsto)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Status</span>
