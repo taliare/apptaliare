@@ -239,20 +239,25 @@ export default function CobrancaDiaria() {
     enabled: !!cobrancaDiaria?.id,
   });
 
+  const despesasSyncKey = useMemo(
+    () => (despesasExistentes as any[]).map((d) => `${d.id}:${d.valor}:${d.descricao}:${d.conciliado}`).join('|'),
+    [despesasExistentes]
+  );
   useEffect(() => {
-    if (despesasExistentes.length > 0) {
-      setDespesasFechamento(
-        despesasExistentes.map((d: any) => ({
-          id: d.id,
-          descricao: d.descricao,
-          valor: (Number(d.valor) * 100).toFixed(0).padStart(3, '0').replace(/(\d+)(\d{2})$/, '$1.$2'),
-          conciliado: d.conciliado,
-        }))
-      );
-    } else {
-      setDespesasFechamento((prev) => (prev.length === 0 ? prev : []));
-    }
-  }, [despesasExistentes]);
+    if ((despesasExistentes as any[]).length === 0) return;
+    setDespesasFechamento((prev) => {
+      const existentes = (despesasExistentes as any[]).map((d: any) => ({
+        id: d.id as string,
+        descricao: d.descricao as string,
+        valor: (Number(d.valor) * 100).toFixed(0).padStart(3, '0').replace(/(\d+)(\d{2})$/, '$1.$2'),
+        conciliado: d.conciliado as boolean,
+      }));
+      // Preserve unsaved (no id) rows the user just added
+      const naoSalvos = prev.filter((p) => !p.id);
+      return [...existentes, ...naoSalvos];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [despesasSyncKey]);
 
   // Query for histórico de fechamentos
   const { data: historico = [] } = useQuery({
