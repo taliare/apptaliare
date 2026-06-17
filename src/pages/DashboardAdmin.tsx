@@ -212,17 +212,20 @@ export default function DashboardAdmin() {
   );
   const despesasHoje = despesasHojeRaw.filter((d: any) => d.finalizado);
 
-  // Query para cobranças de hoje (prestacoes_contas) — filtradas por reps finalizados
+  // Query para cobranças de hoje (cobrancas_diarias.total_cobrado) — filtradas por reps finalizados
   const { data: cobrancasHojeAll = [] } = useQuery({
     queryKey: ['cobrancas-hoje-admin', hoje],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('prestacoes_contas')
-        .select('representante_id, valor_pago')
-        .eq('data_execucao', hoje);
+        .from('cobrancas_diarias')
+        .select('representante_id, total_cobrado')
+        .eq('data', hoje);
 
       if (error) throw error;
-      return data;
+      return (data || []).map((d: any) => ({
+        representante_id: d.representante_id,
+        valor_pago: Number(d.total_cobrado) || 0,
+      }));
     },
     refetchInterval: 30000,
   });
