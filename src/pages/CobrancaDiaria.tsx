@@ -1616,7 +1616,7 @@ export default function CobrancaDiaria() {
             despesasFechamento.map((d, idx) => (
               <div key={d.id ?? `new-${idx}`} className="flex items-start gap-2">
                 <Input
-                  placeholder="Descrição (ex: Vale Josinaldo)"
+                  placeholder="Descrição"
                   value={d.descricao}
                   disabled={isBlocked || d.conciliado}
                   onChange={(e) =>
