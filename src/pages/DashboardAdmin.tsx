@@ -142,19 +142,19 @@ export default function DashboardAdmin() {
     },
   });
 
-  // FONTE FINANCEIRA OFICIAL: prestacoes_contas.valor_pago (soma real das notas)
-  // cobrancas_diarias.total_cobrado foi descartado por aceitar lançamento manual.
-  // cobrancas_diarias continua sendo usado APENAS para despesa_cobranca.
+  // TOTAL COBRADO POR REPRESENTANTE: usa cobrancas_diarias.total_cobrado
+  // (valor que o próprio representante registra no fechamento diário — fonte confiável p/ admin).
+  // cobrancas_diarias continua sendo usado também para despesa_cobranca.
 
-  // Query para cobranças do período (valor_pago somado por representante)
+  // Query para cobranças do período (total_cobrado somado por representante)
   const { data: cobrancasMes = [] } = useQuery({
     queryKey: ['cobrancas-mes-admin', startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('prestacoes_contas')
-        .select('representante_id, valor_pago')
-        .gte('data_execucao', startDate)
-        .lte('data_execucao', endDate);
+        .from('cobrancas_diarias')
+        .select('representante_id, total_cobrado')
+        .gte('data', startDate)
+        .lte('data', endDate);
 
       if (error) throw error;
 
@@ -163,7 +163,7 @@ export default function DashboardAdmin() {
         if (!acc[id]) {
           acc[id] = { representante_id: id, total_cobrado: 0, total_despesas: 0 };
         }
-        acc[id].total_cobrado += Number(curr.valor_pago) || 0;
+        acc[id].total_cobrado += Number(curr.total_cobrado) || 0;
         return acc;
       }, {});
 
@@ -212,17 +212,20 @@ export default function DashboardAdmin() {
   );
   const despesasHoje = despesasHojeRaw.filter((d: any) => d.finalizado);
 
-  // Query para cobranças de hoje (prestacoes_contas) — filtradas por reps finalizados
+  // Query para cobranças de hoje (cobrancas_diarias.total_cobrado) — filtradas por reps finalizados
   const { data: cobrancasHojeAll = [] } = useQuery({
     queryKey: ['cobrancas-hoje-admin', hoje],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('prestacoes_contas')
-        .select('representante_id, valor_pago')
-        .eq('data_execucao', hoje);
+        .from('cobrancas_diarias')
+        .select('representante_id, total_cobrado')
+        .eq('data', hoje);
 
       if (error) throw error;
-      return data;
+      return (data || []).map((d: any) => ({
+        representante_id: d.representante_id,
+        valor_pago: Number(d.total_cobrado) || 0,
+      }));
     },
     refetchInterval: 30000,
   });
