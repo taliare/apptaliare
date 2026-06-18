@@ -498,6 +498,10 @@ export default function RelatorioKpis() {
     queryKey: ["kpi_desp", prevAnoMes],
     queryFn: () => fetchDespesasMes(prevAnoMes),
   });
+  const { data: inatividade } = useQuery({
+    queryKey: ["kpi_pe_inatividade"],
+    queryFn: fetchRevendedorasInatividade,
+  });
 
   // ─── Queries OPERACIONAL ───
   const { data: cobrAbertas = [], isLoading: lo1 } = useQuery({
