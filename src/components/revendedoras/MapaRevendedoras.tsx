@@ -48,7 +48,8 @@ interface Props {
 type AtivoFiltro = 'todos' | 'ativas' | 'inativas';
 
 export default function MapaRevendedoras({ representantes }: Props) {
-  const { isAdmin } = useAuth();
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [representanteFiltro, setRepresentanteFiltro] = useState('todos');
   const [ativoFiltro, setAtivoFiltro] = useState<AtivoFiltro>('todos');
   const [atualizando, setAtualizando] = useState(false);
