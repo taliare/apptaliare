@@ -1242,7 +1242,7 @@ export default function RelatorioKpis() {
                       accent={pessoas.perdidasAtual === 0 ? "green" : pessoas.perdidasAtual > 10 ? "red" : "neutral"}
                       onClick={() => setDrill({
                         tipo: "pe_revendedoras",
-                        titulo: "Revendedoras Perdidas no período",
+                        titulo: "Revendedoras inativas há 90+ dias",
                         rows: pessoas.perdidasRows,
                       })}
                     />
