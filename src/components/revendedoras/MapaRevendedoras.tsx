@@ -77,7 +77,7 @@ export default function MapaRevendedoras({ representantes }: Props) {
   }, [revendedoras, representanteFiltro, ativoFiltro]);
 
   const cacheKey = (r: any) =>
-    `${(r.bairro || '').trim().toUpperCase()}|${(r.cidade || '').trim().toUpperCase()}|${(r.estado || '').trim().toUpperCase()}`;
+    `${(r.bairro || '').trim().toUpperCase()}-${(r.cidade || '').trim().toUpperCase()}`;
 
   // Geocode missing addresses sequentially with 200ms delay
   useEffect(() => {
@@ -97,8 +97,8 @@ export default function MapaRevendedoras({ representantes }: Props) {
           continue;
         }
 
-        const fetchNominatim = async (params: Record<string, string>) => {
-          const qs = new URLSearchParams({ ...params, country: 'Brazil', format: 'json', limit: '1' }).toString();
+        const fetchNominatim = async (query: string) => {
+          const qs = new URLSearchParams({ q: query, format: 'json', limit: '1' }).toString();
           const res = await fetch(`https://nominatim.openstreetmap.org/search?${qs}`, {
             headers: { 'Accept': 'application/json', 'Accept-Language': 'pt-BR' },
           });
@@ -108,28 +108,32 @@ export default function MapaRevendedoras({ representantes }: Props) {
 
         try {
           let first: any = null;
+          const estado = r.estado || 'Amazonas';
           if (r.bairro) {
-            first = await fetchNominatim({ street: r.bairro, city: r.cidade, state: r.estado });
+            const queryWithBairro = `${r.bairro}, ${r.cidade}, ${estado}, Brasil`;
+            first = await fetchNominatim(queryWithBairro);
             if (!first) {
               await new Promise((res) => setTimeout(res, 200));
-              first = await fetchNominatim({ city: r.cidade, state: r.estado });
-              console.warn(`[Mapa] ⚠️ Bairro "${r.bairro}" não localizado, usando cidade ${r.cidade}/${r.estado}`);
+              const fallbackQuery = `${r.cidade}, ${estado}, Brasil`;
+              first = await fetchNominatim(fallbackQuery);
+              console.warn(`[Mapa] ⚠️ Bairro "${r.bairro}" não localizado, usando cidade ${r.cidade}, ${estado}`);
             }
           } else {
-            first = await fetchNominatim({ city: r.cidade, state: r.estado });
+            const queryCidade = `${r.cidade}, ${estado}, Brasil`;
+            first = await fetchNominatim(queryCidade);
           }
 
           if (first) {
             const coords = { lat: parseFloat(first.lat), lng: parseFloat(first.lon) };
             geocodeCache.set(key, coords);
-            console.log(`[Mapa] ✅ ${r.bairro || ''} ${r.cidade}/${r.estado}:`, coords);
+            console.log(`[Mapa] ✅ ${r.bairro || ''} ${r.cidade}/${estado}:`, coords);
           } else {
             geocodeCache.set(key, null);
-            console.warn(`[Mapa] ❌ Sem resultado para ${r.bairro || ''} ${r.cidade}/${r.estado}`);
+            console.warn(`[Mapa] ❌ Sem resultado para ${r.bairro || ''} ${r.cidade}/${estado}`);
           }
         } catch (e) {
           geocodeCache.set(key, null);
-          console.error(`[Mapa] Erro geocodificando ${r.cidade}/${r.estado}:`, e);
+          console.error(`[Mapa] Erro geocodificando ${r.cidade}/${r.estado || 'Amazonas'}:`, e);
         }
         if (cancelled) return;
         setProgress({ done: i + 1, total: pending.length, running: i + 1 < pending.length });
