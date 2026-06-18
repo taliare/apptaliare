@@ -2,7 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
+// Fix default icon paths for Vite bundling
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+});
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
@@ -85,19 +98,32 @@ export default function MapaRevendedoras({ representantes }: Props) {
         }
         try {
           const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(r.cidade)}&state=${encodeURIComponent(r.estado)}&country=Brazil&format=json&limit=1`;
-          const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+          const res = await fetch(url, { headers: { 'Accept': 'application/json', 'Accept-Language': 'pt-BR' } });
           const json = await res.json();
           const first = Array.isArray(json) && json[0];
-          geocodeCache.set(key, first ? { lat: parseFloat(first.lat), lng: parseFloat(first.lon) } : null);
-        } catch {
+          if (first) {
+            const coords = { lat: parseFloat(first.lat), lng: parseFloat(first.lon) };
+            geocodeCache.set(key, coords);
+            console.log(`[Mapa] ✅ ${r.cidade}/${r.estado}:`, coords);
+          } else {
+            geocodeCache.set(key, null);
+            console.warn(`[Mapa] ❌ Sem resultado para ${r.cidade}/${r.estado}`);
+          }
+        } catch (e) {
           geocodeCache.set(key, null);
+          console.error(`[Mapa] Erro geocodificando ${r.cidade}/${r.estado}:`, e);
         }
         if (cancelled) return;
         setProgress({ done: i + 1, total: pending.length, running: i + 1 < pending.length });
         setTick((t) => t + 1);
         await new Promise((res) => setTimeout(res, 200));
       }
-      if (!cancelled) setProgress((p) => ({ ...p, running: false }));
+      if (!cancelled) {
+        const sucesso = [...geocodeCache.values()].filter(Boolean).length;
+        const falha = [...geocodeCache.values()].filter((v) => v === null).length;
+        console.log(`[Mapa] Geocoding finalizado — ${sucesso} sucesso, ${falha} falha`);
+        setProgress((p) => ({ ...p, running: false }));
+      }
     })();
 
     return () => { cancelled = true; };
