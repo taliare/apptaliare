@@ -616,8 +616,13 @@ export default function RelatorioKpis() {
       return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
     };
 
-    // 1. Kits em campo
-    const kitsCampoValor = cobrAbertas.reduce((s, c) =>
+    // Restringe ao mês selecionado (data_agendada dentro do mês)
+    const cobrAbertasMes = cobrAbertas.filter(
+      c => c.data_agendada >= dataInicio && c.data_agendada <= dataFim
+    );
+
+    // 1. Kits em campo (do mês selecionado)
+    const kitsCampoValor = cobrAbertasMes.reduce((s, c) =>
       s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
     );
 
