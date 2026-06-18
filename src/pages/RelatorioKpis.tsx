@@ -1238,7 +1238,7 @@ export default function RelatorioKpis() {
                       icon={<UserMinus className="h-4 w-4" />}
                       titulo="Revendedoras Perdidas"
                       valor={String(pessoas.perdidasAtual)}
-                      subtitulo="Tinham nota no mês anterior, não têm neste"
+                      subtitulo="Sem cobrança ativa há mais de 90 dias"
                       accent={pessoas.perdidasAtual === 0 ? "green" : pessoas.perdidasAtual > 10 ? "red" : "neutral"}
                       onClick={() => setDrill({
                         tipo: "pe_revendedoras",
