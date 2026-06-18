@@ -316,6 +316,37 @@ async function fetchRepsComCobrancaUltimos7Dias(): Promise<Set<string>> {
   return s;
 }
 
+// Revendedoras com qualquer cobrança nos últimos 90 dias + universo de quem já teve cobrança
+async function fetchRevendedorasInatividade() {
+  const hoje = new Date();
+  const lim90 = new Date(hoje); lim90.setDate(lim90.getDate() - 90);
+  const lim90Str = `${lim90.getFullYear()}-${String(lim90.getMonth() + 1).padStart(2, "0")}-${String(lim90.getDate()).padStart(2, "0")}`;
+
+  const ativas90 = new Set<string>();
+  const jaTiveram = new Set<string>();
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("cobrancas_agendadas")
+      .select("revendedora,data_agendada")
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    for (const r of data) {
+      const nome = String((r as any).revendedora || "").trim().toUpperCase();
+      if (!nome) continue;
+      jaTiveram.add(nome);
+      const da = String((r as any).data_agendada || "");
+      if (da && da >= lim90Str) ativas90.add(nome);
+    }
+    if (data.length < pageSize) break;
+    from += pageSize;
+    if (from > 200000) break;
+  }
+  return { ativas90, jaTiveram };
+}
+
 
 
 // ─── Variation chip ────────────────────────────
