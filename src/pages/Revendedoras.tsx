@@ -10,6 +10,7 @@ import { Users, Search, Upload, Plus, MessageCircle, MapPin, User as UserIcon, F
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import RankingRevendedoras from '@/components/revendedoras/RankingRevendedoras';
+import MapaRevendedoras from '@/components/revendedoras/MapaRevendedoras';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
@@ -219,6 +220,7 @@ export default function Revendedoras() {
         <TabsList>
           <TabsTrigger value="listagem">Listagem</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
+          <TabsTrigger value="mapa">Mapa</TabsTrigger>
         </TabsList>
 
         <TabsContent value="listagem">
@@ -438,6 +440,10 @@ export default function Revendedoras() {
             representanteFiltro={representanteFiltro}
             setRepresentanteFiltro={setRepresentanteFiltro}
           />
+        </TabsContent>
+
+        <TabsContent value="mapa">
+          <MapaRevendedoras representantes={representantes} />
         </TabsContent>
       </Tabs>
 
