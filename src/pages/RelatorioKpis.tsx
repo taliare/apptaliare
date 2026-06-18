@@ -679,14 +679,14 @@ export default function RelatorioKpis() {
       : 0;
 
     return {
-      kitsCampoValor, cobrAbertasCount: cobrAbertas.length,
+      kitsCampoValor, cobrAbertasCount: cobrAbertasMes.length,
       tempoMedioRetorno, retornoRows,
       taxaDevolucao, devolvidasEncerradas, encerradasTotal: encerradasIds.size,
       atrasadas, atraso030, atraso3160, atraso60plus,
       juridicoCountAtual, juridicoValorAtual, juridicoCountPrev,
       prazoMedio, prazoRows,
     };
-  }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual]);
+  }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual, dataInicio, dataFim]);
 
   // ─── Cálculos PESSOAS ───
   const pessoas = useMemo(() => {
