@@ -184,12 +184,12 @@ export function ConciliarView() {
 
   const totais = useMemo(() => {
     const c = { entradas: 0, saidas: 0 };
-    transacoes.forEach((t) => {
-      if (t.tipo === "credito") c.entradas += Number(t.valor);
+    transacoesFiltradas.forEach((t) => {
+      if (Number(t.valor) > 0) c.entradas += Number(t.valor);
       else c.saidas += Math.abs(Number(t.valor));
     });
     return c;
-  }, [transacoes]);
+  }, [transacoesFiltradas]);
 
   return (
     <Tabs defaultValue="extrato" className="w-full">
@@ -221,10 +221,21 @@ export function ConciliarView() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="todas">Todas</SelectItem>
+            <SelectItem value="todas">Todas Conciliações</SelectItem>
             <SelectItem value="pendente">Pendentes</SelectItem>
             <SelectItem value="conciliado">Conciliadas</SelectItem>
             <SelectItem value="ignorado">Ignoradas</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as any)}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos Tipos</SelectItem>
+            <SelectItem value="entradas">Entradas</SelectItem>
+            <SelectItem value="saidas">Saídas</SelectItem>
           </SelectContent>
         </Select>
 
@@ -232,12 +243,12 @@ export function ConciliarView() {
           <Plus className="h-4 w-4 mr-1" /> Nova Transação Manual
         </Button>
 
-        <div className="text-sm text-muted-foreground">
-          {transacoes.length} {transacoes.length === 1 ? "transação" : "transações"}
+        <div className="text-sm text-muted-foreground whitespace-nowrap">
+          {transacoesFiltradas.length} {transacoesFiltradas.length === 1 ? "transação" : "transações"}
           {" · "}
-          <span className="text-green-600">{BRL(totais.entradas)}</span>
+          <span className="text-green-600 font-medium">{BRL(totais.entradas)}</span>
           {" / "}
-          <span className="text-red-600">-{BRL(totais.saidas)}</span>
+          <span className="text-red-600 font-medium">-{BRL(totais.saidas)}</span>
         </div>
       </div>
 
@@ -248,14 +259,26 @@ export function ConciliarView() {
         <CardContent>
           {loading ? (
             <p className="text-muted-foreground">Carregando...</p>
-          ) : transacoes.length === 0 ? (
-            <p className="text-muted-foreground">Nenhuma transação</p>
+          ) : transacoesFiltradas.length === 0 ? (
+            <p className="text-muted-foreground">Nenhuma transação encontrada</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors select-none whitespace-nowrap"
+                      onClick={() => setOrdemData(ordemData === "desc" ? "asc" : "desc")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Data
+                        {ordemData === "desc" ? (
+                          <ArrowDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ArrowUp className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Memo</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
@@ -265,7 +288,7 @@ export function ConciliarView() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transacoes.map((t) => (
+                  {transacoesFiltradas.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell className="whitespace-nowrap">
                         {t.data_transacao.split("-").reverse().join("/")}
@@ -278,7 +301,7 @@ export function ConciliarView() {
                       </TableCell>
                       <TableCell
                         className={`text-right whitespace-nowrap font-medium ${
-                          t.tipo === "credito" ? "text-green-600" : "text-red-600"
+                          Number(t.valor) > 0 ? "text-green-600" : "text-red-600"
                         }`}
                       >
                         {BRL(Number(t.valor))}
