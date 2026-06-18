@@ -56,7 +56,7 @@ export default function MapaRevendedoras({ representantes }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('revendedoras')
-        .select('id, nome, cidade, estado, representante_id, ativo')
+        .select('id, nome, bairro, cidade, estado, representante_id, ativo')
         .not('cidade', 'is', null)
         .not('estado', 'is', null);
       if (error) throw error;
@@ -76,13 +76,13 @@ export default function MapaRevendedoras({ representantes }: Props) {
     });
   }, [revendedoras, representanteFiltro, ativoFiltro]);
 
-  // Geocode missing cities sequentially with 200ms delay
+  const cacheKey = (r: any) =>
+    `${(r.bairro || '').trim().toUpperCase()}|${(r.cidade || '').trim().toUpperCase()}|${(r.estado || '').trim().toUpperCase()}`;
+
+  // Geocode missing addresses sequentially with 200ms delay
   useEffect(() => {
     let cancelled = false;
-    const pending = filtradas.filter((r: any) => {
-      const key = `${(r.cidade || '').trim().toUpperCase()}|${(r.estado || '').trim().toUpperCase()}`;
-      return !geocodeCache.has(key);
-    });
+    const pending = filtradas.filter((r: any) => !geocodeCache.has(cacheKey(r)));
     if (pending.length === 0) return;
 
     setProgress({ done: 0, total: pending.length, running: true });
@@ -91,23 +91,41 @@ export default function MapaRevendedoras({ representantes }: Props) {
       for (let i = 0; i < pending.length; i++) {
         if (cancelled) return;
         const r: any = pending[i];
-        const key = `${(r.cidade || '').trim().toUpperCase()}|${(r.estado || '').trim().toUpperCase()}`;
+        const key = cacheKey(r);
         if (geocodeCache.has(key)) {
           setProgress((p) => ({ ...p, done: i + 1 }));
           continue;
         }
-        try {
-          const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(r.cidade)}&state=${encodeURIComponent(r.estado)}&country=Brazil&format=json&limit=1`;
-          const res = await fetch(url, { headers: { 'Accept': 'application/json', 'Accept-Language': 'pt-BR' } });
+
+        const fetchNominatim = async (params: Record<string, string>) => {
+          const qs = new URLSearchParams({ ...params, country: 'Brazil', format: 'json', limit: '1' }).toString();
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?${qs}`, {
+            headers: { 'Accept': 'application/json', 'Accept-Language': 'pt-BR' },
+          });
           const json = await res.json();
-          const first = Array.isArray(json) && json[0];
+          return Array.isArray(json) && json[0] ? json[0] : null;
+        };
+
+        try {
+          let first: any = null;
+          if (r.bairro) {
+            first = await fetchNominatim({ street: r.bairro, city: r.cidade, state: r.estado });
+            if (!first) {
+              await new Promise((res) => setTimeout(res, 200));
+              first = await fetchNominatim({ city: r.cidade, state: r.estado });
+              console.warn(`[Mapa] ⚠️ Bairro "${r.bairro}" não localizado, usando cidade ${r.cidade}/${r.estado}`);
+            }
+          } else {
+            first = await fetchNominatim({ city: r.cidade, state: r.estado });
+          }
+
           if (first) {
             const coords = { lat: parseFloat(first.lat), lng: parseFloat(first.lon) };
             geocodeCache.set(key, coords);
-            console.log(`[Mapa] ✅ ${r.cidade}/${r.estado}:`, coords);
+            console.log(`[Mapa] ✅ ${r.bairro || ''} ${r.cidade}/${r.estado}:`, coords);
           } else {
             geocodeCache.set(key, null);
-            console.warn(`[Mapa] ❌ Sem resultado para ${r.cidade}/${r.estado}`);
+            console.warn(`[Mapa] ❌ Sem resultado para ${r.bairro || ''} ${r.cidade}/${r.estado}`);
           }
         } catch (e) {
           geocodeCache.set(key, null);
@@ -132,8 +150,7 @@ export default function MapaRevendedoras({ representantes }: Props) {
   const pontos = useMemo(() => {
     return filtradas
       .map((r: any) => {
-        const key = `${(r.cidade || '').trim().toUpperCase()}|${(r.estado || '').trim().toUpperCase()}`;
-        const coords = geocodeCache.get(key);
+        const coords = geocodeCache.get(cacheKey(r));
         return coords ? { ...r, coords } : null;
       })
       .filter(Boolean) as any[];
