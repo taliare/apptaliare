@@ -632,21 +632,15 @@ export default function RelatorioKpis() {
     );
     const juridicoCountPrev = juridicoPrev.length;
 
-    // 6. Prazo médio recebimento (cobranças do período com prestação)
-    const primeiraPorCobranca = new Map<string, string>();
-    for (const p of prestAtual) {
-      if (!p.cobranca_id || Number(p.valor_pago || 0) <= 0) continue;
-      const cur = primeiraPorCobranca.get(p.cobranca_id);
-      if (!cur || p.data_execucao < cur) {
-        primeiraPorCobranca.set(p.cobranca_id, p.data_execucao);
-      }
-    }
+    // 6. Prazo médio recebimento — média de dias entre data_agendada e data_quitacao
+    // das notas quitadas (status=pago) no período
     const prazoRows: { cobranca: Cobranca; primeira: string; dias: number }[] = [];
-    for (const c of cobrAtual) {
-      const primeira = primeiraPorCobranca.get(c.id);
-      if (!primeira) continue;
-      const dias = diffDias(primeira, c.data_agendada);
-      prazoRows.push({ cobranca: c, primeira, dias });
+    for (const c of cobrQuitadas) {
+      if (!c.data_quitacao || !c.data_agendada) continue;
+      const quit = c.data_quitacao.split("T")[0];
+      const dias = diffDias(quit, c.data_agendada);
+      if (dias < 0) continue; // proteção: quitação anterior à data agendada (pgto antecipado)
+      prazoRows.push({ cobranca: c, primeira: quit, dias });
     }
     const prazoMedio = prazoRows.length > 0
       ? prazoRows.reduce((s, r) => s + r.dias, 0) / prazoRows.length
