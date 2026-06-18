@@ -727,8 +727,12 @@ export default function RelatorioKpis() {
       r.criado_em && r.criado_em >= `${prevInicio}T00:00:00` && r.criado_em <= `${prevFim}T23:59:59`
     );
 
-    // 3. Perdidas = nomes em cobrPrev mas não em cobrAtual
-    const perdidasNomes = Array.from(ativasSetPrev).filter(n => !ativasSetAtual.has(n));
+    // 3. Perdidas = revendedoras que JÁ tiveram cobrança e NÃO têm nenhuma
+    // (pendente, parcial ou pago) nos últimos 90 dias. Janela mínima é o ciclo
+    // do negócio (45-60 dias) — só consideramos perdida após 90d sem atividade.
+    const ativas90 = inatividade?.ativas90 ?? new Set<string>();
+    const jaTiveram = inatividade?.jaTiveram ?? new Set<string>();
+    const perdidasNomes = Array.from(jaTiveram).filter(n => !ativas90.has(n));
     const perdidasRows = perdidasNomes.map(nome => {
       const r = revendedoras.find(x => norm(x.nome) === nome);
       return {
