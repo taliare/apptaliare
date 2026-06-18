@@ -22,7 +22,6 @@
       ]
     },
     "skipLibCheck": true,
-    "types": ["google.maps", "vite/client"],
     "strict": false,
     "target": "ES2020",
     "useDefineForClassFields": true

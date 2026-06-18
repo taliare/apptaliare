@@ -1,41 +1,49 @@
-/// <reference types="google.maps" />
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
-import { MarkerClusterer } from '@googlemaps/markerclusterer';
+import { useEffect, useMemo, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { calcularStatusRevendedora, type RevendedoraStatusKey } from '@/lib/revendedoraStatus';
-import { AlertCircle, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 interface Profile { id: string; nome: string }
 
 const geocodeCache = new Map<string, { lat: number; lng: number } | null>();
 
+const makeIcon = (color: string) =>
+  L.divIcon({
+    className: 'revendedora-pin',
+    html: `<div style="background:${color};width:18px;height:18px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4);"></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 18],
+    popupAnchor: [0, -16],
+  });
+
+const iconAtiva = makeIcon('#16a34a');
+const iconInativa = makeIcon('#dc2626');
+
 interface Props {
   representantes: Profile[];
 }
 
+type AtivoFiltro = 'todos' | 'ativas' | 'inativas';
+
 export default function MapaRevendedoras({ representantes }: Props) {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
-  const mapDivRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const clustererRef = useRef<MarkerClusterer | null>(null);
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
-  const [mapReady, setMapReady] = useState(false);
-  const [geocoding, setGeocoding] = useState(false);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [representanteFiltro, setRepresentanteFiltro] = useState('todos');
-  const [statusFiltro, setStatusFiltro] = useState<'todos' | RevendedoraStatusKey>('todos');
+  const [ativoFiltro, setAtivoFiltro] = useState<AtivoFiltro>('todos');
+  const [, setTick] = useState(0);
+  const [progress, setProgress] = useState({ done: 0, total: 0, running: false });
 
   const { data: revendedoras = [] } = useQuery({
     queryKey: ['revendedoras-mapa'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('revendedoras')
-        .select('id, nome, cidade, estado, cep, logradouro, numero, bairro, representante_id, ativo, status_juridico, ultima_atividade')
+        .select('id, nome, cidade, estado, representante_id, ativo')
         .not('cidade', 'is', null)
         .not('estado', 'is', null);
       if (error) throw error;
@@ -46,142 +54,65 @@ export default function MapaRevendedoras({ representantes }: Props) {
     },
   });
 
-  const nomesNorm = useMemo(() => revendedoras.map((r) => r.nome.trim().toUpperCase()), [revendedoras]);
-
-  const { data: cobrancasMap = new Map<string, any[]>() } = useQuery({
-    queryKey: ['revendedoras-mapa-cobrancas', nomesNorm],
-    enabled: nomesNorm.length > 0,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cobrancas_agendadas')
-        .select('revendedora, status, data_agendada, valor_previsto, valor_pago_acumulado, valor_adiantado')
-        .in('revendedora', nomesNorm);
-      if (error) throw error;
-      const map = new Map<string, any[]>();
-      (data ?? []).forEach((c: any) => {
-        const k = (c.revendedora ?? '').trim().toUpperCase();
-        if (!map.has(k)) map.set(k, []);
-        map.get(k)!.push(c);
-      });
-      return map;
-    },
-  });
-
-  const revendedorasComStatus = useMemo(() => {
-    return revendedoras.map((r) => {
-      const cobs = cobrancasMap.get(r.nome.trim().toUpperCase()) ?? [];
-      return { ...r, statusInfo: calcularStatusRevendedora(r as any, cobs) };
-    });
-  }, [revendedoras, cobrancasMap]);
-
   const filtradas = useMemo(() => {
-    return revendedorasComStatus.filter((r) => {
+    return revendedoras.filter((r: any) => {
       if (representanteFiltro !== 'todos' && r.representante_id !== representanteFiltro) return false;
-      if (statusFiltro !== 'todos' && r.statusInfo.key !== statusFiltro) return false;
+      if (ativoFiltro === 'ativas' && !r.ativo) return false;
+      if (ativoFiltro === 'inativas' && r.ativo) return false;
       return true;
     });
-  }, [revendedorasComStatus, representanteFiltro, statusFiltro]);
+  }, [revendedoras, representanteFiltro, ativoFiltro]);
 
-  // init map
+  // Geocode missing cities sequentially with 200ms delay
   useEffect(() => {
-    if (!apiKey || !mapDivRef.current) return;
     let cancelled = false;
-    setOptions({ key: apiKey, v: 'weekly' });
-    Promise.all([importLibrary('maps'), importLibrary('marker'), importLibrary('geocoding')]).then(([mapsLib]) => {
-      if (cancelled || !mapDivRef.current) return;
-      mapRef.current = new mapsLib.Map(mapDivRef.current, {
-        center: { lat: -14.235, lng: -51.9253 },
-        zoom: 4,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
-      });
-      infoWindowRef.current = new google.maps.InfoWindow();
-      setMapReady(true);
-    }).catch((e) => console.error('Erro ao carregar Google Maps:', e));
-    return () => { cancelled = true; };
-  }, [apiKey]);
+    const pending = filtradas.filter((r: any) => {
+      const key = `${(r.cidade || '').trim().toUpperCase()}|${(r.estado || '').trim().toUpperCase()}`;
+      return !geocodeCache.has(key);
+    });
+    if (pending.length === 0) return;
 
-  // geocode + render markers
-  useEffect(() => {
-    if (!mapReady || !mapRef.current) return;
-    let cancelled = false;
+    setProgress({ done: 0, total: pending.length, running: true });
 
     (async () => {
-      const geocoder = new google.maps.Geocoder();
-      const markers: google.maps.Marker[] = [];
-      const toGeocode = filtradas.filter((r) => {
-        const key = `${r.cep ?? ''}|${r.cidade}|${r.estado}`;
-        return !geocodeCache.has(key);
-      });
-
-      setGeocoding(toGeocode.length > 0);
-      setProgress({ done: 0, total: toGeocode.length });
-
-      for (let i = 0; i < toGeocode.length; i++) {
+      for (let i = 0; i < pending.length; i++) {
         if (cancelled) return;
-        const r = toGeocode[i];
-        const key = `${r.cep ?? ''}|${r.cidade}|${r.estado}`;
-        const address = [r.logradouro, r.numero, r.bairro, r.cidade, r.estado, r.cep, 'Brasil'].filter(Boolean).join(', ');
+        const r: any = pending[i];
+        const key = `${(r.cidade || '').trim().toUpperCase()}|${(r.estado || '').trim().toUpperCase()}`;
+        if (geocodeCache.has(key)) {
+          setProgress((p) => ({ ...p, done: i + 1 }));
+          continue;
+        }
         try {
-          const res = await geocoder.geocode({ address });
-          const loc = res.results[0]?.geometry.location;
-          geocodeCache.set(key, loc ? { lat: loc.lat(), lng: loc.lng() } : null);
+          const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(r.cidade)}&state=${encodeURIComponent(r.estado)}&country=Brazil&format=json&limit=1`;
+          const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+          const json = await res.json();
+          const first = Array.isArray(json) && json[0];
+          geocodeCache.set(key, first ? { lat: parseFloat(first.lat), lng: parseFloat(first.lon) } : null);
         } catch {
           geocodeCache.set(key, null);
         }
-        setProgress({ done: i + 1, total: toGeocode.length });
-        await new Promise((res) => setTimeout(res, 80));
+        if (cancelled) return;
+        setProgress({ done: i + 1, total: pending.length, running: i + 1 < pending.length });
+        setTick((t) => t + 1);
+        await new Promise((res) => setTimeout(res, 200));
       }
-      setGeocoding(false);
-
-      if (cancelled) return;
-
-      for (const r of filtradas) {
-        const key = `${r.cep ?? ''}|${r.cidade}|${r.estado}`;
-        const coords = geocodeCache.get(key);
-        if (!coords) continue;
-        const marker = new google.maps.Marker({
-          position: coords,
-          title: r.nome,
-        });
-        marker.addListener('click', () => {
-          if (!infoWindowRef.current || !mapRef.current) return;
-          const html = `
-            <div style="font-family: system-ui; min-width: 180px;">
-              <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(r.nome)}</div>
-              <div style="font-size:12px;color:#555;">${escapeHtml(r.cidade)} - ${escapeHtml(r.estado)}</div>
-              <div style="font-size:12px;color:#555;">Rep.: ${escapeHtml(r.representanteNome || '—')}</div>
-              <div style="font-size:12px;margin-top:4px;">${r.statusInfo.emoji} ${escapeHtml(r.statusInfo.label)}</div>
-            </div>`;
-          infoWindowRef.current.setContent(html);
-          infoWindowRef.current.open({ map: mapRef.current, anchor: marker });
-        });
-        markers.push(marker);
-      }
-
-      if (clustererRef.current) {
-        clustererRef.current.clearMarkers();
-      }
-      clustererRef.current = new MarkerClusterer({ map: mapRef.current!, markers });
+      if (!cancelled) setProgress((p) => ({ ...p, running: false }));
     })();
 
     return () => { cancelled = true; };
-  }, [mapReady, filtradas]);
+  }, [filtradas]);
 
-  if (!apiKey) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center space-y-3">
-          <AlertCircle className="h-10 w-10 mx-auto text-amber-500" />
-          <p className="font-medium">Chave do Google Maps não configurada</p>
-          <p className="text-sm text-muted-foreground">
-            Defina <code className="px-1 py-0.5 bg-muted rounded">VITE_GOOGLE_MAPS_API_KEY</code> no arquivo <code>.env</code> e reinicie o servidor.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const pontos = useMemo(() => {
+    return filtradas
+      .map((r: any) => {
+        const key = `${(r.cidade || '').trim().toUpperCase()}|${(r.estado || '').trim().toUpperCase()}`;
+        const coords = geocodeCache.get(key);
+        return coords ? { ...r, coords } : null;
+      })
+      .filter(Boolean) as any[];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtradas, progress.done]);
 
   return (
     <div className="space-y-3">
@@ -194,36 +125,56 @@ export default function MapaRevendedoras({ representantes }: Props) {
               {representantes.map((rep) => (<SelectItem key={rep.id} value={rep.id}>{rep.nome}</SelectItem>))}
             </SelectContent>
           </Select>
-          <Select value={statusFiltro} onValueChange={(v) => setStatusFiltro(v as any)}>
-            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Status" /></SelectTrigger>
+          <Select value={ativoFiltro} onValueChange={(v) => setAtivoFiltro(v as AtivoFiltro)}>
+            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="todos">Todos status</SelectItem>
-              <SelectItem value="ativa">🟢 Ativa</SelectItem>
-              <SelectItem value="pagando">🔵 Pagando</SelectItem>
-              <SelectItem value="quite">✅ Quite</SelectItem>
-              <SelectItem value="em_atraso">⚠️ Em Atraso</SelectItem>
-              <SelectItem value="inadimplente">🔴 Inadimplente</SelectItem>
-              <SelectItem value="juridico_solicitado">⚖️ Sol. Jurídico</SelectItem>
-              <SelectItem value="juridico_aprovado">⛔ Jurídico</SelectItem>
-              <SelectItem value="inativa">💤 Inativa</SelectItem>
+              <SelectItem value="todos">Todas</SelectItem>
+              <SelectItem value="ativas">🟢 Ativas</SelectItem>
+              <SelectItem value="inativas">🔴 Inativas</SelectItem>
             </SelectContent>
           </Select>
           <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-4 w-4" />
-            {filtradas.length} revendedoras
-            {geocoding && <span>· geocodificando {progress.done}/{progress.total}…</span>}
+            {pontos.length}/{filtradas.length} no mapa
+            {progress.running && <span>· geocodificando {progress.done}/{progress.total}…</span>}
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardContent className="p-0">
-          <div ref={mapDivRef} className="w-full h-[600px] rounded-md" />
+          <div className="h-[600px] w-full rounded-md overflow-hidden">
+            <MapContainer
+              center={[-14.235, -51.925]}
+              zoom={5}
+              style={{ height: '100%', width: '100%' }}
+              scrollWheelZoom
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MarkerClusterGroup chunkedLoading>
+                {pontos.map((r) => (
+                  <Marker
+                    key={r.id}
+                    position={[r.coords.lat, r.coords.lng]}
+                    icon={r.ativo ? iconAtiva : iconInativa}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <div className="font-semibold">{r.nome}</div>
+                        <div className="text-muted-foreground">{r.cidade} - {r.estado}</div>
+                        <div>Rep.: {r.representanteNome || '—'}</div>
+                        <div className="mt-1">Status: {r.ativo ? '🟢 Ativa' : '🔴 Inativa'}</div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MarkerClusterGroup>
+            </MapContainer>
+          </div>
         </CardContent>
       </Card>
     </div>
   );
-}
-
-function escapeHtml(s: string) {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 }
