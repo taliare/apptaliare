@@ -643,8 +643,8 @@ export default function RelatorioKpis() {
       ? (devolvidasEncerradas.length / encerradasIds.size) * 100
       : 0;
 
-    // 4. Notas em atraso (snapshot agora)
-    const atrasadas = cobrAbertas
+    // 4. Notas em atraso — apenas notas do mês selecionado, vencidas hoje
+    const atrasadas = cobrAbertasMes
       .filter(c => c.data_agendada < hojeStr)
       .map(c => {
         const dias = diffDias(hojeStr, c.data_agendada);
