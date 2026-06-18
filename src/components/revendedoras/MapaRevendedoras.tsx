@@ -86,7 +86,7 @@ export default function MapaRevendedoras({ representantes }: Props) {
     if (!apiKey || !mapDivRef.current) return;
     let cancelled = false;
     const loader = new Loader({ apiKey, version: 'weekly' });
-    loader.load().then(() => {
+    Promise.all([loader.importLibrary('maps'), loader.importLibrary('marker'), loader.importLibrary('geocoding')]).then(() => {
       if (cancelled || !mapDivRef.current) return;
       mapRef.current = new google.maps.Map(mapDivRef.current, {
         center: { lat: -14.235, lng: -51.9253 },
@@ -161,7 +161,6 @@ export default function MapaRevendedoras({ representantes }: Props) {
 
       if (clustererRef.current) {
         clustererRef.current.clearMarkers();
-        clustererRef.current.setMap(null);
       }
       clustererRef.current = new MarkerClusterer({ map: mapRef.current!, markers });
     })();
