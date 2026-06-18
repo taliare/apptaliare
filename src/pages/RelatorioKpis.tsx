@@ -526,18 +526,28 @@ export default function RelatorioKpis() {
     const receitaAtual = prestAtual.reduce((s, p) => s + Number(p.valor_pago || 0), 0);
     const receitaPrev = prestPrev.reduce((s, p) => s + Number(p.valor_pago || 0), 0);
 
-    // 2. Aproveitamento
+    // 2. Aproveitamento — apenas kits ENCERRADOS (status=pago) no período
+    const pagasAtual = cobrAtual.filter(c => c.status === "pago");
+    const pagasPrev = cobrPrev.filter(c => c.status === "pago");
+    const previstoPagasAtual = pagasAtual.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
+    const recebidoPagasAtual = pagasAtual.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
+    const aproveitAtual = previstoPagasAtual > 0 ? (recebidoPagasAtual / previstoPagasAtual) * 100 : 0;
+
+    const previstoPagasPrev = pagasPrev.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
+    const recebidoPagasPrev = pagasPrev.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
+    const aproveitPrev = previstoPagasPrev > 0 ? (recebidoPagasPrev / previstoPagasPrev) * 100 : 0;
+
+    // Mantém previsto/pago totais para drilldowns e outras métricas
     const previstoAtual = cobrAtual.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
     const pagoCobrAtual = cobrAtual.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
-    const aproveitAtual = previstoAtual > 0 ? (pagoCobrAtual / previstoAtual) * 100 : 0;
 
-    const previstoPrev = cobrPrev.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
-    const pagoCobrPrev = cobrPrev.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
-    const aproveitPrev = previstoPrev > 0 ? (pagoCobrPrev / previstoPrev) * 100 : 0;
-
-    // 3. Ticket médio
-    const ticketAtual = cobrAtual.length > 0 ? previstoAtual / cobrAtual.length : 0;
-    const ticketPrev = cobrPrev.length > 0 ? previstoPrev / cobrPrev.length : 0;
+    // 3. Ticket médio — apenas notas com status pago ou parcial (valor final conhecido)
+    const notasFechadasAtual = cobrAtual.filter(c => c.status === "pago" || c.status === "parcial");
+    const notasFechadasPrev = cobrPrev.filter(c => c.status === "pago" || c.status === "parcial");
+    const ticketSomaAtual = notasFechadasAtual.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
+    const ticketSomaPrev = notasFechadasPrev.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
+    const ticketAtual = notasFechadasAtual.length > 0 ? ticketSomaAtual / notasFechadasAtual.length : 0;
+    const ticketPrev = notasFechadasPrev.length > 0 ? ticketSomaPrev / notasFechadasPrev.length : 0;
 
     // 4. Recuperação inadimplência
     const recupRowsAtual = prestAtual.filter(p =>
@@ -622,21 +632,15 @@ export default function RelatorioKpis() {
     );
     const juridicoCountPrev = juridicoPrev.length;
 
-    // 6. Prazo médio recebimento (cobranças do período com prestação)
-    const primeiraPorCobranca = new Map<string, string>();
-    for (const p of prestAtual) {
-      if (!p.cobranca_id || Number(p.valor_pago || 0) <= 0) continue;
-      const cur = primeiraPorCobranca.get(p.cobranca_id);
-      if (!cur || p.data_execucao < cur) {
-        primeiraPorCobranca.set(p.cobranca_id, p.data_execucao);
-      }
-    }
+    // 6. Prazo médio recebimento — média de dias entre data_agendada e data_quitacao
+    // das notas quitadas (status=pago) no período
     const prazoRows: { cobranca: Cobranca; primeira: string; dias: number }[] = [];
-    for (const c of cobrAtual) {
-      const primeira = primeiraPorCobranca.get(c.id);
-      if (!primeira) continue;
-      const dias = diffDias(primeira, c.data_agendada);
-      prazoRows.push({ cobranca: c, primeira, dias });
+    for (const c of cobrQuitadas) {
+      if (!c.data_quitacao || !c.data_agendada) continue;
+      const quit = c.data_quitacao.split("T")[0];
+      const dias = diffDias(quit, c.data_agendada);
+      if (dias < 0) continue; // proteção: quitação anterior à data agendada (pgto antecipado)
+      prazoRows.push({ cobranca: c, primeira: quit, dias });
     }
     const prazoMedio = prazoRows.length > 0
       ? prazoRows.reduce((s, r) => s + r.dias, 0) / prazoRows.length
