@@ -1,0 +1,4 @@
+
+ALTER TABLE public.revendedoras ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE public.revendedoras ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE public.revendedoras ADD COLUMN IF NOT EXISTS geocoded_at TIMESTAMPTZ;

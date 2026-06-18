@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -16,16 +16,18 @@ L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   shadowUrl: markerShadow,
 });
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MapPin } from 'lucide-react';
+import { MapPin, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Profile { id: string; nome: string }
-
-const geocodeCache = new Map<string, { lat: number; lng: number } | null>();
 
 const makeIcon = (color: string) =>
   L.divIcon({
@@ -46,17 +48,18 @@ interface Props {
 type AtivoFiltro = 'todos' | 'ativas' | 'inativas';
 
 export default function MapaRevendedoras({ representantes }: Props) {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [representanteFiltro, setRepresentanteFiltro] = useState('todos');
   const [ativoFiltro, setAtivoFiltro] = useState<AtivoFiltro>('todos');
-  const [, setTick] = useState(0);
-  const [progress, setProgress] = useState({ done: 0, total: 0, running: false });
+  const [atualizando, setAtualizando] = useState(false);
 
-  const { data: revendedoras = [] } = useQuery({
+  const { data: revendedoras = [], refetch } = useQuery({
     queryKey: ['revendedoras-mapa'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('revendedoras')
-        .select('id, nome, bairro, cidade, estado, representante_id, ativo')
+        .select('id, nome, bairro, cidade, estado, latitude, longitude, representante_id, ativo')
         .not('cidade', 'is', null)
         .not('estado', 'is', null);
       if (error) throw error;
@@ -76,95 +79,34 @@ export default function MapaRevendedoras({ representantes }: Props) {
     });
   }, [revendedoras, representanteFiltro, ativoFiltro]);
 
-  const cacheKey = (r: any) =>
-    `${(r.bairro || '').trim().toUpperCase()}-${(r.cidade || '').trim().toUpperCase()}`;
+  const pontos = useMemo(
+    () => filtradas.filter((r: any) => r.latitude != null && r.longitude != null),
+    [filtradas]
+  );
 
-  // Geocode missing addresses sequentially with 200ms delay
-  useEffect(() => {
-    let cancelled = false;
-    const pending = filtradas.filter((r: any) => !geocodeCache.has(cacheKey(r)));
-    if (pending.length === 0) return;
+  const semCoords = useMemo(
+    () => revendedoras.filter((r: any) => r.latitude == null).length,
+    [revendedoras]
+  );
 
-    setProgress({ done: 0, total: pending.length, running: true });
-
-    (async () => {
-      for (let i = 0; i < pending.length; i++) {
-        if (cancelled) return;
-        const r: any = pending[i];
-        const key = cacheKey(r);
-        if (geocodeCache.has(key)) {
-          setProgress((p) => ({ ...p, done: i + 1 }));
-          continue;
-        }
-
-        const fetchNominatim = async (query: string) => {
-          const qs = new URLSearchParams({ q: query, format: 'json', limit: '1' }).toString();
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?${qs}`, {
-            headers: { 'Accept': 'application/json', 'Accept-Language': 'pt-BR' },
-          });
-          const json = await res.json();
-          return Array.isArray(json) && json[0] ? json[0] : null;
-        };
-
-        try {
-          let first: any = null;
-          const estado = r.estado || 'Amazonas';
-          if (r.bairro) {
-            const queryWithBairro = `${r.bairro}, ${r.cidade}, ${estado}, Brasil`;
-            first = await fetchNominatim(queryWithBairro);
-            if (!first) {
-              await new Promise((res) => setTimeout(res, 200));
-              const fallbackQuery = `${r.cidade}, ${estado}, Brasil`;
-              first = await fetchNominatim(fallbackQuery);
-              console.warn(`[Mapa] ⚠️ Bairro "${r.bairro}" não localizado, usando cidade ${r.cidade}, ${estado}`);
-            }
-          } else {
-            const queryCidade = `${r.cidade}, ${estado}, Brasil`;
-            first = await fetchNominatim(queryCidade);
-          }
-
-          if (first) {
-            const coords = { lat: parseFloat(first.lat), lng: parseFloat(first.lon) };
-            geocodeCache.set(key, coords);
-            console.log(`[Mapa] ✅ ${r.bairro || ''} ${r.cidade}/${estado}:`, coords);
-          } else {
-            geocodeCache.set(key, null);
-            console.warn(`[Mapa] ❌ Sem resultado para ${r.bairro || ''} ${r.cidade}/${estado}`);
-          }
-        } catch (e) {
-          geocodeCache.set(key, null);
-          console.error(`[Mapa] Erro geocodificando ${r.cidade}/${r.estado || 'Amazonas'}:`, e);
-        }
-        if (cancelled) return;
-        setProgress({ done: i + 1, total: pending.length, running: i + 1 < pending.length });
-        setTick((t) => t + 1);
-        await new Promise((res) => setTimeout(res, 200));
-      }
-      if (!cancelled) {
-        const sucesso = [...geocodeCache.values()].filter(Boolean).length;
-        const falha = [...geocodeCache.values()].filter((v) => v === null).length;
-        console.log(`[Mapa] Geocoding finalizado — ${sucesso} sucesso, ${falha} falha`);
-        setProgress((p) => ({ ...p, running: false }));
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [filtradas]);
-
-  const pontos = useMemo(() => {
-    return filtradas
-      .map((r: any) => {
-        const coords = geocodeCache.get(cacheKey(r));
-        return coords ? { ...r, coords } : null;
-      })
-      .filter(Boolean) as any[];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtradas, progress.done]);
+  const handleAtualizarCoords = async () => {
+    setAtualizando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('geocode-revendedoras');
+      if (error) throw error;
+      toast.success(`Geocoding concluído: ${data?.sucesso ?? 0} sucesso, ${data?.falha ?? 0} falha`);
+      await refetch();
+    } catch (e: any) {
+      toast.error(`Erro ao atualizar: ${e?.message || e}`);
+    } finally {
+      setAtualizando(false);
+    }
+  };
 
   return (
     <div className="space-y-3">
       <Card>
-        <CardContent className="py-3 flex flex-wrap gap-2">
+        <CardContent className="py-3 flex flex-wrap gap-2 items-center">
           <Select value={representanteFiltro} onValueChange={setRepresentanteFiltro}>
             <SelectTrigger className="w-[220px]"><SelectValue placeholder="Representante" /></SelectTrigger>
             <SelectContent>
@@ -180,10 +122,20 @@ export default function MapaRevendedoras({ representantes }: Props) {
               <SelectItem value="inativas">🔴 Inativas</SelectItem>
             </SelectContent>
           </Select>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAtualizarCoords}
+              disabled={atualizando}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${atualizando ? 'animate-spin' : ''}`} />
+              {atualizando ? 'Atualizando…' : `Atualizar coordenadas${semCoords ? ` (${semCoords})` : ''}`}
+            </Button>
+          )}
           <div className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
             <MapPin className="h-4 w-4" />
             {pontos.length}/{filtradas.length} no mapa
-            {progress.running && <span>· geocodificando {progress.done}/{progress.total}…</span>}
           </div>
         </CardContent>
       </Card>
@@ -201,16 +153,18 @@ export default function MapaRevendedoras({ representantes }: Props) {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               <MarkerClusterGroup chunkedLoading>
-                {pontos.map((r) => (
+                {pontos.map((r: any) => (
                   <Marker
                     key={r.id}
-                    position={[r.coords.lat, r.coords.lng]}
+                    position={[r.latitude, r.longitude]}
                     icon={r.ativo ? iconAtiva : iconInativa}
                   >
                     <Popup>
                       <div className="text-sm">
                         <div className="font-semibold">{r.nome}</div>
-                        <div className="text-muted-foreground">{r.cidade} - {r.estado}</div>
+                        <div className="text-muted-foreground">
+                          {r.bairro ? `${r.bairro} · ` : ''}{r.cidade} - {r.estado}
+                        </div>
                         <div>Rep.: {r.representanteNome || '—'}</div>
                         <div className="mt-1">Status: {r.ativo ? '🟢 Ativa' : '🔴 Inativa'}</div>
                       </div>
