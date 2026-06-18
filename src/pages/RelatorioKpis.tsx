@@ -316,6 +316,37 @@ async function fetchRepsComCobrancaUltimos7Dias(): Promise<Set<string>> {
   return s;
 }
 
+// Revendedoras com qualquer cobrança nos últimos 90 dias + universo de quem já teve cobrança
+async function fetchRevendedorasInatividade() {
+  const hoje = new Date();
+  const lim90 = new Date(hoje); lim90.setDate(lim90.getDate() - 90);
+  const lim90Str = `${lim90.getFullYear()}-${String(lim90.getMonth() + 1).padStart(2, "0")}-${String(lim90.getDate()).padStart(2, "0")}`;
+
+  const ativas90 = new Set<string>();
+  const jaTiveram = new Set<string>();
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("cobrancas_agendadas")
+      .select("revendedora,data_agendada")
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    for (const r of data) {
+      const nome = String((r as any).revendedora || "").trim().toUpperCase();
+      if (!nome) continue;
+      jaTiveram.add(nome);
+      const da = String((r as any).data_agendada || "");
+      if (da && da >= lim90Str) ativas90.add(nome);
+    }
+    if (data.length < pageSize) break;
+    from += pageSize;
+    if (from > 200000) break;
+  }
+  return { ativas90, jaTiveram };
+}
+
 
 
 // ─── Variation chip ────────────────────────────
@@ -467,6 +498,10 @@ export default function RelatorioKpis() {
     queryKey: ["kpi_desp", prevAnoMes],
     queryFn: () => fetchDespesasMes(prevAnoMes),
   });
+  const { data: inatividade } = useQuery({
+    queryKey: ["kpi_pe_inatividade"],
+    queryFn: fetchRevendedorasInatividade,
+  });
 
   // ─── Queries OPERACIONAL ───
   const { data: cobrAbertas = [], isLoading: lo1 } = useQuery({
@@ -581,8 +616,13 @@ export default function RelatorioKpis() {
       return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
     };
 
-    // 1. Kits em campo
-    const kitsCampoValor = cobrAbertas.reduce((s, c) =>
+    // Restringe ao mês selecionado (data_agendada dentro do mês)
+    const cobrAbertasMes = cobrAbertas.filter(
+      c => c.data_agendada >= dataInicio && c.data_agendada <= dataFim
+    );
+
+    // 1. Kits em campo (do mês selecionado)
+    const kitsCampoValor = cobrAbertasMes.reduce((s, c) =>
       s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
     );
 
@@ -603,8 +643,8 @@ export default function RelatorioKpis() {
       ? (devolvidasEncerradas.length / encerradasIds.size) * 100
       : 0;
 
-    // 4. Notas em atraso (snapshot agora)
-    const atrasadas = cobrAbertas
+    // 4. Notas em atraso — apenas notas do mês selecionado, vencidas hoje
+    const atrasadas = cobrAbertasMes
       .filter(c => c.data_agendada < hojeStr)
       .map(c => {
         const dias = diffDias(hojeStr, c.data_agendada);
@@ -639,14 +679,14 @@ export default function RelatorioKpis() {
       : 0;
 
     return {
-      kitsCampoValor, cobrAbertasCount: cobrAbertas.length,
+      kitsCampoValor, cobrAbertasCount: cobrAbertasMes.length,
       tempoMedioRetorno, retornoRows,
       taxaDevolucao, devolvidasEncerradas, encerradasTotal: encerradasIds.size,
       atrasadas, atraso030, atraso3160, atraso60plus,
       juridicoCountAtual, juridicoValorAtual, juridicoCountPrev,
       prazoMedio, prazoRows,
     };
-  }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual]);
+  }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual, dataInicio, dataFim]);
 
   // ─── Cálculos PESSOAS ───
   const pessoas = useMemo(() => {
@@ -687,8 +727,12 @@ export default function RelatorioKpis() {
       r.criado_em && r.criado_em >= `${prevInicio}T00:00:00` && r.criado_em <= `${prevFim}T23:59:59`
     );
 
-    // 3. Perdidas = nomes em cobrPrev mas não em cobrAtual
-    const perdidasNomes = Array.from(ativasSetPrev).filter(n => !ativasSetAtual.has(n));
+    // 3. Perdidas = revendedoras que JÁ tiveram cobrança e NÃO têm nenhuma
+    // (pendente, parcial ou pago) nos últimos 90 dias. Janela mínima é o ciclo
+    // do negócio (45-60 dias) — só consideramos perdida após 90d sem atividade.
+    const ativas90 = inatividade?.ativas90 ?? new Set<string>();
+    const jaTiveram = inatividade?.jaTiveram ?? new Set<string>();
+    const perdidasNomes = Array.from(jaTiveram).filter(n => !ativas90.has(n));
     const perdidasRows = perdidasNomes.map(nome => {
       const r = revendedoras.find(x => norm(x.nome) === nome);
       return {
@@ -774,7 +818,7 @@ export default function RelatorioKpis() {
       perdidasAtual: perdidasRows.length, perdidasRows,
       ranking, aproveitMedio, nomeRep,
     };
-  }, [cobrAtual, cobrPrev, revendedoras, profilesAll, dataInicio, dataFim, prevInicio, prevFim]);
+  }, [cobrAtual, cobrPrev, revendedoras, profilesAll, dataInicio, dataFim, prevInicio, prevFim, inatividade]);
 
   // ─── Cálculos CRESCIMENTO ───
   const crescimento = useMemo(() => {
@@ -1194,11 +1238,11 @@ export default function RelatorioKpis() {
                       icon={<UserMinus className="h-4 w-4" />}
                       titulo="Revendedoras Perdidas"
                       valor={String(pessoas.perdidasAtual)}
-                      subtitulo="Tinham nota no mês anterior, não têm neste"
+                      subtitulo="Sem cobrança ativa há mais de 90 dias"
                       accent={pessoas.perdidasAtual === 0 ? "green" : pessoas.perdidasAtual > 10 ? "red" : "neutral"}
                       onClick={() => setDrill({
                         tipo: "pe_revendedoras",
-                        titulo: "Revendedoras Perdidas no período",
+                        titulo: "Revendedoras inativas há 90+ dias",
                         rows: pessoas.perdidasRows,
                       })}
                     />
