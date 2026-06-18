@@ -57,6 +57,8 @@ export function ConciliarView() {
   const [contas, setContas] = useState<Conta[]>([]);
   const [contaSel, setContaSel] = useState<string>("");
   const [filtro, setFiltro] = useState<Filtro>("pendente");
+  const [tipoFiltro, setTipoFiltro] = useState<"todos" | "entradas" | "saidas">("todos");
+  const [ordemData, setOrdemData] = useState<"desc" | "asc">("desc");
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [loading, setLoading] = useState(false);
   const [editando, setEditando] = useState<Transacao | null>(null);
@@ -82,7 +84,7 @@ export function ConciliarView() {
       .from("transacoes_bancarias")
       .select("*, categoria:dre_categorias_despesas(nome)")
       .eq("conta_id", contaSel)
-      .order("data_transacao", { ascending: false });
+      .order("data_transacao", { ascending: ordemData === "asc" });
     if (filtro !== "todas") q = q.eq("status_conciliacao", filtro);
     const { data, error } = await q;
     if (error) toast.error(error.message);
@@ -92,7 +94,16 @@ export function ConciliarView() {
 
   useEffect(() => {
     carregar();
-  }, [contaSel, filtro]);
+  }, [contaSel, filtro, ordemData]);
+
+  const transacoesFiltradas = useMemo(() => {
+    return transacoes.filter((t) => {
+      if (tipoFiltro === "todos") return true;
+      if (tipoFiltro === "entradas") return Number(t.valor) > 0;
+      if (tipoFiltro === "saidas") return Number(t.valor) < 0;
+      return true;
+    });
+  }, [transacoes, tipoFiltro]);
 
   const atualizarStatus = async (
     tx: Transacao,
