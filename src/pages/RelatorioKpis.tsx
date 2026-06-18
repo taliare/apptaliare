@@ -818,7 +818,7 @@ export default function RelatorioKpis() {
       perdidasAtual: perdidasRows.length, perdidasRows,
       ranking, aproveitMedio, nomeRep,
     };
-  }, [cobrAtual, cobrPrev, revendedoras, profilesAll, dataInicio, dataFim, prevInicio, prevFim]);
+  }, [cobrAtual, cobrPrev, revendedoras, profilesAll, dataInicio, dataFim, prevInicio, prevFim, inatividade]);
 
   // ─── Cálculos CRESCIMENTO ───
   const crescimento = useMemo(() => {
