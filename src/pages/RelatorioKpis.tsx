@@ -526,20 +526,12 @@ export default function RelatorioKpis() {
     const receitaAtual = prestAtual.reduce((s, p) => s + Number(p.valor_pago || 0), 0);
     const receitaPrev = prestPrev.reduce((s, p) => s + Number(p.valor_pago || 0), 0);
 
-    // 2. Aproveitamento — apenas kits ENCERRADOS (status=pago) no período
-    const pagasAtual = cobrAtual.filter(c => c.status === "pago");
-    const pagasPrev = cobrPrev.filter(c => c.status === "pago");
-    const previstoPagasAtual = pagasAtual.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
-    const recebidoPagasAtual = pagasAtual.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
-    const aproveitAtual = previstoPagasAtual > 0 ? (recebidoPagasAtual / previstoPagasAtual) * 100 : 0;
-
-    const previstoPagasPrev = pagasPrev.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
-    const recebidoPagasPrev = pagasPrev.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
-    const aproveitPrev = previstoPagasPrev > 0 ? (recebidoPagasPrev / previstoPagasPrev) * 100 : 0;
-
-    // Mantém previsto/pago totais para drilldowns e outras métricas
+    // 2. Aproveitamento — receita líquida (prestações pagas no mês) / total previsto (todas notas do mês)
     const previstoAtual = cobrAtual.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
-    const pagoCobrAtual = cobrAtual.reduce((s, c) => s + Number(c.valor_pago_acumulado || 0), 0);
+    const previstoPrev = cobrPrev.reduce((s, c) => s + Number(c.valor_previsto || 0), 0);
+    const pagoCobrAtual = receitaAtual; // alinhado com Receita Líquida (mesma fonte/cálculo)
+    const aproveitAtual = previstoAtual > 0 ? (receitaAtual / previstoAtual) * 100 : 0;
+    const aproveitPrev = previstoPrev > 0 ? (receitaPrev / previstoPrev) * 100 : 0;
 
     // 3. Ticket médio — apenas notas com status pago ou parcial (valor final conhecido)
     const notasFechadasAtual = cobrAtual.filter(c => c.status === "pago" || c.status === "parcial");
