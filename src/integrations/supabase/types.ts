@@ -1935,8 +1935,11 @@ export type Database = {
           estado_civil: string | null
           foto_url: string | null
           genero: string | null
+          geocoded_at: string | null
           id: string
+          latitude: number | null
           logradouro: string | null
+          longitude: number | null
           motivo_juridico: string | null
           nome: string
           numero: string | null
@@ -1967,8 +1970,11 @@ export type Database = {
           estado_civil?: string | null
           foto_url?: string | null
           genero?: string | null
+          geocoded_at?: string | null
           id?: string
+          latitude?: number | null
           logradouro?: string | null
+          longitude?: number | null
           motivo_juridico?: string | null
           nome: string
           numero?: string | null
@@ -1999,8 +2005,11 @@ export type Database = {
           estado_civil?: string | null
           foto_url?: string | null
           genero?: string | null
+          geocoded_at?: string | null
           id?: string
+          latitude?: number | null
           logradouro?: string | null
+          longitude?: number | null
           motivo_juridico?: string | null
           nome?: string
           numero?: string | null
@@ -2356,8 +2365,11 @@ export type Database = {
           estado_civil: string | null
           foto_url: string | null
           genero: string | null
+          geocoded_at: string | null
           id: string
+          latitude: number | null
           logradouro: string | null
+          longitude: number | null
           motivo_juridico: string | null
           nome: string
           numero: string | null
