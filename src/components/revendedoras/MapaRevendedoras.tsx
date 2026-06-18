@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader } from '@googlemaps/js-api-loader';
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { MarkerClusterer } from '@googlemaps/markerclusterer';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,10 +85,10 @@ export default function MapaRevendedoras({ representantes }: Props) {
   useEffect(() => {
     if (!apiKey || !mapDivRef.current) return;
     let cancelled = false;
-    const loader = new Loader({ apiKey, version: 'weekly' });
-    Promise.all([loader.importLibrary('maps'), loader.importLibrary('marker'), loader.importLibrary('geocoding')]).then(() => {
+    setOptions({ key: apiKey, v: 'weekly' });
+    Promise.all([importLibrary('maps'), importLibrary('marker'), importLibrary('geocoding')]).then(([mapsLib]) => {
       if (cancelled || !mapDivRef.current) return;
-      mapRef.current = new google.maps.Map(mapDivRef.current, {
+      mapRef.current = new mapsLib.Map(mapDivRef.current, {
         center: { lat: -14.235, lng: -51.9253 },
         zoom: 4,
         mapTypeControl: false,
