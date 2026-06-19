@@ -108,13 +108,20 @@ export default function AnaliseComercial() {
     }
   };
 
-  // Representantes ativos
+  // Representantes (somente role='representante', inclui inativos)
   const { data: representantes } = useQuery({
     queryKey: ["desempenho-representantes"],
     queryFn: async () => {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "representante");
+      const ids = (roles || []).map((r) => r.user_id);
+      if (ids.length === 0) return [] as Array<{ id: string; nome: string }>;
       const { data } = await profilesLimited()
         .select("id, nome")
-        .eq("ativo", true);
+        .in("id", ids)
+        .order("nome");
       return (data || []) as Array<{ id: string; nome: string }>;
     },
   });
