@@ -355,14 +355,23 @@ export default function FechamentoDiario() {
       return sum + total;
     }, 0);
 
+    const somaFormas = pix + dinheiro + cartao + transferencia;
+    const totalNotas = notas.reduce((sum, nota) => sum + (nota.valor_total || 0), 0);
+    const diferenca = +(totalNotas - somaFormas).toFixed(2);
+    const bate = Math.abs(diferenca) <= 0.01;
+
     return {
       pix,
       dinheiro,
       cartao,
       transferencia,
-      total: pix + dinheiro + cartao + transferencia,
+      total: somaFormas,
+      totalNotas,
+      diferenca,
+      bate,
     };
   }, [notas]);
+
 
   // Total de kits entregues
   const totalKits = useMemo(() => {
@@ -402,7 +411,13 @@ export default function FechamentoDiario() {
   // Mutation para finalizar dia pelo representante
   const finalizarDiaMutation = useMutation({
     mutationFn: async () => {
+      if (!totais.bate) {
+        throw new Error(
+          `O total cobrado (${formatarValor(totais.totalNotas)}) não confere com a soma das formas de pagamento (${formatarValor(totais.total)}). Diferença de ${formatarValor(Math.abs(totais.diferenca))}. Revise os valores antes de finalizar.`
+        );
+      }
       const despesa = parseValor(despesaCobranca);
+
 
       if (cobrancaDiaria) {
         const { error } = await supabase
@@ -1110,17 +1125,29 @@ export default function FechamentoDiario() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className={!totais.bate && notas.length > 0 ? 'border-destructive' : ''}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
                   <CardTitle className="text-xs md:text-sm font-medium">Total Cobrado</CardTitle>
-                  <div className="p-1.5 rounded-lg bg-primary/10">
-                    <DollarSign className="h-4 w-4 text-primary" />
+                  <div className={`p-1.5 rounded-lg ${totais.bate ? 'bg-primary/10' : 'bg-destructive/10'}`}>
+                    <DollarSign className={`h-4 w-4 ${totais.bate ? 'text-primary' : 'text-destructive'}`} />
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 md:p-4 pt-0">
-                  <div className="text-lg md:text-xl font-bold text-primary">{formatarValor(totais.total)}</div>
+                  <div className={`text-lg md:text-xl font-bold ${totais.bate ? 'text-primary' : 'text-destructive'}`}>
+                    {formatarValor(totais.totalNotas)}
+                  </div>
+                  {notas.length > 0 && (
+                    totais.bate ? (
+                      <div className="text-xs text-green-600 mt-1">✓ Formas conferem</div>
+                    ) : (
+                      <div className="text-xs text-destructive mt-1">
+                        Formas: {formatarValor(totais.total)} · Dif: {formatarValor(Math.abs(totais.diferenca))}
+                      </div>
+                    )
+                  )}
                 </CardContent>
               </Card>
+
             </div>
           </div>
 
@@ -1465,27 +1492,51 @@ export default function FechamentoDiario() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
-                      <br /><br />
-                      <strong>Total Cobrado: {formatarValor(totais.total)}</strong>
-                      {despesaCobranca && (
-                        <>
-                          <br />
-                          Despesa: {formatarValor(parseValor(despesaCobranca))}
-                        </>
-                      )}
-                      <br />
-                      <strong>Entregas de Kits: {kitsEntreguesDoDia.length} ({formatarValor(totalKits)})</strong>
+                    <AlertDialogDescription asChild>
+                      <div>
+                        Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
+                        <br /><br />
+                        <strong>Total Cobrado: {formatarValor(totais.totalNotas)}</strong>
+                        <br />
+                        Soma das formas (PIX + Dinheiro + Cartão/Transf.): {formatarValor(totais.total)}
+                        {!totais.bate && (
+                          <div className="mt-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-destructive">
+                            <strong>Valores não conferem.</strong>
+                            <br />
+                            Diferença de {formatarValor(Math.abs(totais.diferenca))}. Revise os valores antes de finalizar.
+                          </div>
+                        )}
+                        {despesaCobranca && (
+                          <>
+                            <br />
+                            Despesa: {formatarValor(parseValor(despesaCobranca))}
+                          </>
+                        )}
+                        <br />
+                        <strong>Entregas de Kits: {kitsEntreguesDoDia.length} ({formatarValor(totalKits)})</strong>
+                      </div>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => finalizarDiaMutation.mutate()}>
+                    <AlertDialogAction
+                      onClick={(e) => {
+                        if (!totais.bate) {
+                          e.preventDefault();
+                          toast.error(
+                            `Total cobrado (${formatarValor(totais.totalNotas)}) não confere com a soma das formas (${formatarValor(totais.total)}). Diferença de ${formatarValor(Math.abs(totais.diferenca))}.`
+                          );
+                          return;
+                        }
+                        finalizarDiaMutation.mutate();
+                      }}
+                      disabled={!totais.bate}
+                    >
                       Confirmar Fechamento
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
+
               </AlertDialog>
             ) : (
               <AlertDialog>
