@@ -543,6 +543,34 @@ export default function RelatorioKpis() {
     queryFn: () => fetchFinalizadasPeriodo(dataInicio, dataFim),
   });
 
+  // Prestações de contas das cobranças pagas com data_agendada no mês selecionado.
+  // Usado para Tempo Médio de Retorno (MAX(data_execucao) - data_agendada) e
+  // Prazo Médio de Recebimento (MAX - MIN data_execucao por cobranca_id).
+  const cobrPagasMesIds = useMemo(
+    () => cobrAtual.filter(c => c.status === "pago").map(c => c.id),
+    [cobrAtual]
+  );
+  const { data: prestPagasMes = [] } = useQuery({
+    queryKey: ["kpi_op_prest_pagas", anoMes, cobrPagasMesIds.length],
+    queryFn: async () => {
+      if (cobrPagasMesIds.length === 0) return [] as { cobranca_id: string; data_execucao: string }[];
+      const out: { cobranca_id: string; data_execucao: string }[] = [];
+      // chunked IN para evitar URL muito longa
+      const CHUNK = 200;
+      for (let i = 0; i < cobrPagasMesIds.length; i += CHUNK) {
+        const chunk = cobrPagasMesIds.slice(i, i + CHUNK);
+        const { data, error } = await supabase
+          .from("prestacoes_contas")
+          .select("cobranca_id,data_execucao")
+          .in("cobranca_id", chunk);
+        if (error) throw error;
+        out.push(...((data ?? []) as { cobranca_id: string; data_execucao: string }[]));
+      }
+      return out;
+    },
+    enabled: cobrPagasMesIds.length >= 0,
+  });
+
   // ─── Queries PESSOAS ───
   const { data: revendedoras = [], isLoading: lpe1 } = useQuery({
     queryKey: ["kpi_pe_revendedoras"],
