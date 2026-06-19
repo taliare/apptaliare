@@ -130,6 +130,19 @@ async function fetchQuitadasPeriodo(inicio: string, fim: string) {
   return (data ?? []) as Cobranca[];
 }
 
+// Cobranças finalizadas (pago ou cancelado) no período — denominador da Taxa de Devolução
+async function fetchFinalizadasPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .in("status", ["pago", "cancelado"])
+    .gte("data_quitacao", inicio)
+    .lte("data_quitacao", fim)
+    .eq("vigente", true);
+  if (error) throw error;
+  return (data ?? []) as Cobranca[];
+}
+
 // Snapshot: todas pendentes/parciais vigentes (kits em campo)
 async function fetchCobrancasAbertas() {
   const { data, error } = await supabase
@@ -524,6 +537,10 @@ export default function RelatorioKpis() {
     queryKey: ["kpi_op_devol", anoMes],
     queryFn: () => fetchDevolucoesTotaisPeriodo(dataInicio, dataFim),
   });
+  const { data: finalizadasMes = [] } = useQuery({
+    queryKey: ["kpi_op_finalizadas", anoMes],
+    queryFn: () => fetchFinalizadasPeriodo(dataInicio, dataFim),
+  });
 
   // ─── Queries PESSOAS ───
   const { data: revendedoras = [], isLoading: lpe1 } = useQuery({
@@ -635,10 +652,10 @@ export default function RelatorioKpis() {
       ? retornoRows.reduce((s, r) => s + r.dias, 0) / retornoRows.length
       : 0;
 
-    // 3. Taxa de devolução total
+    // 3. Taxa de devolução total — denominador: notas finalizadas (pago/cancelado) no mês
     const cobrIdsDevolucao = new Set(devolucoesAtual.map(d => d.cobranca_id).filter(Boolean));
-    const encerradasIds = new Set(cobrQuitadas.map(c => c.id));
-    const devolvidasEncerradas = cobrQuitadas.filter(c => cobrIdsDevolucao.has(c.id));
+    const encerradasIds = new Set(finalizadasMes.map(c => c.id));
+    const devolvidasEncerradas = finalizadasMes.filter(c => cobrIdsDevolucao.has(c.id));
     const taxaDevolucao = encerradasIds.size > 0
       ? (devolvidasEncerradas.length / encerradasIds.size) * 100
       : 0;
@@ -686,7 +703,7 @@ export default function RelatorioKpis() {
       juridicoCountAtual, juridicoValorAtual, juridicoCountPrev,
       prazoMedio, prazoRows,
     };
-  }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual, dataInicio, dataFim]);
+  }, [cobrAbertas, cobrQuitadas, finalizadasMes, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual, dataInicio, dataFim]);
 
   // ─── Cálculos PESSOAS ───
   const pessoas = useMemo(() => {
@@ -732,7 +749,16 @@ export default function RelatorioKpis() {
     // do negócio (45-60 dias) — só consideramos perdida após 90d sem atividade.
     const ativas90 = inatividade?.ativas90 ?? new Set<string>();
     const jaTiveram = inatividade?.jaTiveram ?? new Set<string>();
-    const perdidasNomes = Array.from(jaTiveram).filter(n => !ativas90.has(n));
+    // Só considera perdida se a revendedora foi cadastrada há mais de 90 dias
+    const hojeDate = new Date();
+    const lim90Date = new Date(hojeDate); lim90Date.setDate(lim90Date.getDate() - 90);
+    const lim90ISO = lim90Date.toISOString();
+    const elegiveis = new Set(
+      revendedoras
+        .filter(r => r.criado_em && r.criado_em < lim90ISO)
+        .map(r => norm(r.nome))
+    );
+    const perdidasNomes = Array.from(jaTiveram).filter(n => !ativas90.has(n) && elegiveis.has(n));
     const perdidasRows = perdidasNomes.map(nome => {
       const r = revendedoras.find(x => norm(x.nome) === nome);
       return {
