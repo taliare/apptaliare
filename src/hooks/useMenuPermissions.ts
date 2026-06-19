@@ -20,8 +20,8 @@ export function useMenuPermissions() {
     queryKey: ['role-menu-permissions', role],
     queryFn: async () => {
       if (!role) return [];
-      const { data, error } = await supabase
-        .from('role_menu_permissions' as any)
+      const { data, error } = await (supabase as any)
+        .from('role_menu_permissions')
         .select('menu_key')
         .eq('role', role);
 
