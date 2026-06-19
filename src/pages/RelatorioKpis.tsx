@@ -130,6 +130,19 @@ async function fetchQuitadasPeriodo(inicio: string, fim: string) {
   return (data ?? []) as Cobranca[];
 }
 
+// Cobranças finalizadas (pago ou cancelado) no período — denominador da Taxa de Devolução
+async function fetchFinalizadasPeriodo(inicio: string, fim: string) {
+  const { data, error } = await supabase
+    .from("cobrancas_agendadas")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .in("status", ["pago", "cancelado"])
+    .gte("data_quitacao", inicio)
+    .lte("data_quitacao", fim)
+    .eq("vigente", true);
+  if (error) throw error;
+  return (data ?? []) as Cobranca[];
+}
+
 // Snapshot: todas pendentes/parciais vigentes (kits em campo)
 async function fetchCobrancasAbertas() {
   const { data, error } = await supabase
