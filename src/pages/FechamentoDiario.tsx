@@ -1480,27 +1480,51 @@ export default function FechamentoDiario() {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Confirmar Fechamento</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
-                      <br /><br />
-                      <strong>Total Cobrado: {formatarValor(totais.total)}</strong>
-                      {despesaCobranca && (
-                        <>
-                          <br />
-                          Despesa: {formatarValor(parseValor(despesaCobranca))}
-                        </>
-                      )}
-                      <br />
-                      <strong>Entregas de Kits: {kitsEntreguesDoDia.length} ({formatarValor(totalKits)})</strong>
+                    <AlertDialogDescription asChild>
+                      <div>
+                        Você está prestes a finalizar o dia {format(selectedDate, "dd/MM/yyyy")} para {representanteSelecionado?.nome}.
+                        <br /><br />
+                        <strong>Total Cobrado: {formatarValor(totais.totalNotas)}</strong>
+                        <br />
+                        Soma das formas (PIX + Dinheiro + Cartão/Transf.): {formatarValor(totais.total)}
+                        {!totais.bate && (
+                          <div className="mt-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-destructive">
+                            <strong>Valores não conferem.</strong>
+                            <br />
+                            Diferença de {formatarValor(Math.abs(totais.diferenca))}. Revise os valores antes de finalizar.
+                          </div>
+                        )}
+                        {despesaCobranca && (
+                          <>
+                            <br />
+                            Despesa: {formatarValor(parseValor(despesaCobranca))}
+                          </>
+                        )}
+                        <br />
+                        <strong>Entregas de Kits: {kitsEntreguesDoDia.length} ({formatarValor(totalKits)})</strong>
+                      </div>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => finalizarDiaMutation.mutate()}>
+                    <AlertDialogAction
+                      onClick={(e) => {
+                        if (!totais.bate) {
+                          e.preventDefault();
+                          toast.error(
+                            `Total cobrado (${formatarValor(totais.totalNotas)}) não confere com a soma das formas (${formatarValor(totais.total)}). Diferença de ${formatarValor(Math.abs(totais.diferenca))}.`
+                          );
+                          return;
+                        }
+                        finalizarDiaMutation.mutate();
+                      }}
+                      disabled={!totais.bate}
+                    >
                       Confirmar Fechamento
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
+
               </AlertDialog>
             ) : (
               <AlertDialog>
