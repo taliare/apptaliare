@@ -1251,7 +1251,7 @@ export default function RelatorioKpis() {
                     icon={<Hourglass className="h-4 w-4" />}
                     titulo="Prazo Médio de Recebimento"
                     valor={`${op.prazoMedio.toFixed(0)} dias`}
-                    subtitulo={`${op.prazoRows.length} nota(s) com pagamento`}
+                    subtitulo={`0 dias = quitou tudo na 1ª prestação · ${op.prazoRows.length} nota(s)`}
                     accent={
                       op.prazoMedio < 30 ? "green" :
                       op.prazoMedio <= 60 ? "neutral" : "red"
