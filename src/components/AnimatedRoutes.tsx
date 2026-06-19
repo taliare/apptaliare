@@ -88,6 +88,11 @@ export function AnimatedRoutes() {
             <Usuarios />
           </PermissionRoute>
         } />
+        <Route path="/grupos-permissoes" element={
+          <ProtectedRoute requiredRole="admin">
+            <GruposPermissoes />
+          </ProtectedRoute>
+        } />
         <Route path="/metas" element={
           <PermissionRoute menuKey="metas">
             <Metas />
