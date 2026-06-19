@@ -209,7 +209,9 @@ export function AnimatedRoutes() {
         } />
 
         {/* Histórico de Ações - representantes */}
-        <Route path="/historico-acoes" element={<HistoricoAcoes />} />
+        <Route path="/historico-acoes" element={
+          <PermissionRoute menuKey="historico_acoes"><HistoricoAcoes /></PermissionRoute>
+        } />
         
         {/* Perfil - acessível para todos */}
         <Route path="/perfil" element={<Perfil />} />
