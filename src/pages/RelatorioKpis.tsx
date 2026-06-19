@@ -667,27 +667,43 @@ export default function RelatorioKpis() {
       c => c.data_agendada >= dataInicio && c.data_agendada <= dataFim
     );
 
-    // 1. Kits em campo — TODAS as notas pendentes/parciais ativas hoje (sem filtro de mês)
-    // Reflete o estoque real em poder dos representantes, independente de quando foram agendadas.
-    const kitsCampoValor = cobrAbertas.reduce((s, c) =>
-      s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
+    // 1. Kits em Campo — notas PENDENTES com data_agendada no mês selecionado.
+    //    Mostra a mercadoria prevista para retornar no ciclo do mês.
+    const kitsCampoRows = cobrAtual.filter(c => c.status === "pendente");
+    const kitsCampoValor = kitsCampoRows.reduce(
+      (s, c) => s + Number(c.valor_previsto || 0), 0
     );
 
-    // 2. Tempo médio de retorno — apenas notas AGENDADAS no mês selecionado e já pagas.
-    // Reflete o ciclo real do mês, sem distorção de notas antigas que finalmente quitaram.
-    const cobrAtualPagas = cobrAtual.filter(
-      c => c.status === "pago" && c.data_quitacao && c.data_agendada
+    // 2. A Receber — notas PARCIAIS com data_agendada no mês selecionado.
+    //    Saldo pendente após prestação parcial.
+    const aReceberRows = cobrAtual.filter(c => c.status === "parcial");
+    const aReceberValor = aReceberRows.reduce(
+      (s, c) => s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
     );
+
+    // 3. Tempo Médio de Retorno — AVG(MAX(pc.data_execucao) - ca.data_agendada)
+    //    para notas com data_agendada no mês e status = 'pago'.
+    const prestPorCobr = new Map<string, string[]>();
+    for (const p of prestPagasMes) {
+      if (!p.cobranca_id || !p.data_execucao) continue;
+      const arr = prestPorCobr.get(p.cobranca_id) ?? [];
+      arr.push(p.data_execucao.split("T")[0]);
+      prestPorCobr.set(p.cobranca_id, arr);
+    }
+    const cobrAtualPagas = cobrAtual.filter(c => c.status === "pago" && c.data_agendada);
     const retornoRows = cobrAtualPagas
-      .map(c => ({ cobranca: c, dias: diffDias(c.data_quitacao!.split("T")[0], c.data_agendada) }))
-      .filter(r => r.dias >= 0);
+      .map(c => {
+        const datas = prestPorCobr.get(c.id) ?? (c.data_quitacao ? [c.data_quitacao.split("T")[0]] : []);
+        if (datas.length === 0) return null;
+        const max = datas.reduce((a, b) => (a > b ? a : b));
+        return { cobranca: c, dias: diffDias(max, c.data_agendada) };
+      })
+      .filter((r): r is { cobranca: Cobranca; dias: number } => r !== null && r.dias >= 0);
     const tempoMedioRetorno = retornoRows.length > 0
       ? retornoRows.reduce((s, r) => s + r.dias, 0) / retornoRows.length
       : 0;
 
-    // 3. Taxa de devolução — % das notas agendadas no mês que voltaram sem venda.
-    // Numerador: notas com data_agendada no mês marcadas como devolveu_tudo
-    // Denominador: total de notas com data_agendada no mês (qualquer status)
+    // 4. Taxa de devolução — % das notas agendadas no mês que voltaram sem venda.
     const cobrIdsDevolucao = new Set(devolucoesAtual.map(d => d.cobranca_id).filter(Boolean));
     const cobrAtualIds = new Set(cobrAtual.map(c => c.id));
     const devolvidasEncerradas = cobrAtual.filter(c => cobrIdsDevolucao.has(c.id));
@@ -695,7 +711,8 @@ export default function RelatorioKpis() {
       ? (devolvidasEncerradas.length / cobrAtualIds.size) * 100
       : 0;
 
-    // 4. Notas em atraso — apenas notas do mês selecionado, vencidas hoje
+    // 5. Notas em atraso — apenas notas do mês selecionado, vencidas hoje
+    const cobrAbertasMes = cobrAtual.filter(c => c.status === "pendente" || c.status === "parcial");
     const atrasadas = cobrAbertasMes
       .filter(c => c.data_agendada < hojeStr)
       .map(c => {
@@ -709,34 +726,38 @@ export default function RelatorioKpis() {
     const atraso3160 = atrasadas.filter(a => a.bucket === "31-60");
     const atraso60plus = atrasadas.filter(a => a.bucket === "+60");
 
-    // 5. Notas no jurídico
+    // 6. Notas no jurídico
     const juridicoCountAtual = juridicoAtual.length;
     const juridicoValorAtual = juridicoAtual.reduce((s, c) =>
       s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
     );
     const juridicoCountPrev = juridicoPrev.length;
 
-    // 6. Prazo médio de recebimento — mesma fonte do Tempo Médio de Retorno
-    // (notas agendadas no mês e já pagas).
-    const prazoRows: { cobranca: Cobranca; primeira: string; dias: number }[] = retornoRows.map(r => ({
-      cobranca: r.cobranca,
-      primeira: r.cobranca.data_quitacao!.split("T")[0],
-      dias: r.dias,
-    }));
+    // 7. Prazo Médio de Recebimento — por cobranca_id, MAX(data_execucao) - MIN(data_execucao)
+    //    em prestacoes_contas. AVG para notas com data_agendada no mês.
+    const prazoRows: { cobranca: Cobranca; primeira: string; dias: number }[] = [];
+    for (const c of cobrAtualPagas) {
+      const datas = prestPorCobr.get(c.id);
+      if (!datas || datas.length === 0) continue;
+      const min = datas.reduce((a, b) => (a < b ? a : b));
+      const max = datas.reduce((a, b) => (a > b ? a : b));
+      prazoRows.push({ cobranca: c, primeira: min, dias: Math.max(0, diffDias(max, min)) });
+    }
     const prazoMedio = prazoRows.length > 0
       ? prazoRows.reduce((s, r) => s + r.dias, 0) / prazoRows.length
       : 0;
 
-
     return {
-      kitsCampoValor, cobrAbertasCount: cobrAbertasMes.length,
+      kitsCampoValor, kitsCampoRows, kitsCampoCount: kitsCampoRows.length,
+      aReceberValor, aReceberRows, aReceberCount: aReceberRows.length,
       tempoMedioRetorno, retornoRows,
       taxaDevolucao, devolvidasEncerradas, encerradasTotal: cobrAtualIds.size,
       atrasadas, atraso030, atraso3160, atraso60plus,
       juridicoCountAtual, juridicoValorAtual, juridicoCountPrev,
       prazoMedio, prazoRows,
     };
-  }, [cobrAbertas, cobrQuitadas, finalizadasMes, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual, dataInicio, dataFim]);
+  }, [cobrAtual, devolucoesAtual, juridicoAtual, juridicoPrev, prestPagasMes, dataInicio, dataFim]);
+
 
   // ─── Cálculos PESSOAS ───
   const pessoas = useMemo(() => {
