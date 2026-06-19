@@ -652,10 +652,10 @@ export default function RelatorioKpis() {
       ? retornoRows.reduce((s, r) => s + r.dias, 0) / retornoRows.length
       : 0;
 
-    // 3. Taxa de devolução total
+    // 3. Taxa de devolução total — denominador: notas finalizadas (pago/cancelado) no mês
     const cobrIdsDevolucao = new Set(devolucoesAtual.map(d => d.cobranca_id).filter(Boolean));
-    const encerradasIds = new Set(cobrQuitadas.map(c => c.id));
-    const devolvidasEncerradas = cobrQuitadas.filter(c => cobrIdsDevolucao.has(c.id));
+    const encerradasIds = new Set(finalizadasMes.map(c => c.id));
+    const devolvidasEncerradas = finalizadasMes.filter(c => cobrIdsDevolucao.has(c.id));
     const taxaDevolucao = encerradasIds.size > 0
       ? (devolvidasEncerradas.length / encerradasIds.size) * 100
       : 0;
