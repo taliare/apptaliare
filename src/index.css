@@ -9,127 +9,161 @@
 @keyframes drift3 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(30px,-40px) scale(1.05)} 66%{transform:translate(-20px,20px) scale(1.1)} }
 
 /* 
-  TALIARE Dark Futuristic Design System
-  Minimalista, elegante e com efeitos sutis
+  TALIARE Design System — "Crescimento lapidado"
+  Bicolor vinho + nude, neutros quentes. Tema claro (papel quente) por padrão.
 */
 
 @layer base {
   :root {
-    /* TALIARE Brand Colors - Burgundy/Wine palette */
-    --taliare-burgundy: 352 57% 21%;
-    --taliare-wine: 350 47% 28%;
-    --taliare-beige: 36 26% 74%;
-    --taliare-cream: 38 42% 82%;
-    
-    /* Dark Theme - Default */
-    --background: 240 10% 4%;
-    --foreground: 0 0% 95%;
+    /* TALIARE Brand */
+    --taliare-burgundy: 350 51% 22%;   /* #531B24 */
+    --taliare-wine: 351 44% 28%;       /* #6A2931 */
+    --taliare-beige: 35 24% 71%;       /* #C6B7A2 */
+    --taliare-cream: 35 43% 84%;       /* #E7D8C3 */
 
-    --card: 240 10% 6%;
-    --card-foreground: 0 0% 95%;
+    /* Vinho scale 50..900 */
+    --vinho-50: 354 36% 95%;   /* #F8EFF0 */
+    --vinho-100: 353 41% 89%;  /* #EEDADC */
+    --vinho-200: 352 31% 77%;  /* #D4B5BA */
+    --vinho-300: 352 25% 57%;  /* #AD7780 */
+    --vinho-400: 352 36% 39%;  /* #874049 */
+    --vinho-500: 351 44% 28%;  /* #6A2931 */
+    --vinho-600: 350 51% 22%;  /* #531B24 — primário */
+    --vinho-700: 348 53% 18%;  /* #481620 */
+    --vinho-800: 348 56% 15%;  /* #3D1218 */
+    --vinho-900: 346 51% 12%;  /* #2E0F15 */
 
-    --popover: 240 10% 8%;
-    --popover-foreground: 0 0% 95%;
+    /* Nude scale 50..700 */
+    --nude-50: 40 50% 97%;     /* #FCFAF5 */
+    --nude-100: 36 56% 96%;    /* #FAF5EE */
+    --nude-200: 34 48% 92%;    /* #F4ECE1 */
+    --nude-300: 34 47% 88%;    /* #EEE3D5 */
+    --nude-400: 35 43% 84%;    /* #E7D8C3 */
+    --nude-500: 35 30% 78%;    /* #D6C9B5 */
+    --nude-600: 35 24% 71%;    /* #C6B7A2 */
+    --nude-700: 35 18% 57%;    /* #A8967C */
 
-    /* Primary = Wine/Burgundy da Taliare */
-    --primary: 350 47% 38%;
-    --primary-foreground: 0 0% 100%;
+    /* Page surface (papel quente) */
+    --background: 40 50% 97%;          /* #FCFAF5 */
+    --foreground: 342 31% 11%;         /* #241318 */
 
-    --secondary: 240 6% 12%;
-    --secondary-foreground: 0 0% 85%;
+    --card: 0 0% 100%;                 /* #FFFFFF */
+    --card-foreground: 342 31% 11%;
 
-    --muted: 240 6% 15%;
-    --muted-foreground: 240 5% 55%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 342 31% 11%;
 
-    --accent: 350 47% 28%;
-    --accent-foreground: 0 0% 100%;
+    /* Primary = vinho */
+    --primary: 350 51% 22%;            /* #531B24 */
+    --primary-foreground: 35 43% 84%;  /* #E7D8C3 — nude claro sobre vinho */
 
-    --destructive: 0 72% 51%;
+    /* Secondary / Accent = nude */
+    --secondary: 34 47% 88%;           /* #EEE3D5 */
+    --secondary-foreground: 350 51% 22%;
+
+    --muted: 36 56% 96%;               /* #FAF5EE */
+    --muted-foreground: 347 6% 44%;    /* #786A6D */
+
+    --accent: 35 43% 84%;              /* #E7D8C3 */
+    --accent-foreground: 350 51% 22%;
+
+    --destructive: 353 54% 43%;        /* #A8323F */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 6% 18%;
-    --input: 240 6% 15%;
-    --ring: 350 47% 45%;
+    --border: 34 47% 88%;              /* #EEE3D5 */
+    --input: 34 47% 88%;
+    --ring: 352 36% 39%;               /* #874049 */
 
-    --radius: 0.75rem;
+    --radius: 0.375rem; /* 6px md */
 
-    /* Sidebar - Dark with brand accent */
-    --sidebar-background: 240 10% 5%;
-    --sidebar-foreground: 0 0% 85%;
-    --sidebar-primary: 350 47% 38%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 350 47% 25%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 240 6% 15%;
-    --sidebar-ring: 350 47% 45%;
+    /* Sidebar — vinho profundo (logo destacado) */
+    --sidebar-background: 350 51% 22%;
+    --sidebar-foreground: 35 43% 84%;
+    --sidebar-primary: 351 44% 28%;
+    --sidebar-primary-foreground: 35 43% 84%;
+    --sidebar-accent: 348 53% 18%;
+    --sidebar-accent-foreground: 35 43% 84%;
+    --sidebar-border: 348 53% 18%;
+    --sidebar-ring: 35 43% 84%;
 
-    /* Custom Effects */
-    --glow-primary: 0 0 30px hsl(350 47% 38% / 0.3);
-    --glow-subtle: 0 0 20px hsl(350 47% 28% / 0.15);
+    /* Custom Effects — sombras quentes baixas */
+    --glow-primary: 0 10px 30px -12px hsla(342, 31%, 11%, 0.12);
+    --glow-subtle: 0 4px 14px -6px hsla(342, 31%, 11%, 0.08);
 
-    /* Timing functions */
-    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* Timing */
+    --ease-spring: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-    --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    
-    /* Success/Warning/Info */
-    --success: 142 71% 45%;
+    --ease-bounce: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Semantic */
+    --success: 124 21% 39%;            /* #4F7A52 */
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 0%;
-    --info: 199 89% 48%;
+    --warning: 42 59% 44%;             /* #B08A2E */
+    --warning-foreground: 0 0% 100%;
+    --info: 352 36% 39%;
     --info-foreground: 0 0% 100%;
   }
 
-  /* Light mode */
+  /* Light alias (kept for legacy [data-theme="light"] usage) */
   .light,
   [data-theme="light"] {
-    /* Light theme - Taliare cream/beige background */
-    --background: 38 42% 95%;
-    --foreground: 352 57% 15%;
-
-    --card: 38 42% 98%;
-    --card-foreground: 352 57% 15%;
-
-    --popover: 38 42% 98%;
-    --popover-foreground: 352 57% 15%;
-
-    --primary: 350 47% 28%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 36 26% 90%;
-    --secondary-foreground: 352 57% 21%;
-
-    --muted: 36 26% 88%;
-    --muted-foreground: 352 30% 40%;
-
-    --accent: 350 47% 35%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84% 60%;
+    --background: 40 50% 97%;
+    --foreground: 342 31% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 342 31% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 342 31% 11%;
+    --primary: 350 51% 22%;
+    --primary-foreground: 35 43% 84%;
+    --secondary: 34 47% 88%;
+    --secondary-foreground: 350 51% 22%;
+    --muted: 36 56% 96%;
+    --muted-foreground: 347 6% 44%;
+    --accent: 35 43% 84%;
+    --accent-foreground: 350 51% 22%;
+    --destructive: 353 54% 43%;
     --destructive-foreground: 0 0% 100%;
-
-    --border: 36 20% 80%;
-    --input: 36 20% 85%;
-    --ring: 350 47% 35%;
-
-    /* Sidebar in light mode = Dark Taliare burgundy (so logo is visible) */
-    --sidebar-background: 352 57% 15%;
-    --sidebar-foreground: 38 42% 95%;
-    --sidebar-primary: 350 47% 38%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 350 47% 25%;
-    --sidebar-accent-foreground: 38 42% 95%;
-    --sidebar-border: 352 57% 21%;
-    --sidebar-ring: 36 26% 74%;
-
-    /* Success/Warning/Info */
-    --success: 142 71% 35%;
+    --border: 34 47% 88%;
+    --input: 34 47% 88%;
+    --ring: 352 36% 39%;
+    --sidebar-background: 350 51% 22%;
+    --sidebar-foreground: 35 43% 84%;
+    --sidebar-primary: 351 44% 28%;
+    --sidebar-primary-foreground: 35 43% 84%;
+    --sidebar-accent: 348 53% 18%;
+    --sidebar-accent-foreground: 35 43% 84%;
+    --sidebar-border: 348 53% 18%;
+    --sidebar-ring: 35 43% 84%;
+    --success: 124 21% 39%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 45%;
-    --warning-foreground: 0 0% 0%;
-    --info: 199 89% 40%;
+    --warning: 42 59% 44%;
+    --warning-foreground: 0 0% 100%;
+    --info: 352 36% 39%;
     --info-foreground: 0 0% 100%;
+  }
+
+  /* Dark mode (opcional) */
+  .dark,
+  [data-theme="dark"] {
+    --background: 346 51% 8%;
+    --foreground: 35 43% 92%;
+    --card: 348 56% 11%;
+    --card-foreground: 35 43% 92%;
+    --popover: 348 56% 11%;
+    --popover-foreground: 35 43% 92%;
+    --primary: 352 36% 50%;
+    --primary-foreground: 35 43% 92%;
+    --secondary: 348 53% 15%;
+    --secondary-foreground: 35 43% 92%;
+    --muted: 348 53% 15%;
+    --muted-foreground: 35 18% 67%;
+    --accent: 351 44% 28%;
+    --accent-foreground: 35 43% 92%;
+    --destructive: 353 54% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 348 53% 18%;
+    --input: 348 53% 18%;
+    --ring: 352 36% 50%;
   }
 }
 
