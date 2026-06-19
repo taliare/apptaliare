@@ -894,72 +894,88 @@ export default function Usuarios() {
                 </div>
               </div>
 
-              {/* Menu Permissions - Only show for non-admin users */}
-              {role !== 'admin' && (
+              {/* Visualização de permissões por grupo + extras opcionais */}
+              {role === 'admin' ? (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                  <p className="font-medium">Administradores têm acesso total</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Todos os módulos do sistema ficam disponíveis automaticamente.
+                  </p>
+                </div>
+              ) : (
                 <div className="space-y-3 pt-4 border-t">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="permCustom" className="text-base font-semibold">
-                      Permissões personalizadas
+                  <div>
+                    <Label className="text-base font-semibold">
+                      Módulos do grupo {getRoleName(role)}
                     </Label>
-                    <Switch
-                      id="permCustom"
-                      checked={permissoesCustomizadas}
-                      onCheckedChange={setPermissoesCustomizadas}
-                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Este usuário herda automaticamente os módulos do grupo{' '}
+                      <strong>{getRoleName(role)}</strong>. Para alterar a lista
+                      do grupo inteiro, vá em <strong>Grupos e Permissões</strong>.
+                    </p>
+                    {rolePermissions.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic mt-2">
+                        Este grupo não concede nenhum módulo por padrão. Use os
+                        extras abaixo para liberar acessos individuais.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1 mt-2">
+                        {ALL_MENUS.filter((m) => rolePermissions.includes(m.key)).map((m) => (
+                          <div
+                            key={m.key}
+                            className="flex items-center gap-2 text-sm text-muted-foreground"
+                          >
+                            <span className="text-success">✓</span>
+                            <span>{m.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {permissoesCustomizadas ? (
-                    <>
-                      <p className="text-xs text-muted-foreground">
-                        Este usuário verá apenas os menus marcados abaixo
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 pr-1">
-                        {ASSIGNABLE_MENUS.map(menu => (
-                          <div key={menu.key} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`perm-${menu.key}`}
-                              checked={selectedPermissions.includes(menu.key)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedPermissions([...selectedPermissions, menu.key]);
-                                } else {
-                                  setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
-                              {menu.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs text-muted-foreground">
-                        Este usuário verá os menus padrão do perfil selecionado
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 pr-1">
-                        {ASSIGNABLE_MENUS.map(menu => (
-                          <div key={menu.key} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`perm-${menu.key}`}
-                              checked={selectedPermissions.includes(menu.key)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedPermissions([...selectedPermissions, menu.key]);
-                                } else {
-                                  setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
-                              {menu.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
+
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="extras" className="border rounded-md px-3">
+                      <AccordionTrigger className="text-sm font-semibold py-3">
+                        Permissões extras (opcional)
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Marque módulos adicionais que este usuário poderá acessar
+                          além do grupo. Isso só afeta este usuário.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 pr-1">
+                          {ALL_MENUS.filter((m) => !rolePermissions.includes(m.key)).map(
+                            (menu) => (
+                              <div key={menu.key} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`perm-${menu.key}`}
+                                  checked={selectedPermissions.includes(menu.key)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedPermissions([
+                                        ...selectedPermissions,
+                                        menu.key,
+                                      ]);
+                                    } else {
+                                      setSelectedPermissions(
+                                        selectedPermissions.filter((k) => k !== menu.key),
+                                      );
+                                    }
+                                  }}
+                                />
+                                <Label
+                                  htmlFor={`perm-${menu.key}`}
+                                  className="text-sm font-normal cursor-pointer"
+                                >
+                                  {menu.label}
+                                </Label>
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
               )}
             </div>
