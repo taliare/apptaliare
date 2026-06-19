@@ -355,14 +355,23 @@ export default function FechamentoDiario() {
       return sum + total;
     }, 0);
 
+    const somaFormas = pix + dinheiro + cartao + transferencia;
+    const totalNotas = notas.reduce((sum, nota) => sum + (nota.valor_total || 0), 0);
+    const diferenca = +(totalNotas - somaFormas).toFixed(2);
+    const bate = Math.abs(diferenca) <= 0.01;
+
     return {
       pix,
       dinheiro,
       cartao,
       transferencia,
-      total: pix + dinheiro + cartao + transferencia,
+      total: somaFormas,
+      totalNotas,
+      diferenca,
+      bate,
     };
   }, [notas]);
+
 
   // Total de kits entregues
   const totalKits = useMemo(() => {
