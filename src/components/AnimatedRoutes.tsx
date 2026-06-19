@@ -48,34 +48,45 @@ export function AnimatedRoutes() {
       <Routes location={location}>
         {/* Representante routes */}
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/cobranca" element={<Cobranca />} />
-        <Route path="/cobranca-diaria" element={<CobrancaDiaria />} />
-        <Route path="/kits" element={<Kits />} />
-        <Route path="/kits-entregues" element={<KitsEntregues />} />
-        <Route path="/encomendas" element={<EncomendaRepresentante />} />
-        <Route path="/revendedoras-inativas" element={<RevendedorasInativas />} />
-        
+        <Route path="/cobranca" element={
+          <PermissionRoute menuKey="cobranca"><Cobranca /></PermissionRoute>
+        } />
+        <Route path="/cobranca-diaria" element={
+          <PermissionRoute menuKey="cobranca_diaria"><CobrancaDiaria /></PermissionRoute>
+        } />
+        <Route path="/kits" element={
+          <PermissionRoute menuKey="kits"><Kits /></PermissionRoute>
+        } />
+        <Route path="/kits-entregues" element={
+          <PermissionRoute menuKey="kits_entregues"><KitsEntregues /></PermissionRoute>
+        } />
+        <Route path="/encomendas" element={
+          <PermissionRoute menuKey="encomendas"><EncomendaRepresentante /></PermissionRoute>
+        } />
+        <Route path="/revendedoras-inativas" element={
+          <PermissionRoute menuKey="revendedoras_inativas"><RevendedorasInativas /></PermissionRoute>
+        } />
+
         {/* Producao routes */}
         <Route path="/producao" element={
-          <ProtectedRoute requiredRole="producao">
-            <Producao />
-          </ProtectedRoute>
+          <PermissionRoute menuKey="producao"><Producao /></PermissionRoute>
         } />
         <Route path="/producao-diaria" element={
-          <ProtectedRoute requiredRole="producao">
-            <ProducaoDiaria />
-          </ProtectedRoute>
+          <PermissionRoute menuKey="producao_diaria"><ProducaoDiaria /></PermissionRoute>
         } />
         <Route path="/distribuicao-kits" element={
-          <DistribuicaoKits />
+          <PermissionRoute menuKey="distribuicao_kits"><DistribuicaoKits /></PermissionRoute>
         } />
         <Route path="/encomendas-producao" element={
-          <ProtectedRoute requiredRole="producao">
-            <EncomendaProducao />
-          </ProtectedRoute>
+          <PermissionRoute menuKey="encomendas_producao"><EncomendaProducao /></PermissionRoute>
         } />
-        <Route path="/catalogo-produtos" element={<CatalogoProdutos />} />
-        <Route path="/montar-kit" element={<MontarKit />} />
+        <Route path="/catalogo-produtos" element={
+          <PermissionRoute menuKey="catalogo_produtos"><CatalogoProdutos /></PermissionRoute>
+        } />
+        <Route path="/montar-kit" element={
+          <PermissionRoute menuKey="montar_kit"><MontarKit /></PermissionRoute>
+        } />
+        
         
         {/* Admin routes - with permission control for non-admins */}
         <Route path="/dashboard-admin" element={
@@ -139,10 +150,11 @@ export function AnimatedRoutes() {
           </PermissionRoute>
         } />
         <Route path="/garantias" element={
-          <ProtectedRoute>
+          <PermissionRoute menuKey="garantias">
             <Garantias />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
+        
         
         {/* DRE routes */}
         <Route path="/dre-resumo" element={
@@ -197,7 +209,9 @@ export function AnimatedRoutes() {
         } />
 
         {/* Histórico de Ações - representantes */}
-        <Route path="/historico-acoes" element={<HistoricoAcoes />} />
+        <Route path="/historico-acoes" element={
+          <PermissionRoute menuKey="historico_acoes"><HistoricoAcoes /></PermissionRoute>
+        } />
         
         {/* Perfil - acessível para todos */}
         <Route path="/perfil" element={<Perfil />} />

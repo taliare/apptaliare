@@ -65,7 +65,7 @@ export default function Metas() {
   const [producaoMetaKits, setProducaoMetaKits] = useState('');
   const [producaoObservacao, setProducaoObservacao] = useState('');
 
-  // Query for representantes (apenas admin) - excluindo admins
+  // Query for representantes (apenas admin) — somente usuários com role 'representante' (inclui inativos)
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes'],
     queryFn: async () => {
@@ -73,18 +73,18 @@ export default function Metas() {
         .from('user_roles')
         .select('user_id')
         .eq('role', 'representante');
-      
+
       if (rolesError) throw rolesError;
-      
+
       const representanteIds = rolesData.map(r => r.user_id);
-      
+      if (representanteIds.length === 0) return [] as Profile[];
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, nome, email')
-        .eq('ativo', true)
         .in('id', representanteIds)
         .order('nome');
-      
+
       if (error) throw error;
       return data as Profile[];
     },

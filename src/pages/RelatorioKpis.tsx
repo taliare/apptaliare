@@ -210,10 +210,18 @@ async function fetchRevendedorasTodas() {
 }
 
 async function fetchProfilesTodos() {
+  const { data: roles, error: rolesErr } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "representante");
+  if (rolesErr) throw rolesErr;
+  const ids = (roles || []).map((r) => r.user_id);
+  if (ids.length === 0) return [] as ProfileRow[];
   const { data, error } = await supabase
     .from("profiles")
     .select("id,nome")
-    .eq("ativo", true);
+    .in("id", ids)
+    .order("nome");
   if (error) throw error;
   return (data ?? []) as ProfileRow[];
 }
