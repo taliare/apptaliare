@@ -193,9 +193,6 @@ export default function Usuarios() {
     setWhatsapp('');
     setRole('representante');
     setAtivo(true);
-    setHabilitarDashboard(true);
-    setHabilitarKanban(true);
-    setHabilitarCobrancaDiaria(true);
     setSenha('');
     setSelectedPermissions([]);
     setDepartamento('');
