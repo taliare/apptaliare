@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, PanelLeftClose, PanelLeft } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSidebar } from "@/components/ui/sidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { SendNotificationDialog } from "@/components/admin/SendNotificationDialog";
 import { MessagesDialog } from "@/components/messages/MessagesDialog";
@@ -23,9 +22,7 @@ import { useMessages } from "@/hooks/useMessages";
 
 export function AppHeader() {
   const { profile, signOut } = useAuth();
-  const { state, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
-  const collapsed = state === "collapsed";
   const isAdmin = profile?.role === "admin";
   const { unreadCount } = useMessages();
   const [messagesOpen, setMessagesOpen] = useState(false);
@@ -49,18 +46,7 @@ export function AppHeader() {
             alt="Taliare Semijoias"
             className="h-8"
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg"
-          >
-            {collapsed ? (
-              <PanelLeft className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </Button>
+
         </div>
 
         {/* Right side - Actions */}
