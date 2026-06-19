@@ -84,6 +84,7 @@ interface Cobranca {
   data_quitacao?: string | null;
   data_encaminhado_juridico?: string | null;
   representante_id?: string | null;
+  criado_em?: string | null;
 }
 
 interface Despesa {
@@ -109,7 +110,7 @@ async function fetchPrestacoesPeriodo(inicio: string, fim: string) {
 async function fetchCobrancasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .gte("data_agendada", inicio)
     .lte("data_agendada", fim)
     .eq("vigente", true);
@@ -121,7 +122,7 @@ async function fetchCobrancasPeriodo(inicio: string, fim: string) {
 async function fetchQuitadasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .eq("status", "pago")
     .gte("data_quitacao", inicio)
     .lte("data_quitacao", fim)
@@ -134,7 +135,7 @@ async function fetchQuitadasPeriodo(inicio: string, fim: string) {
 async function fetchFinalizadasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .in("status", ["pago", "cancelado"])
     .gte("data_quitacao", inicio)
     .lte("data_quitacao", fim)
@@ -147,7 +148,7 @@ async function fetchFinalizadasPeriodo(inicio: string, fim: string) {
 async function fetchCobrancasAbertas() {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .in("status", ["pendente", "parcial"])
     .eq("vigente", true);
   if (error) throw error;
@@ -158,7 +159,7 @@ async function fetchCobrancasAbertas() {
 async function fetchJuridicoPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .not("data_encaminhado_juridico", "is", null)
     .gte("data_encaminhado_juridico", `${inicio}T00:00:00`)
     .lte("data_encaminhado_juridico", `${fim}T23:59:59`);
@@ -667,20 +668,27 @@ export default function RelatorioKpis() {
 
     // 1. Kits em Campo — notas PENDENTES com data_agendada no mês selecionado.
     //    Mostra a mercadoria prevista para retornar no ciclo do mês.
-    const kitsCampoRows = cobrAtual.filter(c => c.status === "pendente");
+    //    Exclui notas com valor_previsto = 0 (registros de ajuste/desconto).
+    const kitsCampoRows = cobrAtual.filter(
+      c => c.status === "pendente" && Number(c.valor_previsto || 0) > 0
+    );
     const kitsCampoValor = kitsCampoRows.reduce(
       (s, c) => s + Number(c.valor_previsto || 0), 0
     );
 
     // 2. A Receber — notas PARCIAIS com data_agendada no mês selecionado.
-    //    Saldo pendente após prestação parcial.
-    const aReceberRows = cobrAtual.filter(c => c.status === "parcial");
+    //    Saldo pendente após prestação parcial. Exclui valor_previsto = 0.
+    const aReceberRows = cobrAtual.filter(
+      c => c.status === "parcial" && Number(c.valor_previsto || 0) > 0
+    );
     const aReceberValor = aReceberRows.reduce(
       (s, c) => s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
     );
 
-    // 3. Tempo Médio de Retorno — AVG(MAX(pc.data_execucao) - ca.data_agendada)
-    //    para notas com data_agendada no mês e status = 'pago'.
+    // 3. Tempo Médio de Retorno — AVG( COALESCE(data_quitacao, MAX(pc.data_execucao)) - criado_em )
+    //    para notas com data_agendada no mês, status = 'pago' e valor_previsto > 0.
+    //    Usa criado_em (data de envio do kit) como início do ciclo, não data_agendada
+    //    (que é a data de retorno esperada — futura).
     const prestPorCobr = new Map<string, string[]>();
     for (const p of prestPagasMes) {
       if (!p.cobranca_id || !p.data_execucao) continue;
@@ -688,13 +696,18 @@ export default function RelatorioKpis() {
       arr.push(p.data_execucao.split("T")[0]);
       prestPorCobr.set(p.cobranca_id, arr);
     }
-    const cobrAtualPagas = cobrAtual.filter(c => c.status === "pago" && c.data_agendada);
+    const cobrAtualPagas = cobrAtual.filter(
+      c => c.status === "pago" && c.data_agendada && Number(c.valor_previsto || 0) > 0
+    );
     const retornoRows = cobrAtualPagas
       .map(c => {
-        const datas = prestPorCobr.get(c.id) ?? (c.data_quitacao ? [c.data_quitacao.split("T")[0]] : []);
-        if (datas.length === 0) return null;
-        const max = datas.reduce((a, b) => (a > b ? a : b));
-        return { cobranca: c, dias: diffDias(max, c.data_agendada) };
+        const datas = prestPorCobr.get(c.id) ?? [];
+        const maxPrest = datas.length > 0 ? datas.reduce((a, b) => (a > b ? a : b)) : null;
+        const quit = c.data_quitacao ? c.data_quitacao.split("T")[0] : null;
+        const fim = quit ?? maxPrest;
+        const inicio = c.criado_em ? c.criado_em.split("T")[0] : null;
+        if (!fim || !inicio) return null;
+        return { cobranca: c, dias: diffDias(fim, inicio) };
       })
       .filter((r): r is { cobranca: Cobranca; dias: number } => r !== null && r.dias >= 0);
     const tempoMedioRetorno = retornoRows.length > 0
@@ -702,9 +715,11 @@ export default function RelatorioKpis() {
       : 0;
 
     // 4. Taxa de devolução — % das notas agendadas no mês que voltaram sem venda.
+    //    Denominador exclui valor_previsto = 0.
     const cobrIdsDevolucao = new Set(devolucoesAtual.map(d => d.cobranca_id).filter(Boolean));
-    const cobrAtualIds = new Set(cobrAtual.map(c => c.id));
-    const devolvidasEncerradas = cobrAtual.filter(c => cobrIdsDevolucao.has(c.id));
+    const cobrAtualValida = cobrAtual.filter(c => Number(c.valor_previsto || 0) > 0);
+    const cobrAtualIds = new Set(cobrAtualValida.map(c => c.id));
+    const devolvidasEncerradas = cobrAtualValida.filter(c => cobrIdsDevolucao.has(c.id));
     const taxaDevolucao = cobrAtualIds.size > 0
       ? (devolvidasEncerradas.length / cobrAtualIds.size) * 100
       : 0;
