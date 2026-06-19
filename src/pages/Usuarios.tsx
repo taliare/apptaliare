@@ -89,9 +89,13 @@ export default function Usuarios() {
   const [ativo, setAtivo] = useState(true);
   const [senha, setSenha] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
+  // Todas as permissões do usuário (grupo + extras), o save calcula o diff
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  // Permissões herdadas do grupo (role) selecionado no momento — somente leitura
+  const [rolePermissions, setRolePermissions] = useState<string[]>([]);
   const [departamento, setDepartamento] = useState('');
-  const [permissoesCustomizadas, setPermissoesCustomizadas] = useState(false);
+  // Filtro de aba na lista de usuários
+  const [roleFilter, setRoleFilter] = useState<'all' | AppRole>('all');
 
   useEffect(() => {
     loadProfiles();
