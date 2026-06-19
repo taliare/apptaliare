@@ -185,7 +185,7 @@ export default function GruposPermissoes() {
               </thead>
               <tbody>
                 {Object.entries(modulesByCategory).map(([cat, modules]) => (
-                  <>
+                  <React.Fragment key={`cat-${cat}`}>
                     <tr key={`cat-${cat}`} className="bg-muted/20">
                       <td
                         colSpan={2 + ROLE_COLUMNS.length}
