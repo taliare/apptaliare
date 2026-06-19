@@ -537,6 +537,10 @@ export default function RelatorioKpis() {
     queryKey: ["kpi_op_devol", anoMes],
     queryFn: () => fetchDevolucoesTotaisPeriodo(dataInicio, dataFim),
   });
+  const { data: finalizadasMes = [] } = useQuery({
+    queryKey: ["kpi_op_finalizadas", anoMes],
+    queryFn: () => fetchFinalizadasPeriodo(dataInicio, dataFim),
+  });
 
   // ─── Queries PESSOAS ───
   const { data: revendedoras = [], isLoading: lpe1 } = useQuery({
