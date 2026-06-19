@@ -110,7 +110,7 @@ export function AppSidebar() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={`
-        border-r border-sidebar-border bg-sidebar transition-all duration-200 pt-14
+        border-r border-sidebar-border bg-sidebar transition-all duration-200 h-full
         ${collapsed
           ? "w-16"
           : "w-56 absolute top-0 left-0 h-full z-50 shadow-2xl"
