@@ -1992,6 +1992,56 @@ function DrillPrazo({ rows }: { rows: { cobranca: Cobranca; primeira: string; di
   );
 }
 
+function DrillPorRepresentante({
+  rows, modo, nomeRep,
+}: { rows: Cobranca[]; modo: "previsto" | "saldo"; nomeRep: Map<string, string> }) {
+  const valorOf = (c: Cobranca) =>
+    modo === "saldo"
+      ? Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)
+      : Number(c.valor_previsto || 0);
+
+  const grupos = new Map<string, { nome: string; qtd: number; valor: number }>();
+  for (const c of rows) {
+    const rid = c.representante_id ?? "—";
+    const nome = nomeRep.get(rid) ?? "Sem representante";
+    const g = grupos.get(rid) ?? { nome, qtd: 0, valor: 0 };
+    g.qtd += 1;
+    g.valor += valorOf(c);
+    grupos.set(rid, g);
+  }
+  const sorted = Array.from(grupos.values()).sort((a, b) => b.valor - a.valor);
+  const totalValor = sorted.reduce((s, r) => s + r.valor, 0);
+  const totalQtd = sorted.reduce((s, r) => s + r.qtd, 0);
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Representante</TableHead>
+          <TableHead className="text-right">Notas</TableHead>
+          <TableHead className="text-right">{modo === "saldo" ? "A Receber" : "Valor Previsto"}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sorted.length === 0 ? (
+          <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem registros</TableCell></TableRow>
+        ) : sorted.map((r, i) => (
+          <TableRow key={i}>
+            <TableCell className="text-sm">{r.nome}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{r.qtd}</TableCell>
+            <TableCell className="text-right font-mono tabular-nums">{fmt(r.valor)}</TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-muted/40 font-semibold">
+          <TableCell>Total</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{totalQtd}</TableCell>
+          <TableCell className="text-right font-mono tabular-nums">{fmt(totalValor)}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
 function DrillRevendedoras({ rows }: { rows: { nome: string; representante: string }[] }) {
   return (
     <Table>
