@@ -150,10 +150,11 @@ export function AnimatedRoutes() {
           </PermissionRoute>
         } />
         <Route path="/garantias" element={
-          <ProtectedRoute>
+          <PermissionRoute menuKey="garantias">
             <Garantias />
-          </ProtectedRoute>
+          </PermissionRoute>
         } />
+        
         
         {/* DRE routes */}
         <Route path="/dre-resumo" element={
