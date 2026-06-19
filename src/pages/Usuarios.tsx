@@ -172,9 +172,7 @@ export default function Usuarios() {
     setWhatsapp(user.whatsapp ? formatWhatsApp(user.whatsapp) : '');
     setRole(user.role);
     setAtivo(user.ativo || false);
-    setHabilitarDashboard(user.habilitar_dashboard || false);
-    setHabilitarKanban(user.habilitar_kanban || false);
-    setHabilitarCobrancaDiaria(user.habilitar_cobranca_diaria || false);
+    setAtivo(user.ativo || false);
     setDepartamento((user as any).departamento || '');
     setPermissoesCustomizadas((user as any).permissoes_customizadas || false);
     setSenha('');
