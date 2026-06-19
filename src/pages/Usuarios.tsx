@@ -176,6 +176,26 @@ export default function Usuarios() {
     }
   };
 
+  // Carrega permissões do GRUPO (role) — usadas para mostrar herança e calcular diff de extras
+  const loadRolePermissions = async (r: AppRole) => {
+    if (r === 'admin') {
+      setRolePermissions([]);
+      return [] as string[];
+    }
+    const { data, error } = await (supabase as any)
+      .from('role_menu_permissions')
+      .select('menu_key')
+      .eq('role', r);
+    if (error) {
+      console.error('Erro ao carregar permissões do grupo:', error);
+      setRolePermissions([]);
+      return [] as string[];
+    }
+    const keys = (data as Array<{ menu_key: string }> | null)?.map((p) => p.menu_key) || [];
+    setRolePermissions(keys);
+    return keys;
+  };
+
   const openEditDialog = async (user: ProfileWithRole) => {
     setEditingUser(user);
     setNome(user.nome);
@@ -183,18 +203,22 @@ export default function Usuarios() {
     setWhatsapp(user.whatsapp ? formatWhatsApp(user.whatsapp) : '');
     setRole(user.role);
     setAtivo(user.ativo || false);
-    setAtivo(user.ativo || false);
     setDepartamento((user as any).departamento || '');
-    setPermissoesCustomizadas((user as any).permissoes_customizadas || false);
     setSenha('');
-    
-    // Load permissions for non-admin users
+
     if (user.role !== 'admin') {
-      await loadUserPermissions(user.id);
+      const [, rolePerms] = await Promise.all([
+        loadUserPermissions(user.id),
+        loadRolePermissions(user.role),
+      ]);
+      // selectedPermissions already set inside loadUserPermissions, mas fazemos a união com role
+      // para que o checkbox dos itens herdados apareça desabilitado/marcado
+      setSelectedPermissions((prev) => Array.from(new Set([...prev, ...rolePerms])));
     } else {
       setSelectedPermissions([]);
+      setRolePermissions([]);
     }
-    
+
     setDialogOpen(true);
   };
 
@@ -206,8 +230,8 @@ export default function Usuarios() {
     setAtivo(true);
     setSenha('');
     setSelectedPermissions([]);
+    setRolePermissions([]);
     setDepartamento('');
-    setPermissoesCustomizadas(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
