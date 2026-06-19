@@ -703,7 +703,7 @@ export default function RelatorioKpis() {
       juridicoCountAtual, juridicoValorAtual, juridicoCountPrev,
       prazoMedio, prazoRows,
     };
-  }, [cobrAbertas, cobrQuitadas, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual, dataInicio, dataFim]);
+  }, [cobrAbertas, cobrQuitadas, finalizadasMes, devolucoesAtual, juridicoAtual, juridicoPrev, prestAtual, cobrAtual, dataInicio, dataFim]);
 
   // ─── Cálculos PESSOAS ───
   const pessoas = useMemo(() => {
