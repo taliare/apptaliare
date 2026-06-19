@@ -79,7 +79,7 @@ function getSmartStatus(cobranca: Cobranca): { label: string; color: string } {
   if (cobranca.status === 'juridico')
     return { label: 'Jurídico', color: 'bg-purple-500/15 text-purple-700 dark:text-purple-400' };
   if (cobranca.status === 'cancelado')
-    return { label: 'Cancelado', color: 'bg-gray-500/15 text-gray-700 dark:text-gray-400' };
+    return { label: 'Cancelado', color: 'bg-muted text-muted-foreground dark:text-gray-400' };
   // pendente
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
