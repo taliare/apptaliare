@@ -343,25 +343,24 @@ export default function Usuarios() {
           ativo,
           whatsapp: cleanedWhatsapp || null,
           departamento: departamento.trim() || null,
-          permissoes_customizadas: permissoesCustomizadas,
         } as any)
         .eq('id', signUpData.user.id);
 
       if (profileError) throw profileError;
 
-      // Save menu permissions for non-admin users
-      if (role !== 'admin' && selectedPermissions.length > 0) {
-        const { error: permError } = await supabase
-          .from('user_menu_permissions')
-          .insert(
-            selectedPermissions.map(key => ({
-              user_id: signUpData.user!.id,
-              menu_key: key,
-            }))
-          );
-        
-        if (permError) {
-          console.error('Erro ao salvar permissões:', permError);
+      // Salva apenas EXTRAS (que não pertencem ao grupo)
+      if (role !== 'admin') {
+        const extras = selectedPermissions.filter((k) => !rolePermissions.includes(k));
+        if (extras.length > 0) {
+          const { error: permError } = await supabase
+            .from('user_menu_permissions')
+            .insert(
+              extras.map((key) => ({
+                user_id: signUpData.user!.id,
+                menu_key: key,
+              })),
+            );
+          if (permError) console.error('Erro ao salvar permissões extras:', permError);
         }
       }
 
