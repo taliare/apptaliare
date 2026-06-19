@@ -1725,6 +1725,9 @@ export default function RelatorioKpis() {
               {drill?.tipo === "op_cobrancas" && (
                 <DrillCobrancas rows={drill.rows} mostrarSaldo={drill.mostrarSaldo} />
               )}
+              {drill?.tipo === "op_por_rep" && (
+                <DrillPorRepresentante rows={drill.rows} modo={drill.modo} nomeRep={drill.nomeRep} />
+              )}
               {drill?.tipo === "op_tempo" && <DrillTempo rows={drill.rows} />}
               {drill?.tipo === "op_atraso" && <DrillAtraso rows={drill.rows} />}
               {drill?.tipo === "op_prazo" && <DrillPrazo rows={drill.rows} />}
