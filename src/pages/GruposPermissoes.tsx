@@ -227,7 +227,7 @@ export default function GruposPermissoes() {
                         </td>
                       </tr>
                     ))}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
