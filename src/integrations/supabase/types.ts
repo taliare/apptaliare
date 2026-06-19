@@ -2094,6 +2094,24 @@ export type Database = {
           },
         ]
       }
+      role_menu_permissions: {
+        Row: {
+          criado_em: string
+          menu_key: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          criado_em?: string
+          menu_key: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          criado_em?: string
+          menu_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       transacoes_bancarias: {
         Row: {
           categoria_id: string | null
