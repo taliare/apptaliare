@@ -117,26 +117,26 @@ export default function DashboardAdmin() {
   const fraseMotivacional = useMemo(() => getFraseMotivacional(), []);
   const SaudacaoIcon = saudacao.icon;
 
-  // Query para representantes ativos (excluindo admins)
+  // Query para representantes (somente role='representante', inclui inativos)
   const { data: representantes = [] } = useQuery({
-    queryKey: ['representantes-ativos'],
+    queryKey: ['representantes-dashboard'],
     queryFn: async () => {
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id')
         .eq('role', 'representante');
-      
+
       if (rolesError) throw rolesError;
-      
+
       const representanteIds = rolesData.map(r => r.user_id);
-      
+      if (representanteIds.length === 0) return [] as Profile[];
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, nome, email, ativo')
-        .eq('ativo', true)
         .in('id', representanteIds)
         .order('nome');
-      
+
       if (error) throw error;
       return data as Profile[];
     },
