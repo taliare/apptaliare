@@ -2,6 +2,7 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import taliareLogoHorizontal from "@/assets/taliare-logo-horizontal.png";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface MobileTopbarProps {
   onMenuClick: () => void;
@@ -51,8 +52,11 @@ export function MobileTopbar({ onMenuClick }: MobileTopbarProps) {
         />
       </div>
 
-      {/* Push Notification - Lado Direito */}
-      <PushNotificationToggle />
+      {/* Right side actions */}
+      <div className="flex items-center gap-1.5">
+        <ThemeToggle variant="mobile" />
+        <PushNotificationToggle />
+      </div>
     </header>
   );
 }

@@ -15,6 +15,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { SendNotificationDialog } from "@/components/admin/SendNotificationDialog";
 import { MessagesDialog } from "@/components/messages/MessagesDialog";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import taliareLogoHorizontal from "@/assets/taliare-logo-horizontal.png";
 import { LogOut, Settings, User, Send } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -93,6 +94,9 @@ export function AppHeader() {
               </span>
             )}
           </Button>
+
+          {/* Theme toggle */}
+          <ThemeToggle variant="header" />
 
           {/* Notifications dropdown */}
           <NotificationsDropdown />
