@@ -27,9 +27,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Space Grotesk', 'sans-serif'],
+        sans: ['Zalando Sans Expanded', 'Zalando Sans', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['Zalando Sans Expanded', 'Zalando Sans', 'sans-serif'],
         serif: ['Playfair Display', 'Georgia', 'serif'],
+        mono: ['SF Mono', 'ui-monospace', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",
