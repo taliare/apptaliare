@@ -52,8 +52,11 @@ export function MobileTopbar({ onMenuClick }: MobileTopbarProps) {
         />
       </div>
 
-      {/* Push Notification - Lado Direito */}
-      <PushNotificationToggle />
+      {/* Right side actions */}
+      <div className="flex items-center gap-1.5">
+        <ThemeToggle variant="mobile" />
+        <PushNotificationToggle />
+      </div>
     </header>
   );
 }
