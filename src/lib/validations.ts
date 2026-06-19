@@ -137,9 +137,6 @@ export const userUpdateSchema = z.object({
   email: emailSchema.optional(),
   role: z.enum(['admin', 'representante', 'producao']).optional(),
   ativo: z.boolean().optional(),
-  habilitar_dashboard: z.boolean().optional(),
-  habilitar_kanban: z.boolean().optional(),
-  habilitar_cobranca_diaria: z.boolean().optional(),
 });
 
 // ============ Validation Helper ============
