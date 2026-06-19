@@ -113,11 +113,12 @@ export function AppSidebar() {
         border-r border-sidebar-border bg-sidebar transition-all duration-200
         ${collapsed
           ? "w-16 h-full"
-          : "w-56 fixed top-14 left-0 h-[calc(100vh-3.5rem)] z-40 shadow-2xl bg-sidebar"
+          : "w-56 !fixed !top-14 !left-0 !h-[calc(100vh-3.5rem)] z-40 bg-sidebar"
         }
       `}
     >
-      <SidebarContent className="flex flex-col h-full custom-scrollbar px-2 py-4">
+      <SidebarContent className="flex flex-col h-full custom-scrollbar px-2 py-4 bg-sidebar">
+
         {collapsed ? (
           // ===== Modo recolhido: lista chapada de ícones =====
           <SidebarMenu className="space-y-0.5">
