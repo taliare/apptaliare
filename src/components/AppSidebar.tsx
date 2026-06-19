@@ -11,7 +11,6 @@ import {
   ShoppingBag,
   Scale,
   PackageCheck,
-  Settings,
   UserPlus,
   Shield,
   BarChart3,
@@ -29,7 +28,12 @@ import { useRef } from "react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenuPermissions } from "@/hooks/useMenuPermissions";
-import { ASSIGNABLE_MENUS, MENU_EXTRA_CONFIG } from "@/lib/menuPermissions";
+import {
+  ALL_MENUS,
+  CATEGORY_ORDER,
+  type MenuCategoryLabel,
+  type MenuModule,
+} from "@/lib/menuPermissions";
 import { useNewLeadsCount } from "@/hooks/useNewLeadsCount";
 import {
   Sidebar,
@@ -44,28 +48,29 @@ import {
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 
-// Mapa de ícones para resolver string -> componente
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Home, UserPlus, Users, Shield, Package, PackageCheck, CalendarCheck, Target,
   Calendar, Scale, TrendingUp, Receipt, FolderOpen, BarChart3, LineChart,
-  Upload, FileText, ClipboardList, AlertTriangle, Wallet,
+  Upload, FileText, ClipboardList, AlertTriangle, Wallet, Factory,
+  ShoppingBag, BookOpen, ScanLine,
 };
 
-interface MenuCategory {
-  label: string;
-  items: {
-    title: string;
-    url: string;
-    icon: React.ComponentType<{ className?: string }>;
-    badge?: number;
-    badgeText?: string;
-  }[];
+interface SidebarItem {
+  title: string;
+  url: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: number;
+}
+
+interface SidebarCategory {
+  label: MenuCategoryLabel;
+  items: SidebarItem[];
 }
 
 export function AppSidebar() {
   const { profile } = useAuth();
   const { state, setOpen } = useSidebar();
-  const { hasRouteAccess, permissions } = useMenuPermissions();
+  const { hasMenuAccess } = useMenuPermissions();
   const newLeadsCount = useNewLeadsCount();
   const collapsed = state === "collapsed";
 
@@ -78,177 +83,23 @@ export function AppSidebar() {
     hoverTimeout.current = setTimeout(() => setOpen(false), 120);
   };
 
-  const isAdmin = profile?.role === "admin";
+  // Monta sidebar a partir do registro unificado, filtrando pela permissão efetiva
+  const visibleModules: MenuModule[] = ALL_MENUS.filter((m) => hasMenuAccess(m.key));
 
-  // Menu items por role, divididos em categorias
-  const representanteCategories: MenuCategory[] = [
-    {
-      label: "INÍCIO",
-      items: [
-        { title: "Painel Geral", url: "/dashboard", icon: Home },
-      ],
-    },
-    {
-      label: "AGENDA",
-      items: [
-        { title: "Agenda", url: "/cobranca", icon: Calendar },
-        { title: "Fechamento do Dia", url: "/cobranca-diaria", icon: CalendarCheck },
-      ],
-    },
-    {
-      label: "KITS",
-      items: [
-        { title: "Kits em Mãos", url: "/kits", icon: Package },
-        { title: "Kits Entregues", url: "/kits-entregues", icon: PackageCheck },
-        { title: "Pedidos de Kit", url: "/encomendas", icon: ShoppingBag },
-      ],
-    },
-    {
-      label: "GESTÃO",
-      items: [
-        { title: "Minhas Revendedoras", url: "/revendedoras-inativas", icon: Users },
-        { title: "Garantias", url: "/garantias", icon: Shield },
-        { title: "Histórico de Ações", url: "/historico-acoes", icon: ClipboardList },
-      ],
-    },
-  ];
-
-  const producaoCategories: MenuCategory[] = [
-    {
-      label: "INÍCIO",
-      items: [
-        { title: "Painel Geral", url: "/producao", icon: Factory },
-      ],
-    },
-    {
-      label: "PRODUÇÃO",
-      items: [
-        { title: "Produção Diária", url: "/producao-diaria", icon: Package },
-        { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
-        { title: "Catálogo de Produtos", url: "/catalogo-produtos", icon: BookOpen },
-        { title: "Montar Kit", url: "/montar-kit", icon: ScanLine },
-      ],
-    },
-    {
-      label: "ENCOMENDAS",
-      items: [
-        { title: "Encomendas", url: "/encomendas-producao", icon: ShoppingBag },
-      ],
-    },
-  ];
-
-  const adminCategories: MenuCategory[] = [
-    {
-      label: "VISÃO GERAL",
-      items: [
-        { title: "Painel Admin", url: "/dashboard-admin", icon: Home },
-      ],
-    },
-    {
-      label: "OPERACIONAL",
-      items: [
-        { title: "Usuários", url: "/usuarios", icon: Users },
-        { title: "Revendedoras", url: "/revendedoras", icon: Users },
-        { title: "Venda Externa", url: "/venda-externa", icon: Users },
-        { title: "CRM", url: "/leads-revendedoras", icon: UserPlus, badge: newLeadsCount },
-        { title: "Distribuição de Kits", url: "/distribuicao-kits", icon: Package },
-        { title: "Catálogo de Produtos", url: "/catalogo-produtos", icon: BookOpen },
-        { title: "Montar Kit", url: "/montar-kit", icon: ScanLine },
-        { title: "Garantias", url: "/garantias", icon: Shield },
-      ],
-    },
-    {
-      label: "FINANCEIRO",
-      items: [
-        { title: "Fechamento Diário", url: "/fechamento-diario", icon: CalendarCheck },
-        { title: "Metas", url: "/metas", icon: Target },
-        { title: "Gerenciar Agenda", url: "/gerenciar-agenda", icon: Calendar },
-        { title: "Apuração de Kits", url: "/apuracao", icon: PackageCheck },
-        { title: "Jurídico", url: "/juridico", icon: Scale },
-        { title: "Resumo DRE", url: "/dre-resumo", icon: TrendingUp },
-        { title: "Despesas", url: "/dre-despesas", icon: Receipt },
-        { title: "Categorias", url: "/dre-categorias", icon: FolderOpen },
-        { title: "Fluxo de Caixa", url: "/fluxo-caixa", icon: Wallet },
-        { title: "Configuração PDF", url: "/configuracao-pdf", icon: FileText },
-      ],
-    },
-    {
-      label: "RELATÓRIOS",
-      items: [
-        { title: "Relatório KPIs", url: "/relatorio-kpis", icon: BarChart3 },
-        { title: "Análise de Desempenho", url: "/analise-comercial", icon: LineChart },
-        { title: "Auditoria Geral", url: "/auditoria-geral", icon: ClipboardList },
-        { title: "Importar Cobranças", url: "/importar-cobrancas", icon: Upload },
-      ],
-    },
-  ];
-
-  // Filtra menus baseado em permissões
-  const filterMenusByPermission = (items: typeof adminCategories[0]['items']) => {
-    if (profile?.role === 'admin') return items;
-    
-    return items.filter(item => {
-      const menuDef = ASSIGNABLE_MENUS.find(m => m.route === item.url);
-      if (!menuDef) return true;
-      return hasRouteAccess(item.url);
-    });
-  };
-
-  const baseCategories =
-    profile?.role === "admin"
-      ? adminCategories
-      : profile?.role === "equipe_interna" || profile?.permissoes_customizadas
-      ? []
-      : profile?.role === "producao"
-      ? producaoCategories
-      : representanteCategories;
-
-  // Aplica filtro de permissões
-  let categories = baseCategories.map(cat => ({
-    ...cat,
-    items: filterMenusByPermission(cat.items)
-  }));
-
-  // Para não-admin: injetar menus extras que o usuário tem permissão mas não estão nas categorias base
-  if (!isAdmin) {
-    const existingUrls = new Set(categories.flatMap(c => c.items.map(i => i.url)));
-    
-    const extraMenusByCategory: Record<string, MenuCategory['items']> = {};
-    
-    for (const permKey of permissions) {
-      const menuDef = ASSIGNABLE_MENUS.find(m => m.key === permKey);
-      if (!menuDef || existingUrls.has(menuDef.route)) continue;
-      
-      const config = MENU_EXTRA_CONFIG[permKey];
-      if (!config) continue;
-      
-      const icon = ICON_MAP[config.iconName] || Shield;
-      const item = {
-        title: menuDef.label,
-        url: menuDef.route,
-        icon,
-        ...(permKey === 'crm' && newLeadsCount > 0 ? { badge: newLeadsCount } : {}),
-      };
-      
-      if (!extraMenusByCategory[config.category]) {
-        extraMenusByCategory[config.category] = [];
-      }
-      extraMenusByCategory[config.category].push(item);
-    }
-    
-    // Adicionar extras nas categorias existentes ou criar novas
-    for (const [catLabel, items] of Object.entries(extraMenusByCategory)) {
-      const existing = categories.find(c => c.label === catLabel);
-      if (existing) {
-        existing.items.push(...items);
-      } else {
-        categories.push({ label: catLabel, items });
-      }
-    }
+  const grouped: Record<string, SidebarItem[]> = {};
+  for (const m of visibleModules) {
+    const item: SidebarItem = {
+      title: m.label,
+      url: m.route,
+      icon: ICON_MAP[m.iconName] || Shield,
+      ...(m.key === "crm" && newLeadsCount > 0 ? { badge: newLeadsCount } : {}),
+    };
+    (grouped[m.category] ||= []).push(item);
   }
 
-  // Remove categorias vazias
-  categories = categories.filter(cat => cat.items.length > 0);
+  const categories: SidebarCategory[] = CATEGORY_ORDER
+    .filter((cat) => grouped[cat]?.length)
+    .map((cat) => ({ label: cat, items: grouped[cat] }));
 
   return (
     <Sidebar
@@ -301,14 +152,6 @@ export function AppSidebar() {
                             className="ml-auto text-[10px] px-2 py-0 bg-primary/20 text-primary border-0"
                           >
                             {item.badge}
-                          </Badge>
-                        )}
-                        {!collapsed && item.badgeText && (
-                          <Badge
-                            variant="secondary"
-                            className="ml-auto text-[10px] px-2 py-0 bg-success/20 text-success border border-success/30"
-                          >
-                            {item.badgeText}
                           </Badge>
                         )}
                       </NavLink>
