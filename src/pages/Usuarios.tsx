@@ -688,6 +688,29 @@ export default function Usuarios() {
       <Card>
         <CardHeader>
           <CardTitle>Usuários do Sistema</CardTitle>
+          <Tabs
+            value={roleFilter}
+            onValueChange={(v) => setRoleFilter(v as 'all' | AppRole)}
+            className="mt-3"
+          >
+            <TabsList>
+              <TabsTrigger value="all">
+                Todos ({profiles.length})
+              </TabsTrigger>
+              <TabsTrigger value="representante">
+                Representantes ({profiles.filter((p) => p.role === 'representante').length})
+              </TabsTrigger>
+              <TabsTrigger value="producao">
+                Produção ({profiles.filter((p) => p.role === 'producao').length})
+              </TabsTrigger>
+              <TabsTrigger value="equipe_interna">
+                Equipe Interna ({profiles.filter((p) => p.role === 'equipe_interna').length})
+              </TabsTrigger>
+              <TabsTrigger value="admin">
+                Administradores ({profiles.filter((p) => p.role === 'admin').length})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -710,7 +733,9 @@ export default function Usuarios() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {profiles.map((profile) => (
+                {profiles
+                  .filter((p) => roleFilter === 'all' || p.role === roleFilter)
+                  .map((profile) => (
                   <TableRow key={profile.id}>
                     <TableCell className="font-medium">{profile.nome}</TableCell>
                     <TableCell className="text-muted-foreground">{profile.email || '-'}</TableCell>
