@@ -662,10 +662,8 @@ export default function RelatorioKpis() {
       return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
     };
 
-    // Notas do mês selecionado (data_agendada no mês) — universo dos KPIs ligados ao ciclo
-    const cobrAbertasMes = cobrAbertas.filter(
-      c => c.data_agendada >= dataInicio && c.data_agendada <= dataFim
-    );
+
+
 
     // 1. Kits em Campo — notas PENDENTES com data_agendada no mês selecionado.
     //    Mostra a mercadoria prevista para retornar no ciclo do mês.
