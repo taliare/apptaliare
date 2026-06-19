@@ -1125,17 +1125,29 @@ export default function FechamentoDiario() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className={!totais.bate && notas.length > 0 ? 'border-destructive' : ''}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 md:p-4">
                   <CardTitle className="text-xs md:text-sm font-medium">Total Cobrado</CardTitle>
-                  <div className="p-1.5 rounded-lg bg-primary/10">
-                    <DollarSign className="h-4 w-4 text-primary" />
+                  <div className={`p-1.5 rounded-lg ${totais.bate ? 'bg-primary/10' : 'bg-destructive/10'}`}>
+                    <DollarSign className={`h-4 w-4 ${totais.bate ? 'text-primary' : 'text-destructive'}`} />
                   </div>
                 </CardHeader>
                 <CardContent className="p-3 md:p-4 pt-0">
-                  <div className="text-lg md:text-xl font-bold text-primary">{formatarValor(totais.total)}</div>
+                  <div className={`text-lg md:text-xl font-bold ${totais.bate ? 'text-primary' : 'text-destructive'}`}>
+                    {formatarValor(totais.totalNotas)}
+                  </div>
+                  {notas.length > 0 && (
+                    totais.bate ? (
+                      <div className="text-xs text-green-600 mt-1">✓ Formas conferem</div>
+                    ) : (
+                      <div className="text-xs text-destructive mt-1">
+                        Formas: {formatarValor(totais.total)} · Dif: {formatarValor(Math.abs(totais.diferenca))}
+                      </div>
+                    )
+                  )}
                 </CardContent>
               </Card>
+
             </div>
           </div>
 
