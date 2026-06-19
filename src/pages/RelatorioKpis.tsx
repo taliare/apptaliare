@@ -1160,17 +1160,34 @@ export default function RelatorioKpis() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   <KpiCard
                     icon={<Boxes className="h-4 w-4" />}
-                    titulo="Kits em Campo (Valor Total)"
+                    titulo="Kits em Campo"
                     valor={fmt(op.kitsCampoValor)}
-                    subtitulo={`Capital imobilizado · ${op.cobrAbertasCount} nota(s)`}
+                    subtitulo={`Mercadoria prevista em campo · ${op.kitsCampoCount} nota(s)`}
                     accent="neutral"
                     onClick={() => setDrill({
-                      tipo: "op_cobrancas",
-                      titulo: "Kits em Campo — Cobranças abertas",
-                      rows: cobrAbertas,
-                      mostrarSaldo: true,
+                      tipo: "op_por_rep",
+                      titulo: "Kits em Campo — por representante",
+                      rows: op.kitsCampoRows,
+                      modo: "previsto",
+                      nomeRep: pessoas.nomeRep,
                     })}
                   />
+
+                  <KpiCard
+                    icon={<Hourglass className="h-4 w-4" />}
+                    titulo="A Receber"
+                    valor={fmt(op.aReceberValor)}
+                    subtitulo={`Saldo pendente após prestação de contas · ${op.aReceberCount} nota(s)`}
+                    accent="neutral"
+                    onClick={() => setDrill({
+                      tipo: "op_por_rep",
+                      titulo: "A Receber — por representante",
+                      rows: op.aReceberRows,
+                      modo: "saldo",
+                      nomeRep: pessoas.nomeRep,
+                    })}
+                  />
+
 
                   <KpiCard
                     icon={<Clock className="h-4 w-4" />}
