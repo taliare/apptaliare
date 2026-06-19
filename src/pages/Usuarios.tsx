@@ -80,9 +80,6 @@ export default function Usuarios() {
   const [whatsapp, setWhatsapp] = useState('');
   const [role, setRole] = useState<AppRole>('representante');
   const [ativo, setAtivo] = useState(true);
-  const [habilitarDashboard, setHabilitarDashboard] = useState(true);
-  const [habilitarKanban, setHabilitarKanban] = useState(true);
-  const [habilitarCobrancaDiaria, setHabilitarCobrancaDiaria] = useState(true);
   const [senha, setSenha] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
