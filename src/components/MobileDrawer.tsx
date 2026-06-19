@@ -1,5 +1,11 @@
-import { useState } from 'react';
-import { LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings, UserPlus, Shield, TrendingUp, Receipt, FolderOpen, LineChart, ClipboardList, AlertTriangle, Wallet } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  LogOut, ShoppingBag, Scale, PackageCheck, X, MessageCircle, User, Settings,
+  UserPlus, Shield, TrendingUp, Receipt, FolderOpen, LineChart, ClipboardList,
+  AlertTriangle, Wallet, Home, Users, Target, Upload, FileText, Calendar,
+  CalendarCheck, Package, Factory, Bell, BarChart3, BookOpen, ScanLine,
+  ChevronDown,
+} from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,26 +21,19 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useMessages } from '@/hooks/useMessages';
 import { MessagesDialog } from '@/components/messages/MessagesDialog';
 import { NotificationsSheet } from '@/components/notifications/NotificationsSheet';
-import { Home, Users, Target, Upload, FileText, Calendar, CalendarCheck, Package, Factory, Bell, BarChart3 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useMenuPermissions } from '@/hooks/useMenuPermissions';
-import { ASSIGNABLE_MENUS, MENU_EXTRA_CONFIG } from '@/lib/menuPermissions';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useSidebarLayout, type ResolvedCategory } from '@/hooks/useSidebarLayout';
 import { useNewLeadsCount } from '@/hooks/useNewLeadsCount';
-// Mapa de ícones para resolver string -> componente
+import { cn } from '@/lib/utils';
+
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  UserPlus, Users, Shield, Package, CalendarCheck, Target, Calendar, Scale,
-  TrendingUp, Receipt, FolderOpen, BarChart3, LineChart, Upload, FileText, ClipboardList, AlertTriangle, Wallet,
+  Home, UserPlus, Users, Shield, Package, PackageCheck, CalendarCheck, Target,
+  Calendar, Scale, TrendingUp, Receipt, FolderOpen, BarChart3, LineChart,
+  Upload, FileText, ClipboardList, AlertTriangle, Wallet, Factory,
+  ShoppingBag, BookOpen, ScanLine,
 };
 
-interface MenuCategory {
-  label: string;
-  items: {
-    title: string;
-    url: string;
-    icon: React.ComponentType<{ className?: string }>;
-    badge?: number;
-  }[];
-}
+const STORAGE_KEY = 'taliare:mobile-drawer:open-categories';
 
 interface MobileDrawerProps {
   open: boolean;
@@ -46,9 +45,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { unreadCount } = useNotifications();
   const { unreadCount: unreadMessages } = useMessages();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { hasRouteAccess, permissions } = useMenuPermissions();
+  const categories = useSidebarLayout();
   const newLeadsCount = useNewLeadsCount();
 
   const userInitials = profile?.nome
@@ -60,176 +60,49 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         .toUpperCase()
     : "U";
 
-  const representanteCategories: MenuCategory[] = [
-    {
-      label: "INÍCIO",
-      items: [
-        { title: 'Painel Geral', url: '/dashboard', icon: Home },
-      ],
-    },
-    {
-      label: "AGENDA",
-      items: [
-        { title: 'Agenda', url: '/cobranca', icon: Calendar },
-        { title: 'Fechamento do Dia', url: '/cobranca-diaria', icon: CalendarCheck },
-      ],
-    },
-    {
-      label: "KITS",
-      items: [
-        { title: 'Kits em Mãos', url: '/kits', icon: Package },
-        { title: 'Kits Entregues', url: '/kits-entregues', icon: PackageCheck },
-        { title: 'Pedidos de Kit', url: '/encomendas', icon: ShoppingBag },
-      ],
-    },
-    {
-      label: "GESTÃO",
-      items: [
-        { title: 'Minhas Revendedoras', url: '/revendedoras-inativas', icon: Users },
-        { title: 'Histórico de Ações', url: '/historico-acoes', icon: ClipboardList },
-      ],
-    },
-  ];
-
-  const producaoCategories: MenuCategory[] = [
-    {
-      label: "INÍCIO",
-      items: [
-        { title: 'Painel Geral', url: '/producao', icon: Factory },
-      ],
-    },
-    {
-      label: "PRODUÇÃO",
-      items: [
-        { title: 'Produção Diária', url: '/producao-diaria', icon: Package },
-        { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package },
-      ],
-    },
-    {
-      label: "ENCOMENDAS",
-      items: [
-        { title: 'Encomendas', url: '/encomendas-producao', icon: ShoppingBag },
-      ],
-    },
-  ];
-
-  const adminCategories: MenuCategory[] = [
-    {
-      label: "VISÃO GERAL",
-      items: [
-        { title: 'Painel Admin', url: '/dashboard-admin', icon: Home },
-      ],
-    },
-    {
-      label: "OPERACIONAL",
-      items: [
-        { title: 'Usuários', url: '/usuarios', icon: Users },
-        { title: 'Revendedoras', url: '/revendedoras', icon: Users },
-        { title: 'Venda Externa', url: '/venda-externa', icon: Users },
-        { title: 'CRM', url: '/leads-revendedoras', icon: UserPlus, badge: newLeadsCount },
-        { title: 'Distribuição de Kits', url: '/distribuicao-kits', icon: Package },
-        { title: 'Garantias', url: '/garantias', icon: Shield },
-      ],
-    },
-    {
-      label: "FINANCEIRO",
-      items: [
-        { title: 'Fechamento Diário', url: '/fechamento-diario', icon: CalendarCheck },
-        { title: 'Metas', url: '/metas', icon: Target },
-        { title: 'Gerenciar Agenda', url: '/gerenciar-agenda', icon: Calendar },
-        { title: 'Apuração de Kits', url: '/apuracao', icon: PackageCheck },
-        { title: 'Jurídico', url: '/juridico', icon: Scale },
-        { title: 'Resumo DRE', url: '/dre-resumo', icon: TrendingUp },
-        { title: 'Despesas', url: '/dre-despesas', icon: Receipt },
-        { title: 'Categorias', url: '/dre-categorias', icon: FolderOpen },
-        { title: 'Fluxo de Caixa', url: '/fluxo-caixa', icon: Wallet },
-      ],
-    },
-    {
-      label: "RELATÓRIOS",
-      items: [
-        { title: 'Relatório KPIs', url: '/relatorio-kpis', icon: BarChart3 },
-        { title: 'Análise Comercial', url: '/analise-comercial', icon: LineChart },
-        { title: 'Auditoria Geral', url: '/auditoria-geral', icon: ClipboardList },
-        { title: 'Importar Cobranças', url: '/importar-cobrancas', icon: Upload },
-        { title: 'Relatórios', url: '/relatorios', icon: FileText },
-      ],
-    },
-  ];
-
-  // Filtra menus baseado em permissões
-  const filterMenusByPermission = (items: typeof adminCategories[0]['items']) => {
-    if (profile?.role === 'admin') return items;
-    
-    return items.filter(item => {
-      const menuDef = ASSIGNABLE_MENUS.find(m => m.route === item.url);
-      if (!menuDef) return true;
-      return hasRouteAccess(item.url);
-    });
-  };
-
-  const baseCategories = profile?.role === 'admin' 
-    ? adminCategories 
-    : profile?.role === 'producao' 
-    ? producaoCategories 
-    : representanteCategories;
-
-  let categories = baseCategories.map(cat => ({
-    ...cat,
-    items: filterMenusByPermission(cat.items)
-  }));
-
-  // Para não-admin: injetar menus extras que o usuário tem permissão mas não estão nas categorias base
-  if (profile?.role !== 'admin') {
-    const existingUrls = new Set(categories.flatMap(c => c.items.map(i => i.url)));
-    
-    const extraMenusByCategory: Record<string, MenuCategory['items']> = {};
-    
-    for (const permKey of permissions) {
-      const menuDef = ASSIGNABLE_MENUS.find(m => m.key === permKey);
-      if (!menuDef || existingUrls.has(menuDef.route)) continue;
-      
-      const config = MENU_EXTRA_CONFIG[permKey];
-      if (!config) continue;
-      
-      const icon = ICON_MAP[config.iconName] || Shield;
-      const item = {
-        title: menuDef.label,
-        url: menuDef.route,
-        icon,
-        ...(permKey === 'crm' && newLeadsCount > 0 ? { badge: newLeadsCount } : {}),
-      };
-      
-      if (!extraMenusByCategory[config.category]) {
-        extraMenusByCategory[config.category] = [];
-      }
-      extraMenusByCategory[config.category].push(item);
+  const activeCategoryId = useMemo(() => {
+    for (const cat of categories) {
+      if (cat.items.some((i) => i.route === pathname)) return cat.id;
     }
-    
-    for (const [catLabel, items] of Object.entries(extraMenusByCategory)) {
-      const existing = categories.find(c => c.label === catLabel);
-      if (existing) {
-        existing.items.push(...items);
-      } else {
-        categories.push({ label: catLabel, items });
-      }
+    return null;
+  }, [categories, pathname]);
+
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
     }
-  }
+  });
 
-  categories = categories.filter(cat => cat.items.length > 0);
+  useEffect(() => {
+    if (!activeCategoryId) return;
+    setOpenMap((prev) =>
+      prev[activeCategoryId] ? prev : { ...prev, [activeCategoryId]: true },
+    );
+  }, [activeCategoryId]);
 
-  const handleLinkClick = () => {
-    onOpenChange(false);
-  };
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(openMap));
+    } catch {
+      /* ignore */
+    }
+  }, [openMap]);
+
+  const toggle = (id: string) =>
+    setOpenMap((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const handleLinkClick = () => onOpenChange(false);
 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent 
-          side="left" 
+        <SheetContent
+          side="left"
           className="w-[88%] xs:w-[85%] max-w-sm p-0 bg-sidebar border-r border-sidebar-border [&>button]:hidden"
         >
-          {/* Header with user profile */}
           <SheetHeader className="border-b border-sidebar-border p-0">
             <div className="flex items-center justify-between p-3 xs:p-4">
               <div className="flex items-center gap-3">
@@ -257,8 +130,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            
-            {/* Quick action buttons */}
+
             <div className="flex items-center gap-2 px-4 pb-3">
               <Button
                 variant="ghost"
@@ -298,52 +170,17 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             <SheetTitle className="sr-only">Menu</SheetTitle>
           </SheetHeader>
 
-          {/* Navigation */}
           <div className="flex flex-col h-[calc(100%-140px)]">
             <nav className="flex-1 overflow-y-auto px-2 py-3 custom-scrollbar">
-              {categories.map((category, catIndex) => (
-                <div key={category.label} className={catIndex > 0 ? "mt-4" : ""}>
-                  <p className="text-[10px] text-sidebar-foreground/40 uppercase tracking-widest px-3 mb-2">
-                    {category.label}
-                  </p>
-                  <div className="space-y-0.5">
-                    {category.items.map((item) => (
-                      <NavLink
-                        key={item.title}
-                        to={item.url}
-                        onClick={handleLinkClick}
-                        className="
-                          flex items-center justify-between
-                          px-3 py-2.5
-                          rounded-xl
-                          text-sidebar-foreground/70
-                          hover:bg-sidebar-accent/50
-                          hover:text-sidebar-foreground
-                          transition-all duration-200
-                          group
-                        "
-                        activeClassName="bg-primary/10 text-primary border-l-2 border-primary font-medium"
-                      >
-                        <div className="flex items-center gap-3">
-                          <item.icon className="h-4 w-4" />
-                          <span className="text-sm">{item.title}</span>
-                        </div>
-                        {item.badge !== undefined && item.badge > 0 && (
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] px-2 py-0 bg-primary/20 text-primary border-0"
-                          >
-                            {item.badge}
-                          </Badge>
-                        )}
-                      </NavLink>
-                    ))}
-                  </div>
-                  {/* Separator */}
-                  {catIndex < categories.length - 1 && (
-                    <div className="mt-4 mx-3 border-t border-sidebar-border/50" />
-                  )}
-                </div>
+              {categories.map((cat) => (
+                <MobileCategoryNode
+                  key={cat.id}
+                  category={cat}
+                  open={!!openMap[cat.id]}
+                  onToggle={() => toggle(cat.id)}
+                  onLinkClick={handleLinkClick}
+                  newLeadsCount={newLeadsCount}
+                />
               ))}
             </nav>
 
@@ -382,21 +219,12 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                   signOut();
                   onOpenChange(false);
                 }}
-                className="
-                  w-full justify-center gap-2
-                  h-10
-                  text-sidebar-foreground/70
-                  hover:bg-destructive/10
-                  hover:text-destructive
-                  rounded-xl
-                  transition-all duration-200
-                "
+                className="w-full justify-center gap-2 h-10 text-sidebar-foreground/70 hover:bg-destructive/10 hover:text-destructive rounded-xl transition-all duration-200"
               >
                 <LogOut className="h-4 w-4" />
                 <span className="text-sm">Sair</span>
               </Button>
 
-              {/* Version */}
               <div className="mt-3 text-center">
                 <p className="text-[10px] text-sidebar-foreground/30 uppercase tracking-widest">
                   TALIARE
@@ -411,5 +239,98 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       <MessagesDialog open={messagesOpen} onOpenChange={setMessagesOpen} />
       <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
     </>
+  );
+}
+
+interface MobileCategoryNodeProps {
+  category: ResolvedCategory;
+  open: boolean;
+  onToggle: () => void;
+  onLinkClick: () => void;
+  newLeadsCount: number;
+}
+
+function MobileCategoryNode({
+  category, open, onToggle, onLinkClick, newLeadsCount,
+}: MobileCategoryNodeProps) {
+  const HeaderIcon = ICON_MAP[category.iconName] || Shield;
+
+  if (category.direct) {
+    const item = category.items[0];
+    if (!item) return null;
+    const Icon = ICON_MAP[item.iconName] || HeaderIcon;
+    return (
+      <NavLink
+        to={item.route}
+        onClick={onLinkClick}
+        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all duration-200 mb-1"
+        activeClassName="bg-primary/20 text-primary border-l-2 border-primary font-medium"
+      >
+        <Icon className="h-4 w-4" />
+        <span className="text-sm font-medium">{item.label}</span>
+      </NavLink>
+    );
+  }
+
+  return (
+    <div className="mb-1">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground transition-all duration-200"
+      >
+        <div className="flex items-center gap-3">
+          <HeaderIcon className="h-4 w-4" />
+          <span className="text-[11px] uppercase tracking-widest font-medium">
+            {category.label}
+          </span>
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 transition-transform duration-200",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          "grid transition-all duration-200 ease-out",
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
+          <ul className="pl-3 mt-1 space-y-0.5 border-l border-sidebar-border/50 ml-5">
+            {category.items.map((item) => {
+              const Icon = ICON_MAP[item.iconName] || Shield;
+              const showBadge = item.key === "crm" && newLeadsCount > 0;
+              return (
+                <li key={item.key}>
+                  <NavLink
+                    to={item.route}
+                    onClick={onLinkClick}
+                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground transition-colors"
+                    activeClassName="bg-primary/25 text-primary border-l-2 border-accent font-medium -ml-[1px]"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="text-sm truncate">{item.label}</span>
+                    </span>
+                    {showBadge && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-2 py-0 bg-primary/20 text-primary border-0"
+                      >
+                        {newLeadsCount}
+                      </Badge>
+                    )}
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    </div>
   );
 }

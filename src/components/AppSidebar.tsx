@@ -23,30 +23,23 @@ import {
   Wallet,
   BookOpen,
   ScanLine,
+  ChevronDown,
 } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
-import { useAuth } from "@/contexts/AuthContext";
-import { useMenuPermissions } from "@/hooks/useMenuPermissions";
-import {
-  ALL_MENUS,
-  CATEGORY_ORDER,
-  type MenuCategoryLabel,
-  type MenuModule,
-} from "@/lib/menuPermissions";
+import { useSidebarLayout, type ResolvedCategory } from "@/hooks/useSidebarLayout";
 import { useNewLeadsCount } from "@/hooks/useNewLeadsCount";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Home, UserPlus, Users, Shield, Package, PackageCheck, CalendarCheck, Target,
@@ -55,24 +48,23 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   ShoppingBag, BookOpen, ScanLine,
 };
 
-interface SidebarItem {
-  title: string;
-  url: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
-}
+const STORAGE_KEY = "taliare:sidebar:open-categories";
 
-interface SidebarCategory {
-  label: MenuCategoryLabel;
-  items: SidebarItem[];
+function readOpenState(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
 }
 
 export function AppSidebar() {
-  const { profile } = useAuth();
   const { state, setOpen } = useSidebar();
-  const { hasMenuAccess } = useMenuPermissions();
-  const newLeadsCount = useNewLeadsCount();
   const collapsed = state === "collapsed";
+  const categories = useSidebarLayout();
+  const newLeadsCount = useNewLeadsCount();
+  const { pathname } = useLocation();
 
   const hoverTimeout = useRef<ReturnType<typeof setTimeout>>();
   const handleMouseEnter = () => {
@@ -83,23 +75,34 @@ export function AppSidebar() {
     hoverTimeout.current = setTimeout(() => setOpen(false), 120);
   };
 
-  // Monta sidebar a partir do registro unificado, filtrando pela permissão efetiva
-  const visibleModules: MenuModule[] = ALL_MENUS.filter((m) => hasMenuAccess(m.key));
+  // Categoria que contém a rota ativa
+  const activeCategoryId = useMemo(() => {
+    for (const cat of categories) {
+      if (cat.items.some((i) => i.route === pathname)) return cat.id;
+    }
+    return null;
+  }, [categories, pathname]);
 
-  const grouped: Record<string, SidebarItem[]> = {};
-  for (const m of visibleModules) {
-    const item: SidebarItem = {
-      title: m.label,
-      url: m.route,
-      icon: ICON_MAP[m.iconName] || Shield,
-      ...(m.key === "crm" && newLeadsCount > 0 ? { badge: newLeadsCount } : {}),
-    };
-    (grouped[m.category] ||= []).push(item);
-  }
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>(() => readOpenState());
 
-  const categories: SidebarCategory[] = CATEGORY_ORDER
-    .filter((cat) => grouped[cat]?.length)
-    .map((cat) => ({ label: cat, items: grouped[cat] }));
+  // Garante que a categoria ativa esteja aberta
+  useEffect(() => {
+    if (!activeCategoryId) return;
+    setOpenMap((prev) =>
+      prev[activeCategoryId] ? prev : { ...prev, [activeCategoryId]: true },
+    );
+  }, [activeCategoryId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(openMap));
+    } catch {
+      /* ignore */
+    }
+  }, [openMap]);
+
+  const toggle = (id: string) =>
+    setOpenMap((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
     <Sidebar
@@ -110,63 +113,48 @@ export function AppSidebar() {
         border-r border-sidebar-border bg-sidebar transition-all duration-200 pt-14
         ${collapsed
           ? "w-16"
-          : "w-48 absolute top-0 left-0 h-full z-50 shadow-2xl"
+          : "w-56 absolute top-0 left-0 h-full z-50 shadow-2xl"
         }
       `}
     >
       <SidebarContent className="flex flex-col h-full custom-scrollbar px-2 py-4">
-        {categories.map((category, catIndex) => (
-          <SidebarGroup key={category.label} className={catIndex > 0 ? "mt-4" : ""}>
-            {!collapsed && (
-              <SidebarGroupLabel className="text-sidebar-foreground/40 text-[9px] uppercase tracking-widest px-2 mb-1">
-                {category.label}
-              </SidebarGroupLabel>
-            )}
-            <SidebarGroupContent>
-              <SidebarMenu className="space-y-0.5">
-                {category.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.url}
-                        className="
-                          flex items-center justify-between w-full
-                          px-2 py-1.5
-                          rounded-lg
-                          text-sidebar-foreground/70
-                          hover:bg-sidebar-accent/50
-                          hover:text-sidebar-foreground
-                          transition-all duration-200
-                          group
-                          relative
-                        "
-                        activeClassName="bg-primary/10 text-primary border-l-2 border-primary font-medium"
-                      >
-                        <div className="flex items-center gap-2">
-                          <item.icon className="h-3.5 w-3.5 flex-shrink-0" />
-                          {!collapsed && <span className="text-xs">{item.title}</span>}
-                        </div>
-                        {!collapsed && item.badge !== undefined && item.badge > 0 && (
-                          <Badge
-                            variant="secondary"
-                            className="ml-auto text-[10px] px-2 py-0 bg-primary/20 text-primary border-0"
-                          >
-                            {item.badge}
-                          </Badge>
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-            {catIndex < categories.length - 1 && !collapsed && (
-              <div className="mt-4 mx-3 border-t border-sidebar-border/50" />
-            )}
-          </SidebarGroup>
-        ))}
+        {collapsed ? (
+          // ===== Modo recolhido: lista chapada de ícones =====
+          <SidebarMenu className="space-y-0.5">
+            {categories.flatMap((c) => c.items).map((item) => {
+              const Icon = ICON_MAP[item.iconName] || Shield;
+              return (
+                <SidebarMenuItem key={item.key}>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to={item.route}
+                      title={item.label}
+                      className="flex items-center justify-center w-full px-2 py-1.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all duration-200"
+                      activeClassName="bg-primary/20 text-primary border-l-2 border-primary"
+                    >
+                      <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        ) : (
+          // ===== Modo expandido: accordion ERP =====
+          <nav className="flex flex-col gap-0.5">
+            {categories.map((cat) => (
+              <CategoryNode
+                key={cat.id}
+                category={cat}
+                open={!!openMap[cat.id]}
+                onToggle={() => toggle(cat.id)}
+                newLeadsCount={newLeadsCount}
+              />
+            ))}
+          </nav>
+        )}
 
-        {/* Footer - Versão */}
+        {/* Footer */}
         <div className="mt-auto pt-4 border-t border-sidebar-border/50">
           {!collapsed && (
             <div className="px-3 py-2 text-center">
@@ -179,5 +167,94 @@ export function AppSidebar() {
         </div>
       </SidebarContent>
     </Sidebar>
+  );
+}
+
+interface CategoryNodeProps {
+  category: ResolvedCategory;
+  open: boolean;
+  onToggle: () => void;
+  newLeadsCount: number;
+}
+
+function CategoryNode({ category, open, onToggle, newLeadsCount }: CategoryNodeProps) {
+  const HeaderIcon = ICON_MAP[category.iconName] || Shield;
+
+  // Categoria DIRECT = link único, sem accordion
+  if (category.direct) {
+    const item = category.items[0];
+    if (!item) return null;
+    const Icon = ICON_MAP[item.iconName] || HeaderIcon;
+    return (
+      <NavLink
+        to={item.route}
+        className="flex items-center gap-2 px-2 py-2 rounded-lg text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-all duration-200"
+        activeClassName="bg-primary/20 text-primary border-l-2 border-primary font-medium"
+      >
+        <Icon className="h-4 w-4 flex-shrink-0" />
+        <span className="text-xs font-medium uppercase tracking-wider">{item.label}</span>
+      </NavLink>
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex items-center justify-between w-full px-2 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground transition-all duration-200"
+      >
+        <div className="flex items-center gap-2">
+          <HeaderIcon className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="text-[10px] uppercase tracking-widest font-medium">
+            {category.label}
+          </span>
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 transition-transform duration-200",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          "grid transition-all duration-200 ease-out",
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
+          <ul className="pl-3 mt-0.5 mb-1 space-y-0.5 border-l border-sidebar-border/50 ml-3">
+            {category.items.map((item) => {
+              const Icon = ICON_MAP[item.iconName] || Shield;
+              const showBadge = item.key === "crm" && newLeadsCount > 0;
+              return (
+                <li key={item.key}>
+                  <NavLink
+                    to={item.route}
+                    className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground transition-colors"
+                    activeClassName="bg-primary/25 text-primary border-l-2 border-accent font-medium -ml-[1px]"
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="text-xs truncate">{item.label}</span>
+                    </span>
+                    {showBadge && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] px-2 py-0 bg-primary/20 text-primary border-0"
+                      >
+                        {newLeadsCount}
+                      </Badge>
+                    )}
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    </div>
   );
 }
