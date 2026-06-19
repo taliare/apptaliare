@@ -47,10 +47,9 @@ const App = () => {
                         <div className="flex flex-1 w-full max-w-full overflow-x-hidden">
                           {/* Desktop Sidebar - hidden on mobile */}
                           <div className="hidden md:block shrink-0 w-16">
-                            <div className="sticky top-14 h-[calc(100vh-3.5rem)]">
-                              <AppSidebar />
-                            </div>
+                            <AppSidebar />
                           </div>
+
 
                           {/* Mobile Topbar - visible only on mobile */}
                           <MobileTopbar onMenuClick={() => setShowMobileMenu(true)} />

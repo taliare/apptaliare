@@ -49,18 +49,7 @@ export function AppHeader() {
             alt="Taliare Semijoias"
             className="h-8"
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent rounded-lg"
-          >
-            {collapsed ? (
-              <PanelLeft className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </Button>
+
         </div>
 
         {/* Right side - Actions */}
