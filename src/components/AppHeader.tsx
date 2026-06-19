@@ -95,6 +95,9 @@ export function AppHeader() {
             )}
           </Button>
 
+          {/* Theme toggle */}
+          <ThemeToggle variant="header" />
+
           {/* Notifications dropdown */}
           <NotificationsDropdown />
 
