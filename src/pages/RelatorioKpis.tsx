@@ -633,31 +633,37 @@ export default function RelatorioKpis() {
       return Math.round((d1 - d2) / (1000 * 60 * 60 * 24));
     };
 
-    // Restringe ao mês selecionado (data_agendada dentro do mês)
+    // Notas do mês selecionado (data_agendada no mês) — universo dos KPIs ligados ao ciclo
     const cobrAbertasMes = cobrAbertas.filter(
       c => c.data_agendada >= dataInicio && c.data_agendada <= dataFim
     );
 
-    // 1. Kits em campo (do mês selecionado)
-    const kitsCampoValor = cobrAbertasMes.reduce((s, c) =>
+    // 1. Kits em campo — TODAS as notas pendentes/parciais ativas hoje (sem filtro de mês)
+    // Reflete o estoque real em poder dos representantes, independente de quando foram agendadas.
+    const kitsCampoValor = cobrAbertas.reduce((s, c) =>
       s + (Number(c.valor_previsto || 0) - Number(c.valor_pago_acumulado || 0)), 0
     );
 
-    // 2. Tempo médio de retorno (status=pago, data_quitacao no período)
-    const retornoRows = cobrQuitadas
-      .filter(c => c.data_quitacao && c.data_agendada)
-      .map(c => ({ cobranca: c, dias: diffDias(c.data_quitacao!, c.data_agendada) }))
+    // 2. Tempo médio de retorno — apenas notas AGENDADAS no mês selecionado e já pagas.
+    // Reflete o ciclo real do mês, sem distorção de notas antigas que finalmente quitaram.
+    const cobrAtualPagas = cobrAtual.filter(
+      c => c.status === "pago" && c.data_quitacao && c.data_agendada
+    );
+    const retornoRows = cobrAtualPagas
+      .map(c => ({ cobranca: c, dias: diffDias(c.data_quitacao!.split("T")[0], c.data_agendada) }))
       .filter(r => r.dias >= 0);
     const tempoMedioRetorno = retornoRows.length > 0
       ? retornoRows.reduce((s, r) => s + r.dias, 0) / retornoRows.length
       : 0;
 
-    // 3. Taxa de devolução total — denominador: notas finalizadas (pago/cancelado) no mês
+    // 3. Taxa de devolução — % das notas agendadas no mês que voltaram sem venda.
+    // Numerador: notas com data_agendada no mês marcadas como devolveu_tudo
+    // Denominador: total de notas com data_agendada no mês (qualquer status)
     const cobrIdsDevolucao = new Set(devolucoesAtual.map(d => d.cobranca_id).filter(Boolean));
-    const encerradasIds = new Set(finalizadasMes.map(c => c.id));
-    const devolvidasEncerradas = finalizadasMes.filter(c => cobrIdsDevolucao.has(c.id));
-    const taxaDevolucao = encerradasIds.size > 0
-      ? (devolvidasEncerradas.length / encerradasIds.size) * 100
+    const cobrAtualIds = new Set(cobrAtual.map(c => c.id));
+    const devolvidasEncerradas = cobrAtual.filter(c => cobrIdsDevolucao.has(c.id));
+    const taxaDevolucao = cobrAtualIds.size > 0
+      ? (devolvidasEncerradas.length / cobrAtualIds.size) * 100
       : 0;
 
     // 4. Notas em atraso — apenas notas do mês selecionado, vencidas hoje
@@ -681,24 +687,22 @@ export default function RelatorioKpis() {
     );
     const juridicoCountPrev = juridicoPrev.length;
 
-    // 6. Prazo médio recebimento — média de dias entre data_agendada e data_quitacao
-    // das notas quitadas (status=pago) no período
-    const prazoRows: { cobranca: Cobranca; primeira: string; dias: number }[] = [];
-    for (const c of cobrQuitadas) {
-      if (!c.data_quitacao || !c.data_agendada) continue;
-      const quit = c.data_quitacao.split("T")[0];
-      const dias = diffDias(quit, c.data_agendada);
-      if (dias < 0) continue; // proteção: quitação anterior à data agendada (pgto antecipado)
-      prazoRows.push({ cobranca: c, primeira: quit, dias });
-    }
+    // 6. Prazo médio de recebimento — mesma fonte do Tempo Médio de Retorno
+    // (notas agendadas no mês e já pagas).
+    const prazoRows: { cobranca: Cobranca; primeira: string; dias: number }[] = retornoRows.map(r => ({
+      cobranca: r.cobranca,
+      primeira: r.cobranca.data_quitacao!.split("T")[0],
+      dias: r.dias,
+    }));
     const prazoMedio = prazoRows.length > 0
       ? prazoRows.reduce((s, r) => s + r.dias, 0) / prazoRows.length
       : 0;
 
+
     return {
       kitsCampoValor, cobrAbertasCount: cobrAbertasMes.length,
       tempoMedioRetorno, retornoRows,
-      taxaDevolucao, devolvidasEncerradas, encerradasTotal: encerradasIds.size,
+      taxaDevolucao, devolvidasEncerradas, encerradasTotal: cobrAtualIds.size,
       atrasadas, atraso030, atraso3160, atraso60plus,
       juridicoCountAtual, juridicoValorAtual, juridicoCountPrev,
       prazoMedio, prazoRows,
