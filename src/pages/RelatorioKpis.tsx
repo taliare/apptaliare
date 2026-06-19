@@ -749,7 +749,16 @@ export default function RelatorioKpis() {
     // do negócio (45-60 dias) — só consideramos perdida após 90d sem atividade.
     const ativas90 = inatividade?.ativas90 ?? new Set<string>();
     const jaTiveram = inatividade?.jaTiveram ?? new Set<string>();
-    const perdidasNomes = Array.from(jaTiveram).filter(n => !ativas90.has(n));
+    // Só considera perdida se a revendedora foi cadastrada há mais de 90 dias
+    const hojeDate = new Date();
+    const lim90Date = new Date(hojeDate); lim90Date.setDate(lim90Date.getDate() - 90);
+    const lim90ISO = lim90Date.toISOString();
+    const elegiveis = new Set(
+      revendedoras
+        .filter(r => r.criado_em && r.criado_em < lim90ISO)
+        .map(r => norm(r.nome))
+    );
+    const perdidasNomes = Array.from(jaTiveram).filter(n => !ativas90.has(n) && elegiveis.has(n));
     const perdidasRows = perdidasNomes.map(nome => {
       const r = revendedoras.find(x => norm(x.nome) === nome);
       return {
