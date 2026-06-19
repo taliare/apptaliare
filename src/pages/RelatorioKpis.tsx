@@ -702,7 +702,7 @@ export default function RelatorioKpis() {
     return {
       kitsCampoValor, cobrAbertasCount: cobrAbertasMes.length,
       tempoMedioRetorno, retornoRows,
-      taxaDevolucao, devolvidasEncerradas, encerradasTotal: encerradasIds.size,
+      taxaDevolucao, devolvidasEncerradas, encerradasTotal: cobrAtualIds.size,
       atrasadas, atraso030, atraso3160, atraso60plus,
       juridicoCountAtual, juridicoValorAtual, juridicoCountPrev,
       prazoMedio, prazoRows,
