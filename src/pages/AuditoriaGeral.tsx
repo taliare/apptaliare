@@ -31,14 +31,23 @@ export default function AuditoriaGeral() {
   const [tipoFiltro, setTipoFiltro] = useState<string>('todos');
   const [representanteFiltro, setRepresentanteFiltro] = useState<string>('todos');
 
-  // Buscar representantes para filtro
+  // Buscar representantes para filtro (somente role='representante', inclui inativos)
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes-auditoria'],
     queryFn: async () => {
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'representante');
+      if (rolesError) throw rolesError;
+
+      const ids = (roles || []).map(r => r.user_id);
+      if (ids.length === 0) return [];
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, nome')
-        .eq('ativo', true)
+        .in('id', ids)
         .order('nome');
       if (error) throw error;
       return data || [];
