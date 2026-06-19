@@ -411,7 +411,13 @@ export default function FechamentoDiario() {
   // Mutation para finalizar dia pelo representante
   const finalizarDiaMutation = useMutation({
     mutationFn: async () => {
+      if (!totais.bate) {
+        throw new Error(
+          `O total cobrado (${formatarValor(totais.totalNotas)}) não confere com a soma das formas de pagamento (${formatarValor(totais.total)}). Diferença de ${formatarValor(Math.abs(totais.diferenca))}. Revise os valores antes de finalizar.`
+        );
+      }
       const despesa = parseValor(despesaCobranca);
+
 
       if (cobrancaDiaria) {
         const { error } = await supabase
