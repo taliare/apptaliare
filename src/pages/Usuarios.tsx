@@ -449,7 +449,6 @@ export default function Usuarios() {
           ativo,
           whatsapp: cleanedWhatsapp || null,
           departamento: departamento.trim() || null,
-          permissoes_customizadas: permissoesCustomizadas,
         } as any)
         .eq('id', editingUser.id);
 
@@ -473,28 +472,31 @@ export default function Usuarios() {
         changes.email = { old: editingUser.email, new: email.trim() };
       }
 
-      // Update menu permissions for non-admin users
+      // Atualiza extras do usuário em user_menu_permissions
+      // (apenas keys que NÃO são fornecidas pelo grupo recém-selecionado)
       if (role !== 'admin') {
-        // Delete existing permissions
+        // Recarrega as permissões do grupo final caso o role tenha mudado
+        const finalRolePerms =
+          role === editingUser.role ? rolePermissions : await loadRolePermissions(role);
+
+        const extras = selectedPermissions.filter((k) => !finalRolePerms.includes(k));
+
+        // Reescreve a lista de extras do usuário do zero
         await supabase
           .from('user_menu_permissions')
           .delete()
           .eq('user_id', editingUser.id);
 
-        // Insert new permissions
-        if (selectedPermissions.length > 0) {
+        if (extras.length > 0) {
           const { error: permError } = await supabase
             .from('user_menu_permissions')
             .insert(
-              selectedPermissions.map(key => ({
+              extras.map((key) => ({
                 user_id: editingUser.id,
                 menu_key: key,
-              }))
+              })),
             );
-          
-          if (permError) {
-            console.error('Erro ao salvar permissões:', permError);
-          }
+          if (permError) console.error('Erro ao salvar permissões extras:', permError);
         }
       } else {
         // If changing to admin, remove all menu permissions (admin has full access)
