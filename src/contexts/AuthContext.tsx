@@ -7,9 +7,6 @@ interface Profile {
   id: string;
   nome: string;
   ativo: boolean;
-  habilitar_cobranca_diaria: boolean;
-  habilitar_kanban: boolean;
-  habilitar_dashboard: boolean;
   avatar_url?: string | null;
   departamento: string | null;
   permissoes_customizadas: boolean | null;

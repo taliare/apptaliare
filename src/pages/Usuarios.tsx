@@ -80,9 +80,6 @@ export default function Usuarios() {
   const [whatsapp, setWhatsapp] = useState('');
   const [role, setRole] = useState<AppRole>('representante');
   const [ativo, setAtivo] = useState(true);
-  const [habilitarDashboard, setHabilitarDashboard] = useState(true);
-  const [habilitarKanban, setHabilitarKanban] = useState(true);
-  const [habilitarCobrancaDiaria, setHabilitarCobrancaDiaria] = useState(true);
   const [senha, setSenha] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
@@ -175,9 +172,7 @@ export default function Usuarios() {
     setWhatsapp(user.whatsapp ? formatWhatsApp(user.whatsapp) : '');
     setRole(user.role);
     setAtivo(user.ativo || false);
-    setHabilitarDashboard(user.habilitar_dashboard || false);
-    setHabilitarKanban(user.habilitar_kanban || false);
-    setHabilitarCobrancaDiaria(user.habilitar_cobranca_diaria || false);
+    setAtivo(user.ativo || false);
     setDepartamento((user as any).departamento || '');
     setPermissoesCustomizadas((user as any).permissoes_customizadas || false);
     setSenha('');
@@ -198,9 +193,6 @@ export default function Usuarios() {
     setWhatsapp('');
     setRole('representante');
     setAtivo(true);
-    setHabilitarDashboard(true);
-    setHabilitarKanban(true);
-    setHabilitarCobrancaDiaria(true);
     setSenha('');
     setSelectedPermissions([]);
     setDepartamento('');
@@ -307,9 +299,6 @@ export default function Usuarios() {
         .update({
           ativo,
           whatsapp: cleanedWhatsapp || null,
-          habilitar_dashboard: habilitarDashboard,
-          habilitar_kanban: habilitarKanban,
-          habilitar_cobranca_diaria: habilitarCobrancaDiaria,
           departamento: departamento.trim() || null,
           permissoes_customizadas: permissoesCustomizadas,
         } as any)
@@ -417,9 +406,6 @@ export default function Usuarios() {
           nome: nome.trim(),
           ativo,
           whatsapp: cleanedWhatsapp || null,
-          habilitar_dashboard: habilitarDashboard,
-          habilitar_kanban: habilitarKanban,
-          habilitar_cobranca_diaria: habilitarCobrancaDiaria,
           departamento: departamento.trim() || null,
           permissoes_customizadas: permissoesCustomizadas,
         } as any)
@@ -862,40 +848,6 @@ export default function Usuarios() {
                     onCheckedChange={setAtivo}
                   />
                 </div>
-                {role === 'representante' && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="dashboard" className="font-normal">
-                        Habilitar Painel Geral
-                      </Label>
-                      <Switch
-                        id="dashboard"
-                        checked={habilitarDashboard}
-                        onCheckedChange={setHabilitarDashboard}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="kanban" className="font-normal">
-                        Habilitar Kanban
-                      </Label>
-                      <Switch
-                        id="kanban"
-                        checked={habilitarKanban}
-                        onCheckedChange={setHabilitarKanban}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="cobranca" className="font-normal">
-                        Habilitar Cobrança Diária
-                      </Label>
-                      <Switch
-                        id="cobranca"
-                        checked={habilitarCobrancaDiaria}
-                        onCheckedChange={setHabilitarCobrancaDiaria}
-                      />
-                    </div>
-                  </>
-                )}
               </div>
 
               {/* Menu Permissions - Only show for non-admin users */}
