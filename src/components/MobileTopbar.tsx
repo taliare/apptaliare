@@ -2,6 +2,7 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import taliareLogoHorizontal from "@/assets/taliare-logo-horizontal.png";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface MobileTopbarProps {
   onMenuClick: () => void;
