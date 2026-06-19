@@ -745,20 +745,18 @@ export default function RelatorioKpis() {
     );
 
     // 3. Perdidas = revendedoras que JÁ tiveram cobrança e NÃO têm nenhuma
-    // (pendente, parcial ou pago) nos últimos 90 dias. Janela mínima é o ciclo
-    // do negócio (45-60 dias) — só consideramos perdida após 90d sem atividade.
+    // ativas90 = nomes com QUALQUER cobrança em data_agendada nos últimos 90d ou no futuro
+    // (sem filtro de status — pago, pendente, parcial, cancelado, todos contam)
     const ativas90 = inatividade?.ativas90 ?? new Set<string>();
-    const jaTiveram = inatividade?.jaTiveram ?? new Set<string>();
-    // Só considera perdida se a revendedora foi cadastrada há mais de 90 dias
+    // Universo = revendedoras cadastradas há mais de 90 dias (fonte de verdade: tabela revendedoras)
     const hojeDate = new Date();
     const lim90Date = new Date(hojeDate); lim90Date.setDate(lim90Date.getDate() - 90);
     const lim90ISO = lim90Date.toISOString();
-    const elegiveis = new Set(
-      revendedoras
-        .filter(r => r.criado_em && r.criado_em < lim90ISO)
-        .map(r => norm(r.nome))
-    );
-    const perdidasNomes = Array.from(jaTiveram).filter(n => !ativas90.has(n) && elegiveis.has(n));
+    const elegiveis = revendedoras.filter(r => r.criado_em && r.criado_em < lim90ISO);
+    // Perdida = cadastrada há +90d E sem cobrança recente/futura
+    const perdidasNomes = elegiveis
+      .map(r => norm(r.nome))
+      .filter(n => n && !ativas90.has(n));
     const perdidasRows = perdidasNomes.map(nome => {
       const r = revendedoras.find(x => norm(x.nome) === nome);
       return {
