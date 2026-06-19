@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSidebar } from "@/components/ui/sidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { SendNotificationDialog } from "@/components/admin/SendNotificationDialog";
 import { MessagesDialog } from "@/components/messages/MessagesDialog";
@@ -23,9 +22,7 @@ import { useMessages } from "@/hooks/useMessages";
 
 export function AppHeader() {
   const { profile, signOut } = useAuth();
-  const { state, toggleSidebar } = useSidebar();
   const navigate = useNavigate();
-  const collapsed = state === "collapsed";
   const isAdmin = profile?.role === "admin";
   const { unreadCount } = useMessages();
   const [messagesOpen, setMessagesOpen] = useState(false);
