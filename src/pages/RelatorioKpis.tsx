@@ -1193,7 +1193,7 @@ export default function RelatorioKpis() {
                     icon={<Clock className="h-4 w-4" />}
                     titulo="Tempo Médio de Retorno"
                     valor={`${op.tempoMedioRetorno.toFixed(0)} dias`}
-                    subtitulo={`${op.retornoRows.length} kit(s) encerrado(s)`}
+                    subtitulo={`${op.retornoRows.length} kit(s) encerrado(s) no período`}
                     accent={
                       op.tempoMedioRetorno < 45 ? "green" :
                       op.tempoMedioRetorno <= 90 ? "neutral" : "red"
