@@ -110,7 +110,7 @@ async function fetchPrestacoesPeriodo(inicio: string, fim: string) {
 async function fetchCobrancasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .gte("data_agendada", inicio)
     .lte("data_agendada", fim)
     .eq("vigente", true);
@@ -122,7 +122,7 @@ async function fetchCobrancasPeriodo(inicio: string, fim: string) {
 async function fetchQuitadasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .eq("status", "pago")
     .gte("data_quitacao", inicio)
     .lte("data_quitacao", fim)
@@ -135,7 +135,7 @@ async function fetchQuitadasPeriodo(inicio: string, fim: string) {
 async function fetchFinalizadasPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .in("status", ["pago", "cancelado"])
     .gte("data_quitacao", inicio)
     .lte("data_quitacao", fim)
@@ -148,7 +148,7 @@ async function fetchFinalizadasPeriodo(inicio: string, fim: string) {
 async function fetchCobrancasAbertas() {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .in("status", ["pendente", "parcial"])
     .eq("vigente", true);
   if (error) throw error;
@@ -159,7 +159,7 @@ async function fetchCobrancasAbertas() {
 async function fetchJuridicoPeriodo(inicio: string, fim: string) {
   const { data, error } = await supabase
     .from("cobrancas_agendadas")
-    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id")
+    .select("id,revendedora,codigo_nota,valor_previsto,valor_pago_acumulado,data_agendada,status,data_quitacao,data_encaminhado_juridico,representante_id,criado_em")
     .not("data_encaminhado_juridico", "is", null)
     .gte("data_encaminhado_juridico", `${inicio}T00:00:00`)
     .lte("data_encaminhado_juridico", `${fim}T23:59:59`);
