@@ -101,6 +101,14 @@ export default function Usuarios() {
     loadProfiles();
   }, []);
 
+  // Recarrega permissões do grupo ao mudar a role no formulário
+  useEffect(() => {
+    if (!dialogOpen) return;
+    loadRolePermissions(role);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, dialogOpen]);
+
+
   // Função para registrar log de auditoria
   const registrarLog = async (
     action: string,
