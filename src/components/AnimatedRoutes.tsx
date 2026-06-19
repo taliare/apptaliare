@@ -9,6 +9,7 @@ import FechamentoDiario from '@/pages/FechamentoDiario';
 import Kits from '@/pages/Kits';
 import KitsEntregues from '@/pages/KitsEntregues';
 import Usuarios from '@/pages/Usuarios';
+import GruposPermissoes from '@/pages/GruposPermissoes';
 import Metas from '@/pages/Metas';
 import GerenciarAgenda from '@/pages/GerenciarAgenda';
 import ImportarCobrancas from '@/pages/ImportarCobrancas';
