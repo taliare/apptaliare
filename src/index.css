@@ -183,7 +183,8 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Zalando Sans Expanded', 'Zalando Sans', 'Inter', system-ui, sans-serif;
+    font-weight: 300;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     /* Minimum font size for accessibility */
@@ -194,7 +195,8 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Zalando Sans Expanded', 'Zalando Sans', 'Inter', system-ui, sans-serif;
+    font-weight: 600;
     @apply tracking-tight;
   }
 
