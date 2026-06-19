@@ -46,6 +46,7 @@ export const ALL_MENUS: MenuModule[] = [
 
   // Admin — OPERACIONAL
   { key: "usuarios",              label: "Usuários",             route: "/usuarios",              category: "OPERACIONAL", iconName: "Users" },
+  { key: "grupos_permissoes",     label: "Grupos e Permissões",  route: "/grupos-permissoes",     category: "OPERACIONAL", iconName: "Shield" },
   { key: "revendedoras",          label: "Revendedoras",         route: "/revendedoras",          category: "OPERACIONAL", iconName: "Users" },
   { key: "venda_externa",         label: "Venda Externa",        route: "/venda-externa",         category: "OPERACIONAL", iconName: "Users" },
   { key: "crm",                   label: "CRM",                  route: "/leads-revendedoras",    category: "OPERACIONAL", iconName: "UserPlus" },

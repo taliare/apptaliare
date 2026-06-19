@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,7 +49,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { ASSIGNABLE_MENUS } from '@/lib/menuPermissions';
+import { ALL_MENUS } from '@/lib/menuPermissions';
 import type { Database } from '@/integrations/supabase/types';
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -82,13 +89,25 @@ export default function Usuarios() {
   const [ativo, setAtivo] = useState(true);
   const [senha, setSenha] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
+  // Todas as permissões do usuário (grupo + extras), o save calcula o diff
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  // Permissões herdadas do grupo (role) selecionado no momento — somente leitura
+  const [rolePermissions, setRolePermissions] = useState<string[]>([]);
   const [departamento, setDepartamento] = useState('');
-  const [permissoesCustomizadas, setPermissoesCustomizadas] = useState(false);
+  // Filtro de aba na lista de usuários
+  const [roleFilter, setRoleFilter] = useState<'all' | AppRole>('all');
 
   useEffect(() => {
     loadProfiles();
   }, []);
+
+  // Recarrega permissões do grupo ao mudar a role no formulário
+  useEffect(() => {
+    if (!dialogOpen) return;
+    loadRolePermissions(role);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, dialogOpen]);
+
 
   // Função para registrar log de auditoria
   const registrarLog = async (
@@ -165,6 +184,26 @@ export default function Usuarios() {
     }
   };
 
+  // Carrega permissões do GRUPO (role) — usadas para mostrar herança e calcular diff de extras
+  const loadRolePermissions = async (r: AppRole) => {
+    if (r === 'admin') {
+      setRolePermissions([]);
+      return [] as string[];
+    }
+    const { data, error } = await (supabase as any)
+      .from('role_menu_permissions')
+      .select('menu_key')
+      .eq('role', r);
+    if (error) {
+      console.error('Erro ao carregar permissões do grupo:', error);
+      setRolePermissions([]);
+      return [] as string[];
+    }
+    const keys = (data as Array<{ menu_key: string }> | null)?.map((p) => p.menu_key) || [];
+    setRolePermissions(keys);
+    return keys;
+  };
+
   const openEditDialog = async (user: ProfileWithRole) => {
     setEditingUser(user);
     setNome(user.nome);
@@ -172,18 +211,22 @@ export default function Usuarios() {
     setWhatsapp(user.whatsapp ? formatWhatsApp(user.whatsapp) : '');
     setRole(user.role);
     setAtivo(user.ativo || false);
-    setAtivo(user.ativo || false);
     setDepartamento((user as any).departamento || '');
-    setPermissoesCustomizadas((user as any).permissoes_customizadas || false);
     setSenha('');
-    
-    // Load permissions for non-admin users
+
     if (user.role !== 'admin') {
-      await loadUserPermissions(user.id);
+      const [, rolePerms] = await Promise.all([
+        loadUserPermissions(user.id),
+        loadRolePermissions(user.role),
+      ]);
+      // selectedPermissions already set inside loadUserPermissions, mas fazemos a união com role
+      // para que o checkbox dos itens herdados apareça desabilitado/marcado
+      setSelectedPermissions((prev) => Array.from(new Set([...prev, ...rolePerms])));
     } else {
       setSelectedPermissions([]);
+      setRolePermissions([]);
     }
-    
+
     setDialogOpen(true);
   };
 
@@ -195,8 +238,8 @@ export default function Usuarios() {
     setAtivo(true);
     setSenha('');
     setSelectedPermissions([]);
+    setRolePermissions([]);
     setDepartamento('');
-    setPermissoesCustomizadas(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -300,25 +343,24 @@ export default function Usuarios() {
           ativo,
           whatsapp: cleanedWhatsapp || null,
           departamento: departamento.trim() || null,
-          permissoes_customizadas: permissoesCustomizadas,
         } as any)
         .eq('id', signUpData.user.id);
 
       if (profileError) throw profileError;
 
-      // Save menu permissions for non-admin users
-      if (role !== 'admin' && selectedPermissions.length > 0) {
-        const { error: permError } = await supabase
-          .from('user_menu_permissions')
-          .insert(
-            selectedPermissions.map(key => ({
-              user_id: signUpData.user!.id,
-              menu_key: key,
-            }))
-          );
-        
-        if (permError) {
-          console.error('Erro ao salvar permissões:', permError);
+      // Salva apenas EXTRAS (que não pertencem ao grupo)
+      if (role !== 'admin') {
+        const extras = selectedPermissions.filter((k) => !rolePermissions.includes(k));
+        if (extras.length > 0) {
+          const { error: permError } = await supabase
+            .from('user_menu_permissions')
+            .insert(
+              extras.map((key) => ({
+                user_id: signUpData.user!.id,
+                menu_key: key,
+              })),
+            );
+          if (permError) console.error('Erro ao salvar permissões extras:', permError);
         }
       }
 
@@ -407,7 +449,6 @@ export default function Usuarios() {
           ativo,
           whatsapp: cleanedWhatsapp || null,
           departamento: departamento.trim() || null,
-          permissoes_customizadas: permissoesCustomizadas,
         } as any)
         .eq('id', editingUser.id);
 
@@ -431,28 +472,31 @@ export default function Usuarios() {
         changes.email = { old: editingUser.email, new: email.trim() };
       }
 
-      // Update menu permissions for non-admin users
+      // Atualiza extras do usuário em user_menu_permissions
+      // (apenas keys que NÃO são fornecidas pelo grupo recém-selecionado)
       if (role !== 'admin') {
-        // Delete existing permissions
+        // Recarrega as permissões do grupo final caso o role tenha mudado
+        const finalRolePerms =
+          role === editingUser.role ? rolePermissions : await loadRolePermissions(role);
+
+        const extras = selectedPermissions.filter((k) => !finalRolePerms.includes(k));
+
+        // Reescreve a lista de extras do usuário do zero
         await supabase
           .from('user_menu_permissions')
           .delete()
           .eq('user_id', editingUser.id);
 
-        // Insert new permissions
-        if (selectedPermissions.length > 0) {
+        if (extras.length > 0) {
           const { error: permError } = await supabase
             .from('user_menu_permissions')
             .insert(
-              selectedPermissions.map(key => ({
+              extras.map((key) => ({
                 user_id: editingUser.id,
                 menu_key: key,
-              }))
+              })),
             );
-          
-          if (permError) {
-            console.error('Erro ao salvar permissões:', permError);
-          }
+          if (permError) console.error('Erro ao salvar permissões extras:', permError);
         }
       } else {
         // If changing to admin, remove all menu permissions (admin has full access)
@@ -644,6 +688,29 @@ export default function Usuarios() {
       <Card>
         <CardHeader>
           <CardTitle>Usuários do Sistema</CardTitle>
+          <Tabs
+            value={roleFilter}
+            onValueChange={(v) => setRoleFilter(v as 'all' | AppRole)}
+            className="mt-3"
+          >
+            <TabsList>
+              <TabsTrigger value="all">
+                Todos ({profiles.length})
+              </TabsTrigger>
+              <TabsTrigger value="representante">
+                Representantes ({profiles.filter((p) => p.role === 'representante').length})
+              </TabsTrigger>
+              <TabsTrigger value="producao">
+                Produção ({profiles.filter((p) => p.role === 'producao').length})
+              </TabsTrigger>
+              <TabsTrigger value="equipe_interna">
+                Equipe Interna ({profiles.filter((p) => p.role === 'equipe_interna').length})
+              </TabsTrigger>
+              <TabsTrigger value="admin">
+                Administradores ({profiles.filter((p) => p.role === 'admin').length})
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -666,7 +733,9 @@ export default function Usuarios() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {profiles.map((profile) => (
+                {profiles
+                  .filter((p) => roleFilter === 'all' || p.role === roleFilter)
+                  .map((profile) => (
                   <TableRow key={profile.id}>
                     <TableCell className="font-medium">{profile.nome}</TableCell>
                     <TableCell className="text-muted-foreground">{profile.email || '-'}</TableCell>
@@ -850,72 +919,88 @@ export default function Usuarios() {
                 </div>
               </div>
 
-              {/* Menu Permissions - Only show for non-admin users */}
-              {role !== 'admin' && (
+              {/* Visualização de permissões por grupo + extras opcionais */}
+              {role === 'admin' ? (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
+                  <p className="font-medium">Administradores têm acesso total</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Todos os módulos do sistema ficam disponíveis automaticamente.
+                  </p>
+                </div>
+              ) : (
                 <div className="space-y-3 pt-4 border-t">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="permCustom" className="text-base font-semibold">
-                      Permissões personalizadas
+                  <div>
+                    <Label className="text-base font-semibold">
+                      Módulos do grupo {getRoleName(role)}
                     </Label>
-                    <Switch
-                      id="permCustom"
-                      checked={permissoesCustomizadas}
-                      onCheckedChange={setPermissoesCustomizadas}
-                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Este usuário herda automaticamente os módulos do grupo{' '}
+                      <strong>{getRoleName(role)}</strong>. Para alterar a lista
+                      do grupo inteiro, vá em <strong>Grupos e Permissões</strong>.
+                    </p>
+                    {rolePermissions.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic mt-2">
+                        Este grupo não concede nenhum módulo por padrão. Use os
+                        extras abaixo para liberar acessos individuais.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1 mt-2">
+                        {ALL_MENUS.filter((m) => rolePermissions.includes(m.key)).map((m) => (
+                          <div
+                            key={m.key}
+                            className="flex items-center gap-2 text-sm text-muted-foreground"
+                          >
+                            <span className="text-success">✓</span>
+                            <span>{m.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {permissoesCustomizadas ? (
-                    <>
-                      <p className="text-xs text-muted-foreground">
-                        Este usuário verá apenas os menus marcados abaixo
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 pr-1">
-                        {ASSIGNABLE_MENUS.map(menu => (
-                          <div key={menu.key} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`perm-${menu.key}`}
-                              checked={selectedPermissions.includes(menu.key)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedPermissions([...selectedPermissions, menu.key]);
-                                } else {
-                                  setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
-                              {menu.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-xs text-muted-foreground">
-                        Este usuário verá os menus padrão do perfil selecionado
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 pr-1">
-                        {ASSIGNABLE_MENUS.map(menu => (
-                          <div key={menu.key} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`perm-${menu.key}`}
-                              checked={selectedPermissions.includes(menu.key)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedPermissions([...selectedPermissions, menu.key]);
-                                } else {
-                                  setSelectedPermissions(selectedPermissions.filter(k => k !== menu.key));
-                                }
-                              }}
-                            />
-                            <Label htmlFor={`perm-${menu.key}`} className="text-sm font-normal cursor-pointer">
-                              {menu.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
+
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="extras" className="border rounded-md px-3">
+                      <AccordionTrigger className="text-sm font-semibold py-3">
+                        Permissões extras (opcional)
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Marque módulos adicionais que este usuário poderá acessar
+                          além do grupo. Isso só afeta este usuário.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 pr-1">
+                          {ALL_MENUS.filter((m) => !rolePermissions.includes(m.key)).map(
+                            (menu) => (
+                              <div key={menu.key} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`perm-${menu.key}`}
+                                  checked={selectedPermissions.includes(menu.key)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setSelectedPermissions([
+                                        ...selectedPermissions,
+                                        menu.key,
+                                      ]);
+                                    } else {
+                                      setSelectedPermissions(
+                                        selectedPermissions.filter((k) => k !== menu.key),
+                                      );
+                                    }
+                                  }}
+                                />
+                                <Label
+                                  htmlFor={`perm-${menu.key}`}
+                                  className="text-sm font-normal cursor-pointer"
+                                >
+                                  {menu.label}
+                                </Label>
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
               )}
             </div>
