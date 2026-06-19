@@ -111,13 +111,22 @@ export default function GerenciarAgenda() {
     observacoes: '',
   });
 
-  // Buscar representantes para filtro e cadastro
+  // Buscar representantes para filtro e cadastro (somente role='representante', inclui inativos)
   const { data: representantes = [] } = useQuery({
     queryKey: ['representantes-admin'],
     queryFn: async () => {
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'representante');
+      if (rolesError) throw rolesError;
+
+      const ids = (roles || []).map(r => r.user_id);
+      if (ids.length === 0) return [];
+
       const { data, error } = await profilesLimited()
         .select('id, nome')
-        .eq('ativo', true)
+        .in('id', ids)
         .order('nome');
       if (error) throw error;
       return data;
