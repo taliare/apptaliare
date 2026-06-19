@@ -126,26 +126,26 @@ export default function FechamentoDiario() {
 
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-  // Query para buscar representantes ativos
+  // Query para buscar representantes (somente role='representante', inclui inativos)
   const { data: representantes = [] } = useQuery({
-    queryKey: ['representantes-ativos-fechamento'],
+    queryKey: ['representantes-fechamento'],
     queryFn: async () => {
+      const { data: roles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'representante');
+      if (rolesError) throw rolesError;
+
+      const ids = (roles || []).map(r => r.user_id);
+      if (ids.length === 0) return [] as Profile[];
+
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('id, nome, ativo')
-        .eq('ativo', true);
-
+        .in('id', ids)
+        .order('nome');
       if (error) throw error;
-
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .eq('role', 'representante');
-
-      if (rolesError) throw rolesError;
-
-      const representanteIds = new Set(roles?.map(r => r.user_id) || []);
-      return (profiles || []).filter(p => representanteIds.has(p.id)) as Profile[];
+      return (profiles || []) as Profile[];
     },
   });
 
