@@ -109,9 +109,6 @@ export default function Setup() {
         .from('profiles')
         .update({
           ativo: true,
-          habilitar_dashboard: true,
-          habilitar_kanban: true,
-          habilitar_cobranca_diaria: true,
         })
         .eq('id', authData.user.id);
 
