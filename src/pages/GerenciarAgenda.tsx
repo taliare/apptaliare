@@ -474,35 +474,50 @@ export default function GerenciarAgenda() {
 
   const handleEdit = (cobranca: Cobranca) => {
     setEditingCobranca(cobranca);
+    setRevendedoraOriginal(cobranca.revendedora);
     setFormData({
       revendedora: cobranca.revendedora,
       codigo_nota: cobranca.codigo_nota || '',
-      tipo: cobranca.tipo || '',
       valor_previsto: cobranca.valor_previsto.toFixed(2),
       data_agendada: cobranca.data_agendada,
-      status: cobranca.status,
-      observacoes: cobranca.observacoes || '',
     });
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!editingCobranca) return;
 
     const valorNumerico = parseFloat(formData.valor_previsto.replace(/\D/g, '')) / 100;
+    const novoNome = formData.revendedora.trim();
 
-    updateMutation.mutate({
-      id: editingCobranca.id,
-      data: {
-        revendedora: formData.revendedora,
-        codigo_nota: formData.codigo_nota || null,
-        tipo: formData.tipo || null,
-        valor_previsto: valorNumerico,
-        data_agendada: formData.data_agendada,
-        status: formData.status,
-        observacoes: formData.observacoes,
-      },
-    });
+    if (!novoNome) {
+      toast({ title: 'Selecione uma revendedora', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      // Se a revendedora mudou, usa RPC admin para reconectar nota + prestações
+      if (novoNome !== revendedoraOriginal) {
+        const { error: rpcError } = await supabase.rpc('corrigir_revendedora_da_nota', {
+          p_cobranca_id: editingCobranca.id,
+          p_nova_revendedora: novoNome,
+        });
+        if (rpcError) throw rpcError;
+      }
+
+      updateMutation.mutate({
+        id: editingCobranca.id,
+        data: {
+          valor_previsto: valorNumerico,
+          data_agendada: formData.data_agendada,
+        },
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['revendedoras'] });
+      queryClient.invalidateQueries({ queryKey: ['perfil-revendedora'] });
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar revendedora', description: err.message, variant: 'destructive' });
+    }
   };
 
   const handleCreate = () => {
