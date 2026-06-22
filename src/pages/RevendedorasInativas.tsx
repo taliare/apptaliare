@@ -690,6 +690,7 @@ export default function RevendedorasInativas() {
         revendedora: selectedRevendedora.nome,
         codigo_nota: kit.codigo,
         valor_previsto: kit.valor || 0,
+        valor_kit_original: kit.valor || 0,
         data_agendada: format(dataVencimento, 'yyyy-MM-dd'),
         status: 'pendente',
         tipo: kit.tipo,
