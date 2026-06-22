@@ -585,7 +585,11 @@ export default function Cobranca() {
         if (!match) return false;
       }
       // Status
-      if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false;
+      if (filtroStatus === 'abertas') {
+        if (!['pendente', 'parcial'].includes(c.status as string)) return false;
+      } else if (filtroStatus !== 'todos' && c.status !== filtroStatus) {
+        return false;
+      }
       return true;
     });
   }, [cobrancas, filtroMesAno, searchTerm, filtroStatus]);
