@@ -21,6 +21,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, formatDateBR, parseLocalDate, getLocalDateString } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cobrancaInsertSchema, cobrancaUpdateSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
+import { RevendedoraSearchSelect } from '@/components/RevendedoraSearchSelect';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'] & {
