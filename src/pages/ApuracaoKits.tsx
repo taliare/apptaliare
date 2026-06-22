@@ -86,10 +86,12 @@ export default function ApuracaoKits() {
   const quickApurarMutation = useMutation({
     mutationFn: async () => {
       if (!quickApurarNota) throw new Error("Nota não selecionada");
+      const vkOriginalAtual = Number((quickApurarNota as any).valor_kit_original) || 0;
+      const vkOriginal = vkOriginalAtual > 0 ? vkOriginalAtual : Number(quickApurarNota.valor_previsto);
       const { error } = await supabase
         .from("cobrancas_agendadas")
         .update({
-          valor_kit_original: Number(quickApurarNota.valor_previsto),
+          valor_kit_original: vkOriginal,
           valor_previsto: quickValorEmpresa,
           apurado: true,
         })
@@ -252,11 +254,14 @@ export default function ApuracaoKits() {
       // Salvar valor_kit_original ANTES de sobrescrever valor_previsto
       const novoStatus = valorEmpresa <= 0 ? 'pago' : 'parcial';
 
+      const vkOriginalAtual = Number((notaSelecionada as any).valor_kit_original) || 0;
+      const vkOriginal = vkOriginalAtual > 0 ? vkOriginalAtual : Number(notaSelecionada.valor_previsto);
+
       const { error: errUpdate } = await supabase
         .from("cobrancas_agendadas")
         .update({
           status: novoStatus as any,
-          valor_kit_original: Number(notaSelecionada.valor_previsto),
+          valor_kit_original: vkOriginal,
           valor_previsto: valorEmpresa,
           valor_pago_acumulado: 0,
           data_quitacao: novoStatus === 'pago' ? new Date().toISOString().split("T")[0] : null,
