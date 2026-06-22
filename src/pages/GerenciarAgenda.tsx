@@ -1096,10 +1096,15 @@ export default function GerenciarAgenda() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Revendedora *</Label>
-                <Input
-                  value={createFormData.revendedora}
-                  onChange={(e) => setCreateFormData({ ...createFormData, revendedora: e.target.value })}
-                />
+                {createFormData.representante_id ? (
+                  <RevendedoraSearchSelect
+                    representanteId={createFormData.representante_id}
+                    value={createFormData.revendedora}
+                    onSelect={(nome) => setCreateFormData({ ...createFormData, revendedora: nome })}
+                  />
+                ) : (
+                  <Input disabled placeholder="Selecione o representante primeiro" />
+                )}
               </div>
               <div>
                 <Label>Código da Nota</Label>
