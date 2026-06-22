@@ -84,7 +84,7 @@ export default function GerenciarAgenda() {
 
   // Filtros
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
-  const [filtroStatus, setFiltroStatus] = useState<string>('pendente'); // Padrão: pendente
+  const [filtroStatus, setFiltroStatus] = useState<string>('abertas'); // Padrão: abertas (pendente + parcial)
   
   // Filtro de mês/ano - padrão: mês atual
   const [filtroMesAno, setFiltroMesAno] = useState<string>(() => {
