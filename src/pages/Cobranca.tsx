@@ -109,7 +109,7 @@ export default function Cobranca() {
   const { cobrancas, isLoading, userId } = useAgendaCobrancas();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<string>('pendente');
+  const [filtroStatus, setFiltroStatus] = useState<string>('abertas');
   const [filtroMesAno, setFiltroMesAno] = useState<string>(() => {
     const hoje = new Date();
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
