@@ -491,36 +491,46 @@ export default function RevendedorasInativas() {
         }
       });
 
-      const nomesInativas: string[] = [];
+      // Revendedoras que o representante POSSUI (titularidade) — fonte adicional
+      const { data: cadastros } = await supabase
+        .from('revendedoras')
+        .select('id, nome, whatsapp, foto_url, cep, logradouro, numero, bairro, cidade, estado')
+        .eq('representante_id', user!.id);
+
+      const cadastroMap = new Map<string, { id: string; whatsapp: string | null; foto_url: string | null }>(
+        cadastros?.map((c: any) => [c.nome.trim().toUpperCase(), { id: c.id, whatsapp: c.whatsapp, foto_url: c.foto_url }]) || []
+      );
+
+      // UNIÃO: nomes com prestação passada + nomes possuídos no cadastro
+      const ativasUpper = new Set(Array.from(revendedorasAtivasSet).map(n => n.trim().toUpperCase()));
+      const nomesMap = new Map<string, string>(); // upper -> nome de exibição
       ultimaPrestacaoPorRevendedora.forEach((_info, nome) => {
-        if (!revendedorasAtivasSet.has(nome)) nomesInativas.push(nome);
+        const u = nome.trim().toUpperCase();
+        if (!ativasUpper.has(u) && !nomesMap.has(u)) nomesMap.set(u, nome);
+      });
+      cadastros?.forEach((c: any) => {
+        const u = c.nome.trim().toUpperCase();
+        if (!ativasUpper.has(u) && !nomesMap.has(u)) nomesMap.set(u, c.nome);
       });
 
-      let cadastroMap = new Map<string, { id: string; whatsapp: string | null; foto_url: string | null }>();
-      if (nomesInativas.length > 0) {
-        const { data: cadastros } = await supabase
-          .from('revendedoras')
-          .select('id, nome, whatsapp, foto_url')
-          .eq('representante_id', user!.id);
-        cadastroMap = new Map(
-          cadastros?.map((c: any) => [c.nome.trim().toUpperCase(), { id: c.id, whatsapp: c.whatsapp, foto_url: c.foto_url }]) || []
-        );
-      }
-
-      const inativas: RevendedoraInativa[] = nomesInativas.map((nome) => {
-        const info = ultimaPrestacaoPorRevendedora.get(nome)!;
-        const cad = cadastroMap.get(nome.trim().toUpperCase());
+      const inativas: RevendedoraInativa[] = Array.from(nomesMap.entries()).map(([upper, nome]) => {
+        const info = ultimaPrestacaoPorRevendedora.get(nome);
+        const cad = cadastroMap.get(upper);
         return {
           nome,
-          ultimaVendaData: info.data,
-          ultimaVendaValor: info.valor,
+          ultimaVendaData: info?.data ?? null,
+          ultimaVendaValor: info?.valor ?? null,
           revendedora_id: cad?.id ?? null,
           whatsapp: cad?.whatsapp ?? null,
           foto_url: cad?.foto_url ?? null,
         };
       });
 
-      return inativas.sort((a, b) => new Date(b.ultimaVendaData).getTime() - new Date(a.ultimaVendaData).getTime());
+      return inativas.sort((a, b) => {
+        const ta = a.ultimaVendaData ? new Date(a.ultimaVendaData).getTime() : 0;
+        const tb = b.ultimaVendaData ? new Date(b.ultimaVendaData).getTime() : 0;
+        return tb - ta;
+      });
     },
     enabled: !!user?.id,
   });
