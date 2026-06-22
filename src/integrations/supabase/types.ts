@@ -2520,10 +2520,12 @@ export type Database = {
             }
             Returns: Json
           }
-      reverter_entrega_kit: {
-        Args: { p_codigo_kit: string; p_user_id: string }
-        Returns: boolean
-      }
+      reverter_entrega_kit:
+        | { Args: { p_cobranca_id: string }; Returns: Json }
+        | {
+            Args: { p_codigo_kit: string; p_user_id: string }
+            Returns: boolean
+          }
       reverter_entrega_kit_atomico: {
         Args: { p_kit_entregue_id: string; p_user_id: string }
         Returns: Json

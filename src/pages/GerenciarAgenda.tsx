@@ -220,6 +220,37 @@ export default function GerenciarAgenda() {
     },
   });
 
+  const reverterEntregaMutation = useMutation({
+    mutationFn: async (cobrancaId: string) => {
+      const { data, error } = await supabase.rpc('reverter_entrega_kit', {
+        p_cobranca_id: cobrancaId,
+      });
+      if (error) throw error;
+      return data as { success: boolean; kit_devolvido: boolean; codigo: string };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-disponiveis-reativar'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-entregues'] });
+      queryClient.invalidateQueries({ queryKey: ['revendedoras'] });
+      if (result?.kit_devolvido) {
+        toast({ title: 'Entrega revertida', description: 'Kit devolvido ao estoque do representante.' });
+      } else {
+        toast({ title: 'Nota cancelada', description: 'Nenhum kit vinculado encontrado para devolver.' });
+      }
+      setIsDialogOpen(false);
+      setEditingCobranca(null);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Não foi possível reverter a entrega',
+        description: err?.message ?? 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof createFormData) => {
       const valorNumerico = parseMonetaryValue(data.valor_previsto);
@@ -1037,28 +1068,59 @@ export default function GerenciarAgenda() {
             </div>
           </div>
           <DialogFooter className="flex justify-between">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Tem certeza que deseja excluir esta cobrança? Esta ação não pode ser desfeita.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => editingCobranca && deleteMutation.mutate(editingCobranca.id)}>
+            <div className="flex gap-2">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
                     Excluir
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja excluir esta cobrança? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => editingCobranca && deleteMutation.mutate(editingCobranca.id)}>
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-warning text-warning hover:bg-warning/10"
+                    disabled={reverterEntregaMutation.isPending}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Reverter entrega
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Reverter entrega desta nota?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      A nota <strong>{editingCobranca?.codigo_nota}</strong> será <strong>CANCELADA</strong>, o kit voltará para o estoque do representante e o registro de entrega será removido. Use isto quando a entrega foi registrada por engano. (Se a nota já tiver pagamento, a reversão será bloqueada.)
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => editingCobranca && reverterEntregaMutation.mutate(editingCobranca.id)}
+                    >
+                      Confirmar reversão
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancelar
