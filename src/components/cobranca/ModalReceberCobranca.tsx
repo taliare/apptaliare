@@ -593,10 +593,10 @@ export function ModalReceberCobranca({
                         setValorAReceber(saldoAberto);
                         return;
                       }
-                      const valorDevolvidoNum = parseInputMoeda(valorDevolvido);
-                      const valorBase = isRepasse 
-                        ? cobranca.valor_previsto 
-                        : Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
+                      const valorVendidoNum = parseInputMoeda(valorVendido);
+                      const valorBase = isRepasse
+                        ? cobranca.valor_previsto
+                        : valorVendidoNum;
                       if (isRepasse) {
                         setValorAReceber(valorBase);
                       } else {
