@@ -30,6 +30,7 @@ interface ModalReceberCobrancaProps {
     id: string;
     revendedora: string;
     valor_previsto: number;
+    valor_kit_original?: number | null;
     tipo?: string | null;
     valor_adiantado?: number | null;
     status?: string | null;
@@ -82,10 +83,14 @@ export function ModalReceberCobranca({
   const [saldoPrestacao, setSaldoPrestacao] = useState<number | null>(null);
   const saldoCalculado = Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0));
   const saldoAberto = saldoPrestacao !== null ? Math.max(0, saldoPrestacao) : saldoCalculado;
-  
-  // Para KIT: valor da venda (precisa preencher)
-  // Para REPASSE: usa valor_previsto
-  const [valorDevolvido, setValorDevolvido] = useState('');
+
+  // Base do kit: valor original do kit (preferir valor_kit_original; fallback valor_previsto)
+  const valorKitBase = (cobranca.valor_kit_original && cobranca.valor_kit_original > 0)
+    ? Number(cobranca.valor_kit_original)
+    : Number(cobranca.valor_previsto);
+
+  // Representante informa o TOTAL VENDIDO; o devolvido é deduzido automaticamente
+  const [valorVendido, setValorVendido] = useState('');
   
   // Desconto (discreto)
   const [desconto, setDesconto] = useState('');
@@ -136,10 +141,10 @@ export function ModalReceberCobranca({
     if (open) {
       if (isSubsequente) {
         // Modo subsequente: saldo já calculado, não pedir valor da venda
-        setValorDevolvido('0');
+        setValorVendido('0');
         setValorAReceber(saldoAberto);
       } else {
-        setValorDevolvido('');
+        setValorVendido('');
         setValorAReceber(0);
       }
       setDesconto('');
@@ -176,37 +181,35 @@ export function ModalReceberCobranca({
     setValorAReceber(Math.max(0, valor - comissao - (cobranca.valor_adiantado || 0)));
   };
 
-  const handleValorDevolvidoChange = (value: string) => {
+  const handleValorVendidoChange = (value: string) => {
     const formatado = formatarInputMoeda(value);
-    setValorDevolvido(formatado);
-    
-    const valorDevolvidoNum = parseInputMoeda(formatado);
-    const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
-    
-    if (valorVendido > 0) {
-      calcularComissao(valorVendido);
+    setValorVendido(formatado);
+
+    const valorVendidoNum = parseInputMoeda(formatado);
+
+    if (valorVendidoNum > 0) {
+      calcularComissao(valorVendidoNum);
     } else {
       setComissaoPercentual(0);
       setComissaoValor(0);
       setValorAReceber(0);
     }
   };
-  
+
   const handleDescontoChange = (value: string) => {
     const formatado = formatarInputMoeda(value);
     setDesconto(formatado);
-    
+
     const descontoNum = parseInputMoeda(formatado);
-    
+
     if (isRepasse) {
       setValorAReceber(Math.max(0, cobranca.valor_previsto - descontoNum));
     } else if (isSubsequente) {
       // Desconto aplicado sobre o saldo em aberto, não sobre o valor total da nota
       setValorAReceber(Math.max(0, saldoAberto - descontoNum));
     } else {
-      const valorVendaNum = parseInputMoeda(valorDevolvido);
-      const valorVendido = Math.max(0, cobranca.valor_previsto - valorVendaNum);
-      const valorAposComissao = valorVendido - comissaoValor;
+      const valorVendidoNum = parseInputMoeda(valorVendido);
+      const valorAposComissao = valorVendidoNum - comissaoValor;
       setValorAReceber(Math.max(0, valorAposComissao - descontoNum));
     }
   };
@@ -222,7 +225,8 @@ export function ModalReceberCobranca({
         pagamentos: [],
         tipo: 'devolucao',
         dataNota: format(dataNota, 'yyyy-MM-dd'),
-        valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
+        valor_devolvido: valorKitBase,
+
       });
       
       toast({
@@ -311,7 +315,7 @@ export function ModalReceberCobranca({
         }
 
         await onPagamentoParcial({
-          valor_venda: Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)),
+          valor_venda: parseInputMoeda(valorVendido),
           comissao_percentual: comissaoPercentual,
           comissao_valor: comissaoValor,
           valor_devido_empresa: valorAReceber,
@@ -320,8 +324,9 @@ export function ModalReceberCobranca({
           valor_repasse: valorRestante,
           data_repasse: dataProximaCobranca,
           dataNota: format(dataNota, 'yyyy-MM-dd'),
-          valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
+          valor_devolvido: Math.max(0, valorKitBase - parseInputMoeda(valorVendido)),
         });
+
         
         const saldoAbertoAtual = saldoAberto;
         const novoSaldo = saldoAbertoAtual - valorEfetivoReceber;
@@ -367,15 +372,16 @@ export function ModalReceberCobranca({
       }
 
       await onPagamentoCompleto({
-        valor_venda: Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)),
+        valor_venda: parseInputMoeda(valorVendido),
         comissao_percentual: comissaoPercentual,
         comissao_valor: comissaoValor,
         valor_devido_empresa: valorAReceber,
         pagamentos,
         tipo: 'completo',
         dataNota: format(dataNota, 'yyyy-MM-dd'),
-        valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
+        valor_devolvido: Math.max(0, valorKitBase - parseInputMoeda(valorVendido)),
       });
+
       
       toast({
         title: "Sucesso",
@@ -446,30 +452,31 @@ export function ModalReceberCobranca({
             </div>
           )}
 
-          {/* Valor em Joias Devolvidas (só para KIT na primeira cobrança) */}
+          {/* Total Vendido (só para KIT na primeira cobrança). Devolvido é deduzido. */}
           {!isRepasse && !isSubsequente && (
             <div className="space-y-2">
-              <Label>Valor em Joias Devolvidas <span className="text-destructive">*</span></Label>
+              <Label>Total Vendido <span className="text-destructive">*</span></Label>
               <Input
                 type="text"
-                placeholder="Digite o valor total devolvido em joias"
-                value={valorDevolvido}
-                onChange={(e) => handleValorDevolvidoChange(e.target.value)}
+                placeholder="Digite o total que a revendedora vendeu"
+                value={valorVendido}
+                onChange={(e) => handleValorVendidoChange(e.target.value)}
                 disabled={loading}
-                className={cn(!valorDevolvido && "border-orange-400 focus-visible:ring-orange-400")}
+                className={cn(!valorVendido && "border-orange-400 focus-visible:ring-orange-400")}
               />
-              {!valorDevolvido && (
+              {!valorVendido && (
                 <p className="text-xs text-orange-600">
-                  Informe o valor total das joias que a revendedora devolveu
+                  Informe o total vendido. O sistema deduz automaticamente o valor devolvido em joias.
                 </p>
               )}
-              {valorDevolvido && parseInputMoeda(valorDevolvido) >= 0 && (
+              {valorVendido && parseInputMoeda(valorVendido) >= 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Valor do kit: {formatarValor(cobranca.valor_previsto)} — Vendido: {formatarValor(Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)))}
+                  Valor do kit: {formatarValor(valorKitBase)} — Devolvido: {formatarValor(Math.max(0, valorKitBase - parseInputMoeda(valorVendido)))}
                 </p>
               )}
             </div>
           )}
+
 
           {/* Info da comissão (só para KIT na primeira cobrança quando tem valor) */}
           {!isRepasse && !isSubsequente && valorAReceber > 0 && (
@@ -586,10 +593,10 @@ export function ModalReceberCobranca({
                         setValorAReceber(saldoAberto);
                         return;
                       }
-                      const valorDevolvidoNum = parseInputMoeda(valorDevolvido);
-                      const valorBase = isRepasse 
-                        ? cobranca.valor_previsto 
-                        : Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
+                      const valorVendidoNum = parseInputMoeda(valorVendido);
+                      const valorBase = isRepasse
+                        ? cobranca.valor_previsto
+                        : valorVendidoNum;
                       if (isRepasse) {
                         setValorAReceber(valorBase);
                       } else {
@@ -826,9 +833,9 @@ export function ModalReceberCobranca({
           </div>
           
           {/* Mensagem de ajuda quando botão está desabilitado */}
-          {!podeReceber && !isRepasse && !isSubsequente && !valorDevolvido && (
+          {!podeReceber && !isRepasse && !isSubsequente && !valorVendido && (
             <p className="text-xs text-center text-muted-foreground">
-              Informe o valor das joias devolvidas para habilitar o botão
+              Informe o total vendido para habilitar o botão
             </p>
           )}
         </div>

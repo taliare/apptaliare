@@ -721,6 +721,7 @@ export function AdminDayActions({
             id: cobrancaParaPagar.id,
             revendedora: cobrancaParaPagar.revendedora,
             valor_previsto: cobrancaParaPagar.valor_previsto,
+            valor_kit_original: (cobrancaParaPagar as any).valor_kit_original,
             tipo: cobrancaParaPagar.tipo,
             valor_adiantado: cobrancaParaPagar.valor_adiantado,
             status: cobrancaParaPagar.status,
