@@ -285,6 +285,7 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
     onError: (e: any) => toast.error(e?.message ?? 'Erro ao transferir representante'),
   });
 
+  const { data: historico = [] } = useRevendedoraHistorico(revendedoraInfo?.id);
   const ultimaEdicao = historico.find((h) => h.acao === 'editou') ?? null;
   const cadastro = historico.find((h) => h.acao === 'criou') ?? null;
 
