@@ -639,7 +639,9 @@ export default function GerenciarAgenda() {
     
     
     // Filtro de status
-    if (filtroStatus !== 'todos' && c.status !== filtroStatus) {
+    if (filtroStatus === 'abertas') {
+      if (!['pendente', 'parcial'].includes(c.status as string)) return false;
+    } else if (filtroStatus !== 'todos' && c.status !== filtroStatus) {
       return false;
     }
     
