@@ -181,37 +181,35 @@ export function ModalReceberCobranca({
     setValorAReceber(Math.max(0, valor - comissao - (cobranca.valor_adiantado || 0)));
   };
 
-  const handleValorDevolvidoChange = (value: string) => {
+  const handleValorVendidoChange = (value: string) => {
     const formatado = formatarInputMoeda(value);
-    setValorDevolvido(formatado);
-    
-    const valorDevolvidoNum = parseInputMoeda(formatado);
-    const valorVendido = Math.max(0, cobranca.valor_previsto - valorDevolvidoNum);
-    
-    if (valorVendido > 0) {
-      calcularComissao(valorVendido);
+    setValorVendido(formatado);
+
+    const valorVendidoNum = parseInputMoeda(formatado);
+
+    if (valorVendidoNum > 0) {
+      calcularComissao(valorVendidoNum);
     } else {
       setComissaoPercentual(0);
       setComissaoValor(0);
       setValorAReceber(0);
     }
   };
-  
+
   const handleDescontoChange = (value: string) => {
     const formatado = formatarInputMoeda(value);
     setDesconto(formatado);
-    
+
     const descontoNum = parseInputMoeda(formatado);
-    
+
     if (isRepasse) {
       setValorAReceber(Math.max(0, cobranca.valor_previsto - descontoNum));
     } else if (isSubsequente) {
       // Desconto aplicado sobre o saldo em aberto, não sobre o valor total da nota
       setValorAReceber(Math.max(0, saldoAberto - descontoNum));
     } else {
-      const valorVendaNum = parseInputMoeda(valorDevolvido);
-      const valorVendido = Math.max(0, cobranca.valor_previsto - valorVendaNum);
-      const valorAposComissao = valorVendido - comissaoValor;
+      const valorVendidoNum = parseInputMoeda(valorVendido);
+      const valorAposComissao = valorVendidoNum - comissaoValor;
       setValorAReceber(Math.max(0, valorAposComissao - descontoNum));
     }
   };
