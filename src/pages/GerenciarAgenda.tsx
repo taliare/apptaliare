@@ -220,6 +220,37 @@ export default function GerenciarAgenda() {
     },
   });
 
+  const reverterEntregaMutation = useMutation({
+    mutationFn: async (cobrancaId: string) => {
+      const { data, error } = await supabase.rpc('reverter_entrega_kit', {
+        p_cobranca_id: cobrancaId,
+      });
+      if (error) throw error;
+      return data as { success: boolean; kit_devolvido: boolean; codigo: string };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-disponiveis-reativar'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-estoque'] });
+      queryClient.invalidateQueries({ queryKey: ['kits-entregues'] });
+      queryClient.invalidateQueries({ queryKey: ['revendedoras'] });
+      if (result?.kit_devolvido) {
+        toast({ title: 'Entrega revertida', description: 'Kit devolvido ao estoque do representante.' });
+      } else {
+        toast({ title: 'Nota cancelada', description: 'Nenhum kit vinculado encontrado para devolver.' });
+      }
+      setIsDialogOpen(false);
+      setEditingCobranca(null);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Não foi possível reverter a entrega',
+        description: err?.message ?? 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof createFormData) => {
       const valorNumerico = parseMonetaryValue(data.valor_previsto);
