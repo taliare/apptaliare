@@ -250,7 +250,41 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
     !revendedoraInfo.status_juridico &&
     !isAdmin;
 
-  const { data: historico = [] } = useRevendedoraHistorico(revendedoraInfo?.id);
+  // Lista de representantes (apenas para admin transferir titularidade)
+  const { data: repsList = [] } = useQuery({
+    queryKey: ['representantes-list-perfil'],
+    enabled: !!isAdmin,
+    queryFn: fetchRepresentantes,
+  });
+
+  const transferirRevendedora = useMutation({
+    mutationFn: async () => {
+      if (!revendedoraInfo?.id) throw new Error('Revendedora sem cadastro centralizado.');
+      if (!novoRepId) throw new Error('Selecione o novo representante.');
+      const { data, error } = await (supabase as any).rpc('transferir_revendedora', {
+        p_revendedora_id: revendedoraInfo.id,
+        p_novo_representante_id: novoRepId,
+      });
+      if (error) throw error;
+      return data as { success: boolean; notas_movidas: number };
+    },
+    onSuccess: (res) => {
+      const n = res?.notas_movidas ?? 0;
+      toast.success(`Revendedora transferida. ${n} nota(s) em aberto movida(s).`);
+      setTransferOpen(false);
+      setNovoRepId('');
+      qc.invalidateQueries({ queryKey: ['revendedora-info'] });
+      qc.invalidateQueries({ queryKey: ['revendedoras-admin'] });
+      qc.invalidateQueries({ queryKey: ['minhas-revendedoras-ativas'] });
+      qc.invalidateQueries({ queryKey: ['revendedoras-inativas'] });
+      qc.invalidateQueries({ queryKey: ['perfil-revendedora'] });
+      qc.invalidateQueries({ queryKey: ['revendedora-cobrancas-perfil'] });
+      qc.invalidateQueries({ queryKey: ['agenda-cobrancas'] });
+      qc.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Erro ao transferir representante'),
+  });
+
   const ultimaEdicao = historico.find((h) => h.acao === 'editou') ?? null;
   const cadastro = historico.find((h) => h.acao === 'criou') ?? null;
 
