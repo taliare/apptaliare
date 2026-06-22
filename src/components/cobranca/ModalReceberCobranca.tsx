@@ -315,7 +315,7 @@ export function ModalReceberCobranca({
         }
 
         await onPagamentoParcial({
-          valor_venda: Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)),
+          valor_venda: parseInputMoeda(valorVendido),
           comissao_percentual: comissaoPercentual,
           comissao_valor: comissaoValor,
           valor_devido_empresa: valorAReceber,
@@ -324,8 +324,9 @@ export function ModalReceberCobranca({
           valor_repasse: valorRestante,
           data_repasse: dataProximaCobranca,
           dataNota: format(dataNota, 'yyyy-MM-dd'),
-          valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
+          valor_devolvido: Math.max(0, valorKitBase - parseInputMoeda(valorVendido)),
         });
+
         
         const saldoAbertoAtual = saldoAberto;
         const novoSaldo = saldoAbertoAtual - valorEfetivoReceber;
