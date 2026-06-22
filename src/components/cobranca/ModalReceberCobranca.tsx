@@ -83,10 +83,14 @@ export function ModalReceberCobranca({
   const [saldoPrestacao, setSaldoPrestacao] = useState<number | null>(null);
   const saldoCalculado = Math.max(0, cobranca.valor_previsto - valor_pago_acumulado - (cobranca.valor_adiantado || 0));
   const saldoAberto = saldoPrestacao !== null ? Math.max(0, saldoPrestacao) : saldoCalculado;
-  
-  // Para KIT: valor da venda (precisa preencher)
-  // Para REPASSE: usa valor_previsto
-  const [valorDevolvido, setValorDevolvido] = useState('');
+
+  // Base do kit: valor original do kit (preferir valor_kit_original; fallback valor_previsto)
+  const valorKitBase = (cobranca.valor_kit_original && cobranca.valor_kit_original > 0)
+    ? Number(cobranca.valor_kit_original)
+    : Number(cobranca.valor_previsto);
+
+  // Representante informa o TOTAL VENDIDO; o devolvido é deduzido automaticamente
+  const [valorVendido, setValorVendido] = useState('');
   
   // Desconto (discreto)
   const [desconto, setDesconto] = useState('');
