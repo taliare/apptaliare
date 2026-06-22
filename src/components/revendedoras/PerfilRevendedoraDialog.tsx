@@ -72,6 +72,8 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
   const [motivoJuridico, setMotivoJuridico] = useState('');
   const [saldoVisivel, setSaldoVisivel] = useState(false);
   const [fotoExpandida, setFotoExpandida] = useState(false);
+  const [novoRepId, setNovoRepId] = useState<string>('');
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const { data: prestacoesBruto = [], isLoading } = useQuery({
     queryKey: ['perfil-revendedora', nomeRevendedora],
