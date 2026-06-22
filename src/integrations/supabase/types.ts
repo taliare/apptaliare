@@ -2417,6 +2417,10 @@ export type Database = {
         }
         Returns: Json
       }
+      corrigir_revendedora_da_nota: {
+        Args: { p_cobranca_id: string; p_nova_revendedora: string }
+        Returns: undefined
+      }
       definir_pin_apuracao: { Args: { p_pin: string }; Returns: undefined }
       delete_lead_with_history: { Args: { p_lead_id: string }; Returns: Json }
       entregar_kit_para_revendedora: {
