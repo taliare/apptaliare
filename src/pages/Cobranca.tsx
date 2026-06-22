@@ -720,10 +720,12 @@ export default function Cobranca() {
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="abertas">Abertas (a cobrar)</SelectItem>
                     <SelectItem value="todos">Todos Status</SelectItem>
                     <SelectItem value="pendente">Pendente</SelectItem>
                     <SelectItem value="parcial">Parcial</SelectItem>
                     <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
