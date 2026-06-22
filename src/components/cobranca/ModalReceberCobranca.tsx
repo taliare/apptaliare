@@ -30,6 +30,7 @@ interface ModalReceberCobrancaProps {
     id: string;
     revendedora: string;
     valor_previsto: number;
+    valor_kit_original?: number | null;
     tipo?: string | null;
     valor_adiantado?: number | null;
     status?: string | null;
