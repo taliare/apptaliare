@@ -1765,7 +1765,7 @@ export default function CobrancaDiaria() {
         <ModalReceberCobranca
           open={!!cobrancaParaPagar}
           onOpenChange={(open) => { if (!open) setCobrancaParaPagar(null); }}
-          cobranca={{ id: cobrancaParaPagar.id, revendedora: cobrancaParaPagar.revendedora, valor_previsto: cobrancaParaPagar.valor_previsto, tipo: cobrancaParaPagar.tipo, valor_adiantado: cobrancaParaPagar.valor_adiantado, status: cobrancaParaPagar.status }}
+          cobranca={{ id: cobrancaParaPagar.id, revendedora: cobrancaParaPagar.revendedora, valor_previsto: cobrancaParaPagar.valor_previsto, valor_kit_original: (cobrancaParaPagar as any).valor_kit_original, tipo: cobrancaParaPagar.tipo, valor_adiantado: cobrancaParaPagar.valor_adiantado, status: cobrancaParaPagar.status }}
           valor_pago_acumulado={(cobrancaParaPagar as any)?.valor_pago_acumulado || 0}
           diasNaoFinalizados={diasNaoFinalizados}
           onPagamentoCompleto={handlePagamentoCompleto}
