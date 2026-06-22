@@ -109,7 +109,7 @@ export default function Cobranca() {
   const { cobrancas, isLoading, userId } = useAgendaCobrancas();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<string>('pendente');
+  const [filtroStatus, setFiltroStatus] = useState<string>('abertas');
   const [filtroMesAno, setFiltroMesAno] = useState<string>(() => {
     const hoje = new Date();
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -585,7 +585,11 @@ export default function Cobranca() {
         if (!match) return false;
       }
       // Status
-      if (filtroStatus !== 'todos' && c.status !== filtroStatus) return false;
+      if (filtroStatus === 'abertas') {
+        if (!['pendente', 'parcial'].includes(c.status as string)) return false;
+      } else if (filtroStatus !== 'todos' && c.status !== filtroStatus) {
+        return false;
+      }
       return true;
     });
   }, [cobrancas, filtroMesAno, searchTerm, filtroStatus]);
@@ -716,10 +720,12 @@ export default function Cobranca() {
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="abertas">Abertas (a cobrar)</SelectItem>
                     <SelectItem value="todos">Todos Status</SelectItem>
                     <SelectItem value="pendente">Pendente</SelectItem>
                     <SelectItem value="parcial">Parcial</SelectItem>
                     <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

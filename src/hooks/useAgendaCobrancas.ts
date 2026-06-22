@@ -36,7 +36,7 @@ export function useAgendaCobrancas() {
           .select('*')
           .eq('representante_id', userId)
           .eq('vigente', true)
-          .in('status', ['pendente', 'parcial'])
+          .in('status', ['pendente', 'parcial', 'pago', 'cancelado'])
           .order('data_agendada', { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
 
