@@ -452,30 +452,31 @@ export function ModalReceberCobranca({
             </div>
           )}
 
-          {/* Valor em Joias Devolvidas (só para KIT na primeira cobrança) */}
+          {/* Total Vendido (só para KIT na primeira cobrança). Devolvido é deduzido. */}
           {!isRepasse && !isSubsequente && (
             <div className="space-y-2">
-              <Label>Valor em Joias Devolvidas <span className="text-destructive">*</span></Label>
+              <Label>Total Vendido <span className="text-destructive">*</span></Label>
               <Input
                 type="text"
-                placeholder="Digite o valor total devolvido em joias"
-                value={valorDevolvido}
-                onChange={(e) => handleValorDevolvidoChange(e.target.value)}
+                placeholder="Digite o total que a revendedora vendeu"
+                value={valorVendido}
+                onChange={(e) => handleValorVendidoChange(e.target.value)}
                 disabled={loading}
-                className={cn(!valorDevolvido && "border-orange-400 focus-visible:ring-orange-400")}
+                className={cn(!valorVendido && "border-orange-400 focus-visible:ring-orange-400")}
               />
-              {!valorDevolvido && (
+              {!valorVendido && (
                 <p className="text-xs text-orange-600">
-                  Informe o valor total das joias que a revendedora devolveu
+                  Informe o total vendido. O sistema deduz automaticamente o valor devolvido em joias.
                 </p>
               )}
-              {valorDevolvido && parseInputMoeda(valorDevolvido) >= 0 && (
+              {valorVendido && parseInputMoeda(valorVendido) >= 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Valor do kit: {formatarValor(cobranca.valor_previsto)} — Vendido: {formatarValor(Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)))}
+                  Valor do kit: {formatarValor(valorKitBase)} — Devolvido: {formatarValor(Math.max(0, valorKitBase - parseInputMoeda(valorVendido)))}
                 </p>
               )}
             </div>
           )}
+
 
           {/* Info da comissão (só para KIT na primeira cobrança quando tem valor) */}
           {!isRepasse && !isSubsequente && valorAReceber > 0 && (
