@@ -225,7 +225,8 @@ export function ModalReceberCobranca({
         pagamentos: [],
         tipo: 'devolucao',
         dataNota: format(dataNota, 'yyyy-MM-dd'),
-        valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
+        valor_devolvido: valorKitBase,
+
       });
       
       toast({
