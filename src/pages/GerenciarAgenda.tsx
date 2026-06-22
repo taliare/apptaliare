@@ -95,12 +95,10 @@ export default function GerenciarAgenda() {
   const [formData, setFormData] = useState({
     revendedora: '',
     codigo_nota: '',
-    tipo: '',
     valor_previsto: '',
     data_agendada: '',
-    status: 'pendente' as StatusCobranca,
-    observacoes: '',
   });
+  const [revendedoraOriginal, setRevendedoraOriginal] = useState('');
 
   const [createFormData, setCreateFormData] = useState({
     representante_id: '',
