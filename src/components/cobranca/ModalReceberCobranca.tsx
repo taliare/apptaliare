@@ -372,15 +372,16 @@ export function ModalReceberCobranca({
       }
 
       await onPagamentoCompleto({
-        valor_venda: Math.max(0, cobranca.valor_previsto - parseInputMoeda(valorDevolvido)),
+        valor_venda: parseInputMoeda(valorVendido),
         comissao_percentual: comissaoPercentual,
         comissao_valor: comissaoValor,
         valor_devido_empresa: valorAReceber,
         pagamentos,
         tipo: 'completo',
         dataNota: format(dataNota, 'yyyy-MM-dd'),
-        valor_devolvido: parseInputMoeda(valorDevolvido) || 0,
+        valor_devolvido: Math.max(0, valorKitBase - parseInputMoeda(valorVendido)),
       });
+
       
       toast({
         title: "Sucesso",
