@@ -254,7 +254,9 @@ function ListagemUnificada({
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate">{item.nome}</p>
                         <p className="text-[11px] text-muted-foreground truncate">
-                          Última venda: {format(new Date(item.rev.ultimaVendaData + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })} • {formatarValor(item.rev.ultimaVendaValor)}
+                          {item.rev.ultimaVendaData
+                            ? <>Última venda: {format(new Date(item.rev.ultimaVendaData + 'T12:00:00'), 'dd/MM/yyyy', { locale: ptBR })} • {formatarValor(item.rev.ultimaVendaValor ?? 0)}</>
+                            : 'Sem vendas registradas'}
                         </p>
                       </div>
                     </div>
