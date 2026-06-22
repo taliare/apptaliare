@@ -21,6 +21,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, formatDateBR, parseLocalDate, getLocalDateString } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cobrancaInsertSchema, cobrancaUpdateSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
+import { RevendedoraSearchSelect } from '@/components/RevendedoraSearchSelect';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'] & {
@@ -94,12 +95,10 @@ export default function GerenciarAgenda() {
   const [formData, setFormData] = useState({
     revendedora: '',
     codigo_nota: '',
-    tipo: '',
     valor_previsto: '',
     data_agendada: '',
-    status: 'pendente' as StatusCobranca,
-    observacoes: '',
   });
+  const [revendedoraOriginal, setRevendedoraOriginal] = useState('');
 
   const [createFormData, setCreateFormData] = useState({
     representante_id: '',
@@ -475,35 +474,50 @@ export default function GerenciarAgenda() {
 
   const handleEdit = (cobranca: Cobranca) => {
     setEditingCobranca(cobranca);
+    setRevendedoraOriginal(cobranca.revendedora);
     setFormData({
       revendedora: cobranca.revendedora,
       codigo_nota: cobranca.codigo_nota || '',
-      tipo: cobranca.tipo || '',
       valor_previsto: cobranca.valor_previsto.toFixed(2),
       data_agendada: cobranca.data_agendada,
-      status: cobranca.status,
-      observacoes: cobranca.observacoes || '',
     });
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!editingCobranca) return;
 
     const valorNumerico = parseFloat(formData.valor_previsto.replace(/\D/g, '')) / 100;
+    const novoNome = formData.revendedora.trim();
 
-    updateMutation.mutate({
-      id: editingCobranca.id,
-      data: {
-        revendedora: formData.revendedora,
-        codigo_nota: formData.codigo_nota || null,
-        tipo: formData.tipo || null,
-        valor_previsto: valorNumerico,
-        data_agendada: formData.data_agendada,
-        status: formData.status,
-        observacoes: formData.observacoes,
-      },
-    });
+    if (!novoNome) {
+      toast({ title: 'Selecione uma revendedora', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      // Se a revendedora mudou, usa RPC admin para reconectar nota + prestações
+      if (novoNome !== revendedoraOriginal) {
+        const { error: rpcError } = await supabase.rpc('corrigir_revendedora_da_nota', {
+          p_cobranca_id: editingCobranca.id,
+          p_nova_revendedora: novoNome,
+        });
+        if (rpcError) throw rpcError;
+      }
+
+      updateMutation.mutate({
+        id: editingCobranca.id,
+        data: {
+          valor_previsto: valorNumerico,
+          data_agendada: formData.data_agendada,
+        },
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['revendedoras'] });
+      queryClient.invalidateQueries({ queryKey: ['perfil-revendedora'] });
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar revendedora', description: err.message, variant: 'destructive' });
+    }
   };
 
   const handleCreate = () => {
@@ -974,61 +988,29 @@ export default function GerenciarAgenda() {
             <DialogTitle>Editar Cobrança</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Revendedora</Label>
-                <Input
+            <div>
+              <Label>Revendedora</Label>
+              {editingCobranca && (
+                <RevendedoraSearchSelect
+                  representanteId={editingCobranca.representante_id}
                   value={formData.revendedora}
-                  onChange={(e) => setFormData({ ...formData, revendedora: e.target.value })}
+                  onSelect={(nome) => setFormData({ ...formData, revendedora: nome })}
                 />
-              </div>
-              <div>
-                <Label>Código da Nota</Label>
-                <Input
-                  value={formData.codigo_nota}
-                  onChange={(e) => setFormData({ ...formData, codigo_nota: e.target.value })}
-                />
-              </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Selecione uma revendedora cadastrada para garantir a conexão com o histórico.
+              </p>
+            </div>
+
+            <div>
+              <Label>Código da Nota</Label>
+              <Input value={formData.codigo_nota} disabled readOnly />
+              <p className="text-xs text-muted-foreground mt-1">Código não editável.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Tipo</Label>
-                <Select
-                  value={formData.tipo}
-                  onValueChange={(value) => setFormData({ ...formData, tipo: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="kit">Kit</SelectItem>
-                    <SelectItem value="repasse">Repasse</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: StatusCobranca) => setFormData({ ...formData, status: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="parcial">Parcial</SelectItem>
-                    <SelectItem value="pago">Pago</SelectItem>
-                    <SelectItem value="juridico">Jurídico</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Valor</Label>
+                <Label>Valor Previsto</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     R$
@@ -1052,14 +1034,6 @@ export default function GerenciarAgenda() {
                   onChange={(e) => setFormData({ ...formData, data_agendada: e.target.value })}
                 />
               </div>
-            </div>
-
-            <div>
-              <Label>Observações</Label>
-              <Input
-                value={formData.observacoes}
-                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              />
             </div>
           </div>
           <DialogFooter className="flex justify-between">
@@ -1122,10 +1096,15 @@ export default function GerenciarAgenda() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Revendedora *</Label>
-                <Input
-                  value={createFormData.revendedora}
-                  onChange={(e) => setCreateFormData({ ...createFormData, revendedora: e.target.value })}
-                />
+                {createFormData.representante_id ? (
+                  <RevendedoraSearchSelect
+                    representanteId={createFormData.representante_id}
+                    value={createFormData.revendedora}
+                    onSelect={(nome) => setCreateFormData({ ...createFormData, revendedora: nome })}
+                  />
+                ) : (
+                  <Input disabled placeholder="Selecione o representante primeiro" />
+                )}
               </div>
               <div>
                 <Label>Código da Nota</Label>
