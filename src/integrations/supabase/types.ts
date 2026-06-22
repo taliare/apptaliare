@@ -2529,6 +2529,10 @@ export type Database = {
         Args: { p_ciclo_id: string }
         Returns: Json
       }
+      transferir_revendedora: {
+        Args: { p_novo_representante_id: string; p_revendedora_id: string }
+        Returns: Json
+      }
       unaccent: { Args: { "": string }; Returns: string }
       verificar_bloqueio_juridico: {
         Args: { p_cpf?: string; p_nome: string }

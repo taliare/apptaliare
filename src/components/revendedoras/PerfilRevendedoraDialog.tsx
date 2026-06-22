@@ -10,6 +10,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,12 +18,13 @@ import { formatarValor } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { calcularNivel } from './RankingRevendedoras';
-import { Trophy, TrendingUp, Hash, Award, Edit2, Gavel, ShieldCheck, ShieldX, Eye, EyeOff, MapPin } from 'lucide-react';
+import { Trophy, TrendingUp, Hash, Award, Edit2, Gavel, ShieldCheck, ShieldX, Eye, EyeOff, MapPin, ArrowRightLeft } from 'lucide-react';
 import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
 import { StatusRevendedoraBadge } from './StatusRevendedoraBadge';
 import { useFotoUrl } from '@/hooks/useFotoUrl';
 import { RevendedoraFormDialog } from './RevendedoraFormDialog';
 import { useRevendedoraHistorico } from '@/hooks/useRevendedoraHistorico';
+import { fetchRepresentantes } from '@/lib/representantes';
 import { toast } from 'sonner';
 import { FotoLightbox } from './FotoLightbox';
 
@@ -70,6 +72,8 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
   const [motivoJuridico, setMotivoJuridico] = useState('');
   const [saldoVisivel, setSaldoVisivel] = useState(false);
   const [fotoExpandida, setFotoExpandida] = useState(false);
+  const [novoRepId, setNovoRepId] = useState<string>('');
+  const [transferOpen, setTransferOpen] = useState(false);
 
   const { data: prestacoesBruto = [], isLoading } = useQuery({
     queryKey: ['perfil-revendedora', nomeRevendedora],
@@ -246,6 +250,41 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
     !revendedoraInfo.status_juridico &&
     !isAdmin;
 
+  // Lista de representantes (apenas para admin transferir titularidade)
+  const { data: repsList = [] } = useQuery({
+    queryKey: ['representantes-list-perfil'],
+    enabled: !!isAdmin,
+    queryFn: fetchRepresentantes,
+  });
+
+  const transferirRevendedora = useMutation({
+    mutationFn: async () => {
+      if (!revendedoraInfo?.id) throw new Error('Revendedora sem cadastro centralizado.');
+      if (!novoRepId) throw new Error('Selecione o novo representante.');
+      const { data, error } = await (supabase as any).rpc('transferir_revendedora', {
+        p_revendedora_id: revendedoraInfo.id,
+        p_novo_representante_id: novoRepId,
+      });
+      if (error) throw error;
+      return data as { success: boolean; notas_movidas: number };
+    },
+    onSuccess: (res) => {
+      const n = res?.notas_movidas ?? 0;
+      toast.success(`Revendedora transferida. ${n} nota(s) em aberto movida(s).`);
+      setTransferOpen(false);
+      setNovoRepId('');
+      qc.invalidateQueries({ queryKey: ['revendedora-info'] });
+      qc.invalidateQueries({ queryKey: ['revendedoras-admin'] });
+      qc.invalidateQueries({ queryKey: ['minhas-revendedoras-ativas'] });
+      qc.invalidateQueries({ queryKey: ['revendedoras-inativas'] });
+      qc.invalidateQueries({ queryKey: ['perfil-revendedora'] });
+      qc.invalidateQueries({ queryKey: ['revendedora-cobrancas-perfil'] });
+      qc.invalidateQueries({ queryKey: ['agenda-cobrancas'] });
+      qc.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Erro ao transferir representante'),
+  });
+
   const { data: historico = [] } = useRevendedoraHistorico(revendedoraInfo?.id);
   const ultimaEdicao = historico.find((h) => h.acao === 'editou') ?? null;
   const cadastro = historico.find((h) => h.acao === 'criou') ?? null;
@@ -402,6 +441,54 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
             </CardContent>
           </Card>
 
+          {/* Transferir representante (somente admin) */}
+          {isAdmin && revendedoraInfo?.id && (
+            <Card>
+              <CardContent className="py-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ArrowRightLeft className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold text-primary uppercase tracking-wide">
+                    Representante responsável
+                  </p>
+                </div>
+                <p className="text-sm">
+                  Atual: <strong>{repNome}</strong>
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select value={novoRepId} onValueChange={setNovoRepId}>
+                    <SelectTrigger className="sm:max-w-xs">
+                      <SelectValue placeholder="Selecionar novo representante..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {repsList
+                        .filter((r) => r.id !== revendedoraInfo.representante_id)
+                        .map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.nome}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={() => setTransferOpen(true)}
+                    disabled={!novoRepId || transferirRevendedora.isPending}
+                    className="gap-1"
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    Transferir representante
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Apenas as notas <strong>em aberto</strong> (pendentes, parciais e em jurídico) migram
+                  para o novo representante. O histórico já <strong>pago</strong> permanece com o
+                  representante atual para preservar fechamentos antigos.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+
+
 
           {/* Cards resumo */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -522,6 +609,43 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={() => solicitarJuridico.mutate()}>
                 Enviar solicitação
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={transferOpen} onOpenChange={setTransferOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar transferência</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm">
+                  <p>
+                    Transferir <strong>{nomeRevendedora}</strong> de{' '}
+                    <strong>{repNome}</strong> para{' '}
+                    <strong>{repsList.find((r) => r.id === novoRepId)?.nome ?? '—'}</strong>?
+                  </p>
+                  <p>
+                    As notas <strong>em aberto</strong> (pendentes, parciais e em jurídico)
+                    passarão para o novo representante e aparecerão na agenda dele.
+                  </p>
+                  <p>
+                    O histórico já <strong>pago</strong> permanece com o representante atual.
+                    Esta ação será registrada na auditoria.
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  transferirRevendedora.mutate();
+                }}
+                disabled={transferirRevendedora.isPending}
+              >
+                {transferirRevendedora.isPending ? 'Transferindo...' : 'Confirmar transferência'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
