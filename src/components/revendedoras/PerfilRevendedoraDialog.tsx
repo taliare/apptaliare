@@ -10,6 +10,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,12 +18,13 @@ import { formatarValor } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { calcularNivel } from './RankingRevendedoras';
-import { Trophy, TrendingUp, Hash, Award, Edit2, Gavel, ShieldCheck, ShieldX, Eye, EyeOff, MapPin } from 'lucide-react';
+import { Trophy, TrendingUp, Hash, Award, Edit2, Gavel, ShieldCheck, ShieldX, Eye, EyeOff, MapPin, ArrowRightLeft } from 'lucide-react';
 import { calcularStatusRevendedora } from '@/lib/revendedoraStatus';
 import { StatusRevendedoraBadge } from './StatusRevendedoraBadge';
 import { useFotoUrl } from '@/hooks/useFotoUrl';
 import { RevendedoraFormDialog } from './RevendedoraFormDialog';
 import { useRevendedoraHistorico } from '@/hooks/useRevendedoraHistorico';
+import { fetchRepresentantes } from '@/lib/representantes';
 import { toast } from 'sonner';
 import { FotoLightbox } from './FotoLightbox';
 
