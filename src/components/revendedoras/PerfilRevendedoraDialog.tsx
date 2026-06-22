@@ -441,6 +441,54 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
             </CardContent>
           </Card>
 
+          {/* Transferir representante (somente admin) */}
+          {isAdmin && revendedoraInfo?.id && (
+            <Card>
+              <CardContent className="py-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ArrowRightLeft className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold text-primary uppercase tracking-wide">
+                    Representante responsável
+                  </p>
+                </div>
+                <p className="text-sm">
+                  Atual: <strong>{repNome}</strong>
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select value={novoRepId} onValueChange={setNovoRepId}>
+                    <SelectTrigger className="sm:max-w-xs">
+                      <SelectValue placeholder="Selecionar novo representante..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {repsList
+                        .filter((r) => r.id !== revendedoraInfo.representante_id)
+                        .map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.nome}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={() => setTransferOpen(true)}
+                    disabled={!novoRepId || transferirRevendedora.isPending}
+                    className="gap-1"
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    Transferir representante
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Apenas as notas <strong>em aberto</strong> (pendentes, parciais e em jurídico) migram
+                  para o novo representante. O histórico já <strong>pago</strong> permanece com o
+                  representante atual para preservar fechamentos antigos.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+
+
 
           {/* Cards resumo */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
