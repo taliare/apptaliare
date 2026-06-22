@@ -613,6 +613,43 @@ export function PerfilRevendedoraDialog({ nomeRevendedora, revendedoraId, repres
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <AlertDialog open={transferOpen} onOpenChange={setTransferOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar transferência</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-sm">
+                  <p>
+                    Transferir <strong>{nomeRevendedora}</strong> de{' '}
+                    <strong>{repNome}</strong> para{' '}
+                    <strong>{repsList.find((r) => r.id === novoRepId)?.nome ?? '—'}</strong>?
+                  </p>
+                  <p>
+                    As notas <strong>em aberto</strong> (pendentes, parciais e em jurídico)
+                    passarão para o novo representante e aparecerão na agenda dele.
+                  </p>
+                  <p>
+                    O histórico já <strong>pago</strong> permanece com o representante atual.
+                    Esta ação será registrada na auditoria.
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  transferirRevendedora.mutate();
+                }}
+                disabled={transferirRevendedora.isPending}
+              >
+                {transferirRevendedora.isPending ? 'Transferindo...' : 'Confirmar transferência'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
