@@ -86,10 +86,12 @@ export default function ApuracaoKits() {
   const quickApurarMutation = useMutation({
     mutationFn: async () => {
       if (!quickApurarNota) throw new Error("Nota não selecionada");
+      const vkOriginalAtual = Number((quickApurarNota as any).valor_kit_original) || 0;
+      const vkOriginal = vkOriginalAtual > 0 ? vkOriginalAtual : Number(quickApurarNota.valor_previsto);
       const { error } = await supabase
         .from("cobrancas_agendadas")
         .update({
-          valor_kit_original: Number(quickApurarNota.valor_previsto),
+          valor_kit_original: vkOriginal,
           valor_previsto: quickValorEmpresa,
           apurado: true,
         })
