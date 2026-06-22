@@ -28,8 +28,8 @@ import { toast } from 'sonner';
 
 interface RevendedoraInativa {
   nome: string;
-  ultimaVendaData: string;
-  ultimaVendaValor: number;
+  ultimaVendaData: string | null;
+  ultimaVendaValor: number | null;
   revendedora_id: string | null;
   whatsapp: string | null;
   foto_url: string | null;
