@@ -988,61 +988,29 @@ export default function GerenciarAgenda() {
             <DialogTitle>Editar Cobrança</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Revendedora</Label>
-                <Input
+            <div>
+              <Label>Revendedora</Label>
+              {editingCobranca && (
+                <RevendedoraSearchSelect
+                  representanteId={editingCobranca.representante_id}
                   value={formData.revendedora}
-                  onChange={(e) => setFormData({ ...formData, revendedora: e.target.value })}
+                  onSelect={(nome) => setFormData({ ...formData, revendedora: nome })}
                 />
-              </div>
-              <div>
-                <Label>Código da Nota</Label>
-                <Input
-                  value={formData.codigo_nota}
-                  onChange={(e) => setFormData({ ...formData, codigo_nota: e.target.value })}
-                />
-              </div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Selecione uma revendedora cadastrada para garantir a conexão com o histórico.
+              </p>
+            </div>
+
+            <div>
+              <Label>Código da Nota</Label>
+              <Input value={formData.codigo_nota} disabled readOnly />
+              <p className="text-xs text-muted-foreground mt-1">Código não editável.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Tipo</Label>
-                <Select
-                  value={formData.tipo}
-                  onValueChange={(value) => setFormData({ ...formData, tipo: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="kit">Kit</SelectItem>
-                    <SelectItem value="repasse">Repasse</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: StatusCobranca) => setFormData({ ...formData, status: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="parcial">Parcial</SelectItem>
-                    <SelectItem value="pago">Pago</SelectItem>
-                    <SelectItem value="juridico">Jurídico</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Valor</Label>
+                <Label>Valor Previsto</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     R$
@@ -1066,14 +1034,6 @@ export default function GerenciarAgenda() {
                   onChange={(e) => setFormData({ ...formData, data_agendada: e.target.value })}
                 />
               </div>
-            </div>
-
-            <div>
-              <Label>Observações</Label>
-              <Input
-                value={formData.observacoes}
-                onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              />
             </div>
           </div>
           <DialogFooter className="flex justify-between">
