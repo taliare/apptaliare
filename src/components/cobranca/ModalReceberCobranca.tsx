@@ -141,10 +141,10 @@ export function ModalReceberCobranca({
     if (open) {
       if (isSubsequente) {
         // Modo subsequente: saldo já calculado, não pedir valor da venda
-        setValorDevolvido('0');
+        setValorVendido('0');
         setValorAReceber(saldoAberto);
       } else {
-        setValorDevolvido('');
+        setValorVendido('');
         setValorAReceber(0);
       }
       setDesconto('');
