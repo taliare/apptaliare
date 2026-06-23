@@ -1,5 +1,21 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { DialogFooter } from "@/components/ui/dialog";
+import { Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -65,6 +81,104 @@ export function DFCView() {
   const [ano, setAno] = useState(String(anoAtual));
   const [mes, setMes] = useState(String(new Date().getMonth() + 1).padStart(2, "0"));
   const [drill, setDrill] = useState<DrillType>(null);
+  const queryClient = useQueryClient();
+
+  // Edit/delete state for despesas
+  const [editDespesa, setEditDespesa] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ descricao: "", valor: "", data: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteDespesa, setDeleteDespesa] = useState<any | null>(null);
+  const [vinculosCount, setVinculosCount] = useState<number>(0);
+  const [deleting, setDeleting] = useState(false);
+
+  const invalidarDFC = () => {
+    queryClient.invalidateQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("dfc-"),
+    });
+  };
+
+  const abrirEditDespesa = (d: any) => {
+    setEditForm({
+      descricao: d.descricao || "",
+      valor: String(d.valor ?? ""),
+      data: (d.data_pagamento || "").slice(0, 10),
+    });
+    setEditDespesa(d);
+  };
+
+  const salvarEditDespesa = async () => {
+    if (!editDespesa) return;
+    const descricao = editForm.descricao.trim();
+    const valor = Number(editForm.valor);
+    const data = editForm.data;
+    if (!descricao || !data || !valor || valor <= 0) {
+      toast.error("Preencha descrição, valor e data válidos.");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const novoAnoMes = data.slice(0, 7);
+      const { error } = await supabase
+        .from("dre_despesas")
+        .update({
+          descricao,
+          valor,
+          data_pagamento: data,
+          data_despesa: data,
+          ano_mes: novoAnoMes,
+        })
+        .eq("id", editDespesa.id);
+      if (error) throw error;
+      toast.success("Lançamento atualizado.");
+      setEditDespesa(null);
+      invalidarDFC();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao atualizar lançamento.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const abrirDeleteDespesa = async (d: any) => {
+    setDeleteDespesa(d);
+    setVinculosCount(0);
+    try {
+      const { count } = await supabase
+        .from("transacoes_bancarias")
+        .select("id", { count: "exact", head: true })
+        .eq("despesa_id", d.id);
+      setVinculosCount(count || 0);
+    } catch {
+      // ignora; segue permitindo
+    }
+  };
+
+  const confirmarDeleteDespesa = async () => {
+    if (!deleteDespesa) return;
+    setDeleting(true);
+    try {
+      if (vinculosCount > 0) {
+        const { error: unlinkErr } = await supabase
+          .from("transacoes_bancarias")
+          .update({ despesa_id: null, status_conciliacao: "pendente" })
+          .eq("despesa_id", deleteDespesa.id);
+        if (unlinkErr) throw unlinkErr;
+      }
+      const { error } = await supabase
+        .from("dre_despesas")
+        .delete()
+        .eq("id", deleteDespesa.id);
+      if (error) throw error;
+      toast.success("Lançamento excluído.");
+      setDeleteDespesa(null);
+      invalidarDFC();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao excluir lançamento.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   const inicioPeriodo = `${ano}-${mes}-01`;
   const ultimoDiaNum = new Date(Number(ano), Number(mes), 0).getDate();
@@ -939,6 +1053,7 @@ export function DFCView() {
                     <TableHead>Data</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="text-right w-[100px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -947,6 +1062,26 @@ export function DFCView() {
                       <TableCell>{fmtData(d.data_pagamento)}</TableCell>
                       <TableCell>{d.descricao}</TableCell>
                       <TableCell className="text-right font-medium text-red-600">{fmt(Number(d.valor))}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            onClick={() => abrirEditDespesa(d)}
+                            aria-label="Editar despesa"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            onClick={() => abrirDeleteDespesa(d)}
+                            aria-label="Excluir despesa"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -956,6 +1091,7 @@ export function DFCView() {
                     <TableCell className="text-right font-bold text-red-600">
                       {fmt(despesasFiltradas.reduce((s, d: any) => s + Number(d.valor || 0), 0))}
                     </TableCell>
+                    <TableCell />
                   </TableRow>
                 </TableFooter>
               </Table>
@@ -963,6 +1099,89 @@ export function DFCView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Editar despesa */}
+      <Dialog open={!!editDespesa} onOpenChange={(o) => { if (!o) setEditDespesa(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Lançamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input
+                value={editForm.descricao}
+                onChange={(e) => setEditForm((f) => ({ ...f, descricao: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Valor (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editForm.valor}
+                  onChange={(e) => setEditForm((f) => ({ ...f, valor: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input
+                  type="date"
+                  value={editForm.data}
+                  onChange={(e) => setEditForm((f) => ({ ...f, data: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDespesa(null)} disabled={savingEdit}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarEditDespesa} disabled={savingEdit}>
+              {savingEdit ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Excluir despesa */}
+      <AlertDialog open={!!deleteDespesa} onOpenChange={(o) => { if (!o) setDeleteDespesa(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <div>
+                  Excluir o lançamento{" "}
+                  <span className="font-semibold">"{deleteDespesa?.descricao}"</span> de{" "}
+                  <span className="font-semibold">{deleteDespesa ? fmt(Number(deleteDespesa.valor)) : ""}</span> em{" "}
+                  <span className="font-semibold">{deleteDespesa ? fmtData(deleteDespesa.data_pagamento) : ""}</span>?
+                  Esta ação não pode ser desfeita.
+                </div>
+                {vinculosCount > 0 && (
+                  <div className="text-amber-600 font-medium">
+                    ⚠ Este lançamento está conciliado a {vinculosCount} transação(ões) bancária(s).
+                    O vínculo será removido (a transação bancária permanece).
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmarDeleteDespesa(); }}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
