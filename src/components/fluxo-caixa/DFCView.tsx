@@ -81,6 +81,15 @@ export function DFCView() {
   const [ano, setAno] = useState(String(anoAtual));
   const [mes, setMes] = useState(String(new Date().getMonth() + 1).padStart(2, "0"));
   const [drill, setDrill] = useState<DrillType>(null);
+  const queryClient = useQueryClient();
+
+  // Edit/delete state for despesas
+  const [editDespesa, setEditDespesa] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ descricao: "", valor: "", data: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deleteDespesa, setDeleteDespesa] = useState<any | null>(null);
+  const [vinculosCount, setVinculosCount] = useState<number>(0);
+  const [deleting, setDeleting] = useState(false);
 
   const inicioPeriodo = `${ano}-${mes}-01`;
   const ultimoDiaNum = new Date(Number(ano), Number(mes), 0).getDate();
