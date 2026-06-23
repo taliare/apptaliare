@@ -22,6 +22,7 @@ import { registrarLog } from '@/lib/logOperacional';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn, formatarValor, getLocalDateString } from '@/lib/utils';
 import { FechamentoPeriodoView } from '@/components/fechamento/FechamentoPeriodoView';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RevendedoraSearchSelect } from '@/components/RevendedoraSearchSelect';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
 import { sanitizeString } from '@/lib/validations';
