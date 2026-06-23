@@ -947,12 +947,17 @@ export default function FechamentoDiario() {
 
       {/* Modo Período */}
       {modoPeriodo ? (
-        <FechamentoPeriodoView
-          periodoInicio={periodoInicio}
-          periodoFim={periodoFim}
-          selectedRepresentante={selectedRepresentante === 'todos' ? '' : selectedRepresentante}
-          representantes={representantes}
-        />
+        <ErrorBoundary
+          resetKey={`${periodoInicio}-${periodoFim}-${selectedRepresentante}`}
+          fallbackMessage="Não foi possível carregar o período — ajuste as datas e tente novamente."
+        >
+          <FechamentoPeriodoView
+            periodoInicio={periodoInicio}
+            periodoFim={periodoFim}
+            selectedRepresentante={selectedRepresentante === 'todos' ? '' : selectedRepresentante}
+            representantes={representantes}
+          />
+        </ErrorBoundary>
       ) : !selectedRepresentante ? (
         /* ===== TABELA RESUMO DO DIA (sem representante selecionado) ===== */
         <div key="resumo-dia">
