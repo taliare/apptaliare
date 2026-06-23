@@ -964,6 +964,7 @@ export function DFCView() {
                     <TableHead>Data</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="text-right w-[100px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -972,6 +973,26 @@ export function DFCView() {
                       <TableCell>{fmtData(d.data_pagamento)}</TableCell>
                       <TableCell>{d.descricao}</TableCell>
                       <TableCell className="text-right font-medium text-red-600">{fmt(Number(d.valor))}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            onClick={() => abrirEditDespesa(d)}
+                            aria-label="Editar despesa"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            onClick={() => abrirDeleteDespesa(d)}
+                            aria-label="Excluir despesa"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -981,6 +1002,7 @@ export function DFCView() {
                     <TableCell className="text-right font-bold text-red-600">
                       {fmt(despesasFiltradas.reduce((s, d: any) => s + Number(d.valor || 0), 0))}
                     </TableCell>
+                    <TableCell />
                   </TableRow>
                 </TableFooter>
               </Table>
@@ -988,6 +1010,89 @@ export function DFCView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Editar despesa */}
+      <Dialog open={!!editDespesa} onOpenChange={(o) => { if (!o) setEditDespesa(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Lançamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input
+                value={editForm.descricao}
+                onChange={(e) => setEditForm((f) => ({ ...f, descricao: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Valor (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editForm.valor}
+                  onChange={(e) => setEditForm((f) => ({ ...f, valor: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input
+                  type="date"
+                  value={editForm.data}
+                  onChange={(e) => setEditForm((f) => ({ ...f, data: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDespesa(null)} disabled={savingEdit}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarEditDespesa} disabled={savingEdit}>
+              {savingEdit ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Excluir despesa */}
+      <AlertDialog open={!!deleteDespesa} onOpenChange={(o) => { if (!o) setDeleteDespesa(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lançamento</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <div>
+                  Excluir o lançamento{" "}
+                  <span className="font-semibold">"{deleteDespesa?.descricao}"</span> de{" "}
+                  <span className="font-semibold">{deleteDespesa ? fmt(Number(deleteDespesa.valor)) : ""}</span> em{" "}
+                  <span className="font-semibold">{deleteDespesa ? fmtData(deleteDespesa.data_pagamento) : ""}</span>?
+                  Esta ação não pode ser desfeita.
+                </div>
+                {vinculosCount > 0 && (
+                  <div className="text-amber-600 font-medium">
+                    ⚠ Este lançamento está conciliado a {vinculosCount} transação(ões) bancária(s).
+                    O vínculo será removido (a transação bancária permanece).
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmarDeleteDespesa(); }}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+
