@@ -913,7 +913,14 @@ export default function FechamentoDiario() {
                 <Input
                   type="date"
                   value={periodoInicio}
-                  onChange={(e) => setPeriodoInicio(e.target.value)}
+                  onChange={(e) => {
+                    const novo = e.target.value;
+                    if (!novo) return; // mantém último valor válido
+                    setPeriodoInicio(novo);
+                    if (periodoFim && novo > periodoFim) {
+                      setPeriodoFim(novo);
+                    }
+                  }}
                   className="h-9 w-full sm:w-[160px] text-sm"
                 />
               </div>
@@ -922,7 +929,14 @@ export default function FechamentoDiario() {
                 <Input
                   type="date"
                   value={periodoFim}
-                  onChange={(e) => setPeriodoFim(e.target.value)}
+                  onChange={(e) => {
+                    const novo = e.target.value;
+                    if (!novo) return;
+                    setPeriodoFim(novo);
+                    if (periodoInicio && novo < periodoInicio) {
+                      setPeriodoInicio(novo);
+                    }
+                  }}
                   className="h-9 w-full sm:w-[160px] text-sm"
                 />
               </div>
