@@ -22,6 +22,7 @@ import { registrarLog } from '@/lib/logOperacional';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn, formatarValor, getLocalDateString } from '@/lib/utils';
 import { FechamentoPeriodoView } from '@/components/fechamento/FechamentoPeriodoView';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RevendedoraSearchSelect } from '@/components/RevendedoraSearchSelect';
 import { ModalReceberCobranca } from '@/components/cobranca/ModalReceberCobranca';
 import { sanitizeString } from '@/lib/validations';
@@ -913,7 +914,14 @@ export default function FechamentoDiario() {
                 <Input
                   type="date"
                   value={periodoInicio}
-                  onChange={(e) => setPeriodoInicio(e.target.value)}
+                  onChange={(e) => {
+                    const novo = e.target.value;
+                    if (!novo) return; // mantém último valor válido
+                    setPeriodoInicio(novo);
+                    if (periodoFim && novo > periodoFim) {
+                      setPeriodoFim(novo);
+                    }
+                  }}
                   className="h-9 w-full sm:w-[160px] text-sm"
                 />
               </div>
@@ -922,7 +930,14 @@ export default function FechamentoDiario() {
                 <Input
                   type="date"
                   value={periodoFim}
-                  onChange={(e) => setPeriodoFim(e.target.value)}
+                  onChange={(e) => {
+                    const novo = e.target.value;
+                    if (!novo) return;
+                    setPeriodoFim(novo);
+                    if (periodoInicio && novo < periodoInicio) {
+                      setPeriodoInicio(novo);
+                    }
+                  }}
                   className="h-9 w-full sm:w-[160px] text-sm"
                 />
               </div>
@@ -933,12 +948,17 @@ export default function FechamentoDiario() {
 
       {/* Modo Período */}
       {modoPeriodo ? (
-        <FechamentoPeriodoView
-          periodoInicio={periodoInicio}
-          periodoFim={periodoFim}
-          selectedRepresentante={selectedRepresentante === 'todos' ? '' : selectedRepresentante}
-          representantes={representantes}
-        />
+        <ErrorBoundary
+          resetKey={`${periodoInicio}-${periodoFim}-${selectedRepresentante}`}
+          fallbackMessage="Não foi possível carregar o período — ajuste as datas e tente novamente."
+        >
+          <FechamentoPeriodoView
+            periodoInicio={periodoInicio}
+            periodoFim={periodoFim}
+            selectedRepresentante={selectedRepresentante === 'todos' ? '' : selectedRepresentante}
+            representantes={representantes}
+          />
+        </ErrorBoundary>
       ) : !selectedRepresentante ? (
         /* ===== TABELA RESUMO DO DIA (sem representante selecionado) ===== */
         <div key="resumo-dia">
