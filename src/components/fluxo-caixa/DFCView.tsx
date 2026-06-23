@@ -81,6 +81,7 @@ export function DFCView() {
   const [ano, setAno] = useState(String(anoAtual));
   const [mes, setMes] = useState(String(new Date().getMonth() + 1).padStart(2, "0"));
   const [drill, setDrill] = useState<DrillType>(null);
+  const [divAberto, setDivAberto] = useState(false);
   const queryClient = useQueryClient();
 
   // Edit/delete state for despesas
