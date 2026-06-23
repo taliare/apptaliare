@@ -91,6 +91,95 @@ export function DFCView() {
   const [vinculosCount, setVinculosCount] = useState<number>(0);
   const [deleting, setDeleting] = useState(false);
 
+  const invalidarDFC = () => {
+    queryClient.invalidateQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("dfc-"),
+    });
+  };
+
+  const abrirEditDespesa = (d: any) => {
+    setEditForm({
+      descricao: d.descricao || "",
+      valor: String(d.valor ?? ""),
+      data: (d.data_pagamento || "").slice(0, 10),
+    });
+    setEditDespesa(d);
+  };
+
+  const salvarEditDespesa = async () => {
+    if (!editDespesa) return;
+    const descricao = editForm.descricao.trim();
+    const valor = Number(editForm.valor);
+    const data = editForm.data;
+    if (!descricao || !data || !valor || valor <= 0) {
+      toast.error("Preencha descrição, valor e data válidos.");
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const novoAnoMes = data.slice(0, 7);
+      const { error } = await supabase
+        .from("dre_despesas")
+        .update({
+          descricao,
+          valor,
+          data_pagamento: data,
+          data_despesa: data,
+          ano_mes: novoAnoMes,
+        })
+        .eq("id", editDespesa.id);
+      if (error) throw error;
+      toast.success("Lançamento atualizado.");
+      setEditDespesa(null);
+      invalidarDFC();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao atualizar lançamento.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const abrirDeleteDespesa = async (d: any) => {
+    setDeleteDespesa(d);
+    setVinculosCount(0);
+    try {
+      const { count } = await supabase
+        .from("transacoes_bancarias")
+        .select("id", { count: "exact", head: true })
+        .eq("despesa_id", d.id);
+      setVinculosCount(count || 0);
+    } catch {
+      // ignora; segue permitindo
+    }
+  };
+
+  const confirmarDeleteDespesa = async () => {
+    if (!deleteDespesa) return;
+    setDeleting(true);
+    try {
+      if (vinculosCount > 0) {
+        const { error: unlinkErr } = await supabase
+          .from("transacoes_bancarias")
+          .update({ despesa_id: null, status_conciliacao: "pendente" })
+          .eq("despesa_id", deleteDespesa.id);
+        if (unlinkErr) throw unlinkErr;
+      }
+      const { error } = await supabase
+        .from("dre_despesas")
+        .delete()
+        .eq("id", deleteDespesa.id);
+      if (error) throw error;
+      toast.success("Lançamento excluído.");
+      setDeleteDespesa(null);
+      invalidarDFC();
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao excluir lançamento.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
   const inicioPeriodo = `${ano}-${mes}-01`;
   const ultimoDiaNum = new Date(Number(ano), Number(mes), 0).getDate();
   const fimPeriodo = `${ano}-${mes}-${String(ultimoDiaNum).padStart(2, "0")}`;
