@@ -837,51 +837,59 @@ export function DFCView() {
 
       {/* Divergências */}
       <Card className={divergencias.length > 0 ? "border-amber-500/40" : ""}>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <AlertTriangle className={`h-4 w-4 ${divergencias.length > 0 ? "text-amber-500" : "text-muted-foreground"}`} />
-            Divergências ({divergencias.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs text-muted-foreground mb-3">
-            Prestações de contas pagas no sistema sem crédito correspondente no extrato bancário (±3 dias, diferença &lt; 5%).
-          </p>
-          {divergencias.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Nenhuma divergência detectada no período.
+        <button
+          onClick={() => setDivAberto(!divAberto)}
+          className="w-full text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-t-xl"
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 py-4">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className={`h-4 w-4 ${divergencias.length > 0 ? "text-amber-500" : "text-muted-foreground"}`} />
+              Divergências ({divergencias.length})
+            </CardTitle>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${divAberto ? "rotate-180" : ""}`} />
+          </CardHeader>
+        </button>
+        {divAberto && (
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              Prestações de contas pagas no sistema sem crédito correspondente no extrato bancário (±3 dias, diferença &lt; 5%).
             </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Revendedora</TableHead>
-                    <TableHead>Representante</TableHead>
-                    <TableHead className="text-right">Valor Esperado</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {divergencias.map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell>{fmtData(d.data)}</TableCell>
-                      <TableCell>{d.revendedora}</TableCell>
-                      <TableCell className="text-xs">{d.representante}</TableCell>
-                      <TableCell className="text-right font-medium">{fmt(d.valor)}</TableCell>
-                      <TableCell>
-                        <span className="text-xs text-amber-600 font-medium">
-                          Não encontrado no extrato
-                        </span>
-                      </TableCell>
+            {divergencias.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma divergência detectada no período.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Revendedora</TableHead>
+                      <TableHead>Representante</TableHead>
+                      <TableHead className="text-right">Valor Esperado</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
+                  </TableHeader>
+                  <TableBody>
+                    {divergencias.map((d) => (
+                      <TableRow key={d.id}>
+                        <TableCell>{fmtData(d.data)}</TableCell>
+                        <TableCell>{d.revendedora}</TableCell>
+                        <TableCell className="text-xs">{d.representante}</TableCell>
+                        <TableCell className="text-right font-medium">{fmt(d.valor)}</TableCell>
+                        <TableCell>
+                          <span className="text-xs text-amber-600 font-medium">
+                            Não encontrado no extrato
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
 
 
