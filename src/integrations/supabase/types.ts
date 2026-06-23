@@ -2438,6 +2438,10 @@ export type Database = {
         Args: { p_kit_entregue_id: string }
         Returns: number
       }
+      has_menu_access: {
+        Args: { _menu_key: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
