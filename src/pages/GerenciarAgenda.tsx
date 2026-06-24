@@ -282,28 +282,34 @@ export default function GerenciarAgenda() {
 
 
       
+      // Mapeia situação para os campos reais da nota
+      const isParcial = data.situacao === 'parcial';
+      const tipoMapeado = isParcial ? 'repasse' : 'kit';
+      const statusMapeado: 'pendente' | 'parcial' = isParcial ? 'parcial' : 'pendente';
+
       // Sanitize input data
       const insertData = {
         representante_id: data.representante_id,
         revendedora: sanitizeString(data.revendedora),
         codigo_nota: data.codigo_nota ? sanitizeString(data.codigo_nota) : null,
-        tipo: data.tipo ? sanitizeString(data.tipo) : null,
+        tipo: tipoMapeado,
         valor_previsto: valorNumerico,
+        valor_kit_original: isParcial ? null : valorNumerico,
         data_agendada: data.data_agendada,
-        status: 'pendente' as const,
+        status: statusMapeado,
         observacoes: data.observacoes ? sanitizeString(data.observacoes) : null,
       };
-      
+
       // Validate with schema
       const validation = validateData(cobrancaInsertSchema, insertData);
       if (!validation.success) {
         throw new Error((validation as { success: false; errors: string[] }).errors.join(', '));
       }
-      
+
       const { error } = await supabase
         .from('cobrancas_agendadas')
         .insert(insertData);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
