@@ -100,11 +100,19 @@ export default function GerenciarAgenda() {
   });
   const [revendedoraOriginal, setRevendedoraOriginal] = useState('');
 
-  const [createFormData, setCreateFormData] = useState({
+  const [createFormData, setCreateFormData] = useState<{
+    representante_id: string;
+    revendedora: string;
+    codigo_nota: string;
+    situacao: 'pendente' | 'parcial';
+    valor_previsto: string;
+    data_agendada: string;
+    observacoes: string;
+  }>({
     representante_id: '',
     revendedora: '',
     codigo_nota: '',
-    tipo: 'kit',
+    situacao: 'pendente',
     valor_previsto: '',
     data_agendada: getLocalDateString(),
     observacoes: '',
