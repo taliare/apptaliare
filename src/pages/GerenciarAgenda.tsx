@@ -22,6 +22,8 @@ import { formatarValor, formatDateBR, parseLocalDate, getLocalDateString } from 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cobrancaInsertSchema, cobrancaUpdateSchema, validateData, sanitizeString, parseMonetaryValue } from '@/lib/validations';
 import { RevendedoraSearchSelect } from '@/components/RevendedoraSearchSelect';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { ImportNotasDialog, exportarNotasXlsx, baixarModeloNotas } from '@/components/agenda/ImportNotasDialog';
 
 type StatusCobranca = Database['public']['Enums']['status_cobranca'];
 type Cobranca = Database['public']['Tables']['cobrancas_agendadas']['Row'] & {
@@ -63,6 +65,7 @@ export default function GerenciarAgenda() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   
   // Seleção em massa
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -734,10 +737,33 @@ export default function GerenciarAgenda() {
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)} className="shrink-0">
-          <Plus className="h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">Cadastrar Nova Nota</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="shrink-0">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Nova Nota</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setIsCreateDialogOpen(true)}>
+              Cadastrar nota
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)}>
+              Importar (Excel)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={async () => {
+              const r = await exportarNotasXlsx(cobrancasFiltradas);
+              if (!r.ok) toast({ title: r.message || 'Nada para exportar', variant: 'destructive' });
+              else toast({ title: `Exportadas ${r.count} nota(s)` });
+            }}>
+              Exportar (Excel)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => baixarModeloNotas()}>
+              Baixar modelo
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <ImportNotasDialog open={isImportDialogOpen} onClose={() => setIsImportDialogOpen(false)} />
       </div>
 
       <Card>

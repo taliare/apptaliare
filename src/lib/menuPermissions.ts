@@ -69,7 +69,7 @@ export const ALL_MENUS: MenuModule[] = [
   { key: "relatorio_kpis",        label: "Relatório KPIs",       route: "/relatorio-kpis",        category: "RELATÓRIOS",  iconName: "BarChart3" },
   { key: "analise_comercial",     label: "Análise de Desempenho",route: "/analise-comercial",     category: "RELATÓRIOS",  iconName: "LineChart" },
   { key: "auditoria_geral",       label: "Auditoria Geral",      route: "/auditoria-geral",       category: "RELATÓRIOS",  iconName: "ClipboardList" },
-  { key: "importar_cobrancas",    label: "Importar Cobranças",   route: "/importar-cobrancas",    category: "RELATÓRIOS",  iconName: "Upload" },
+  
 ];
 
 export type MenuKey = (typeof ALL_MENUS)[number]["key"];
