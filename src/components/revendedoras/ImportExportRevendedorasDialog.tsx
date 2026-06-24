@@ -296,8 +296,8 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
                         <TableCell>{l.nome}</TableCell>
                         <TableCell className="text-xs">{l.representante_email}</TableCell>
                         <TableCell>
-                          {l.status === 'valida' && <Badge>Válida</Badge>}
-                          {l.status === 'existe' && <Badge variant="secondary">Já existe</Badge>}
+                          {l.status === 'nova' && <Badge>Nova</Badge>}
+                          {l.status === 'atualizar' && <Badge variant="secondary">Atualizar</Badge>}
                           {l.status === 'erro' && <Badge variant="destructive">Erro</Badge>}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{l.erro}</TableCell>
