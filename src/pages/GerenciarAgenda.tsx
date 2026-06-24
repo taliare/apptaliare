@@ -1203,19 +1203,24 @@ export default function GerenciarAgenda() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Tipo</Label>
+                <Label>Situação *</Label>
                 <Select
-                  value={createFormData.tipo}
-                  onValueChange={(value) => setCreateFormData({ ...createFormData, tipo: value })}
+                  value={createFormData.situacao}
+                  onValueChange={(value) => setCreateFormData({ ...createFormData, situacao: value as 'pendente' | 'parcial' })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="kit">Kit</SelectItem>
-                    <SelectItem value="repasse">Repasse</SelectItem>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="parcial">Parcial</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {createFormData.situacao === 'parcial'
+                    ? 'A prestação já foi feita — informe direto o valor que a empresa tem a receber.'
+                    : 'Nota nova — a revendedora ainda fará a prestação de contas (devolução/comissão).'}
+                </p>
               </div>
               <div>
                 <Label>Valor *</Label>
