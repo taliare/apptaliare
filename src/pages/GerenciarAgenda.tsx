@@ -168,13 +168,19 @@ export default function GerenciarAgenda() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
       // Sanitize input data
-      const sanitizedData = {
-        ...data,
-        revendedora: data.revendedora ? sanitizeString(data.revendedora) : undefined,
-        codigo_nota: data.codigo_nota ? sanitizeString(data.codigo_nota) : null,
-        tipo: data.tipo ? sanitizeString(data.tipo) : null,
-        observacoes: data.observacoes ? sanitizeString(data.observacoes) : null,
-      };
+      const sanitizedData: any = { ...data };
+      if ('revendedora' in data) {
+        sanitizedData.revendedora = data.revendedora ? sanitizeString(data.revendedora) : undefined;
+      }
+      if ('codigo_nota' in data) {
+        sanitizedData.codigo_nota = data.codigo_nota ? sanitizeString(data.codigo_nota) : null;
+      }
+      if ('tipo' in data) {
+        sanitizedData.tipo = data.tipo ? sanitizeString(data.tipo) : null;
+      }
+      if ('observacoes' in data) {
+        sanitizedData.observacoes = data.observacoes ? sanitizeString(data.observacoes) : null;
+      }
       
       // Validate with schema
       const validation = validateData(cobrancaUpdateSchema, sanitizedData);
