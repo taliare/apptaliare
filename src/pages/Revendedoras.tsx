@@ -90,7 +90,7 @@ export default function Revendedoras() {
   const [representanteFiltro, setRepresentanteFiltro] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  
   const [importExportOpen, setImportExportOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [formEditId, setFormEditId] = useState<string | null>(null);
