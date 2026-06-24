@@ -720,7 +720,7 @@ export default function GerenciarAgenda() {
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)} size="icon" className="sm:size-default shrink-0">
+        <Button onClick={() => setIsCreateDialogOpen(true)} className="shrink-0">
           <Plus className="h-4 w-4 sm:mr-2" />
           <span className="hidden sm:inline">Cadastrar Nova Nota</span>
         </Button>
