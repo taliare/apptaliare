@@ -100,11 +100,19 @@ export default function GerenciarAgenda() {
   });
   const [revendedoraOriginal, setRevendedoraOriginal] = useState('');
 
-  const [createFormData, setCreateFormData] = useState({
+  const [createFormData, setCreateFormData] = useState<{
+    representante_id: string;
+    revendedora: string;
+    codigo_nota: string;
+    situacao: 'pendente' | 'parcial';
+    valor_previsto: string;
+    data_agendada: string;
+    observacoes: string;
+  }>({
     representante_id: '',
     revendedora: '',
     codigo_nota: '',
-    tipo: 'kit',
+    situacao: 'pendente',
     valor_previsto: '',
     data_agendada: getLocalDateString(),
     observacoes: '',
@@ -274,28 +282,34 @@ export default function GerenciarAgenda() {
 
 
       
+      // Mapeia situação para os campos reais da nota
+      const isParcial = data.situacao === 'parcial';
+      const tipoMapeado = isParcial ? 'repasse' : 'kit';
+      const statusMapeado: 'pendente' | 'parcial' = isParcial ? 'parcial' : 'pendente';
+
       // Sanitize input data
       const insertData = {
         representante_id: data.representante_id,
         revendedora: sanitizeString(data.revendedora),
         codigo_nota: data.codigo_nota ? sanitizeString(data.codigo_nota) : null,
-        tipo: data.tipo ? sanitizeString(data.tipo) : null,
+        tipo: tipoMapeado,
         valor_previsto: valorNumerico,
+        valor_kit_original: isParcial ? null : valorNumerico,
         data_agendada: data.data_agendada,
-        status: 'pendente' as const,
+        status: statusMapeado,
         observacoes: data.observacoes ? sanitizeString(data.observacoes) : null,
       };
-      
+
       // Validate with schema
       const validation = validateData(cobrancaInsertSchema, insertData);
       if (!validation.success) {
         throw new Error((validation as { success: false; errors: string[] }).errors.join(', '));
       }
-      
+
       const { error } = await supabase
         .from('cobrancas_agendadas')
         .insert(insertData);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -306,7 +320,7 @@ export default function GerenciarAgenda() {
         representante_id: '',
         revendedora: '',
         codigo_nota: '',
-        tipo: 'kit',
+        situacao: 'pendente',
         valor_previsto: '',
         data_agendada: format(new Date(), 'yyyy-MM-dd'),
         observacoes: '',
@@ -1189,22 +1203,27 @@ export default function GerenciarAgenda() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Tipo</Label>
+                <Label>Situação *</Label>
                 <Select
-                  value={createFormData.tipo}
-                  onValueChange={(value) => setCreateFormData({ ...createFormData, tipo: value })}
+                  value={createFormData.situacao}
+                  onValueChange={(value) => setCreateFormData({ ...createFormData, situacao: value as 'pendente' | 'parcial' })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="kit">Kit</SelectItem>
-                    <SelectItem value="repasse">Repasse</SelectItem>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="parcial">Parcial</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {createFormData.situacao === 'parcial'
+                    ? 'A prestação já foi feita — informe direto o valor que a empresa tem a receber.'
+                    : 'Nota nova — a revendedora ainda fará a prestação de contas (devolução/comissão).'}
+                </p>
               </div>
               <div>
-                <Label>Valor *</Label>
+                <Label>Valor * <span className="text-xs font-normal text-muted-foreground">({createFormData.situacao === 'parcial' ? 'a receber' : 'do kit'})</span></Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     R$
