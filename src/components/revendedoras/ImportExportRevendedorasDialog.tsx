@@ -274,9 +274,9 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
           {linhas.length > 0 && (
             <>
               <div className="flex gap-2 flex-wrap">
-                <Badge variant="default">{cValidas} válidas</Badge>
-                <Badge variant="secondary">{cExiste} já existem</Badge>
-                <Badge variant="destructive">{cErro} erros</Badge>
+                <Badge variant="default">{cNovas} nova(s)</Badge>
+                <Badge variant="secondary">{cAtualizar} atualizar</Badge>
+                <Badge variant="destructive">{cErro} erro(s)</Badge>
               </div>
               <div className="border rounded-md overflow-x-auto">
                 <Table>
