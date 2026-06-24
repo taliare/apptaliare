@@ -16,13 +16,14 @@ const COLUNAS = [
   'cep','logradouro','numero','complemento','bairro','cidade','estado','observacoes'
 ] as const;
 
-type Status = 'valida' | 'erro' | 'existe';
+type Status = 'nova' | 'atualizar' | 'erro';
 
 interface LinhaProcessada {
   linha: number;
   nome: string;
   representante_email: string;
   representante_id?: string;
+  existente_id?: string;
   cpf?: string;
   whatsapp?: string;
   data_nascimento?: string | null;
