@@ -26,7 +26,7 @@ export const MENU_LAYOUTS: Record<MenuLayoutRole, MenuLayoutCategory[]> = {
     { id: "revendedoras", label: "REVENDEDORAS",      iconName: "Users",        menuKeys: ["revendedoras", "crm", "garantias"] },
     { id: "comercial",    label: "COBRANÇA & VENDAS", iconName: "Calendar",     menuKeys: ["gerenciar_agenda", "fechamento_diario", "venda_externa", "metas"] },
     { id: "financeiro",   label: "FINANCEIRO",        iconName: "Wallet",       menuKeys: ["fluxo_caixa", "dre_resumo", "dre_despesas", "dre_categorias", "juridico"] },
-    { id: "relatorios",   label: "RELATÓRIOS",        iconName: "BarChart3",    menuKeys: ["relatorio_kpis", "analise_comercial", "auditoria_geral", "importar_cobrancas"] },
+    { id: "relatorios",   label: "RELATÓRIOS",        iconName: "BarChart3",    menuKeys: ["relatorio_kpis", "analise_comercial", "auditoria_geral"] },
     { id: "sistema",      label: "SISTEMA",           iconName: "Shield",       menuKeys: ["usuarios", "grupos_permissoes", "configuracao_pdf"] },
   ],
   representante: [
