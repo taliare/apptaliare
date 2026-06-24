@@ -320,7 +320,7 @@ export default function GerenciarAgenda() {
         representante_id: '',
         revendedora: '',
         codigo_nota: '',
-        tipo: 'kit',
+        situacao: 'pendente',
         valor_previsto: '',
         data_agendada: format(new Date(), 'yyyy-MM-dd'),
         observacoes: '',
