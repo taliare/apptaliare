@@ -317,9 +317,9 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={handleClose}>Cancelar</Button>
-          <Button onClick={importar} disabled={importando || cValidas === 0}>
+          <Button onClick={importar} disabled={importando || (cNovas + cAtualizar) === 0}>
             {importando ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-            Importar {cValidas} válida(s)
+            Importar ({cNovas} nova(s) + {cAtualizar} atualizar)
           </Button>
         </div>
       </DialogContent>
