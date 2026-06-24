@@ -228,12 +228,33 @@ export default function Revendedoras() {
 
         <TabsContent value="listagem">
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2 flex-wrap">
               <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
                 <Upload className="h-4 w-4" />
                 Importar WhatsApp
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Importar / Exportar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={baixarModeloRevendedoras}>
+                    <Download className="h-4 w-4 mr-2" /> Baixar modelo (Excel)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setImportExportOpen(true)}>
+                    <FileUp className="h-4 w-4 mr-2" /> Importar revendedoras (Excel)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => exportarRevendedorasXlsx(representanteFiltro)}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar revendedoras (Excel)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+
 
             {/* Busca + botão Filtrar */}
             <Card>
