@@ -455,6 +455,11 @@ export default function Revendedoras() {
               onClose={() => setImportDialogOpen(false)}
               onSuccess={() => queryClient.invalidateQueries({ queryKey: ['revendedoras-admin'] })}
             />
+            <ImportExportRevendedorasDialog
+              open={importExportOpen}
+              onClose={() => setImportExportOpen(false)}
+            />
+
           </div>
         </TabsContent>
 
