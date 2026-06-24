@@ -91,6 +91,7 @@ export default function Revendedoras() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importExportOpen, setImportExportOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [formEditId, setFormEditId] = useState<string | null>(null);
   const [perfilAberto, setPerfilAberto] = useState<{ nome: string; id: string | null } | null>(null);
