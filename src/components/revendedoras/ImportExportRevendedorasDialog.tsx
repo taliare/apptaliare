@@ -16,13 +16,14 @@ const COLUNAS = [
   'cep','logradouro','numero','complemento','bairro','cidade','estado','observacoes'
 ] as const;
 
-type Status = 'valida' | 'erro' | 'existe';
+type Status = 'nova' | 'atualizar' | 'erro';
 
 interface LinhaProcessada {
   linha: number;
   nome: string;
   representante_email: string;
   representante_id?: string;
+  existente_id?: string;
   cpf?: string;
   whatsapp?: string;
   data_nascimento?: string | null;
@@ -113,7 +114,7 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
         const nome = String(row.nome ?? '').trim();
         const rep_email = String(row.representante_email ?? '').toLowerCase().trim();
         const base: LinhaProcessada = {
-          linha, nome, representante_email: rep_email, status: 'valida',
+          linha, nome, representante_email: rep_email, status: 'nova',
         };
         if (!nome) return { ...base, status: 'erro', erro: 'Nome obrigatório' };
         if (!rep_email) return { ...base, status: 'erro', erro: 'representante_email obrigatório' };
@@ -138,31 +139,32 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
           cidade: String(row.cidade ?? '').trim() || undefined,
           estado: String(row.estado ?? '').trim() || undefined,
           observacoes: String(row.observacoes ?? '').trim() || undefined,
-          status: 'valida',
+          status: 'nova',
         };
       });
 
-      // Deduplicação: buscar existentes
+      // Buscar existentes para matching (id por CPF ou nome+rep)
       const cpfs = [...new Set(pre.filter(p => p.cpf).map(p => p.cpf!))];
       const repIdsUsados = [...new Set(pre.filter(p => p.representante_id).map(p => p.representante_id!))];
 
-      const existCpf = new Set<string>();
-      const existNomeRep = new Set<string>(); // `${nome_norm}::${rep_id}`
+      const idByCpf = new Map<string, string>();
+      const idByNomeRep = new Map<string, string>();
 
       if (cpfs.length > 0) {
-        const { data } = await supabase.from('revendedoras').select('cpf').in('cpf', cpfs);
-        (data || []).forEach((r: any) => { if (r.cpf) existCpf.add(r.cpf); });
+        const { data } = await supabase.from('revendedoras').select('id, cpf').in('cpf', cpfs);
+        (data || []).forEach((r: any) => { if (r.cpf) idByCpf.set(r.cpf, r.id); });
       }
       if (repIdsUsados.length > 0) {
-        const { data } = await supabase.from('revendedoras').select('nome, representante_id').in('representante_id', repIdsUsados);
-        (data || []).forEach((r: any) => existNomeRep.add(`${norm(r.nome)}::${r.representante_id}`));
+        const { data } = await supabase.from('revendedoras').select('id, nome, representante_id').in('representante_id', repIdsUsados);
+        (data || []).forEach((r: any) => idByNomeRep.set(`${norm(r.nome)}::${r.representante_id}`, r.id));
       }
 
       const final = pre.map(p => {
         if (p.status === 'erro') return p;
-        if (p.cpf && existCpf.has(p.cpf)) return { ...p, status: 'existe' as Status, erro: 'CPF já cadastrado' };
-        if (existNomeRep.has(`${norm(p.nome)}::${p.representante_id}`))
-          return { ...p, status: 'existe' as Status, erro: 'Já cadastrada para este representante' };
+        const matchCpf = p.cpf ? idByCpf.get(p.cpf) : undefined;
+        const matchNomeRep = idByNomeRep.get(`${norm(p.nome)}::${p.representante_id}`);
+        const existente_id = matchCpf || matchNomeRep;
+        if (existente_id) return { ...p, status: 'atualizar' as Status, existente_id };
         return p;
       });
 
@@ -176,42 +178,62 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
   };
 
   const importar = async () => {
-    const validas = linhas.filter(l => l.status === 'valida');
-    if (validas.length === 0) {
-      toast.error('Nenhuma linha válida para importar');
+    const processaveis = linhas.filter(l => l.status === 'nova' || l.status === 'atualizar');
+    if (processaveis.length === 0) {
+      toast.error('Nenhuma linha para importar');
       return;
     }
     setImportando(true);
     let inseridas = 0;
+    let atualizadas = 0;
     const erros: string[] = [];
 
-    for (const l of validas) {
-      const { error } = await supabase.from('revendedoras').insert({
-        representante_id: l.representante_id!,
-        nome: l.nome,
-        cpf: l.cpf ?? null,
-        whatsapp: l.whatsapp ?? null,
-        data_nascimento: l.data_nascimento ?? null,
-        email: l.email ?? null,
-        cep: l.cep ?? null,
-        logradouro: l.logradouro ?? null,
-        numero: l.numero ?? null,
-        complemento: l.complemento ?? null,
-        bairro: l.bairro ?? null,
-        cidade: l.cidade ?? null,
-        estado: l.estado ?? null,
-        observacoes: l.observacoes ?? null,
-        ativo: true,
-      });
-      if (error) erros.push(`Linha ${l.linha} (${l.nome}): ${error.message}`);
-      else inseridas++;
+    for (const l of processaveis) {
+      if (l.status === 'nova') {
+        const { error } = await supabase.from('revendedoras').insert({
+          representante_id: l.representante_id!,
+          nome: l.nome,
+          cpf: l.cpf ?? null,
+          whatsapp: l.whatsapp ?? null,
+          data_nascimento: l.data_nascimento ?? null,
+          email: l.email ?? null,
+          cep: l.cep ?? null,
+          logradouro: l.logradouro ?? null,
+          numero: l.numero ?? null,
+          complemento: l.complemento ?? null,
+          bairro: l.bairro ?? null,
+          cidade: l.cidade ?? null,
+          estado: l.estado ?? null,
+          observacoes: l.observacoes ?? null,
+          ativo: true,
+        });
+        if (error) erros.push(`Linha ${l.linha} (${l.nome}): ${error.message}`);
+        else inseridas++;
+      } else {
+        // UPDATE: só campos preenchidos
+        const patch: Record<string, any> = { atualizado_em: new Date().toISOString() };
+        const setIf = (k: string, v: any) => { if (v !== undefined && v !== null && v !== '') patch[k] = v; };
+        setIf('nome', l.nome);
+        setIf('cpf', l.cpf);
+        setIf('whatsapp', l.whatsapp);
+        setIf('data_nascimento', l.data_nascimento);
+        setIf('email', l.email);
+        setIf('cep', l.cep);
+        setIf('logradouro', l.logradouro);
+        setIf('numero', l.numero);
+        setIf('complemento', l.complemento);
+        setIf('bairro', l.bairro);
+        setIf('cidade', l.cidade);
+        setIf('estado', l.estado);
+        setIf('observacoes', l.observacoes);
+        const { error } = await supabase.from('revendedoras').update(patch).eq('id', l.existente_id!);
+        if (error) erros.push(`Linha ${l.linha} (${l.nome}): ${error.message}`);
+        else atualizadas++;
+      }
     }
 
-    const jaExistiam = linhas.filter(l => l.status === 'existe').length;
-    const errosPre = linhas.filter(l => l.status === 'erro').length;
-
     toast.success(
-      `${inseridas} inserida(s) · ${jaExistiam} já existiam · ${errosPre + erros.length} erro(s)`
+      `${inseridas} criada(s) · ${atualizadas} atualizada(s) · ${erros.length} erro(s)`
     );
     if (erros.length) console.error('Erros importação:', erros);
     qc.invalidateQueries({ queryKey: ['revendedoras-admin'] });
@@ -219,8 +241,8 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
     handleClose();
   };
 
-  const cValidas = linhas.filter(l => l.status === 'valida').length;
-  const cExiste = linhas.filter(l => l.status === 'existe').length;
+  const cNovas = linhas.filter(l => l.status === 'nova').length;
+  const cAtualizar = linhas.filter(l => l.status === 'atualizar').length;
   const cErro = linhas.filter(l => l.status === 'erro').length;
 
   return (
@@ -252,9 +274,9 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
           {linhas.length > 0 && (
             <>
               <div className="flex gap-2 flex-wrap">
-                <Badge variant="default">{cValidas} válidas</Badge>
-                <Badge variant="secondary">{cExiste} já existem</Badge>
-                <Badge variant="destructive">{cErro} erros</Badge>
+                <Badge variant="default">{cNovas} nova(s)</Badge>
+                <Badge variant="secondary">{cAtualizar} atualizar</Badge>
+                <Badge variant="destructive">{cErro} erro(s)</Badge>
               </div>
               <div className="border rounded-md overflow-x-auto">
                 <Table>
@@ -274,8 +296,8 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
                         <TableCell>{l.nome}</TableCell>
                         <TableCell className="text-xs">{l.representante_email}</TableCell>
                         <TableCell>
-                          {l.status === 'valida' && <Badge>Válida</Badge>}
-                          {l.status === 'existe' && <Badge variant="secondary">Já existe</Badge>}
+                          {l.status === 'nova' && <Badge>Nova</Badge>}
+                          {l.status === 'atualizar' && <Badge variant="secondary">Atualizar</Badge>}
                           {l.status === 'erro' && <Badge variant="destructive">Erro</Badge>}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{l.erro}</TableCell>
@@ -295,9 +317,9 @@ export function ImportExportRevendedorasDialog({ open, onClose }: Props) {
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button variant="outline" onClick={handleClose}>Cancelar</Button>
-          <Button onClick={importar} disabled={importando || cValidas === 0}>
+          <Button onClick={importar} disabled={importando || (cNovas + cAtualizar) === 0}>
             {importando ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-            Importar {cValidas} válida(s)
+            Importar ({cNovas} nova(s) + {cAtualizar} atualizar)
           </Button>
         </div>
       </DialogContent>

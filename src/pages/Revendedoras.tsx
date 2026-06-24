@@ -16,7 +16,7 @@ import MapaRevendedoras from '@/components/revendedoras/MapaRevendedoras';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
-import { ImportWhatsAppDialog } from '@/components/revendedoras/ImportWhatsAppDialog';
+
 import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 import { StatusRevendedoraBadge } from '@/components/revendedoras/StatusRevendedoraBadge';
 import { PerfilRevendedoraDialog } from '@/components/revendedoras/PerfilRevendedoraDialog';
@@ -90,7 +90,7 @@ export default function Revendedoras() {
   const [representanteFiltro, setRepresentanteFiltro] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  
   const [importExportOpen, setImportExportOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [formEditId, setFormEditId] = useState<string | null>(null);
@@ -229,10 +229,6 @@ export default function Revendedoras() {
         <TabsContent value="listagem">
           <div className="space-y-4">
             <div className="flex justify-end gap-2 flex-wrap">
-              <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
-                <Upload className="h-4 w-4" />
-                Importar WhatsApp
-              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-2">
@@ -450,11 +446,6 @@ export default function Revendedoras() {
               </CardContent>
             </Card>
 
-            <ImportWhatsAppDialog
-              open={importDialogOpen}
-              onClose={() => setImportDialogOpen(false)}
-              onSuccess={() => queryClient.invalidateQueries({ queryKey: ['revendedoras-admin'] })}
-            />
             <ImportExportRevendedorasDialog
               open={importExportOpen}
               onClose={() => setImportExportOpen(false)}
