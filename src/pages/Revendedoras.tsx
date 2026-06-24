@@ -229,10 +229,6 @@ export default function Revendedoras() {
         <TabsContent value="listagem">
           <div className="space-y-4">
             <div className="flex justify-end gap-2 flex-wrap">
-              <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
-                <Upload className="h-4 w-4" />
-                Importar WhatsApp
-              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="gap-2">
