@@ -446,11 +446,6 @@ export default function Revendedoras() {
               </CardContent>
             </Card>
 
-            <ImportWhatsAppDialog
-              open={importDialogOpen}
-              onClose={() => setImportDialogOpen(false)}
-              onSuccess={() => queryClient.invalidateQueries({ queryKey: ['revendedoras-admin'] })}
-            />
             <ImportExportRevendedorasDialog
               open={importExportOpen}
               onClose={() => setImportExportOpen(false)}
