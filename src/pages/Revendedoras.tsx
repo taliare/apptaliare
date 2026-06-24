@@ -16,7 +16,7 @@ import MapaRevendedoras from '@/components/revendedoras/MapaRevendedoras';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
-import { ImportWhatsAppDialog } from '@/components/revendedoras/ImportWhatsAppDialog';
+
 import { RevendedoraFormDialog } from '@/components/revendedoras/RevendedoraFormDialog';
 import { StatusRevendedoraBadge } from '@/components/revendedoras/StatusRevendedoraBadge';
 import { PerfilRevendedoraDialog } from '@/components/revendedoras/PerfilRevendedoraDialog';
