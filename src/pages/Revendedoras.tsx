@@ -6,8 +6,10 @@ import { Dialog } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Search, Upload, Plus, MessageCircle, MapPin, User as UserIcon, Filter, X } from 'lucide-react';
+import { Users, Search, Upload, Plus, MessageCircle, MapPin, User as UserIcon, Filter, X, FileSpreadsheet, Download, FileUp } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { ImportExportRevendedorasDialog, exportarRevendedorasXlsx, baixarModeloRevendedoras } from '@/components/revendedoras/ImportExportRevendedorasDialog';
 import { Badge } from '@/components/ui/badge';
 import RankingRevendedoras from '@/components/revendedoras/RankingRevendedoras';
 import MapaRevendedoras from '@/components/revendedoras/MapaRevendedoras';
@@ -89,6 +91,7 @@ export default function Revendedoras() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importExportOpen, setImportExportOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [formEditId, setFormEditId] = useState<string | null>(null);
   const [perfilAberto, setPerfilAberto] = useState<{ nome: string; id: string | null } | null>(null);
@@ -225,12 +228,33 @@ export default function Revendedoras() {
 
         <TabsContent value="listagem">
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2 flex-wrap">
               <Button onClick={() => setImportDialogOpen(true)} variant="outline" className="gap-2">
                 <Upload className="h-4 w-4" />
                 Importar WhatsApp
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Importar / Exportar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={baixarModeloRevendedoras}>
+                    <Download className="h-4 w-4 mr-2" /> Baixar modelo (Excel)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setImportExportOpen(true)}>
+                    <FileUp className="h-4 w-4 mr-2" /> Importar revendedoras (Excel)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => exportarRevendedorasXlsx(representanteFiltro)}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" /> Exportar revendedoras (Excel)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+
 
             {/* Busca + botão Filtrar */}
             <Card>
@@ -431,6 +455,11 @@ export default function Revendedoras() {
               onClose={() => setImportDialogOpen(false)}
               onSuccess={() => queryClient.invalidateQueries({ queryKey: ['revendedoras-admin'] })}
             />
+            <ImportExportRevendedorasDialog
+              open={importExportOpen}
+              onClose={() => setImportExportOpen(false)}
+            />
+
           </div>
         </TabsContent>
 
