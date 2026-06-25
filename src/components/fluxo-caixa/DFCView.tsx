@@ -947,6 +947,84 @@ export function DFCView() {
         )}
       </Card>
 
+      {/* Conferência de Pagamentos (nota × fechamento) */}
+      <Card className={conferenciaPagamentos.length > 0 ? "border-amber-500/40" : ""}>
+        <button
+          onClick={() => setConfAberto(!confAberto)}
+          className="w-full text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-t-xl"
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 py-4">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className={`h-4 w-4 ${conferenciaPagamentos.length > 0 ? "text-amber-500" : "text-muted-foreground"}`} />
+              Conferência de Pagamentos (nota × fechamento) ({conferenciaPagamentos.length})
+            </CardTitle>
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${confAberto ? "rotate-180" : ""}`} />
+          </CardHeader>
+        </button>
+        {confAberto && (
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              Cruza o valor pago registrado na nota com os pagamentos lançados no fechamento.
+              Notas anteriores a abr/2026 (importação legada) ficam de fora por padrão.
+            </p>
+            <label className="flex items-center gap-2 text-xs mb-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={incluirLegadas}
+                onChange={(e) => setIncluirLegadas(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Incluir notas antigas (legadas)
+            </label>
+            {conferenciaPagamentos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma divergência — pagamentos das notas batem com o fechamento.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Revendedora</TableHead>
+                      <TableHead>Representante</TableHead>
+                      <TableHead className="text-right">Pago na nota</TableHead>
+                      <TableHead className="text-right">No fechamento</TableHead>
+                      <TableHead className="text-right">Diferença</TableHead>
+                      <TableHead>Tipo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {conferenciaPagamentos.map((r) => {
+                      const fantasma = r.diferenca > 0;
+                      return (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-mono text-xs">{r.codigo_nota || "—"}</TableCell>
+                          <TableCell>{r.revendedora}</TableCell>
+                          <TableCell className="text-xs">{r.representante}</TableCell>
+                          <TableCell className="text-right">{fmt(r.pago_nota)}</TableCell>
+                          <TableCell className="text-right">{fmt(r.soma_fechamento)}</TableCell>
+                          <TableCell className={`text-right font-semibold ${fantasma ? "text-red-600" : "text-amber-600"}`}>
+                            {fmt(r.diferenca)}
+                          </TableCell>
+                          <TableCell>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${fantasma ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                              {fantasma ? "Pago na nota sem lastro no fechamento" : "Fechamento maior que o pago na nota"}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
+
+
 
 
       {/* Entradas */}
