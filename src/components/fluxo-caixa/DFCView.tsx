@@ -91,7 +91,7 @@ export function DFCView() {
     queryFn: async () => {
       let q = supabase
         .from("cobrancas_agendadas")
-        .select("id, codigo_nota, revendedora, representante_id, valor_pago_acumulado, criado_em")
+        .select("id, codigo_nota, revendedora, representante_id, valor_pago_acumulado, valor_adiantado, criado_em")
         .gt("valor_pago_acumulado", 0);
       if (!incluirLegadas) q = q.gte("criado_em", "2026-04-01");
       const { data: notas, error } = await q;
@@ -120,7 +120,7 @@ export function DFCView() {
 
       return notas
         .map((n) => {
-          const pago = Number(n.valor_pago_acumulado || 0);
+          const pago = Number(n.valor_pago_acumulado || 0) + Number(n.valor_adiantado || 0);
           const soma = somaPorCobranca.get(n.id) || 0;
           const diferenca = pago - soma;
           return {
