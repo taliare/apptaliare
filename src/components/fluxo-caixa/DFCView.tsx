@@ -82,6 +82,61 @@ export function DFCView() {
   const [mes, setMes] = useState(String(new Date().getMonth() + 1).padStart(2, "0"));
   const [drill, setDrill] = useState<DrillType>(null);
   const [divAberto, setDivAberto] = useState(false);
+  const [confAberto, setConfAberto] = useState(false);
+  const [incluirLegadas, setIncluirLegadas] = useState(false);
+
+  // Conferência de Pagamentos: nota (valor_pago_acumulado) × fechamento (soma notas_promissorias)
+  const { data: conferenciaPagamentos = [] } = useQuery({
+    queryKey: ["conferencia-pagamentos", incluirLegadas],
+    queryFn: async () => {
+      let q = supabase
+        .from("cobrancas_agendadas")
+        .select("id, codigo_nota, revendedora, representante_id, valor_pago_acumulado, criado_em")
+        .gt("valor_pago_acumulado", 0);
+      if (!incluirLegadas) q = q.gte("criado_em", "2026-04-01");
+      const { data: notas, error } = await q;
+      if (error) throw error;
+      if (!notas || notas.length === 0) return [];
+
+      const ids = notas.map((n) => n.id);
+      const { data: proms } = await supabase
+        .from("notas_promissorias")
+        .select("cobranca_id, valor_total")
+        .in("cobranca_id", ids);
+      const somaPorCobranca = new Map<string, number>();
+      (proms || []).forEach((p: any) => {
+        somaPorCobranca.set(p.cobranca_id, (somaPorCobranca.get(p.cobranca_id) || 0) + Number(p.valor_total || 0));
+      });
+
+      const repIds = Array.from(new Set(notas.map((n) => n.representante_id).filter(Boolean)));
+      const repMap = new Map<string, string>();
+      if (repIds.length) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("id, nome")
+          .in("id", repIds as string[]);
+        (profs || []).forEach((p: any) => repMap.set(p.id, p.nome));
+      }
+
+      return notas
+        .map((n) => {
+          const pago = Number(n.valor_pago_acumulado || 0);
+          const soma = somaPorCobranca.get(n.id) || 0;
+          const diferenca = pago - soma;
+          return {
+            id: n.id,
+            codigo_nota: n.codigo_nota,
+            revendedora: n.revendedora,
+            representante: repMap.get(n.representante_id) || "—",
+            pago_nota: pago,
+            soma_fechamento: soma,
+            diferenca,
+          };
+        })
+        .filter((r) => Math.abs(r.diferenca) > 0.01)
+        .sort((a, b) => Math.abs(b.diferenca) - Math.abs(a.diferenca));
+    },
+  });
   const queryClient = useQueryClient();
 
   // Edit/delete state for despesas
