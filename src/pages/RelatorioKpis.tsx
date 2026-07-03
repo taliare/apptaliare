@@ -1006,7 +1006,44 @@ export default function RelatorioKpis() {
     return { vencidas30, campo90, repsSem7d, repBaixo, revAcumulo };
   }, [cobrAbertas, profilesAll, repsAtivos7d, pessoas.ranking]);
 
+  // ─── Notas a cobrar no mês por representante ───
+  const notasPorRep = useMemo(() => {
+    const nomeRep = pessoas.nomeRep;
+    const map = new Map<string, NotaPorRep>();
+    const notasMes = cobrAtual.filter(
+      c => c.status !== "cancelado" && Number(c.valor_previsto || 0) > 0
+    );
+
+    for (const c of notasMes) {
+      const rid = c.representante_id ?? "";
+      if (!map.has(rid)) {
+        map.set(rid, {
+          id: rid,
+          nome: nomeRep.get(rid) ?? (rid ? "(sem rep)" : "Sem representante"),
+          total: 0,
+          quitadas: 0,
+          parciais: 0,
+          pendentes: 0,
+        });
+      }
+      const r = map.get(rid)!;
+      r.total += 1;
+      if (c.status === "pago") r.quitadas += 1;
+      else if (c.status === "parcial") r.parciais += 1;
+      else if (c.status === "pendente") r.pendentes += 1;
+    }
+
+    const rows = Array.from(map.values()).sort((a, b) => b.total - a.total);
+    const total = rows.reduce((s, r) => s + r.total, 0);
+    const quitadas = rows.reduce((s, r) => s + r.quitadas, 0);
+    const parciais = rows.reduce((s, r) => s + r.parciais, 0);
+    const pendentes = rows.reduce((s, r) => s + r.pendentes, 0);
+
+    return { rows, total, quitadas, parciais, pendentes };
+  }, [cobrAtual, pessoas.nomeRep]);
+
   const loading = lp1 || lc1 || ld1;
+
   const loadingOp = lo1 || lo2 || lo3 || lo4;
   const loadingPe = lpe1 || lpe2 || lc1;
   const loadingCr = lcr1 || lcr2;
