@@ -87,14 +87,15 @@ interface Cobranca {
   criado_em?: string | null;
 }
 
-interface Despesa {
+interface NotaPorRep {
   id: string;
-  descricao: string;
-  valor: number;
-  data_pagamento: string | null;
-  forma_pagamento: string | null;
-  ano_mes: string;
+  nome: string;
+  total: number;
+  quitadas: number;
+  parciais: number;
+  pendentes: number;
 }
+
 
 // ─── Fetch helpers ─────────────────────────────
 async function fetchPrestacoesPeriodo(inicio: string, fim: string) {
