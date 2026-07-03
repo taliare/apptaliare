@@ -96,6 +96,16 @@ interface NotaPorRep {
   pendentes: number;
 }
 
+interface Despesa {
+  id: string;
+  descricao: string;
+  valor: number;
+  data_pagamento: string | null;
+  forma_pagamento: string | null;
+  ano_mes: string;
+}
+
+
 
 // ─── Fetch helpers ─────────────────────────────
 async function fetchPrestacoesPeriodo(inicio: string, fim: string) {
