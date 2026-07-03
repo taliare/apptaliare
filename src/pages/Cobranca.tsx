@@ -258,16 +258,8 @@ export default function Cobranca() {
         descricao: `Devolução total registrada para ${cobranca?.revendedora || 'revendedora'}`,
         user: userLog,
       });
-    } else {
-      registrarLog({
-        tipo_acao: 'REGISTRO_PAGAMENTO',
-        pedido_id: cobrancaId,
-        valor_antes: cobranca?.valor_previsto,
-        valor_depois: dados.valor_devido_empresa,
-        descricao: `Pagamento completo registrado para ${cobranca?.revendedora || 'revendedora'} - ${formatarValor(dados.valor_devido_empresa)}`,
-        user: userLog,
-      });
     }
+    // Log de REGISTRO_PAGAMENTO agora é gravado automaticamente por gatilho no banco (AFTER INSERT em prestacoes_contas).
   };
 
   const handlePagamentoParcial = async (cobrancaId: string, dados: {
@@ -376,14 +368,7 @@ export default function Cobranca() {
     await queryClient.invalidateQueries({ queryKey: ['cobrancas-agendadas'] });
     await queryClient.invalidateQueries({ queryKey: ['notas-promissorias'] });
 
-    registrarLog({
-      tipo_acao: 'REGISTRO_PAGAMENTO',
-      pedido_id: cobrancaId,
-      valor_antes: cobranca?.valor_previsto,
-      valor_depois: dados.valor_recebido,
-      descricao: `Pagamento parcial de ${formatarValor(dados.valor_recebido)} registrado para ${cobranca?.revendedora || 'revendedora'}`,
-      user: { id: userId!, nome: profile?.nome || '', papel: profile?.role || 'representante' },
-    });
+    // Log de REGISTRO_PAGAMENTO agora é gravado automaticamente por gatilho no banco (AFTER INSERT em prestacoes_contas).
   };
 
   const reagendarMutation = useMutation({
