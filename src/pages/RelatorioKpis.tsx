@@ -13,8 +13,9 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+  Table, TableHeader, TableBody, TableHead, TableRow, TableCell, TableFooter,
 } from "@/components/ui/table";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   TrendingUp, TrendingDown, Minus, DollarSign, Target,
@@ -87,6 +88,15 @@ interface Cobranca {
   criado_em?: string | null;
 }
 
+interface NotaPorRep {
+  id: string;
+  nome: string;
+  total: number;
+  quitadas: number;
+  parciais: number;
+  pendentes: number;
+}
+
 interface Despesa {
   id: string;
   descricao: string;
@@ -95,6 +105,8 @@ interface Despesa {
   forma_pagamento: string | null;
   ano_mes: string;
 }
+
+
 
 // ─── Fetch helpers ─────────────────────────────
 async function fetchPrestacoesPeriodo(inicio: string, fim: string) {
@@ -995,7 +1007,44 @@ export default function RelatorioKpis() {
     return { vencidas30, campo90, repsSem7d, repBaixo, revAcumulo };
   }, [cobrAbertas, profilesAll, repsAtivos7d, pessoas.ranking]);
 
+  // ─── Notas a cobrar no mês por representante ───
+  const notasPorRep = useMemo(() => {
+    const nomeRep = pessoas.nomeRep;
+    const map = new Map<string, NotaPorRep>();
+    const notasMes = cobrAtual.filter(
+      c => c.status !== "cancelado" && Number(c.valor_previsto || 0) > 0
+    );
+
+    for (const c of notasMes) {
+      const rid = c.representante_id ?? "";
+      if (!map.has(rid)) {
+        map.set(rid, {
+          id: rid,
+          nome: nomeRep.get(rid) ?? (rid ? "(sem rep)" : "Sem representante"),
+          total: 0,
+          quitadas: 0,
+          parciais: 0,
+          pendentes: 0,
+        });
+      }
+      const r = map.get(rid)!;
+      r.total += 1;
+      if (c.status === "pago") r.quitadas += 1;
+      else if (c.status === "parcial") r.parciais += 1;
+      else if (c.status === "pendente") r.pendentes += 1;
+    }
+
+    const rows = Array.from(map.values()).sort((a, b) => b.total - a.total);
+    const total = rows.reduce((s, r) => s + r.total, 0);
+    const quitadas = rows.reduce((s, r) => s + r.quitadas, 0);
+    const parciais = rows.reduce((s, r) => s + r.parciais, 0);
+    const pendentes = rows.reduce((s, r) => s + r.pendentes, 0);
+
+    return { rows, total, quitadas, parciais, pendentes };
+  }, [cobrAtual, pessoas.nomeRep]);
+
   const loading = lp1 || lc1 || ld1;
+
   const loadingOp = lo1 || lo2 || lo3 || lo4;
   const loadingPe = lpe1 || lpe2 || lc1;
   const loadingCr = lcr1 || lcr2;
@@ -1180,112 +1229,165 @@ export default function RelatorioKpis() {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <KpiCard
-                    icon={<Boxes className="h-4 w-4" />}
-                    titulo="Kits em Campo"
-                    valor={fmt(op.kitsCampoValor)}
-                    subtitulo={`Mercadoria prevista em campo · ${op.kitsCampoCount} nota(s)`}
-                    accent="neutral"
-                    onClick={() => setDrill({
-                      tipo: "op_por_rep",
-                      titulo: "Kits em Campo — por representante",
-                      rows: op.kitsCampoRows,
-                      modo: "previsto",
-                      nomeRep: pessoas.nomeRep,
-                    })}
-                  />
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <KpiCard
+                      icon={<Boxes className="h-4 w-4" />}
+                      titulo="Kits em Campo"
+                      valor={fmt(op.kitsCampoValor)}
+                      subtitulo={`Mercadoria prevista em campo · ${op.kitsCampoCount} nota(s)`}
+                      accent="neutral"
+                      onClick={() => setDrill({
+                        tipo: "op_por_rep",
+                        titulo: "Kits em Campo — por representante",
+                        rows: op.kitsCampoRows,
+                        modo: "previsto",
+                        nomeRep: pessoas.nomeRep,
+                      })}
+                    />
 
-                  <KpiCard
-                    icon={<Hourglass className="h-4 w-4" />}
-                    titulo="A Receber"
-                    valor={fmt(op.aReceberValor)}
-                    subtitulo={`Saldo pendente após prestação de contas · ${op.aReceberCount} nota(s)`}
-                    accent="neutral"
-                    onClick={() => setDrill({
-                      tipo: "op_por_rep",
-                      titulo: "A Receber — por representante",
-                      rows: op.aReceberRows,
-                      modo: "saldo",
-                      nomeRep: pessoas.nomeRep,
-                    })}
-                  />
+                    <KpiCard
+                      icon={<Hourglass className="h-4 w-4" />}
+                      titulo="A Receber"
+                      valor={fmt(op.aReceberValor)}
+                      subtitulo={`Saldo pendente após prestação de contas · ${op.aReceberCount} nota(s)`}
+                      accent="neutral"
+                      onClick={() => setDrill({
+                        tipo: "op_por_rep",
+                        titulo: "A Receber — por representante",
+                        rows: op.aReceberRows,
+                        modo: "saldo",
+                        nomeRep: pessoas.nomeRep,
+                      })}
+                    />
 
 
-                  <KpiCard
-                    icon={<Clock className="h-4 w-4" />}
-                    titulo="Tempo Médio de Retorno"
-                    valor={`${op.tempoMedioRetorno.toFixed(0)} dias`}
-                    subtitulo={`${op.retornoRows.length} kit(s) encerrado(s) no período`}
-                    accent={
-                      op.tempoMedioRetorno < 45 ? "green" :
-                      op.tempoMedioRetorno <= 90 ? "neutral" : "red"
-                    }
-                    onClick={() => setDrill({
-                      tipo: "op_tempo",
-                      titulo: "Tempo de Retorno — Kits encerrados",
-                      rows: op.retornoRows,
-                    })}
-                  />
+                    <KpiCard
+                      icon={<Clock className="h-4 w-4" />}
+                      titulo="Tempo Médio de Retorno"
+                      valor={`${op.tempoMedioRetorno.toFixed(0)} dias`}
+                      subtitulo={`${op.retornoRows.length} kit(s) encerrado(s) no período`}
+                      accent={
+                        op.tempoMedioRetorno < 45 ? "green" :
+                        op.tempoMedioRetorno <= 90 ? "neutral" : "red"
+                      }
+                      onClick={() => setDrill({
+                        tipo: "op_tempo",
+                        titulo: "Tempo de Retorno — Kits encerrados",
+                        rows: op.retornoRows,
+                      })}
+                    />
 
-                  <KpiCard
-                    icon={<RotateCcw className="h-4 w-4" />}
-                    titulo="Taxa de Devolução Total"
-                    valor={fmtPct(op.taxaDevolucao)}
-                    subtitulo={`Kits que voltaram sem nenhuma venda · ${op.devolvidasEncerradas.length}/${op.encerradasTotal}`}
-                    accent={op.taxaDevolucao > 20 ? "red" : op.taxaDevolucao > 10 ? "neutral" : "green"}
-                    onClick={() => setDrill({
-                      tipo: "op_cobrancas",
-                      titulo: "Kits devolvidos totalmente no período",
-                      rows: op.devolvidasEncerradas,
-                    })}
-                  />
+                    <KpiCard
+                      icon={<RotateCcw className="h-4 w-4" />}
+                      titulo="Taxa de Devolução Total"
+                      valor={fmtPct(op.taxaDevolucao)}
+                      subtitulo={`Kits que voltaram sem nenhuma venda · ${op.devolvidasEncerradas.length}/${op.encerradasTotal}`}
+                      accent={op.taxaDevolucao > 20 ? "red" : op.taxaDevolucao > 10 ? "neutral" : "green"}
+                      onClick={() => setDrill({
+                        tipo: "op_cobrancas",
+                        titulo: "Kits devolvidos totalmente no período",
+                        rows: op.devolvidasEncerradas,
+                      })}
+                    />
 
-                  <KpiCard
-                    icon={<AlertTriangle className="h-4 w-4" />}
-                    titulo="Notas em Atraso"
-                    valor={String(op.atrasadas.length)}
-                    subtitulo={`0-30: ${op.atraso030.length} · 31-60: ${op.atraso3160.length} · +60: ${op.atraso60plus.length}`}
-                    accent={op.atraso60plus.length > 0 ? "red" : op.atraso3160.length > 0 ? "neutral" : "green"}
-                    onClick={() => setDrill({
-                      tipo: "op_atraso",
-                      titulo: "Notas em Atraso (snapshot atual)",
-                      rows: op.atrasadas,
-                    })}
-                  />
+                    <KpiCard
+                      icon={<AlertTriangle className="h-4 w-4" />}
+                      titulo="Notas em Atraso"
+                      valor={String(op.atrasadas.length)}
+                      subtitulo={`0-30: ${op.atraso030.length} · 31-60: ${op.atraso3160.length} · +60: ${op.atraso60plus.length}`}
+                      accent={op.atraso60plus.length > 0 ? "red" : op.atraso3160.length > 0 ? "neutral" : "green"}
+                      onClick={() => setDrill({
+                        tipo: "op_atraso",
+                        titulo: "Notas em Atraso (snapshot atual)",
+                        rows: op.atrasadas,
+                      })}
+                    />
 
-                  <KpiCard
-                    icon={<Scale className="h-4 w-4" />}
-                    titulo="Notas no Jurídico"
-                    valor={String(op.juridicoCountAtual)}
-                    subtitulo={`${fmt(op.juridicoValorAtual)} encaminhado`}
-                    atual={op.juridicoCountAtual}
-                    anterior={op.juridicoCountPrev}
-                    accent={op.juridicoCountAtual > op.juridicoCountPrev ? "red" : "neutral"}
-                    onClick={() => setDrill({
-                      tipo: "op_cobrancas",
-                      titulo: "Notas encaminhadas ao Jurídico",
-                      rows: juridicoAtual,
-                      mostrarSaldo: true,
-                    })}
-                  />
+                    <KpiCard
+                      icon={<Scale className="h-4 w-4" />}
+                      titulo="Notas no Jurídico"
+                      valor={String(op.juridicoCountAtual)}
+                      subtitulo={`${fmt(op.juridicoValorAtual)} encaminhado`}
+                      atual={op.juridicoCountAtual}
+                      anterior={op.juridicoCountPrev}
+                      accent={op.juridicoCountAtual > op.juridicoCountPrev ? "red" : "neutral"}
+                      onClick={() => setDrill({
+                        tipo: "op_cobrancas",
+                        titulo: "Notas encaminhadas ao Jurídico",
+                        rows: juridicoAtual,
+                        mostrarSaldo: true,
+                      })}
+                    />
 
-                  <KpiCard
-                    icon={<Hourglass className="h-4 w-4" />}
-                    titulo="Prazo Médio de Recebimento"
-                    valor={`${op.prazoMedio.toFixed(0)} dias`}
-                    subtitulo={`0 dias = quitou tudo na 1ª prestação · ${op.prazoRows.length} nota(s)`}
-                    accent={
-                      op.prazoMedio < 30 ? "green" :
-                      op.prazoMedio <= 60 ? "neutral" : "red"
-                    }
-                    onClick={() => setDrill({
-                      tipo: "op_prazo",
-                      titulo: "Prazo de Recebimento — Agendamento → 1º pagamento",
-                      rows: op.prazoRows,
-                    })}
-                  />
-                </div>
+                    <KpiCard
+                      icon={<Hourglass className="h-4 w-4" />}
+                      titulo="Prazo Médio de Recebimento"
+                      valor={`${op.prazoMedio.toFixed(0)} dias`}
+                      subtitulo={`0 dias = quitou tudo na 1ª prestação · ${op.prazoRows.length} nota(s)`}
+                      accent={
+                        op.prazoMedio < 30 ? "green" :
+                        op.prazoMedio <= 60 ? "neutral" : "red"
+                      }
+                      onClick={() => setDrill({
+                        tipo: "op_prazo",
+                        titulo: "Prazo de Recebimento — Agendamento → 1º pagamento",
+                        rows: op.prazoRows,
+                      })}
+                    />
+                  </div>
+
+                  <Card className="mt-4">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Receipt className="h-4 w-4 text-primary" />
+                        <span className="font-semibold">Notas a cobrar no mês — por representante</span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          Total: <span className="font-mono">{notasPorRep.total}</span>
+                        </span>
+                      </div>
+                      {notasPorRep.rows.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">
+                          Sem dados de notas para o período.
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Representante</TableHead>
+                                <TableHead className="text-right">Total a cobrar</TableHead>
+                                <TableHead className="text-right">Quitadas</TableHead>
+                                <TableHead className="text-right">Parciais</TableHead>
+                                <TableHead className="text-right">Pendentes</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {notasPorRep.rows.map((r) => (
+                                <TableRow key={r.id}>
+                                  <TableCell className="font-medium">{r.nome}</TableCell>
+                                  <TableCell className="text-right font-mono tabular-nums">{r.total}</TableCell>
+                                  <TableCell className="text-right font-mono tabular-nums text-green-600 dark:text-green-400">{r.quitadas}</TableCell>
+                                  <TableCell className="text-right font-mono tabular-nums text-yellow-600 dark:text-yellow-400">{r.parciais}</TableCell>
+                                  <TableCell className="text-right font-mono tabular-nums text-red-600 dark:text-red-400">{r.pendentes}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                            <TableFooter>
+                              <TableRow>
+                                <TableCell>Total geral</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{notasPorRep.total}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{notasPorRep.quitadas}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{notasPorRep.parciais}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{notasPorRep.pendentes}</TableCell>
+                              </TableRow>
+                            </TableFooter>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
               )}
             </div>
           </CollapsibleContent>
