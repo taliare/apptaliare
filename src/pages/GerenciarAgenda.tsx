@@ -82,6 +82,7 @@ export default function GerenciarAgenda() {
 
   // Ajuste administrativo
   const [ajusteOpen, setAjusteOpen] = useState(false);
+  const [historicoReagCobranca, setHistoricoReagCobranca] = useState<Cobranca | null>(null);
   const [ajusteQuitarTotal, setAjusteQuitarTotal] = useState(false);
   const [ajusteValor, setAjusteValor] = useState('');
   const [ajusteMotivo, setAjusteMotivo] = useState('');
