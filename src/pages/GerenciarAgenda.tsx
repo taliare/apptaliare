@@ -1793,6 +1793,13 @@ export default function GerenciarAgenda() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <HistoricoReagendamentosDialog
+        open={!!historicoReagCobranca}
+        onOpenChange={(v) => { if (!v) setHistoricoReagCobranca(null); }}
+        cobrancaId={historicoReagCobranca?.id ?? null}
+        contagem={historicoReagCobranca?.contagem_reagendamentos ?? 0}
+      />
     </div>
   );
 }
