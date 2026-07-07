@@ -1010,7 +1010,23 @@ export default function GerenciarAgenda() {
                                   })()}
                                 </TableCell>
                                 <TableCell>
-                                  {formatDateBR(cobranca.data_agendada)}
+                                  <div className="flex items-center gap-2">
+                                    <span>{formatDateBR(cobranca.data_agendada)}</span>
+                                    {(cobranca.contagem_reagendamentos ?? 0) > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setHistoricoReagCobranca(cobranca);
+                                        }}
+                                        title="Ver histórico de reagendamentos"
+                                        className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                                      >
+                                        <History className="h-3 w-3" />
+                                        {cobranca.contagem_reagendamentos}
+                                      </button>
+                                    )}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   {(() => {
