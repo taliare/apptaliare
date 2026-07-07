@@ -1878,6 +1878,47 @@ export type Database = {
         }
         Relationships: []
       }
+      reagendamentos_historico: {
+        Row: {
+          cobranca_id: string
+          criado_em: string
+          data_anterior: string | null
+          data_nova: string | null
+          id: string
+          nome_usuario: string | null
+          representante_id: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          cobranca_id: string
+          criado_em?: string
+          data_anterior?: string | null
+          data_nova?: string | null
+          id?: string
+          nome_usuario?: string | null
+          representante_id?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          cobranca_id?: string
+          criado_em?: string
+          data_anterior?: string | null
+          data_nova?: string | null
+          id?: string
+          nome_usuario?: string | null
+          representante_id?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reagendamentos_historico_cobranca_id_fkey"
+            columns: ["cobranca_id"]
+            isOneToOne: false
+            referencedRelation: "cobrancas_agendadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       repasses: {
         Row: {
           atualizado_em: string | null

@@ -15,7 +15,8 @@ import { profilesLimited } from '@/lib/profilesLimited';
 import { useToast } from '@/hooks/use-toast';
 import { format, getDate, getDay, startOfMonth, getMonth, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Edit, Search, Plus, Trash2, CheckSquare, ChevronRight, Scale, RefreshCw } from 'lucide-react';
+import { Edit, Search, Plus, Trash2, CheckSquare, ChevronRight, Scale, RefreshCw, History } from 'lucide-react';
+import { HistoricoReagendamentosDialog } from '@/components/agenda/HistoricoReagendamentosDialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Database } from '@/integrations/supabase/types';
 import { formatarValor, formatDateBR, parseLocalDate, getLocalDateString } from '@/lib/utils';
@@ -81,6 +82,7 @@ export default function GerenciarAgenda() {
 
   // Ajuste administrativo
   const [ajusteOpen, setAjusteOpen] = useState(false);
+  const [historicoReagCobranca, setHistoricoReagCobranca] = useState<Cobranca | null>(null);
   const [ajusteQuitarTotal, setAjusteQuitarTotal] = useState(false);
   const [ajusteValor, setAjusteValor] = useState('');
   const [ajusteMotivo, setAjusteMotivo] = useState('');
@@ -1008,7 +1010,23 @@ export default function GerenciarAgenda() {
                                   })()}
                                 </TableCell>
                                 <TableCell>
-                                  {formatDateBR(cobranca.data_agendada)}
+                                  <div className="flex items-center gap-2">
+                                    <span>{formatDateBR(cobranca.data_agendada)}</span>
+                                    {(cobranca.contagem_reagendamentos ?? 0) > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setHistoricoReagCobranca(cobranca);
+                                        }}
+                                        title="Ver histórico de reagendamentos"
+                                        className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                                      >
+                                        <History className="h-3 w-3" />
+                                        {cobranca.contagem_reagendamentos}
+                                      </button>
+                                    )}
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   {(() => {
@@ -1775,6 +1793,13 @@ export default function GerenciarAgenda() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <HistoricoReagendamentosDialog
+        open={!!historicoReagCobranca}
+        onOpenChange={(v) => { if (!v) setHistoricoReagCobranca(null); }}
+        cobrancaId={historicoReagCobranca?.id ?? null}
+        contagem={historicoReagCobranca?.contagem_reagendamentos ?? 0}
+      />
     </div>
   );
 }
