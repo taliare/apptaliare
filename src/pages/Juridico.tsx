@@ -306,7 +306,7 @@ export default function Juridico() {
             <Scale className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium">Nenhuma nota no jurídico</h3>
             <p className="text-muted-foreground">
-              {filtroRepresentante !== 'todos' || dateRange
+              {filtroRepresentante !== 'todos' || dateRange || busca
                 ? 'Nenhuma nota encontrada com os filtros aplicados.'
                 : 'Não há notas encaminhadas ao jurídico no momento.'}
             </p>
