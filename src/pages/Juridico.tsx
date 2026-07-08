@@ -324,6 +324,12 @@ export default function Juridico() {
                         Jurídico
                       </Badge>
                       <span className="font-semibold text-base sm:text-lg truncate">{cobranca.revendedora}</span>
+                      {(() => {
+                        const cpf = cpfPorNome.get(normalizarNome(cobranca.revendedora || ''));
+                        return cpf ? (
+                          <span className="text-xs text-muted-foreground font-mono">CPF: {cpf}</span>
+                        ) : null;
+                      })()}
                     </div>
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 text-xs sm:text-sm">
