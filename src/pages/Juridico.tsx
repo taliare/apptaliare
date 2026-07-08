@@ -183,6 +183,7 @@ export default function Juridico() {
   const limparFiltros = () => {
     setFiltroRepresentante('todos');
     setDateRange(undefined);
+    setBusca('');
   };
 
   if (isLoading) {
