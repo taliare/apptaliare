@@ -222,6 +222,18 @@ export default function Juridico() {
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-end">
+            <div className="w-full sm:w-72">
+              <Label className="text-xs sm:text-sm mb-2 block">Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar por nome ou CPF"
+                  className="pl-8"
+                />
+              </div>
+            </div>
             <div className="w-full sm:w-64">
               <Label className="text-xs sm:text-sm mb-2 block">Representante</Label>
               <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
