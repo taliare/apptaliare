@@ -77,6 +77,24 @@ export default function Juridico() {
     },
   });
 
+  // Buscar revendedoras (nome + cpf) para permitir busca por CPF e exibição
+  const { data: revendedorasList = [] } = useQuery({
+    queryKey: ['revendedoras-nome-cpf'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('revendedoras')
+        .select('nome, cpf');
+      if (error) throw error;
+      return (data || []) as { nome: string | null; cpf: string | null }[];
+    },
+  });
+
+  const cpfPorNome = new Map<string, string>();
+  for (const r of revendedorasList) {
+    const key = normalizarNome(r.nome || '');
+    if (key && r.cpf && !cpfPorNome.has(key)) cpfPorNome.set(key, r.cpf);
+  }
+
   // Buscar representantes únicos que têm notas no jurídico
   const representantesUnicos = Array.from(
     new Map(
@@ -85,6 +103,9 @@ export default function Juridico() {
         .map(c => [c.representante_id, { id: c.representante_id, nome: c.profiles?.nome || '' }])
     ).values()
   );
+
+  const buscaNorm = normalizarNome(busca);
+  const buscaDigitos = somenteDigitos(busca);
 
   // Aplicar filtros
   const cobrancasFiltradas = cobrancasJuridico.filter(c => {
@@ -99,7 +120,16 @@ export default function Juridico() {
       if (dataEnc < dateRange.from) return false;
       if (dateRange.to && dataEnc > dateRange.to) return false;
     }
-    
+
+    // Filtro por busca (nome ou CPF)
+    if (buscaNorm) {
+      const nomeNorm = normalizarNome(c.revendedora || '');
+      const cpfDigits = somenteDigitos(cpfPorNome.get(nomeNorm) || '');
+      const matchNome = nomeNorm.includes(buscaNorm);
+      const matchCpf = buscaDigitos.length > 0 && cpfDigits.includes(buscaDigitos);
+      if (!matchNome && !matchCpf) return false;
+    }
+
     return true;
   });
 
