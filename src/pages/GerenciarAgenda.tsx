@@ -392,6 +392,7 @@ export default function GerenciarAgenda() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['todas-cobrancas-admin'] });
+      queryClient.invalidateQueries({ queryKey: ['cobrancas-juridico'] });
       toast({ title: 'Cobrança encaminhada ao jurídico com sucesso!' });
       setJuridicoCobranca(null);
     },
