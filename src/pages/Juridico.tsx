@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Calendar as CalendarIcon, Scale, User, FileText, Clock, RotateCcw, Filter } from 'lucide-react';
+import { Calendar as CalendarIcon, Scale, User, FileText, Clock, RotateCcw, Filter, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +37,16 @@ export default function Juridico() {
   
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [busca, setBusca] = useState<string>('');
+
+  const normalizarNome = (s: string) =>
+    (s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .replace(/\s+/g, ' ');
+  const somenteDigitos = (s: string) => (s || '').replace(/\D/g, '');
   
   const [modalRetornarOpen, setModalRetornarOpen] = useState(false);
   const [cobrancaParaRetornar, setCobrancaParaRetornar] = useState<CobrancaJuridico | null>(null);
@@ -66,6 +77,24 @@ export default function Juridico() {
     },
   });
 
+  // Buscar revendedoras (nome + cpf) para permitir busca por CPF e exibição
+  const { data: revendedorasList = [] } = useQuery({
+    queryKey: ['revendedoras-nome-cpf'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('revendedoras')
+        .select('nome, cpf');
+      if (error) throw error;
+      return (data || []) as { nome: string | null; cpf: string | null }[];
+    },
+  });
+
+  const cpfPorNome = new Map<string, string>();
+  for (const r of revendedorasList) {
+    const key = normalizarNome(r.nome || '');
+    if (key && r.cpf && !cpfPorNome.has(key)) cpfPorNome.set(key, r.cpf);
+  }
+
   // Buscar representantes únicos que têm notas no jurídico
   const representantesUnicos = Array.from(
     new Map(
@@ -74,6 +103,9 @@ export default function Juridico() {
         .map(c => [c.representante_id, { id: c.representante_id, nome: c.profiles?.nome || '' }])
     ).values()
   );
+
+  const buscaNorm = normalizarNome(busca);
+  const buscaDigitos = somenteDigitos(busca);
 
   // Aplicar filtros
   const cobrancasFiltradas = cobrancasJuridico.filter(c => {
@@ -88,7 +120,16 @@ export default function Juridico() {
       if (dataEnc < dateRange.from) return false;
       if (dateRange.to && dataEnc > dateRange.to) return false;
     }
-    
+
+    // Filtro por busca (nome ou CPF)
+    if (buscaNorm) {
+      const nomeNorm = normalizarNome(c.revendedora || '');
+      const cpfDigits = somenteDigitos(cpfPorNome.get(nomeNorm) || '');
+      const matchNome = nomeNorm.includes(buscaNorm);
+      const matchCpf = buscaDigitos.length > 0 && cpfDigits.includes(buscaDigitos);
+      if (!matchNome && !matchCpf) return false;
+    }
+
     return true;
   });
 
@@ -142,6 +183,7 @@ export default function Juridico() {
   const limparFiltros = () => {
     setFiltroRepresentante('todos');
     setDateRange(undefined);
+    setBusca('');
   };
 
   if (isLoading) {
@@ -180,6 +222,18 @@ export default function Juridico() {
         </CardHeader>
         <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-end">
+            <div className="w-full sm:w-72">
+              <Label className="text-xs sm:text-sm mb-2 block">Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar por nome ou CPF"
+                  className="pl-8"
+                />
+              </div>
+            </div>
             <div className="w-full sm:w-64">
               <Label className="text-xs sm:text-sm mb-2 block">Representante</Label>
               <Select value={filtroRepresentante} onValueChange={setFiltroRepresentante}>
@@ -252,7 +306,7 @@ export default function Juridico() {
             <Scale className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium">Nenhuma nota no jurídico</h3>
             <p className="text-muted-foreground">
-              {filtroRepresentante !== 'todos' || dateRange
+              {filtroRepresentante !== 'todos' || dateRange || busca
                 ? 'Nenhuma nota encontrada com os filtros aplicados.'
                 : 'Não há notas encaminhadas ao jurídico no momento.'}
             </p>
@@ -270,6 +324,12 @@ export default function Juridico() {
                         Jurídico
                       </Badge>
                       <span className="font-semibold text-base sm:text-lg truncate">{cobranca.revendedora}</span>
+                      {(() => {
+                        const cpf = cpfPorNome.get(normalizarNome(cobranca.revendedora || ''));
+                        return cpf ? (
+                          <span className="text-xs text-muted-foreground font-mono">CPF: {cpf}</span>
+                        ) : null;
+                      })()}
                     </div>
                     
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 text-xs sm:text-sm">
