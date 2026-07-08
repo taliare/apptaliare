@@ -37,6 +37,16 @@ export default function Juridico() {
   
   const [filtroRepresentante, setFiltroRepresentante] = useState<string>('todos');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [busca, setBusca] = useState<string>('');
+
+  const normalizarNome = (s: string) =>
+    (s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .replace(/\s+/g, ' ');
+  const somenteDigitos = (s: string) => (s || '').replace(/\D/g, '');
   
   const [modalRetornarOpen, setModalRetornarOpen] = useState(false);
   const [cobrancaParaRetornar, setCobrancaParaRetornar] = useState<CobrancaJuridico | null>(null);
