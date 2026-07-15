@@ -2448,6 +2448,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      calcular_situacao_revendedora: {
+        Args: { p_nome: string }
+        Returns: {
+          nome: string
+          situacao: string
+          valor_pendente: number
+          whatsapp: string
+        }[]
+      }
       checar_duplicidade_revendedora: {
         Args: {
           p_cpf: string
@@ -2474,6 +2483,10 @@ export type Database = {
           p_vendedora_nome?: string
         }
         Returns: Json
+      }
+      enviar_webhook_atendro: {
+        Args: { p_revendedora_nome: string }
+        Returns: undefined
       }
       get_valor_original_kit: {
         Args: { p_kit_entregue_id: string }
