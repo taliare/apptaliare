@@ -163,7 +163,7 @@ function LinhaDRE({
 // Main component
 // ─────────────────────────────────────────────
 type DrilldownTipo =
-  | "faturamento" | "comissoes" | "descontos" | "recuperacao" | "inadimplencia" | "em_aberto_anterior"
+  | "faturamento" | "comissoes" | "descontos" | "recuperacao" | "inadimplencia" | "em_aberto_anterior" | "despesa_cobranca"
   | { categoriaId: string; categoriaNome: string }
   | null;
 
@@ -281,6 +281,45 @@ export default function DreResumo() {
     },
   });
 
+  // ── 7. Despesa de cobrança (fechamento diário dos representantes) ──
+  const { data: despesaCobrancaRows = [], isLoading: loadingDespCobr } = useQuery({
+    queryKey: ["dre_despesa_cobranca", anoMes],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cobrancas_diarias")
+        .select("representante_id, despesa_cobranca")
+        .gte("data", dataInicio)
+        .lte("data", dataFim);
+      if (error) throw error;
+      return (data ?? []) as Array<{ representante_id: string; despesa_cobranca: number | null }>;
+    },
+  });
+
+  const totalDespesaCobranca = useMemo(
+    () => despesaCobrancaRows.reduce((s, r) => s + Number(r.despesa_cobranca || 0), 0),
+    [despesaCobrancaRows]
+  );
+
+  const repIdsDespesaCobranca = useMemo(
+    () => [...new Set(despesaCobrancaRows.filter(r => Number(r.despesa_cobranca || 0) > 0).map(r => r.representante_id))],
+    [despesaCobrancaRows]
+  );
+
+  const { data: nomesRepresentantes = {} } = useQuery({
+    queryKey: ["dre_nomes_reps", repIdsDespesaCobranca.join(",")],
+    enabled: repIdsDespesaCobranca.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .in("id", repIdsDespesaCobranca);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      for (const p of data ?? []) map[p.id] = p.nome;
+      return map;
+    },
+  });
+
   // ─────────────────────────────────────────────
   // Cálculos
   // ─────────────────────────────────────────────
@@ -313,7 +352,7 @@ export default function DreResumo() {
   for (const d of despesas) {
     totaisPorCategoria[d.categoria_id] = (totaisPorCategoria[d.categoria_id] ?? 0) + Number(d.valor);
   }
-  const totalDespesas = Object.values(totaisPorCategoria).reduce((a, b) => a + b, 0);
+  const totalDespesas = Object.values(totaisPorCategoria).reduce((a, b) => a + b, 0) + totalDespesaCobranca;
   const resultado = receitaLiquidaTotal - totalDespesas;
 
   const categoriasComDespesas = categorias
@@ -322,7 +361,7 @@ export default function DreResumo() {
 
   const totalEmAbertoAnterior = prestacoesAbertas.reduce((s, p) => s + Number(p.saldo_devedor), 0);
 
-  const isLoading = loadingVendas || loadingRegistros || loadingAbertas || loadingDesp || loadingRecup;
+  const isLoading = loadingVendas || loadingRegistros || loadingAbertas || loadingDesp || loadingRecup || loadingDespCobr;
 
   // ─────────────────────────────────────────────
   // Drilldowns
@@ -335,6 +374,7 @@ export default function DreResumo() {
     if (drilldown === "recuperacao") return "Recuperação de Inadimplência";
     if (drilldown === "inadimplencia") return "Inadimplência do Mês";
     if (drilldown === "em_aberto_anterior") return "Saldo em Aberto — Meses Anteriores";
+    if (drilldown === "despesa_cobranca") return "Despesa de Cobrança — por Representante";
     if (typeof drilldown === "object") return drilldown.categoriaNome;
     return "";
   })();
@@ -481,6 +521,43 @@ export default function DreResumo() {
 
     if (drilldown === "em_aberto_anterior") return tabelaPrestacoes(prestacoesAbertas, true);
 
+    if (drilldown === "despesa_cobranca") {
+      const porRep: Record<string, number> = {};
+      for (const r of despesaCobrancaRows) {
+        const v = Number(r.despesa_cobranca || 0);
+        if (v <= 0) continue;
+        porRep[r.representante_id] = (porRep[r.representante_id] ?? 0) + v;
+      }
+      const linhas = Object.entries(porRep)
+        .map(([id, total]) => ({ id, nome: nomesRepresentantes[id] ?? "—", total }))
+        .sort((a, b) => b.total - a.total);
+      if (linhas.length === 0) return <p className="text-sm text-muted-foreground py-4">Nenhuma despesa de cobrança neste mês.</p>;
+      return (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Representante</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {linhas.map(l => (
+              <TableRow key={l.id}>
+                <TableCell className="font-medium">{l.nome}</TableCell>
+                <TableCell className="text-right font-mono text-red-600">{fmt(l.total)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell>Total</TableCell>
+              <TableCell className="text-right font-mono text-red-600">{fmt(totalDespesaCobranca)}</TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      );
+    }
+
     if (typeof drilldown === "object") {
       const despesasCat = despesas.filter(d => d.categoria_id === drilldown.categoriaId);
       const totalCat = despesasCat.reduce((s, d) => s + Number(d.valor), 0);
@@ -547,7 +624,10 @@ export default function DreResumo() {
 
     const despLinhas = categoriasComDespesas
       .map(c => `<tr><td>(-) ${escapeHtml(c.nome)}</td><td class="r neg">(${fmt(totaisPorCategoria[c.id] ?? 0)})</td></tr>`)
-      .join("");
+      .join("")
+      + (totalDespesaCobranca > 0
+        ? `<tr><td>(-) Despesa de Cobrança</td><td class="r neg">(${fmt(totalDespesaCobranca)})</td></tr>`
+        : "");
 
     const corResultado = resultado >= 0 ? "pos" : "neg";
 
@@ -712,7 +792,7 @@ export default function DreResumo() {
                 Despesas
               </div>
 
-              {categoriasComDespesas.length === 0 ? (
+              {categoriasComDespesas.length === 0 && totalDespesaCobranca <= 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground text-center">
                   Nenhuma despesa paga registrada neste período.
                 </p>
@@ -728,6 +808,18 @@ export default function DreResumo() {
                   />
                 ))
               )}
+
+              {totalDespesaCobranca > 0 && (
+                <LinhaDRE
+                  icone={<Receipt className="h-4 w-4 text-red-600" />}
+                  label="(-) Despesa de Cobrança"
+                  sublabel="Despesas que os representantes registram no fechamento"
+                  valor={totalDespesaCobranca}
+                  variant="despesa"
+                  onClick={() => setDrilldown("despesa_cobranca")}
+                />
+              )}
+
 
               <LinhaDRE
                 icone={<Equal className="h-4 w-4" />}
