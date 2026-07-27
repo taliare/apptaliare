@@ -361,7 +361,7 @@ export default function DreResumo() {
 
   const totalEmAbertoAnterior = prestacoesAbertas.reduce((s, p) => s + Number(p.saldo_devedor), 0);
 
-  const isLoading = loadingVendas || loadingRegistros || loadingAbertas || loadingDesp || loadingRecup;
+  const isLoading = loadingVendas || loadingRegistros || loadingAbertas || loadingDesp || loadingRecup || loadingDespCobr;
 
   // ─────────────────────────────────────────────
   // Drilldowns
