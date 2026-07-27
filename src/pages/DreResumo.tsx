@@ -624,7 +624,10 @@ export default function DreResumo() {
 
     const despLinhas = categoriasComDespesas
       .map(c => `<tr><td>(-) ${escapeHtml(c.nome)}</td><td class="r neg">(${fmt(totaisPorCategoria[c.id] ?? 0)})</td></tr>`)
-      .join("");
+      .join("")
+      + (totalDespesaCobranca > 0
+        ? `<tr><td>(-) Despesa de Cobrança</td><td class="r neg">(${fmt(totalDespesaCobranca)})</td></tr>`
+        : "");
 
     const corResultado = resultado >= 0 ? "pos" : "neg";
 
