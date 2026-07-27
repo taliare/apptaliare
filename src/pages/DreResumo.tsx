@@ -163,7 +163,7 @@ function LinhaDRE({
 // Main component
 // ─────────────────────────────────────────────
 type DrilldownTipo =
-  | "faturamento" | "comissoes" | "descontos" | "recuperacao" | "inadimplencia" | "em_aberto_anterior"
+  | "faturamento" | "comissoes" | "descontos" | "recuperacao" | "inadimplencia" | "em_aberto_anterior" | "despesa_cobranca"
   | { categoriaId: string; categoriaNome: string }
   | null;
 
