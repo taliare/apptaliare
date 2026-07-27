@@ -352,7 +352,7 @@ export default function DreResumo() {
   for (const d of despesas) {
     totaisPorCategoria[d.categoria_id] = (totaisPorCategoria[d.categoria_id] ?? 0) + Number(d.valor);
   }
-  const totalDespesas = Object.values(totaisPorCategoria).reduce((a, b) => a + b, 0);
+  const totalDespesas = Object.values(totaisPorCategoria).reduce((a, b) => a + b, 0) + totalDespesaCobranca;
   const resultado = receitaLiquidaTotal - totalDespesas;
 
   const categoriasComDespesas = categorias
