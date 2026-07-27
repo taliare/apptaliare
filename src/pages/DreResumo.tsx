@@ -281,6 +281,45 @@ export default function DreResumo() {
     },
   });
 
+  // ── 7. Despesa de cobrança (fechamento diário dos representantes) ──
+  const { data: despesaCobrancaRows = [], isLoading: loadingDespCobr } = useQuery({
+    queryKey: ["dre_despesa_cobranca", anoMes],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cobrancas_diarias")
+        .select("representante_id, despesa_cobranca")
+        .gte("data", dataInicio)
+        .lte("data", dataFim);
+      if (error) throw error;
+      return (data ?? []) as Array<{ representante_id: string; despesa_cobranca: number | null }>;
+    },
+  });
+
+  const totalDespesaCobranca = useMemo(
+    () => despesaCobrancaRows.reduce((s, r) => s + Number(r.despesa_cobranca || 0), 0),
+    [despesaCobrancaRows]
+  );
+
+  const repIdsDespesaCobranca = useMemo(
+    () => [...new Set(despesaCobrancaRows.filter(r => Number(r.despesa_cobranca || 0) > 0).map(r => r.representante_id))],
+    [despesaCobrancaRows]
+  );
+
+  const { data: nomesRepresentantes = {} } = useQuery({
+    queryKey: ["dre_nomes_reps", repIdsDespesaCobranca.join(",")],
+    enabled: repIdsDespesaCobranca.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .in("id", repIdsDespesaCobranca);
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      for (const p of data ?? []) map[p.id] = p.nome;
+      return map;
+    },
+  });
+
   // ─────────────────────────────────────────────
   // Cálculos
   // ─────────────────────────────────────────────
