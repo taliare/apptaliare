@@ -789,7 +789,7 @@ export default function DreResumo() {
                 Despesas
               </div>
 
-              {categoriasComDespesas.length === 0 ? (
+              {categoriasComDespesas.length === 0 && totalDespesaCobranca <= 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground text-center">
                   Nenhuma despesa paga registrada neste período.
                 </p>
@@ -805,6 +805,18 @@ export default function DreResumo() {
                   />
                 ))
               )}
+
+              {totalDespesaCobranca > 0 && (
+                <LinhaDRE
+                  icone={<Receipt className="h-4 w-4 text-red-600" />}
+                  label="(-) Despesa de Cobrança"
+                  sublabel="Despesas que os representantes registram no fechamento"
+                  valor={totalDespesaCobranca}
+                  variant="despesa"
+                  onClick={() => setDrilldown("despesa_cobranca")}
+                />
+              )}
+
 
               <LinhaDRE
                 icone={<Equal className="h-4 w-4" />}
