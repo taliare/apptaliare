@@ -374,6 +374,7 @@ export default function DreResumo() {
     if (drilldown === "recuperacao") return "Recuperação de Inadimplência";
     if (drilldown === "inadimplencia") return "Inadimplência do Mês";
     if (drilldown === "em_aberto_anterior") return "Saldo em Aberto — Meses Anteriores";
+    if (drilldown === "despesa_cobranca") return "Despesa de Cobrança — por Representante";
     if (typeof drilldown === "object") return drilldown.categoriaNome;
     return "";
   })();
