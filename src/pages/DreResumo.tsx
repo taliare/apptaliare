@@ -521,6 +521,43 @@ export default function DreResumo() {
 
     if (drilldown === "em_aberto_anterior") return tabelaPrestacoes(prestacoesAbertas, true);
 
+    if (drilldown === "despesa_cobranca") {
+      const porRep: Record<string, number> = {};
+      for (const r of despesaCobrancaRows) {
+        const v = Number(r.despesa_cobranca || 0);
+        if (v <= 0) continue;
+        porRep[r.representante_id] = (porRep[r.representante_id] ?? 0) + v;
+      }
+      const linhas = Object.entries(porRep)
+        .map(([id, total]) => ({ id, nome: nomesRepresentantes[id] ?? "—", total }))
+        .sort((a, b) => b.total - a.total);
+      if (linhas.length === 0) return <p className="text-sm text-muted-foreground py-4">Nenhuma despesa de cobrança neste mês.</p>;
+      return (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Representante</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {linhas.map(l => (
+              <TableRow key={l.id}>
+                <TableCell className="font-medium">{l.nome}</TableCell>
+                <TableCell className="text-right font-mono text-red-600">{fmt(l.total)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell>Total</TableCell>
+              <TableCell className="text-right font-mono text-red-600">{fmt(totalDespesaCobranca)}</TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      );
+    }
+
     if (typeof drilldown === "object") {
       const despesasCat = despesas.filter(d => d.categoria_id === drilldown.categoriaId);
       const totalCat = despesasCat.reduce((s, d) => s + Number(d.valor), 0);
