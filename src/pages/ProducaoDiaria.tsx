@@ -67,8 +67,37 @@ export default function ProducaoDiaria() {
       return;
     }
 
+    const codigos = allKits.map(k => k.codigo.trim());
+
+    // 1. Duplicatas dentro do próprio lote
+    const vistos = new Set<string>();
+    const repetidos = new Set<string>();
+    codigos.forEach(c => {
+      const chave = c.toUpperCase();
+      if (vistos.has(chave)) repetidos.add(c);
+      vistos.add(chave);
+    });
+    if (repetidos.size > 0) {
+      toast.error(`Código(s) repetido(s) no lote: ${Array.from(repetidos).join(', ')}. Cada kit precisa de um código único.`);
+      return;
+    }
+
     setLoading(true);
     try {
+      // 2. Códigos já existentes no estoque
+      const { data: existentes, error: checkError } = await supabase
+        .from('kits_estoque')
+        .select('codigo')
+        .in('codigo', codigos);
+
+      if (checkError) throw checkError;
+
+      if (existentes && existentes.length > 0) {
+        toast.error(`Estes códigos já estão cadastrados no estoque: ${existentes.map(e => e.codigo).join(', ')}. Use códigos diferentes.`);
+        setLoading(false);
+        return;
+      }
+
       const today = getLocalDateString();
       
       // Registrar produção com valor
