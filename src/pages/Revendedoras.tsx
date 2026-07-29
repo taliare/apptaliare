@@ -13,6 +13,7 @@ import { ImportExportRevendedorasDialog, exportarRevendedorasXlsx, baixarModeloR
 import { Badge } from '@/components/ui/badge';
 import RankingRevendedoras from '@/components/revendedoras/RankingRevendedoras';
 import MapaRevendedoras from '@/components/revendedoras/MapaRevendedoras';
+import BloqueadosJuridico from '@/components/revendedoras/BloqueadosJuridico';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
