@@ -599,23 +599,35 @@ export type Database = {
       }
       juridico_bloqueados: {
         Row: {
+          bloqueado: boolean
           cpf: string | null
           criado_em: string | null
           id: string
+          liberado_em: string | null
+          liberado_por: string | null
+          motivo_liberacao: string | null
           nome_norm: string
           origem: string | null
         }
         Insert: {
+          bloqueado?: boolean
           cpf?: string | null
           criado_em?: string | null
           id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          motivo_liberacao?: string | null
           nome_norm: string
           origem?: string | null
         }
         Update: {
+          bloqueado?: boolean
           cpf?: string | null
           criado_em?: string | null
           id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          motivo_liberacao?: string | null
           nome_norm?: string
           origem?: string | null
         }
@@ -2473,6 +2485,10 @@ export type Database = {
       }
       definir_pin_apuracao: { Args: { p_pin: string }; Returns: undefined }
       delete_lead_with_history: { Args: { p_lead_id: string }; Returns: Json }
+      desbloquear_juridico: {
+        Args: { p_id: string; p_motivo?: string }
+        Returns: undefined
+      }
       entregar_kit_para_revendedora: {
         Args: {
           p_data_vencimento: string
@@ -2503,6 +2519,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      rebloquear_juridico: { Args: { p_id: string }; Returns: undefined }
       recalcular_cobranca_por_historico: {
         Args: { p_cobranca_id: string }
         Returns: undefined
