@@ -468,7 +468,12 @@ export default function Revendedoras() {
         <TabsContent value="mapa">
           <MapaRevendedoras representantes={representantes} />
         </TabsContent>
+
+        <TabsContent value="bloqueadas">
+          <BloqueadosJuridico />
+        </TabsContent>
       </Tabs>
+
 
       <RevendedoraFormDialog
         open={formOpen}
