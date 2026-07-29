@@ -225,7 +225,9 @@ export default function Revendedoras() {
           <TabsTrigger value="listagem">Listagem</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
           <TabsTrigger value="mapa">Mapa</TabsTrigger>
+          <TabsTrigger value="bloqueadas">Bloqueadas</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="listagem">
           <div className="space-y-4">
