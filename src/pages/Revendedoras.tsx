@@ -13,6 +13,7 @@ import { ImportExportRevendedorasDialog, exportarRevendedorasXlsx, baixarModeloR
 import { Badge } from '@/components/ui/badge';
 import RankingRevendedoras from '@/components/revendedoras/RankingRevendedoras';
 import MapaRevendedoras from '@/components/revendedoras/MapaRevendedoras';
+import BloqueadosJuridico from '@/components/revendedoras/BloqueadosJuridico';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { profilesLimited } from '@/lib/profilesLimited';
@@ -224,7 +225,9 @@ export default function Revendedoras() {
           <TabsTrigger value="listagem">Listagem</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
           <TabsTrigger value="mapa">Mapa</TabsTrigger>
+          <TabsTrigger value="bloqueadas">Bloqueadas</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="listagem">
           <div className="space-y-4">
@@ -465,7 +468,12 @@ export default function Revendedoras() {
         <TabsContent value="mapa">
           <MapaRevendedoras representantes={representantes} />
         </TabsContent>
+
+        <TabsContent value="bloqueadas">
+          <BloqueadosJuridico />
+        </TabsContent>
       </Tabs>
+
 
       <RevendedoraFormDialog
         open={formOpen}
