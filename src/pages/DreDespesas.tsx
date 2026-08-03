@@ -375,6 +375,7 @@ export default function DreDespesas() {
           desconto,
           acrescimo,
           data_pagamento: dataPagamento,
+          ano_mes: dataPagamento.slice(0, 7),
           observacao: obs || despesa.observacao || null,
           atualizado_em: new Date().toISOString(),
         })
