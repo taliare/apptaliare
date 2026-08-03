@@ -2463,6 +2463,7 @@ export type Database = {
       calcular_situacao_revendedora: {
         Args: { p_nome: string }
         Returns: {
+          data_acerto: string
           nome: string
           situacao: string
           valor_pendente: number
